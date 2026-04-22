@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>產品需求文件 (PRD) — gendoc</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+</head>
+<body>
+  <header class="top-nav">
+    <a href="index.html" class="nav-brand">gendoc</a>
+    <div class="nav-controls">
+      <div class="search-wrap">
+        <input class="search-input" type="search" placeholder="搜尋文件...">
+        <div class="search-results"></div>
+      </div>
+      <a class="nav-gh-link" href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener">⌥ GitHub</a>
+      <button class="sidebar-toggle" id="sidebarToggle" title="收合/展開側欄">☰</button>
+    </div>
+  </header>
+  <div class="doc-page-banner">
+    <p class="banner-breadcrumb"><a href="index.html">gendoc</a> › 產品需求文件 (PRD)</p>
+    <h1 class="banner-title">產品需求文件 (PRD)</h1>
+  </div>
+  <div class="page-wrapper">
+    <aside class="sidebar" aria-label="文件導覽">
+      <div class="sidebar__section">
+        <div class="sidebar__label">文件</div>
+        <a class="sidebar__link" href="index.html">🏠 首頁</a>
+<a class="sidebar__link active" href="prd.html">📝 產品需求文件 (PRD)</a>
+      </div>
+    </aside>
+    <div class="sidebar-resizer" id="sidebarResizer"></div>
+    <main class="doc-content"><h1>PRD — Product Requirements Document</h1>
+<p>&lt;!-- 對應學術標準：IEEE 830 (SRS)，對應業界：Google PRD / Amazon PRFAQ --&gt;</p>
+<p>&lt;!-- Version: v1.1 | Status: DRAFT | DOC-ID: PRD-GENDOC-20260422 --&gt;</p>
+<hr>
+<h2>Document Control</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>DOC-ID</strong></td><td>PRD-GENDOC-20260422</td></tr>
+<tr><td><strong>產品名稱</strong></td><td>gendoc — AI-Driven Implementation Blueprint Generator</td></tr>
+<tr><td><strong>文件版本</strong></td><td>v1.1</td></tr>
+<tr><td><strong>狀態</strong></td><td>DRAFT</td></tr>
+<tr><td><strong>作者（PM）</strong></td><td>AI Product Manager Agent</td></tr>
+<tr><td><strong>日期</strong></td><td>2026-04-22</td></tr>
+<tr><td><strong>上游來源</strong></td><td>MYDEVSOP 文件生成流水線（devsop-gendoc / devsop-autogen）</td></tr>
+<tr><td><strong>審閱者</strong></td><td>技術架構師、QA Lead</td></tr>
+<tr><td><strong>核准者</strong></td><td>待定</td></tr>
+</table>
+<hr>
+<h2>Change Log</h2>
+<table>
+<tr><th>版本</th><th>日期</th><th>作者</th><th>變更摘要</th></tr>
+<tr><td>v1.1</td><td>2026-04-22</td><td>PM Agent</td><td>重新定位核心使命：從文件生成工具 → 可直接實作的開發藍圖生成器；補充藍圖細粒度品質標準</td></tr>
+<tr><td>v1.0</td><td>2026-04-22</td><td>PM Agent</td><td>初版 PRD，從 MYDEVSOP 文件生成子系統萃取，建立獨立 gendoc skill 套件</td></tr>
+</table>
+<hr>
+<h2>1. Executive Summary</h2>
+<h3>核心使命</h3>
+<p><strong>gendoc 的目標是：讓任何人或任何 AI，拿到產出的文件後，不需要問任何問題，就能直接開始實作。</strong></p>
+<p>市面上的文件生成工具產出的是「可閱讀的說明文件」，但 gendoc 產出的是「可實作的開發藍圖」。兩者的差距在於細粒度：</p>
+<table>
+<tr><th>普通技術文件</th><th>gendoc 開發藍圖</th></tr>
+<tr><td>描述功能意圖</td><td>定義到 class、method 簽名、參數型別</td></tr>
+<tr><td>說明 API 端點</td><td>包含每個欄位的型別、驗證規則、錯誤回應範例</td></tr>
+<tr><td>提及需要測試</td><td>列出具體測試情境、邊界值、等價類劃分</td></tr>
+<tr><td>描述資料結構</td><td>給出 Schema DDL、index 策略、constraint 定義</td></tr>
+<tr><td>說明架構組件</td><td>包含 sequence diagram、component 間呼叫合約</td></tr>
+</table>
+<h3>什麼是「可實作的藍圖」</h3>
+<p>gendoc 生成的每份文件都必須達到以下標準，才視為合格輸出：</p>
+<ol><li><strong>EDD（Engineering Design Doc）</strong>：每個 module 的 class 清單；每個 class 的 method 簽名、參數名稱、型別、回傳值、例外行為；跨 class 的呼叫關係圖</li><li><strong>API.md</strong>：每個端點的 URL、HTTP method、request body schema（含欄位、型別、是否必填、驗證規則）、response schema、error code 列舉、Rate Limit</li><li><strong>SCHEMA.md</strong>：完整 DDL；每個欄位的型別、nullable、default、constraint；全部 index（含 composite）；外鍵關係；migration 策略</li><li><strong>test-plan.md</strong>：每個功能點的正向測試、負向測試、邊界值分析（BVA）；等價類劃分（EP）；具體輸入值與預期輸出值的對照表</li><li><strong>BDD.md</strong>：每個 Scenario 的 Given/When/Then 完整定義；edge case Scenario；unhappy path Scenario</li></ol>
+<h3>雙受眾設計</h3>
+<table>
+<tr><th>受眾</th><th>如何使用 gendoc 產出</th></tr>
+<tr><td><strong>AI（LLM / Claude Code）</strong></td><td>直接餵入文件，不需追問，依 EDD 建 class、依 SCHEMA 寫 migration、依 test-plan 寫 test cases</td></tr>
+<tr><td><strong>人類開發者</strong></td><td>開箱即用的任務清單：每個 class 是一張卡片，每個 method 是一個 subtask，每個 test 情境是一個 checklist item</td></tr>
+</table>
+<h3>一句話定位</h3>
+<blockquote><p>gendoc 是一套 Claude Code Skill 系統，從任意形式的輸入（文字 / 圖片 / URL / Git repo），在 60 分鐘內生成一份「細到任何人都能直接開始寫程式碼」的完整技術藍圖，包含 IDEA → BRD → PRD → PDD → EDD → ARCH → API → SCHEMA → Test Plan → BDD → RTM，以及自動部署的 HTML 文件站。</p></blockquote>
+<hr>
+<h2>2. Problem Statement</h2>
+<h3>2.1 現狀痛點</h3>
+<h4>問題一：「可閱讀」≠「可實作」</h4>
+<p>現有技術文件工具（包括 AI 生成）產出的文件偏向說明性，缺乏足夠細節讓實作者直接動手。常見問題：</p>
+<ul><li>EDD 只說「需要一個 UserService 處理使用者邏輯」，但沒有列出 <code>UserService</code> 裡有哪些 method</li><li>API 文件列出端點路徑，但 request 欄位的 validation rule、error code 的 HTTP status mapping 都缺失</li><li>測試文件只說「測試登入功能」，但沒有給出：密碼長度邊界（7 / 8 / 129 / 130 字元）、特殊字元處理、並發登入、token 過期邊界等具體場景</li></ul>
+<p>結果：開發者或 AI 拿到文件後，仍需大量「填空」，等同於沒有藍圖。</p>
+<h4>問題二：AI 開發者的需求更嚴苛</h4>
+<p>當「開發者」是 AI（如 Claude Code + MYDEVSOP）時，模糊的文件直接導致錯誤實作：</p>
+<ul><li>class 邊界不清 → AI 可能把不同職責混在同一 class</li><li>method 簽名未定義 → AI 可能自創不相容的介面</li><li>測試情境未列 → AI 生成的 test 只覆蓋 happy path，缺少 edge case</li><li>邊界值未定義 → AI 無從判斷 <code>0 ≤ quantity ≤ 999</code> 還是 <code>1 ≤ quantity ≤ 9999</code></li></ul>
+<p><strong>gendoc 的核心假設</strong>：如果文件細到 AI 能直接實作，人類一定也能。但反過來不成立。</p>
+<h4>問題三：技術文件生成需要完整 SDLC 工具</h4>
+<p>MYDEVSOP 是一套完整的 31-STEP SDLC 自動化工具。許多場景只需文件生成能力，安裝整套是過度設計。</p>
+<h4>問題四：模板系統缺乏細粒度品質標準</h4>
+<p>現有模板描述「這份文件應包含哪些章節」，但沒有定義每個章節的「細粒度完成標準」。</p>
+<h3>2.2 根本原因分析</h3>
+<ul><li><strong>根本原因一</strong>：文件生成的品質目標設定錯了——目標應是「可實作」，而非「可閱讀」</li><li><strong>根本原因二</strong>：現有 AI 生成文件缺乏細粒度驗證機制，無從判斷文件是否達到「可直接實作」的標準</li><li><strong>根本原因三</strong>：MYDEVSOP 文件生成子系統與 SDLC 完整工具緊耦合，無法單獨萃取</li></ul>
+<h3>2.3 機會假設</h3>
+<table>
+<tr><th>ID</th><th>假設</th><th>驗證指標</th></tr>
+<tr><td>H-1</td><td>若 EDD 細到 class + method 層級，AI 實作時的重構次數可降低 60% 以上</td><td>對比有/無細粒度 EDD 的 AI 實作輪次</td></tr>
+<tr><td>H-2</td><td>若 test-plan 包含具體 BVA + EP 情境，測試覆蓋率首次執行即可達 85% 以上</td><td>首次 AI 生成 test 的覆蓋率</td></tr>
+<tr><td>H-3</td><td>若 gendoc 可獨立安裝，安裝成本降低 80%，使用者從安裝到產出第一份文件 ≤ 5 分鐘</td><td>安裝到完成 IDEA.md 的時間</td></tr>
+<tr><td>H-4</td><td>Full-Auto 模式下 60 分鐘內完成 9 份完整文件集</td><td>端對端生成時間</td></tr>
+</table>
+<h3>2.4 System Context Diagram</h3>
+<div class="diagram-container"><pre class="mermaid">C4Context
+    title gendoc — System Context Diagram
+
+    Person(dev, "開發者 / PM", "執行 /gendoc-auto 指令")
+    Person(ai_dev, "AI 開發者（Claude Code）", "讀取 gendoc 輸出，直接實作程式碼")
+    Person(stakeholder, "技術主管 / 客戶", "閱讀 HTML 文件站，確認規格")
+
+    System(gendoc, "gendoc Skill Suite", "22 個 Claude Code skills\n任意輸入 → 可直接實作的完整技術藍圖")
+
+    System_Ext(claude_api, "Claude API (Anthropic)", "AI 推理能力，執行每個文件生成 Agent")
+    System_Ext(github, "GitHub", "存放輸出文件，建立 commit")
+    System_Ext(github_pages, "GitHub Pages", "托管自動生成的 HTML 文件網站")
+    System_Ext(web_sources, "外部來源", "URL / GitHub Repo / 圖片 / 本地文件")
+
+    Rel(dev, gendoc, "執行 /gendoc-auto", "Claude Code CLI")
+    Rel(ai_dev, gendoc, "讀取 docs/ 直接實作", "File System / Claude Context")
+    Rel(stakeholder, gendoc, "閱讀 HTML 文件站", "Browser")
+    Rel(gendoc, claude_api, "spawn subagent，執行文件生成", "Claude Agent SDK")
+    Rel(gendoc, github, "git push + 建立文件 commit", "git / gh CLI")
+    Rel(gendoc, github_pages, "部署 docs/pages/*.html", "GitHub Actions")
+    Rel(gendoc, web_sources, "WebFetch 讀取輸入素材", "HTTP")</pre></div>
+<hr>
+<h2>3. Stakeholders &amp; Users</h2>
+<h3>3.1 Stakeholder Map</h3>
+<table>
+<tr><th>角色</th><th>關係</th><th>主要關切</th></tr>
+<tr><td>獨立開發者</td><td>主要使用者</td><td>快速從構想生成完整可實作藍圖</td></tr>
+<tr><td>AI 開發工具（Claude Code / Cursor）</td><td>主要消費者</td><td>文件細粒度夠高，可直接依文件建 class / 寫 test</td></tr>
+<tr><td>技術主管</td><td>次要使用者</td><td>文件品質、結構一致性、規格完整性</td></tr>
+<tr><td>開源專案維護者</td><td>次要使用者</td><td>從現有 codebase 生成規格文件</td></tr>
+</table>
+<h3>3.2 User Personas</h3>
+<h4>Persona A：獨立開發者 / 技術文件需求者</h4>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>背景</strong></td><td>全端工程師，需要為新專案快速生成完整技術文件集，再交給 AI（或團隊）實作</td></tr>
+<tr><td><strong>核心需求</strong></td><td>文件細到不需要再補充說明，AI 拿去就能生成第一版可運行程式碼</td></tr>
+<tr><td><strong>痛點</strong></td><td>手工撰寫文件耗時 2-4 週；AI 生成文件太模糊，實作時仍需大量追問</td></tr>
+<tr><td><strong>成功標準</strong></td><td>60 分鐘內完成 9 份文件；Claude Code 讀取文件後首次生成程式碼通過 CI</td></tr>
+</table>
+<h4>Persona B：開源專案維護者</h4>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>背景</strong></td><td>有現有 Git repo，想為其生成正式規格文件，供 contributor 或 AI 參考實作</td></tr>
+<tr><td><strong>核心需求</strong></td><td>從 codebase 逆向生成包含 class 設計、API spec、test 情境的完整文件集</td></tr>
+<tr><td><strong>痛點</strong></td><td>逆向工程文件品質低落，缺少測試情境、邊界值定義</td></tr>
+<tr><td><strong>使用場景</strong></td><td><code>/gendoc-auto https://github.com/user/repo</code>，輸入類型自動偵測為 <code>codebase_git</code></td></tr>
+</table>
+<h4>Persona C：AI 開發工具（Claude Code）</h4>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>背景</strong></td><td>作為後續程式碼生成工具，讀取 gendoc 產出的 docs/ 目錄，依文件實作系統</td></tr>
+<tr><td><strong>核心需求</strong></td><td>EDD 中每個 class 的 method 列表；SCHEMA 的完整 DDL；test-plan 的具體輸入/輸出對照</td></tr>
+<tr><td><strong>失敗條件</strong></td><td>文件中有「TBD」、「待定」、「視情況而定」等未決定項目 → 視為文件不合格</td></tr>
+</table>
+<hr>
+<h2>4. 藍圖品質標準（Blueprint Depth Standard）</h2>
+<p>這是 gendoc 的核心品質定義。每份文件生成後，Review Loop 必須驗證這些標準。</p>
+<h3>4.1 EDD（Engineering Design Document）細粒度標準</h3>
+<p>每份 EDD 必須包含：</p>
+<p><strong>Class-Level 設計</strong></p>
+<pre><code class="">ClassName
+├── 職責說明（≤ 2 句話，若超過 2 句表示職責過重）
+├── 依賴注入清單（constructor 接受的參數型別）
+└── Method 清單：
+    ├── methodName(param1: Type, param2: Type): ReturnType
+    │   ├── 前置條件（Pre-condition）
+    │   ├── 後置條件（Post-condition）
+    ├── 例外行為（throws XxxException when ...）
+    └── 邊界行為（param1 為 null 時、param1 超出範圍時）</code></pre>
+<p><strong>範例（合格 EDD 片段）</strong></p>
+<pre><code class="">class UserAuthService
+  職責：驗證使用者身份，簽發 JWT token
+  依賴：UserRepository, PasswordHasher, TokenSigner
+
+  Method: authenticate(email: string, password: string): AuthResult
+    Pre-condition: email 符合 RFC 5321；password 長度 8-128 字元
+    Post-condition: 成功時 AuthResult.token 為有效 JWT，exp = now + 24h
+    throws: InvalidCredentialsException（email 不存在 or 密碼錯誤，統一訊息不區分）
+    throws: AccountLockedException（連續失敗 ≥ 5 次且距上次失敗 &lt; 30 分鐘）
+    邊界：password 為空字串 → throws ValidationException（不進行 DB 查詢）
+    邊界：email 大小寫不敏感（db 查詢前 toLower）
+
+  Method: logout(userId: UUID, tokenJti: string): void
+    Post-condition: tokenJti 加入 blacklist，TTL = 原 token 剩餘時間
+    邊界：tokenJti 已在 blacklist → 靜默成功（冪等）
+    邊界：userId 不存在 → 靜默成功（不拋例外）</code></pre>
+<h3>4.2 API.md 細粒度標準</h3>
+<p>每個端點必須包含：</p>
+<pre><code class="">POST /api/v1/auth/login
+  Summary: 使用者登入，取得 access token 與 refresh token
+  Request Body (application/json):
+    email        string  required  RFC 5321 格式；大小寫不敏感
+    password     string  required  長度 8-128；至少 1 大寫、1 數字
+    remember_me  boolean optional  default: false；true 時 refresh_token TTL = 30d
+
+  Response 200 OK:
+    access_token   string  JWT；exp = now + 15m
+    refresh_token  string  Opaque token；exp = now + 7d（or 30d）
+    token_type     string  &quot;Bearer&quot;（固定值）
+
+  Error Responses:
+    400 Bad Request      欄位格式錯誤；body: { code: &quot;VALIDATION_ERROR&quot;, fields: [...] }
+    401 Unauthorized     email 不存在 or 密碼錯誤；body: { code: &quot;INVALID_CREDENTIALS&quot; }
+    423 Locked           帳號鎖定；body: { code: &quot;ACCOUNT_LOCKED&quot;, unlock_at: ISO8601 }
+    429 Too Many Req.    IP 限速（&gt; 10 次/分鐘）；header: Retry-After: 60
+
+  Rate Limit: 10 req/min per IP（未登入）；不限（已登入）
+  Auth Required: No
+  Idempotent: No</code></pre>
+<h3>4.3 SCHEMA.md 細粒度標準</h3>
+<p>每個 Table 必須包含完整 DDL：</p>
+<pre><code class="language-sql">-- users 表
+CREATE TABLE users (
+  id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+  email       VARCHAR(254) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,                  -- bcrypt $2b$, cost factor 12
+  is_verified BOOLEAN      NOT NULL DEFAULT FALSE,
+  is_locked   BOOLEAN      NOT NULL DEFAULT FALSE,
+  lock_until  TIMESTAMPTZ  NULL,                        -- NULL = 未鎖定
+  failed_attempts SMALLINT NOT NULL DEFAULT 0,          -- 範圍 0-127
+  created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+-- Index 策略（必須列出理由）
+CREATE UNIQUE INDEX idx_users_email ON users (LOWER(email));  -- 大小寫不敏感唯一索引
+CREATE INDEX idx_users_is_locked ON users (is_locked) WHERE is_locked = TRUE;  -- Partial index，只索引鎖定帳號
+
+-- Constraint
+ALTER TABLE users ADD CONSTRAINT chk_failed_attempts CHECK (failed_attempts &gt;= 0);
+ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[^@]+\.[^@]+$&#x27;);
+
+-- Migration 策略
+-- 新增 failed_attempts 欄位（已存在的 row 預設值為 0，無 downtime）
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_attempts SMALLINT NOT NULL DEFAULT 0;</code></pre>
+<h3>4.4 test-plan.md 細粒度標準</h3>
+<p>每個功能必須包含以下測試類型，並給出<strong>具體輸入值與預期輸出</strong>：</p>
+<p><strong>等價類劃分（Equivalence Partitioning, EP）</strong></p>
+<table>
+<tr><th>測試類別</th><th>輸入</th><th>預期輸出</th></tr>
+<tr><td>正向：合法登入</td><td>email=<code>user@example.com</code>, password=<code>Passw0rd!</code></td><td>200 + tokens</td></tr>
+<tr><td>負向：email 不存在</td><td>email=<code>noone@example.com</code>, password=<code>Passw0rd!</code></td><td>401 INVALID_CREDENTIALS</td></tr>
+<tr><td>負向：密碼錯誤</td><td>email=<code>user@example.com</code>, password=<code>WrongPass1!</code></td><td>401 INVALID_CREDENTIALS</td></tr>
+<tr><td>負向：格式錯誤 email</td><td>email=<code>notanemail</code>, password=<code>Passw0rd!</code></td><td>400 VALIDATION_ERROR</td></tr>
+<tr><td>負向：帳號鎖定</td><td>連續失敗 5 次後再試</td><td>423 ACCOUNT_LOCKED</td></tr>
+</table>
+<p><strong>邊界值分析（Boundary Value Analysis, BVA）</strong></p>
+<table>
+<tr><th>欄位</th><th>邊界值</th><th>預期行為</th></tr>
+<tr><td>password 長度</td><td>7 字元</td><td>400（低於最小值）</td></tr>
+<tr><td>password 長度</td><td>8 字元</td><td>正常處理（最小合法值）</td></tr>
+<tr><td>password 長度</td><td>128 字元</td><td>正常處理（最大合法值）</td></tr>
+<tr><td>password 長度</td><td>129 字元</td><td>400（超過最大值）</td></tr>
+<tr><td>password 長度</td><td>0（空字串）</td><td>400（不觸發 DB 查詢）</td></tr>
+<tr><td>failed_attempts</td><td>4 次錯誤後</td><td>401（不鎖定）</td></tr>
+<tr><td>failed_attempts</td><td>第 5 次錯誤</td><td>423（鎖定，lock_until = now + 30m）</td></tr>
+<tr><td>failed_attempts</td><td>第 5 次錯誤後 30 分 1 秒</td><td>401（自動解鎖，重置計數）</td></tr>
+</table>
+<p><strong>並發與冪等性測試</strong></p>
+<table>
+<tr><th>情境</th><th>測試方法</th><th>預期行為</th></tr>
+<tr><td>同一帳號同時登入（10 並發）</td><td>同時送出 10 個合法登入請求</td><td>全部返回 200，token 各自獨立</td></tr>
+<tr><td>重複登出同一 token</td><td>兩次 POST /logout 同一 jti</td><td>兩次都返回 200（冪等）</td></tr>
+<tr><td>登入時 DB unavailable</td><td>Mock DB 拋出 connection timeout</td><td>503 SERVICE_UNAVAILABLE（不返回 500）</td></tr>
+</table>
+<h3>4.5 BDD.md 細粒度標準</h3>
+<p>每個 Feature 必須涵蓋 happy path、unhappy path、edge case：</p>
+<pre><code class="language-gherkin">Feature: 使用者登入
+  Background:
+    Given 存在帳號 &quot;user@example.com&quot; 密碼 &quot;Passw0rd!&quot;
+    And 該帳號未被鎖定
+
+  Scenario: 正常登入取得 token
+    When 我以 &quot;user@example.com&quot; / &quot;Passw0rd!&quot; 發送登入請求
+    Then 回應狀態碼為 200
+    And 回應包含 access_token（JWT 格式）
+    And 回應包含 refresh_token
+    And access_token 的 exp 距現在 15 分鐘以內
+
+  Scenario: 密碼錯誤登入
+    When 我以 &quot;user@example.com&quot; / &quot;WrongPass&quot; 發送登入請求
+    Then 回應狀態碼為 401
+    And 回應 body 的 code 為 &quot;INVALID_CREDENTIALS&quot;
+    And 回應不揭示是 email 不存在還是密碼錯誤
+
+  Scenario Outline: 連續失敗 N 次後的行為
+    When 我連續失敗登入 &lt;次數&gt; 次
+    Then 帳號狀態為 &lt;狀態&gt;
+    And 回應狀態碼為 &lt;HTTP狀態碼&gt;
+
+    Examples:
+      | 次數 | 狀態   | HTTP狀態碼 |
+      | 4    | 正常   | 401       |
+      | 5    | 鎖定   | 423       |
+      | 6    | 鎖定   | 423       |
+
+  Scenario: 密碼邊界值（7 字元，低於最小）
+    When 我以 &quot;user@example.com&quot; / &quot;Pass0r!&quot; 發送登入請求（7字元密碼）
+    Then 回應狀態碼為 400
+    And 回應 body 的 code 為 &quot;VALIDATION_ERROR&quot;
+    And 回應不查詢資料庫
+
+  Scenario: 鎖定後 30 分鐘自動解鎖
+    Given 帳號已被鎖定（lock_until = 30 分鐘前）
+    When 我以正確密碼發送登入請求
+    Then 回應狀態碼為 200
+    And 帳號的 failed_attempts 重置為 0</code></pre>
+<hr>
+<h2>5. Skill 架構與流程</h2>
+<h3>5.1 Skill 清單（22 個）</h3>
+<table>
+<tr><th>分層</th><th>Skill 名稱</th><th>功能</th></tr>
+<tr><td><strong>入口層</strong></td><td><code>gendoc-auto</code></td><td>任意輸入→IDEA+BRD→移交 gendoc-flow</td></tr>
+<tr><td><strong>流水線層</strong></td><td><code>gendoc-flow</code></td><td>純文件生成流水線（PRD→BDD→HTML）</td></tr>
+<tr><td><strong>共用層</strong></td><td><code>gendoc-shared</code></td><td>共用邏輯參考（狀態管理、Review 策略）</td></tr>
+<tr><td><strong>更新層</strong></td><td><code>gendoc-update</code></td><td>版本自動更新</td></tr>
+<tr><td><strong>生成層</strong></td><td><code>gendoc-gen-idea</code></td><td>生成 IDEA.md</td></tr>
+<tr><td></td><td><code>gendoc-gen-brd</code></td><td>生成 BRD.md</td></tr>
+<tr><td></td><td><code>gendoc-gen-prd</code></td><td>生成 PRD.md</td></tr>
+<tr><td></td><td><code>gendoc-gen-pdd</code></td><td>生成 PDD.md</td></tr>
+<tr><td></td><td><code>gendoc-gen-edd</code></td><td>生成 EDD.md（含 class + method 細節）</td></tr>
+<tr><td></td><td><code>gendoc-gen-arch</code></td><td>生成 ARCH.md（含 sequence diagram）</td></tr>
+<tr><td></td><td><code>gendoc-gen-api</code></td><td>生成 API.md（含完整 request/response schema）</td></tr>
+<tr><td></td><td><code>gendoc-gen-schema</code></td><td>生成 SCHEMA.md（含完整 DDL + index 策略）</td></tr>
+<tr><td></td><td><code>gendoc-gen-test-plan</code></td><td>生成 test-plan.md（含 BVA + EP 具體值）+ RTM.md</td></tr>
+<tr><td></td><td><code>gendoc-gen-bdd</code></td><td>生成 BDD.md（含 edge case Scenario）</td></tr>
+<tr><td></td><td><code>gendoc-gen-diagrams</code></td><td>生成 UML / Mermaid 圖表</td></tr>
+<tr><td></td><td><code>gendoc-gen-readme</code></td><td>生成 README.md</td></tr>
+<tr><td></td><td><code>gendoc-gen-html</code></td><td>生成靜態 HTML 文件網站</td></tr>
+<tr><td></td><td><code>gendoc-gen-client-bdd</code></td><td>生成客戶端 BDD（可選）</td></tr>
+<tr><td><strong>Review 層</strong></td><td><code>gendoc-idea-review</code></td><td>IDEA.md Review Loop</td></tr>
+<tr><td></td><td><code>gendoc-brd-review</code></td><td>BRD.md Review Loop</td></tr>
+<tr><td></td><td><code>gendoc-align-check</code></td><td>跨文件對齊審查</td></tr>
+<tr><td></td><td><code>gendoc-align-fix</code></td><td>自動修復對齊問題</td></tr>
+</table>
+<h3>5.2 完整流程圖</h3>
+<pre><code class="">使用者輸入（文字/圖片/URL/Git/本地）
+    ↓
+/gendoc-auto
+    ├── 輸入類型偵測（text/image_url/doc_url/doc_git/codebase_local/codebase_git）
+    ├── 素材保存至 docs/req/（唯讀原則）
+    ├── PM Expert 分析（產品/技術雙視角）
+    ├── 網路背景研究（WebSearch × 3）
+    ├── gendoc-gen-idea → docs/IDEA.md
+    ├── gendoc-idea-review（Review Loop，驗證藍圖完整性）
+    ├── gendoc-gen-brd → docs/BRD.md
+    ├── gendoc-brd-review（Review Loop）
+    └── 移交 /gendoc-flow
+         ↓
+/gendoc-flow
+    ├── DOC-03: gendoc-gen-prd    → docs/PRD.md
+    ├── DOC-04: gendoc-gen-pdd    → docs/PDD.md
+    ├── DOC-05: gendoc-gen-edd    → docs/EDD.md     ← class + method 細節
+    ├── DOC-06: gendoc-gen-arch   → docs/ARCH.md    ← sequence diagram
+    ├── DOC-07: gendoc-gen-api    → docs/API.md     ← 完整 request/response schema
+    ├── DOC-08: gendoc-gen-schema → docs/SCHEMA.md  ← DDL + index 策略
+    ├── DOC-09: gendoc-gen-test-plan → docs/test-plan.md + RTM.md  ← BVA + EP
+    ├── DOC-10: gendoc-gen-bdd    → docs/BDD.md     ← edge case Scenario
+    ├── DOC-11: gendoc-align-check → 跨文件對齊審查
+    └── DOC-12: gendoc-gen-html   → docs/pages/ + GitHub Pages</code></pre>
+<h3>5.3 State File 管理</h3>
+<pre><code class="">.gendoc-state-{git_user}-{git_branch}.json</code></pre>
+<p>State file 記錄：</p>
+<ul><li><code>execution_mode</code>：<code>full-auto</code> / <code>interactive</code></li><li><code>review_strategy</code>：<code>rapid</code> / <code>standard</code> / <code>exhaustive</code> / <code>tiered</code></li><li><code>completed_steps</code>：已完成步驟清單（支援斷點續行）</li><li><code>skill_source</code>：<code>gendoc-auto</code>（防止跨套件誤用）</li><li><code>handoff</code>：true（gendoc-auto → gendoc-flow 移交標記）</li></ul>
+<hr>
+<h2>6. 功能需求</h2>
+<h3>6.1 多元輸入支援（F-01）</h3>
+<table>
+<tr><th>輸入類型</th><th>觸發條件</th><th>處理方式</th></tr>
+<tr><td><code>text_idea</code></td><td>純文字描述</td><td>直接作為 IDEA 來源</td></tr>
+<tr><td><code>image_url</code></td><td>http(s):// + 圖片副檔名</td><td>WebFetch + Vision 分析</td></tr>
+<tr><td><code>doc_git</code></td><td>github.com / gitlab.com URL</td><td>WebFetch 讀取 README/docs</td></tr>
+<tr><td><code>doc_url</code></td><td>http(s):// + .pdf/.md/.docx</td><td>WebFetch 下載 + 文字提取</td></tr>
+<tr><td><code>doc_local</code></td><td>本地檔案路徑</td><td>Read 工具讀取</td></tr>
+<tr><td><code>codebase_local</code></td><td>本地目錄路徑</td><td>tree + 關鍵文件 cp</td></tr>
+<tr><td><code>codebase_git</code></td><td>git@/. git URL</td><td>git clone --depth 1 + 掃描</td></tr>
+</table>
+<h3>6.2 執行模式（F-02）</h3>
+<ul><li><strong>Full-Auto</strong>：全自動，AI 自動選所有預設值，無需人工介入，透過 <code>/gendoc-config</code> 設定</li><li><strong>Interactive</strong>：互動引導，關鍵決策點等待使用者輸入，帶 AI 推薦預設選項</li></ul>
+<h3>6.3 Review 策略（F-03）</h3>
+<table>
+<tr><th>策略</th><th>最大輪次</th><th>停止條件</th></tr>
+<tr><td><code>rapid</code></td><td>3 輪</td><td>任一輪 finding=0</td></tr>
+<tr><td><code>standard</code></td><td>5 輪</td><td>任一輪 finding=0（預設）</td></tr>
+<tr><td><code>exhaustive</code></td><td>無上限</td><td>finding=0</td></tr>
+<tr><td><code>tiered</code></td><td>無上限</td><td>前 5 輪 finding=0；第 6 輪起 CRITICAL+HIGH+MEDIUM=0</td></tr>
+</table>
+<p>Review finding 的嚴重等級涵蓋：</p>
+<ul><li><strong>CRITICAL</strong>：缺少 class 邊界定義、API 缺少 error code、test 缺少 BVA</li><li><strong>HIGH</strong>：method 缺少例外行為、Schema 缺少 index 策略</li><li><strong>MEDIUM</strong>：Scenario 缺少 edge case、文件間術語不一致</li><li><strong>LOW</strong>：格式問題、遣詞建議</li></ul>
+<h3>6.4 素材管理（F-04）</h3>
+<ul><li>所有輸入素材保存至 <code>docs/req/</code>（<strong>唯讀原則</strong>：不修改原始來源）</li><li>舊版文件歸檔至 <code>docs/req/old-{DOC}-{timestamp}.md</code></li><li><code>completed_steps</code> 追蹤已完成步驟，支援斷點續行</li></ul>
+<h3>6.5 模板驅動生成（F-05）</h3>
+<ul><li>所有文件結構由 <code>templates/*.md</code> 決定</li><li>gen-* skill 只做流程編排，不 inline 定義文件結構</li><li>模板位於 <code>~/projects/gendoc/templates/</code>（14 份文件模板）</li></ul>
+<h3>6.6 HTML 文件網站（F-06）</h3>
+<ul><li><code>gendoc-gen-html</code> 將所有 docs/*.md 轉換為靜態 HTML</li><li>自動生成導覽、TOC、文件版本資訊</li><li>支援部署至 GitHub Pages</li></ul>
+<hr>
+<h2>7. 非功能需求</h2>
+<h3>7.1 效能</h3>
+<ul><li>Full-Auto 模式下，完整 9 份文件生成時間目標：≤ 60 分鐘</li><li>每份文件 Review Loop 時間目標：≤ 10 分鐘（standard 策略）</li></ul>
+<h3>7.2 可靠性</h3>
+<ul><li>TF-02 斷點續行：任何步驟中斷後重啟，自動從上次完成點繼續</li><li>State file 原子寫入，防止部分寫入導致的損毀</li></ul>
+<h3>7.3 安全性</h3>
+<ul><li>唯讀原則：本地路徑來源嚴禁寫入、刪除、修改原始目錄</li><li>State file 的 <code>skill_source</code> 欄位防止跨套件誤用（<code>gendoc-auto</code> 鎖定）</li></ul>
+<h3>7.4 可維護性</h3>
+<ul><li>每個 gen-* skill 獨立，可單獨更新或替換</li><li>模板與 skill 邏輯分離，更新模板不需修改 skill</li></ul>
+<h3>7.5 文件品質保證（Blueprint Quality Gate）</h3>
+<p>每份文件必須通過的最低標準（由 Review Loop 執行驗證）：</p>
+<table>
+<tr><th>文件</th><th>必過項目</th></tr>
+<tr><td>EDD</td><td>每個 class 有 method 列表；每個 method 有型別簽名；有 pre/post-condition；有例外行為</td></tr>
+<tr><td>API.md</td><td>每個端點有完整 request schema；有全部 error code；有 Rate Limit 定義</td></tr>
+<tr><td>SCHEMA.md</td><td>完整 DDL；有 index 策略（含理由）；有 constraint；有 migration 說明</td></tr>
+<tr><td>test-plan.md</td><td>每個功能有 EP 測試表；有 BVA 邊界值對照表；有並發/冪等性情境</td></tr>
+<tr><td>BDD.md</td><td>每個 Feature 有 happy path、unhappy path、邊界值 Scenario</td></tr>
+</table>
+<hr>
+<h2>8. 模板清單</h2>
+<table>
+<tr><th>模板檔案</th><th>對應文件</th><th>生成 Skill</th><th>細粒度要求</th></tr>
+<tr><td><code>IDEA.md</code></td><td>docs/IDEA.md</td><td>gendoc-gen-idea</td><td>問題定義、使用者、解法假設</td></tr>
+<tr><td><code>BRD.md</code></td><td>docs/BRD.md</td><td>gendoc-gen-brd</td><td>業務需求、成功指標、範圍</td></tr>
+<tr><td><code>PRD.md</code></td><td>docs/PRD.md</td><td>gendoc-gen-prd</td><td>功能需求、非功能需求</td></tr>
+<tr><td><code>PDD.md</code></td><td>docs/PDD.md</td><td>gendoc-gen-pdd</td><td>Product Design：UX flow、wireframe 描述</td></tr>
+<tr><td><code>EDD.md</code></td><td>docs/EDD.md</td><td>gendoc-gen-edd</td><td><strong>class + method + 型別 + 例外</strong>（4.1 標準）</td></tr>
+<tr><td><code>ARCH.md</code></td><td>docs/ARCH.md</td><td>gendoc-gen-arch</td><td>元件圖、sequence diagram</td></tr>
+<tr><td><code>API.md</code></td><td>docs/API.md</td><td>gendoc-gen-api</td><td><strong>完整 request/response/error schema</strong>（4.2 標準）</td></tr>
+<tr><td><code>SCHEMA.md</code></td><td>docs/SCHEMA.md</td><td>gendoc-gen-schema</td><td><strong>DDL + index + constraint</strong>（4.3 標準）</td></tr>
+<tr><td><code>test-plan.md</code></td><td>docs/test-plan.md</td><td>gendoc-gen-test-plan</td><td><strong>EP + BVA + 並發</strong>（4.4 標準）</td></tr>
+<tr><td><code>RTM.md</code></td><td>docs/RTM.md</td><td>gendoc-gen-test-plan</td><td>需求追蹤矩陣</td></tr>
+<tr><td><code>BDD.md</code></td><td>docs/BDD.md</td><td>gendoc-gen-bdd</td><td><strong>edge case Scenario</strong>（4.5 標準）</td></tr>
+<tr><td><code>README.md</code></td><td>專案 README</td><td>gendoc-gen-readme</td><td>安裝、快速開始、API 概覽</td></tr>
+<tr><td><code>LOCAL_DEPLOY.md</code></td><td>部署說明</td><td>gendoc-gen-html</td><td>本地部署步驟</td></tr>
+<tr><td><code>UML-CLASS-GUIDE.md</code></td><td>UML 指南</td><td>gendoc-gen-diagrams</td><td>Class diagram 規範</td></tr>
+</table>
+<hr>
+<h2>9. 安裝與使用</h2>
+<h3>9.1 安裝</h3>
+<pre><code class="language-bash"># Skills 安裝（22 個 skill 位於 ~/.claude/skills/gendoc-*/）
+# Templates 安裝（14 份模板位於 ~/projects/gendoc/templates/）
+# 無其他依賴，開箱即用</code></pre>
+<h3>9.2 基本使用</h3>
+<pre><code class="language-bash"># 純文字輸入
+/gendoc-auto 我想做一個 AI 驅動的客服機器人
+
+# URL 輸入
+/gendoc-auto https://github.com/some/repo
+
+# 本地目錄輸入
+/gendoc-auto ~/projects/my-existing-app
+
+# 已有 BRD 直接進入流水線
+/gendoc-flow
+
+# 設定執行模式與 Review 策略
+/gendoc-config</code></pre>
+<h3>9.3 設定模式</h3>
+<ul><li><strong>gendoc-auto</strong>：直接執行，Full-Auto 模式，無任何問答</li><li><strong>gendoc-config</strong>：互動設定執行模式、Review 策略、從哪個 STEP 重跑</li></ul>
+<hr>
+<h2>10. 未來規劃（Out of Scope v1.0）</h2>
+<ul><li>與 MYDEVSOP 完整 SDLC 流水線的雙向同步（已有 BRD 直接接 devsop-autodev）</li><li>多語言文件輸出（目前以中文為主，英文模板為輔）</li><li>文件版本差異比較（diff-based document review）</li><li>CI/CD 觸發自動文件更新（code change → doc refresh）</li><li>程式碼品質反推文件更新（如 test coverage &lt; 80% → 自動更新 test-plan 缺口）</li></ul>
+<hr>
+<h2>11. 成功指標</h2>
+<table>
+<tr><th>指標</th><th>目標</th></tr>
+<tr><td>完整文件集生成成功率（Full-Auto）</td><td>≥ 90%</td></tr>
+<tr><td>平均生成時間（9 份文件）</td><td>≤ 60 分鐘</td></tr>
+<tr><td>EDD class + method 完整率</td><td>100%（每個 class 有 method 列表）</td></tr>
+<tr><td>test-plan BVA 覆蓋率</td><td>每個功能至少有邊界值對照表</td></tr>
+<tr><td>跨文件一致性（align-check finding=0 比例）</td><td>≥ 80%</td></tr>
+<tr><td>AI 讀取文件後首次生成程式碼通過 CI 率</td><td>≥ 70%</td></tr>
+<tr><td>斷點續行成功率</td><td>100%</td></tr>
+<tr><td>安裝步驟數</td><td>≤ 3 步</td></tr>
+</table></main>
+  </div>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({startOnLoad:true,theme:'default',
+      flowchart:{curve:'basis',nodeSpacing:60,rankSpacing:80},
+      er:{layoutDirection:'TD',minEntityWidth:100,fontSize:12},
+      sequence:{actorMargin:60,messageMargin:30}});
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-go.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

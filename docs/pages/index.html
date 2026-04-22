@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>gendoc 文件中心 — gendoc</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+</head>
+<body>
+  <header class="top-nav">
+    <a href="index.html" class="nav-brand">gendoc</a>
+    <div class="nav-controls">
+      <div class="search-wrap">
+        <input class="search-input" type="search" placeholder="搜尋文件...">
+        <div class="search-results"></div>
+      </div>
+      <a class="nav-gh-link" href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener">⌥ GitHub</a>
+      <button class="sidebar-toggle" id="sidebarToggle" title="收合/展開側欄">☰</button>
+    </div>
+  </header>
+  <div class="doc-page-banner">
+    <p class="banner-breadcrumb"><a href="index.html">gendoc</a> › 文件中心 <span style="margin-left:1rem"><a href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener" style="color:var(--banner-link)">⌥ GitHub ↗</a></span></p>
+    <h1 class="banner-title">gendoc 文件中心</h1>
+  </div>
+  <div class="page-wrapper">
+    <aside class="sidebar" aria-label="文件導覽">
+      <div class="sidebar__section">
+        <div class="sidebar__label">文件</div>
+        <a class="sidebar__link active" href="index.html">🏠 首頁</a>
+<a class="sidebar__link" href="prd.html">📝 產品需求文件 (PRD)</a>
+      </div>
+    </aside>
+    <div class="sidebar-resizer" id="sidebarResizer"></div>
+    <main class="doc-content"><p>&lt;!-- DOC-ID: README-GENDOC-20260423 | Version: v1.0 | Status: ACTIVE | Author: ibalasite | Date: 2026-04-23 --&gt;</p>
+<h1>gendoc</h1>
+<p><a href="LICENSE" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'badge-fallback\',textContent:this.alt}))"></a></p>
+<p><a href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey" alt="Platform" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'badge-fallback\',textContent:this.alt}))"></a></p>
+<p><a href="https://claude.ai/code" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/Claude%20Code-skill-blueviolet" alt="Claude Code" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'badge-fallback\',textContent:this.alt}))"></a></p>
+<p><strong>AI-driven engineering document generation system for Claude Code.</strong> One command generates BRD, PRD, EDD, ARCH, API, Schema, Runbook and more — each document inherits knowledge from all upstream docs automatically.</p>
+<hr>
+<h2>Overview</h2>
+<p><code>gendoc</code> is a Claude Code skill suite that automates the full engineering documentation lifecycle. Using a three-layer template architecture (<code>TYPE.md</code> structure + <code>TYPE.gen.md</code> generation rules + <code>TYPE.review.md</code> review criteria), it generates and iteratively reviews production-quality engineering documents from an initial idea through deployment runbooks.</p>
+<p>Key capabilities:</p>
+<ul><li><strong>Cumulative upstream reading</strong> — every doc reads all ancestor docs, never just its direct parent</li><li><strong>Universal generation</strong> — <code>/gendoc &lt;type&gt;</code> for any document type, driven by templates</li><li><strong>Universal review loop</strong> — <code>/reviewdoc &lt;type&gt;</code> with configurable strategy (rapid / standard / exhaustive)</li><li><strong>Auto-update via SessionStart hook</strong> — harness-enforced, LLM-independent, runs in background</li><li><strong>Windows native support</strong> — Python-based hook for Windows, bash for macOS/Linux</li></ul>
+<hr>
+<h2>Skills</h2>
+<table>
+<tr><th>Skill</th><th>Command</th><th>Purpose</th></tr>
+<tr><td><code>gendoc</code></td><td><code>/gendoc &lt;type&gt;</code></td><td>Generate any document type</td></tr>
+<tr><td><code>reviewdoc</code></td><td><code>/reviewdoc &lt;type&gt;</code></td><td>Review &amp; iteratively fix any document</td></tr>
+<tr><td><code>gendoc-auto</code></td><td><code>/gendoc-auto</code></td><td>Full pipeline: all docs + reviews in sequence</td></tr>
+<tr><td><code>gendoc-flow</code></td><td><code>/gendoc-flow</code></td><td>Step-through pipeline with pause points</td></tr>
+<tr><td><code>gendoc-config</code></td><td><code>/gendoc-config</code></td><td>Configure execution mode &amp; review strategy</td></tr>
+<tr><td><code>gendoc-align-check</code></td><td><code>/gendoc-align-check</code></td><td>Cross-document alignment scan</td></tr>
+<tr><td><code>gendoc-align-fix</code></td><td><code>/gendoc-align-fix</code></td><td>Auto-fix alignment issues</td></tr>
+<tr><td><code>gendoc-gen-html</code></td><td><code>/gendoc-gen-html</code></td><td>Generate HTML documentation site</td></tr>
+<tr><td><code>gendoc-gen-diagrams</code></td><td><code>/gendoc-gen-diagrams</code></td><td>Generate architecture diagrams</td></tr>
+<tr><td><code>gendoc-gen-client-bdd</code></td><td><code>/gendoc-gen-client-bdd</code></td><td>Client-facing BDD features</td></tr>
+<tr><td><code>gendoc-update</code></td><td><code>/gendoc-update</code></td><td>Manual skill upgrade</td></tr>
+</table>
+<h3>Supported Document Types</h3>
+<p><code>edd</code> · <code>brd</code> · <code>prd</code> · <code>pdd</code> · <code>arch</code> · <code>api</code> · <code>schema</code> · <code>bdd</code> · <code>test-plan</code> · <code>runbook</code> · <code>local-deploy</code> · <code>idea</code> · <code>readme</code></p>
+<hr>
+<h2>Quick Start</h2>
+<h3>Install (macOS / Linux / WSL)</h3>
+<pre><code class="language-bash"># 1. Clone
+git clone https://github.com/ibalasite/gendoc.git ~/projects/gendoc
+
+# 2. Install skills + register auto-update hook
+cd ~/projects/gendoc &amp;&amp; ./setup
+
+# 3. Restart Claude Code — skills are now available</code></pre>
+<h3>Install (Windows native)</h3>
+<pre><code class="language-powershell"># Requires: Git for Windows + Python 3
+git clone https://github.com/ibalasite/gendoc.git ~/projects/gendoc
+cd ~/projects/gendoc
+.\setup.ps1</code></pre>
+<h3>Uninstall</h3>
+<pre><code class="language-bash">~/projects/gendoc/setup --uninstall   # macOS/Linux
+# Or: .\setup.ps1 -Uninstall          # Windows</code></pre>
+<hr>
+<h2>Usage</h2>
+<pre><code class="language-bash"># Generate a single document (reads templates automatically)
+/gendoc edd
+/gendoc brd
+/gendoc runbook
+
+# Review a document with iterative fix loop
+/reviewdoc edd
+/reviewdoc runbook
+
+# Full pipeline (interactive)
+/gendoc-config       # set mode: interactive or full-auto
+/gendoc-auto         # run all docs sequentially
+
+# Manual upgrade
+/gendoc-update</code></pre>
+<hr>
+<h2>Auto-Update</h2>
+<p>After <code>./setup</code>, a <strong>SessionStart hook</strong> is registered in <code>~/.claude/settings.json</code>. Every time Claude Code starts a session, the harness automatically runs <code>git pull + install</code> in the background (throttled to once per hour). No LLM involvement — 100% reliable.</p>
+<pre><code class="">Session start → harness triggers hook → git pull (background) → skills updated</code></pre>
+<p>Manual update: <code>/gendoc-update</code> or <code>~/projects/gendoc/bin/gendoc-upgrade</code></p>
+<hr>
+<h2>Template Architecture</h2>
+<pre><code class="">templates/
+├── &lt;TYPE&gt;.md          ← document structure skeleton
+├── &lt;TYPE&gt;.gen.md      ← AI generation rules (Iron Law: must be read first)
+└── &lt;TYPE&gt;.review.md   ← review criteria &amp; quality gates</code></pre>
+<p>The <strong>Iron Law</strong>: no document is generated without reading both <code>TYPE.md</code> AND <code>TYPE.gen.md</code> first. Templates are the single source of truth — editing a template immediately changes behavior of all <code>/gendoc</code> and <code>/reviewdoc</code> calls.</p>
+<h3>Upstream Dependency Chain</h3>
+<pre><code class="">IDEA → BRD → PRD → PDD
+              ↓      ↓
+             EDD → ARCH → API → SCHEMA
+                    ↓      ↓      ↓
+              test-plan  BDD   runbook
+                    ↓
+              local-deploy → README</code></pre>
+<p>Each document accumulates knowledge from all ancestors (skips silently if missing).</p>
+<hr>
+<h2>Repository Structure</h2>
+<pre><code class="">gendoc/
+├── setup               # Install script (macOS/Linux)
+├── setup.ps1           # Install script (Windows PowerShell)
+├── install.sh          # Sync skills/ → ~/.claude/skills/ (bash)
+├── install.py          # Sync skills/ → ~/.claude/skills/ (Python/Windows)
+├── bin/
+│   ├── gendoc-session-update      # SessionStart hook (bash)
+│   ├── gendoc-session-update.py   # SessionStart hook (Python)
+│   ├── _gendoc-update-worker.py   # Background update worker
+│   ├── gendoc-settings-hook       # settings.json editor (bash wrapper)
+│   ├── gendoc-settings-hook.py    # settings.json editor (Python)
+│   └── gendoc-upgrade             # Manual upgrade script
+├── skills/                        # Source of truth for all SKILL.md files
+│   ├── gendoc/
+│   ├── gendoc-auto/
+│   ├── gendoc-flow/
+│   └── ...
+├── templates/                     # Document templates (structure + gen rules + review)
+│   ├── EDD.md / EDD.gen.md
+│   ├── BRD.md / BRD.gen.md
+│   └── ...
+└── docs/                          # gendoc&#x27;s own project documentation</code></pre>
+<hr>
+<h2>Review Strategies</h2>
+<p>Configure via <code>/gendoc-config</code>:</p>
+<table>
+<tr><th>Strategy</th><th>Max Rounds</th><th>Stop Condition</th></tr>
+<tr><td><code>rapid</code></td><td>3</td><td>first round with 0 findings</td></tr>
+<tr><td><code>standard</code></td><td>5</td><td>first round with 0 findings (default)</td></tr>
+<tr><td><code>exhaustive</code></td><td>unlimited</td><td>findings = 0</td></tr>
+<tr><td><code>tiered</code></td><td>unlimited</td><td>rounds 1–5: findings=0; round 6+: CRITICAL+HIGH+MEDIUM=0</td></tr>
+<tr><td><code>custom</code></td><td>unlimited</td><td>user-defined condition</td></tr>
+</table>
+<hr>
+<h2>Requirements</h2>
+<table>
+<tr><th>Platform</th><th>Requirements</th></tr>
+<tr><td>macOS / Linux</td><td>Git, Python 3, Claude Code</td></tr>
+<tr><td>Windows (PowerShell)</td><td>Git for Windows, Python 3, Claude Code</td></tr>
+<tr><td>Windows (WSL / git-bash)</td><td>Same as macOS/Linux</td></tr>
+</table>
+<hr>
+<h2>Contributing</h2>
+<ol><li>Edit skill files in <code>skills/&lt;skill-name&gt;/SKILL.md</code> or templates in <code>templates/</code></li><li>Run <code>./install.sh</code> to deploy changes to <code>~/.claude/skills/</code></li><li>Test with Claude Code</li><li>Commit and push — other machines auto-pull via SessionStart hook</li></ol>
+<hr>
+<h2>License</h2>
+<p>MIT © ibalasite</p></main>
+  </div>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({startOnLoad:true,theme:'default',
+      flowchart:{curve:'basis',nodeSpacing:60,rankSpacing:80},
+      er:{layoutDirection:'TD',minEntityWidth:100,fontSize:12},
+      sequence:{actorMargin:60,messageMargin:30}});
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-go.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

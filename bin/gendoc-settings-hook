@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Wrapper: delegates to the Python implementation for cross-platform safety.
+# Usage: gendoc-settings-hook add "<command>" | remove
+set -e
+python3 "$(dirname "$0")/gendoc-settings-hook.py" "$@"

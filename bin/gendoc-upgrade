@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Manual upgrade: git pull + install. Run when hook is broken or immediate update needed.
+set -e
+GENDOC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$GENDOC_DIR"
+echo "[gendoc-upgrade] 從 $(git rev-parse --short HEAD 2>/dev/null || echo 'unknown') 更新..."
+git pull --ff-only
+[[ -x "$GENDOC_DIR/install.sh" ]] && bash "$GENDOC_DIR/install.sh"
+echo "[gendoc-upgrade] 完成：$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')"

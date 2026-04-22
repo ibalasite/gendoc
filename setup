@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# gendoc setup — installs skills + registers SessionStart hook
+# Usage:
+#   ./setup             # install
+#   ./setup --uninstall # remove hook (skills remain)
+#   ./setup --quiet     # silent mode (called by auto-update)
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SETTINGS_HOOK="$SCRIPT_DIR/bin/gendoc-settings-hook.py"
+HOOK_BASH="$SCRIPT_DIR/bin/gendoc-session-update"
+HOOK_PY="$SCRIPT_DIR/bin/gendoc-session-update.py"
+
+QUIET=0; UNINSTALL=0
+for arg in "$@"; do
+  case "$arg" in --quiet) QUIET=1 ;; --uninstall) UNINSTALL=1 ;; esac
+done
+log() { [[ $QUIET -eq 1 ]] || echo "$@"; }
+
+# Ensure executable bits
+chmod +x "$HOOK_BASH" "$SCRIPT_DIR/bin/gendoc-upgrade" "$SCRIPT_DIR/install.sh" 2>/dev/null || true
+
+if [[ $UNINSTALL -eq 1 ]]; then
+  log "[setup] 解除安裝..."
+  python3 "$SETTINGS_HOOK" remove
+  log "[setup] hook 已移除。skills 保留在 ~/.claude/skills/，如需清除請手動刪除。"
+  exit 0
+fi
+
+log "[setup] 安裝 gendoc..."
+
+# Dependency check
+command -v git    >/dev/null 2>&1 || { echo "❌ 需要 git"; exit 1; }
+command -v python3 >/dev/null 2>&1 || { echo "❌ 需要 python3"; exit 1; }
+
+# Deploy skills
+bash "$SCRIPT_DIR/install.sh" ${QUIET:+--quiet}
+
+# Register hook: prefer bash if bash is available, else Python
+if command -v bash >/dev/null 2>&1; then
+  HOOK_CMD="bash \"$HOOK_BASH\""
+else
+  HOOK_CMD="python3 \"$HOOK_PY\""
+fi
+python3 "$SETTINGS_HOOK" add "$HOOK_CMD"
+
+log ""
+log "[setup] 完成！"
+log "  · 下次開啟 Claude Code 時，gendoc 會自動檢查更新（每小時一次）"
+log "  · 手動更新：$SCRIPT_DIR/bin/gendoc-upgrade"
+log "  · 解除安裝：$SCRIPT_DIR/setup --uninstall"
