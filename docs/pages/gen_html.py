@@ -180,7 +180,7 @@ def md_to_html(text):
                 i += 1
             out.append('<ol>' + ''.join(items) + '</ol>')
             continue
-        elif s:
+        elif s and not s.startswith('<!--'):
             out.append(f'<p>{inline_md(s)}</p>')
         i += 1
     return '\n'.join(out)

@@ -1,5 +1,3 @@
-<!-- DOC-ID: README-GENDOC-20260423 | Version: v1.0 | Status: ACTIVE | Author: ibalasite | Date: 2026-04-23 -->
-
 # gendoc
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
