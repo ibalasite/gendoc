@@ -118,7 +118,7 @@ README.md 必須包含以下全部 20+ 節，**嚴格按順序**：
 13. **已知限制**（非通用，針對本專案）
 14. **Changelog**（指向 GitHub Releases）
 15. **License**（MIT）
-16. **開發說明**（MYDEVSOP 生成聲明）
+16. **開發說明**（gendoc 生成聲明）
 17. **Security Policy**（Responsible Disclosure SLA：Critical 72h / High 7d / Medium 90d）
 18. **Architecture Quick Reference**（5 大技術決策速查 + ADR 連結）
 19. **Code of Conduct**（Contributor Covenant v2.1 引用）

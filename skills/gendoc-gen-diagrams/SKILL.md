@@ -4,7 +4,7 @@ description: |
   依 EDD / ARCH / SCHEMA / API / CI 文件，自動生成所有 Mermaid 圖表 .md 檔案，
   存放於 docs/diagrams/ 目錄。
   一律使用 TD 方向（sequenceDiagram 除外），格式含 frontmatter。
-  可獨立呼叫或由 devsop-autodev STEP 13 使用。
+  可獨立呼叫或由 gendoc-auto 自動呼叫。
 allowed-tools:
   - Read
   - Write

@@ -1,6 +1,6 @@
 # BDD — Behaviour-Driven Development Feature File Template
 <!-- 對應學術標準：Cucumber / Gherkin Specification；對應業界：ATDD，Specification by Example -->
-<!-- 本文件定義 BDD .feature 檔案的規範結構，由 devsop-gen-bdd 作為 authoritative 模板遵循 -->
+<!-- 本文件定義 BDD .feature 檔案的規範結構，由 gendoc-gen-bdd 或 /gendoc bdd 作為 authoritative 模板遵循 -->
 <!-- 上游：PRD（AC 清單）→ 本文件 → 下游：features/<module>/*.feature -->
 
 ---
@@ -333,7 +333,7 @@ Background:
 
 ## 8. Error Scenario Catalog
 
-每個 Feature 應涵蓋以下標準錯誤路徑。`devsop-gen-bdd` 生成時自動對應 PRD AC 的錯誤流程到此目錄。
+每個 Feature 應涵蓋以下標準錯誤路徑。`gendoc bdd` 生成時自動對應 PRD AC 的錯誤流程到此目錄。
 
 | HTTP 狀態碼 | error.code | Scenario 描述 | 對應標準 |
 |------------|-----------|--------------|---------|
@@ -478,7 +478,7 @@ Feature: 登入頁面（UI）
 
 ## 11. Example Complete Feature File
 
-以下為生產品質的完整 `.feature` 檔案，作為 `devsop-gen-bdd` 生成輸出的黃金標準。
+以下為生產品質的完整 `.feature` 檔案，作為 `gendoc bdd` 生成輸出的黃金標準。
 
 ```gherkin
 # features/orders/order_create.feature
@@ -636,7 +636,7 @@ Background:
 
 ---
 
-## Appendix A — devsop-gen-bdd 對應關係
+## Appendix A — gendoc bdd 對應關係
 
 | PRD 元素 | BDD 對應 |
 |---------|---------|

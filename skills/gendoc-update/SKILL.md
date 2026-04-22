@@ -17,7 +17,7 @@ allowed-tools:
 ## Step 1：定位 repo
 
 ```bash
-for _c in "$HOME/projects/gendoc" "$HOME/MYDEVSOP"; do
+for _c in "$HOME/projects/gendoc"; do
   if [[ -d "$_c/.git" ]] && [[ -f "$_c/bin/gendoc-upgrade" ]]; then
     _REPO="$_c"; break
   fi

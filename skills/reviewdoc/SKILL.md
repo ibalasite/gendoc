@@ -32,7 +32,7 @@ allowed-tools:
 
 ```bash
 _UPDATE_EXIT=0
-for _c in "$HOME/projects/gendoc" "$HOME/MYDEVSOP"; do
+for _c in "$HOME/projects/gendoc"; do
   if [[ -f "$_c/check-update.sh" ]]; then
     bash "$_c/check-update.sh" 2>/dev/null; _UPDATE_EXIT=$?; break
   fi

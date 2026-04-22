@@ -171,7 +171,7 @@ spawn Agent，傳入所有 Doc→Doc 的 findings，修復策略：
 
 每個修復後：
 - verify subagent 重新審查該 finding 是否已解決
-- 確認解決後 commit：`docs(devsop)[align-fix]: docs — <描述>`
+- 確認解決後 commit：`docs(gendoc)[align-fix]: docs — <描述>`
 ---
 
 ---
@@ -219,7 +219,7 @@ Gold-plating 是唯一允許標 MANUAL 的情況，但必須先評估：
 **目錄結構不符 EDD 分層**
 - 若 src/ 缺少某個 layer 的目錄，建立並補充 __init__.py / index.ts 等入口
 
-每個修復後：verify → commit：`feat(devsop)[align-fix]: doc-code — <描述>`
+每個修復後：verify → commit：`feat(gendoc)[align-fix]: doc-code — <描述>`
 ---
 
 ---
@@ -254,7 +254,7 @@ spawn Agent，傳入所有 Code→Test 的 findings：
 - 確認 src/ 對應 module 確實不存在且非 TDD 預寫測試
 - 才可刪除對應的 orphan test file，commit 說明原因
 
-每個修復後：verify（執行測試確認 PASS）→ commit：`test(devsop)[align-fix]: code-test — <描述>`
+每個修復後：verify（執行測試確認 PASS）→ commit：`test(gendoc)[align-fix]: code-test — <描述>`
 ---
 
 ---
@@ -279,7 +279,7 @@ spawn Agent，傳入所有 Doc→Test 的 findings：
 - 補充 test case 或修復失敗的 test
 - 若 BDD Scenario 本身有邏輯錯誤，修正 Scenario
 
-每個修復後：執行相關測試確認 PASS → commit：`test(devsop)[align-fix]: doc-test — <描述>`
+每個修復後：執行相關測試確認 PASS → commit：`test(gendoc)[align-fix]: doc-test — <描述>`
 ---
 
 ---
@@ -291,7 +291,7 @@ spawn Agent，傳入所有 Doc→Test 的 findings：
 - STUBBORN（5 輪未解）：`[STUBBORN: 5 rounds]`
 - 需人工確認：`[MANUAL: <原因>]`
 
-這樣 `/devsop-align-report` 在讀取 ALIGN_REPORT.md 時能取得最新修復狀態，並在 HTML 儀表板中顯示正確的修復進度。
+這樣 `/gendoc-align-check` 在讀取 ALIGN_REPORT.md 時能取得最新修復狀態，並在 HTML 儀表板中顯示正確的修復進度。
 
 ---
 
@@ -299,7 +299,7 @@ spawn Agent，傳入所有 Doc→Test 的 findings：
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
-║           MYDEVSOP — 對齊修復摘要                            ║
+║           gendoc — 對齊修復摘要                               ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  修復 Layer：<_LAYER>                                        ║
 ║  修復前問題總數：21（CRITICAL:3 HIGH:10 MEDIUM:6 LOW:2）      ║
@@ -314,8 +314,8 @@ spawn Agent，傳入所有 Doc→Test 的 findings：
 ║    ⚠️  [人工] src 有 /internal/debug endpoint，請確認是否保留 ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  Commits（時序）：                                            ║
-║    abc1234  docs(devsop)[align-fix]: docs — PRD AC-07 補充   ║
-║    def5678  feat(devsop)[align-fix]: doc-code — export 實作  ║
+║    abc1234  docs(gendoc)[align-fix]: docs — PRD AC-07 補充   ║
+║    def5678  feat(gendoc)[align-fix]: doc-code — export 實作  ║
 ║    ...                                                        ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  建議後續：/gendoc-align-check  驗證剩餘問題                 ║
@@ -328,7 +328,7 @@ spawn Agent，傳入所有 Doc→Test 的 findings：
 
 ### 上下游強制對齊原則（最高優先，所有 Layer 適用，不可繞過）
 
-整個 MYDEVSOP pipeline 有嚴格的上下游依賴鏈：
+整個 gendoc pipeline 有嚴格的上下游依賴鏈：
 
 ```
 BRD（最上游）

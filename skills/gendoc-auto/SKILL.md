@@ -574,7 +574,7 @@ print('[state] Q1-Q5 + research_summary 已寫入')
 
 **以 Agent tool 建立 subagent**，prompt 填入以下內容（替換 `$_PROJECT_DIR` 和 `$_STATE_FILE` 為實際路徑）：
 
-> MYDEVSOP 子任務：生成 IDEA.md  
+> gendoc 子任務：生成 IDEA.md  
 > 專案目錄：`$_PROJECT_DIR`  
 > State file：`$_PROJECT_DIR/$_STATE_FILE`  
 >  
@@ -606,7 +606,7 @@ git add docs/IDEA.md && git commit -m "docs(gendoc-auto): init IDEA" 2>/dev/null
 
 **以 Agent tool 建立 subagent**，prompt 填入以下內容：
 
-> MYDEVSOP 子任務：IDEA.md Review Loop  
+> gendoc 子任務：IDEA.md Review Loop  
 > 專案目錄：`$_PROJECT_DIR`  
 > State file：`$_PROJECT_DIR/$_STATE_FILE`  
 >  
@@ -637,7 +637,7 @@ fi
 
 **以 Agent tool 建立 subagent**，prompt 填入以下內容：
 
-> MYDEVSOP 子任務：生成 BRD.md  
+> gendoc 子任務：生成 BRD.md  
 > 專案目錄：`$_PROJECT_DIR`  
 > State file：`$_PROJECT_DIR/$_STATE_FILE`  
 >  
@@ -669,7 +669,7 @@ git add docs/BRD.md && git commit -m "docs(gendoc-auto): init BRD" 2>/dev/null |
 
 **以 Agent tool 建立 subagent**，prompt 填入以下內容：
 
-> MYDEVSOP 子任務：BRD.md Review Loop  
+> gendoc 子任務：BRD.md Review Loop  
 > 專案目錄：`$_PROJECT_DIR`  
 > State file：`$_PROJECT_DIR/$_STATE_FILE`  
 >  
@@ -784,4 +784,4 @@ RECOMMENDATION: [使用者下一步應做什麼]
 7. **附件完整保存** — 使用者提供的任何素材均存入 `docs/req/`，IDEA.md Appendix 記錄
 8. **Never git add -A** — 只 stage 已知異動的特定檔案，不使用 `-A` 或 `.`
 
-*此技能由 MYDEVSOP 框架維護。版本：2.1.0*
+*此技能由 gendoc 維護。版本：2.1.0*

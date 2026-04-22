@@ -4,7 +4,7 @@ description: |
   將 docs/*.md 和 features/*.feature 動態掃描並一對一轉換為專業 HTML 文件網站（docs/pages/）。
   Mermaid 圖表直接渲染，深色頂導覽列 + 淺色內容區 + 中文字型，Prism.js 語法高亮，RWD。
   Mode 1（預設）：全產生 — README.md + HTML；Mode 2：僅 HTML。
-  可獨立呼叫或由 devsop-autodev STEP 30 使用。
+  可獨立呼叫或由 gendoc-auto 自動呼叫。
 allowed-tools:
   - Read
   - Write
@@ -51,7 +51,7 @@ echo "EXEC_MODE：${_EXEC_MODE:-（未設定）}"
 
 ```
 ╔══════════════════════════════════════════════════════╗
-║       MYDEVSOP — 請選擇執行模式                      ║
+║       gendoc — 請選擇執行模式                        ║
 ╠══════════════════════════════════════════════════════╣
 ║  [1] Interactive — 互動引導模式（關鍵點等待確認）      ║
 ║  [2] Full-Auto   — 全自動模式（AI 自動選預設值）       ║
@@ -64,7 +64,7 @@ echo "EXEC_MODE：${_EXEC_MODE:-（未設定）}"
 
 ⚠️ 重要：選完後 `_EXEC_MODE` 變數必須在當次執行中更新，Step 0-B 才能正確路由。
 
-**若 `_EXEC_MODE` 已有值**（由 autodev 或 devsop-config 設定）→ 直接沿用，不再詢問：
+**若 `_EXEC_MODE` 已有值**（由 gendoc-config 設定）→ 直接沿用，不再詢問：
 ```
 [Session Config] 沿用已設定 — 模式：<_EXEC_MODE>
 ```

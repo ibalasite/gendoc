@@ -2,7 +2,7 @@
 
 <!-- SDLC Requirements Engineering — Layer 0：Idea Capture -->
 <!-- 此文件是需求鏈的起點（IDEA → BRD → PRD → PDD → EDD），記錄最原始的構想輸入 -->
-<!-- 由 /devsop-idea 自動填寫；未來需求變更時，此文件作為「原始意圖」比對基準 -->
+<!-- 由 /gendoc-auto 自動填寫；未來需求變更時，此文件作為「原始意圖」比對基準 -->
 
 ---
 
@@ -14,11 +14,11 @@
 | **專案名稱** | {{PROJECT_NAME}} |
 | **文件版本** | v0.1-capture |
 | **狀態** | DRAFT ／ IN_REVIEW ／ APPROVED ／ SUPERSEDED |
-| **作者** | {{AUTHOR}}（由 /devsop-idea 自動生成） |
+| **作者** | {{AUTHOR}}（由 /gendoc-auto 自動生成） |
 | **建立日期** | {{YYYY-MM-DD}} |
 | **最後更新** | {{YYYY-MM-DD}} |
 | **輸入模式** | {{多輪訪談 \| Quick Start \| AI 自動填入}} |
-| **建立方式** | /devsop-idea 自動捕捉；請執行 /devsop-brd-review 審查後方可升版 |
+| **建立方式** | /gendoc-auto 自動捕捉；請執行 /reviewdoc brd 審查後方可升版 |
 | **下游文件** | docs/BRD.md（由本文件產生） |
 
 ---
@@ -240,7 +240,7 @@ Week 3：數據分析，決策：Go（生成 BRD）/ Pivot（修改 IDEA）/ Kil
 
 ## 6. Clarification Interview Record（澄清訪談記錄）
 
-> 本節記錄 /devsop-idea Step 2 互動提問的完整結果，是 BRD 各章節的原始輸入來源。
+> 本節記錄 /gendoc-auto Step 2 互動提問的完整結果，是 BRD 各章節的原始輸入來源。
 
 ### Q1 — 主要使用者
 
@@ -304,7 +304,7 @@ Week 3：數據分析，決策：Go（生成 BRD）/ Pivot（修改 IDEA）/ Kil
 
 ## 7. Market & Competitive Intelligence（市場與競品情報）
 
-> 本節由 /devsop-idea Step 3 WebSearch 自動蒐集，作為 BRD §6 的原始資料來源。
+> 本節由 /gendoc-auto Step 3 WebSearch 自動蒐集，作為 BRD §6 的原始資料來源。
 
 ### 7.1 競品 / 參考資源
 
@@ -325,7 +325,7 @@ Week 3：數據分析，決策：Go（生成 BRD）/ Pivot（修改 IDEA）/ Kil
 | 核心套件 / 服務 | {{TECH_PACKAGES}} | {{REASON}} |
 | 基礎設施 | {{TECH_INFRA}} | {{REASON}} |
 
-*技術建議基於 Q3（{{Q3_TECH}}）與 Q4（{{Q4_SCALE}}），最終技術選型由 /devsop-lang-select 確認。*
+*技術建議基於 Q3（{{Q3_TECH}}）與 Q4（{{Q4_SCALE}}）。*
 
 ---
 
@@ -444,7 +444,7 @@ Week 3：數據分析，決策：Go（生成 BRD）/ Pivot（修改 IDEA）/ Kil
 
 ## 11. IDEA Quality Score（構想品質評分）
 
-> 由 /devsop-idea Step 5.5 自動計算，用於判斷是否具備開始 BRD 的條件。
+> 由 /gendoc-auto Step 5.5 自動計算，用於判斷是否具備開始 BRD 的條件。
 
 **整體評分**：{{STAR_RATING}}（{{IDEA_SCORE}}/5）
 
@@ -504,7 +504,7 @@ Week 3：數據分析，決策：Go（生成 BRD）/ Pivot（修改 IDEA）/ Kil
 
 ## 14. IDEA → BRD Handoff Checklist
 
-> 以下所有項目確認後，方可執行 `/devsop-gen-brd` 或啟動 `/devsop-autodev`。
+> 以下所有項目確認後，方可執行 `/gendoc brd` 或啟動 `/gendoc-auto`。
 
 | # | Checklist 項目 | 狀態 | 負責人 |
 |---|--------------|:----:|--------|
@@ -531,10 +531,10 @@ Week 3：數據分析，決策：Go（生成 BRD）/ Pivot（修改 IDEA）/ Kil
 
 ```
 IDEA.md （本文件）
-  └─► BRD.md       ← /devsop-gen-brd 或 /devsop-idea 自動生成
-        └─► PRD.md      ← /devsop-gen-prd
-              └─► PDD.md      ← /devsop-gen-pdd
-                    └─► EDD.md      ← /devsop-gen-edd
+  └─► BRD.md       ← /gendoc brd（由 /gendoc-auto 自動生成）
+        └─► PRD.md      ← /gendoc prd
+              └─► PDD.md      ← /gendoc pdd
+                    └─► EDD.md      ← /gendoc edd
                           └─► ARCH / API / SCHEMA / BDD → 實作
 ```
 
@@ -543,14 +543,14 @@ IDEA.md （本文件）
 | 場景 | 對比依據 | 分類 |
 |------|---------|------|
 | 功能行為與原始 IDEA Q1/Q2 一致但實作有誤 | IDEA §6 原文 | **BUG**（修正，不需 ECR） |
-| 功能需求超出原始 Q1/Q2 描述範圍 | IDEA §6 原文 | **ECR**（需執行 /devsop-change） |
+| 功能需求超出原始 Q1/Q2 描述範圍 | IDEA §6 原文 | **ECR**（需人工評估變更範圍） |
 | 技術選型偏離 Q3 且理由不足 | IDEA §6 Q3 | **ECR 或 ADR**（需說明決策依據） |
 
 ---
 
 ## Appendix A：Research Raw Data（研究原始資料）
 
-*以下為 /devsop-idea Step 3 WebSearch 搜尋的完整原始摘要，供 BRD §0 引用。*
+*以下為 /gendoc-auto Step 3 WebSearch 搜尋的完整原始摘要，供 BRD §0 引用。*
 
 ### 搜尋 1：競品與開源專案
 
@@ -582,11 +582,11 @@ IDEA.md （本文件）
 
 | 版本 | 日期 | 作者 | 修改摘要 |
 |------|------|------|---------|
-| v0.1-capture | {{DATE}} | /devsop-idea | 初始捕捉，由 AI 自動填寫 |
+| v0.1-capture | {{DATE}} | /gendoc-auto | 初始捕捉，由 AI 自動填寫 |
 | v0.2 | — | — | — |
 
 ---
 
-*此 IDEA.md 由 /devsop-idea 自動生成並保存。它記錄了需求探索過程的所有原始輸入、假設與品質評分，是未來 BUG vs ECR 判斷的一級依據。*
+*此 IDEA.md 由 /gendoc-auto 自動生成並保存。它記錄了需求探索過程的所有原始輸入、假設與品質評分，是未來 BUG vs ECR 判斷的一級依據。*
 
 *未來需求發生變化時，請先閱讀本文件 §5（原始 IDEA 原文）與 §10（關鍵假設），確認變更是否超出原始意圖範圍。*

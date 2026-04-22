@@ -7,7 +7,7 @@ description: |
   Unity → Unity Test Framework BDD scenarios；
   Cocos → Jest TypeScript BDD；
   HTML5 → Playwright BDD。
-  由 devsop-autodev STEP 16 自動呼叫，或可獨立手動呼叫。
+  由 gendoc-auto 自動呼叫，或可獨立手動呼叫。
 allowed-tools:
   - Read
   - Write
@@ -388,4 +388,4 @@ Client BDD 已生成並通過審查：
   Review findings：CRITICAL=0 HIGH=0（或已 TODO 數量）
 ```
 
-提交：`test(devsop): generate client BDD features — <client_type> <N> scenarios`
+提交：`test(gendoc)[DOC-10-C]: generate client BDD features — <client_type> <N> scenarios`

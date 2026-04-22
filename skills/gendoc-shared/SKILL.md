@@ -1,14 +1,14 @@
 ---
 name: gendoc-shared
 description: |
-  MYDEVSOP 共用邏輯參考文件：_ask() 函式、_write_state() 原子寫入、狀態檔案命名規範、
+  gendoc 共用邏輯參考文件：_ask() 函式、_write_state() 原子寫入、狀態檔案命名規範、
   retry 邏輯、進度顯示格式。所有 SKILL.md 透過引用此文件確保邏輯一致。
   此為參考文件，不可直接執行。
 allowed-tools:
   - Read
 ---
 
-# gendoc-shared — MYDEVSOP 共用邏輯參考文件
+# gendoc-shared — gendoc 共用邏輯參考文件
 
 > **此文件是參考文件（Reference Document），不是可執行的 Skill。**
 > 所有 SKILL.md 應引用此文件中的邏輯，確保跨 Skill 行為一致。
@@ -80,7 +80,7 @@ echo "[Session Config] 沿用已設定 — 模式：${_EXEC_MODE} ／ Review 策
 
 ```
 ╔══════════════════════════════════════════════════════╗
-║       MYDEVSOP — 請選擇執行模式                      ║
+║       gendoc — 請選擇執行模式                        ║
 ╠══════════════════════════════════════════════════════╣
 ║  [1] Interactive — 互動引導模式                      ║
 ║      關鍵決策點等待輸入（適合熟悉流程的開發者）        ║
@@ -88,13 +88,13 @@ echo "[Session Config] 沿用已設定 — 模式：${_EXEC_MODE} ／ Review 策
 ║      全程不詢問，AI 自動選預設值並顯示選擇內容        ║
 ╚══════════════════════════════════════════════════════╝
 ```
-→ 此選擇控制 pipeline 執行時是否詢問確認（輸入方式請在 /devsop-idea 中選擇）
+→ 此選擇控制 pipeline 執行時是否詢問確認
 → 使用者選擇後寫入 `execution_mode`（"interactive" | "full-auto"）
 
 若選 Interactive，接著顯示 Review 策略選單：
 ```
 ╔══════════════════════════════════════════════════════╗
-║       MYDEVSOP — 請選擇 Review 策略                  ║
+║       gendoc — 請選擇 Review 策略                    ║
 ╠══════════════════════════════════════════════════════╣
 ║  [1] Rapid      — 最多 3 輪，finding=0 提前結束      ║
 ║  [2] Standard   — 最多 5 輪，finding=0 提前結束（預設）║
@@ -139,13 +139,13 @@ esac
 
 ### 所有 SKILL 適用
 
-此規則適用於所有 MYDEVSOP SKILL，包括三個主要入口（idea、autodev、change）和所有獨立可呼叫的 SKILL（review 類等）。
+此規則適用於所有 gendoc SKILL，包括主要入口（gendoc-auto、gendoc-flow）和所有獨立可呼叫的 SKILL（review 類等）。
 
 ---
 
 ## §1 狀態檔案命名規範（#16）
 
-每個 MYDEVSOP 管理的專案使用 **user + branch 雙維度** 命名狀態檔案，避免多人協作或多分支衝突。
+每個 gendoc 管理的專案使用 **user + branch 雙維度** 命名狀態檔案，避免多人協作或多分支衝突。
 
 ### 命名格式
 
@@ -182,7 +182,7 @@ echo "STATE_FILE: $_STATE_FILE"
 所有狀態檔案應加入 .gitignore，避免不同使用者的狀態互相干擾：
 
 ```gitignore
-# MYDEVSOP state files
+# gendoc state files
 .gendoc-state*.json
 ```
 
@@ -361,7 +361,7 @@ case "$_AUTO_MODE" in
 esac
 
 # 詢問是否更新，timeout 後自動選 "no"
-_UPDATE_ANS=$(_ask "偵測到新版 MYDEVSOP。是否先更新再繼續？(yes/no)" "no" 5)
+_UPDATE_ANS=$(_ask "偵測到新版 gendoc。是否先更新再繼續？(yes/no)" "no" 5)
 if [[ "$_UPDATE_ANS" == "yes" || "$_UPDATE_ANS" == "y" ]]; then
   bash "$_REPO/update.sh"
 fi
@@ -419,7 +419,7 @@ function _spawn_agent_with_retry(prompt, step_id, max_retries=3):
 ```
 ║  ⚠️  FAILED STEP：                                   ║
 ║    - STEP 13（TDD 開發）：連續 3 次 Agent 失敗        ║
-║    → 建議手動執行或重跑：/devsop-autodev              ║
+║    → 建議手動執行或重跑：/gendoc-auto                 ║
 ```
 
 ---
@@ -474,7 +474,7 @@ STEP_ORDER = [
 ### 進度顯示格式
 
 ```
-[MYDEVSOP 進度] ████████████░░░░░░░░  12/20 STEP
+[gendoc 進度] ████████████░░░░░░░░  12/20 STEP
    ✅ STEP 01-12 完成
    🔄 STEP 13（TDD 開發）執行中...
    ⏳ STEP 14-20 待執行
@@ -710,7 +710,7 @@ def is_prompt_injection(finding_text):
 所有 STEP 的 commit 訊息遵循以下格式：
 
 ```
-<type>(devsop)[STEP-{NN}]: <動作> — <簡述>
+<type>(gendoc)[STEP-{NN}]: <動作> — <簡述>
 ```
 
 ### type 對照
@@ -729,25 +729,25 @@ def is_prompt_injection(finding_text):
 ### 範例
 
 ```
-docs(devsop)[STEP-03]: generate — PRD 含 8 US / 32 AC
-docs(devsop)[STEP-04]: review — PRD 3 輪，0 CRITICAL 剩餘
-feat(devsop)[STEP-13]: implement — TDD URL Shortener 核心邏輯
-ci(devsop)[STEP-14]: setup — GitHub Actions CI/CD pipeline
-chore(devsop)[STEP-18]: align — 文件一致性檢查通過
+docs(gendoc)[STEP-03]: generate — PRD 含 8 US / 32 AC
+docs(gendoc)[STEP-04]: review — PRD 3 輪，0 CRITICAL 剩餘
+feat(gendoc)[STEP-13]: implement — TDD URL Shortener 核心邏輯
+ci(gendoc)[STEP-14]: setup — GitHub Actions CI/CD pipeline
+chore(gendoc)[STEP-18]: align — 文件一致性檢查通過
 ```
 
 ### Client STEP 範例（v3.0 線性編號）
 
 ```
-docs(devsop)[STEP-05]: generate — PDD Client Web 架構設計
-feat(devsop)[STEP-18]: implement — Client TDD React 前端
+docs(gendoc)[STEP-05]: generate — PDD Client Web 架構設計
+feat(gendoc)[STEP-18]: implement — Client TDD React 前端
 ```
 
 ---
 
 ## §10 版本相容性
 
-此文件適用於 MYDEVSOP v2.0+。
+此文件適用於 gendoc v2.0+。
 
 | 版本 | state JSON version | 相容性 |
 |------|--------------------|--------|
@@ -763,13 +763,13 @@ _STATE_VERSION=$(python3 -c \
 
 if [[ "$_STATE_VERSION" != "2.0" ]]; then
   echo "[警告] 舊版狀態檔案（v$_STATE_VERSION），建議重新初始化"
-  echo "       rm $_STATE_FILE 後重新執行 /devsop-autodev"
+  echo "       rm $_STATE_FILE 後重新執行 /gendoc-auto"
 fi
 ```
 
 ---
 
-*此參考文件由 MYDEVSOP 維護，如有邏輯更新請同步更新所有引用此文件的 SKILL.md。*
+*此參考文件由 gendoc 維護，如有邏輯更新請同步更新所有引用此文件的 SKILL.md。*
 
 ---
 
@@ -918,11 +918,11 @@ json.dump(d,open(f,'w'),ensure_ascii=False,indent=2)
 
 ## §14 STATE-SCHEMA — 標準 State Key 定義（A-04）
 
-> 所有 MYDEVSOP skill 共用的 state 欄位規範。寫入時請使用此表定義的 key 名稱。
+> 所有 gendoc skill 共用的 state 欄位規範。寫入時請使用此表定義的 key 名稱。
 
 | Key | 類型 | 說明 |
 |-----|------|------|
-| `skill_source` | string | `devsop-idea` / `gendoc-auto`（防止跨 skill 誤用 state）|
+| `skill_source` | string | `gendoc-auto`（防止跨 skill 誤用 state）|
 | `execution_mode` | string | `interactive` / `full-auto` |
 | `review_strategy` | string | `rapid` / `standard` / `exhaustive` / `tiered` / `custom` |
 | `project_name` | string | 英文小寫連字號 |
@@ -940,7 +940,7 @@ json.dump(d,open(f,'w'),ensure_ascii=False,indent=2)
 | `brd_path` | string | `docs/BRD.md` |
 | `brd_review_passed` | bool | BRD Review Loop 已通過 |
 | `handoff` | bool | 已移交下游 skill |
-| `handoff_source` | string | `devsop-idea` / `gendoc-auto` |
+| `handoff_source` | string | `gendoc-auto` |
 | `start_step` | int | autodev 31 步編號（autogen 透過 §STEP-MAPPING 翻譯）|
 | `q1_users` | string | Q1 主要使用者澄清結果 |
 | `q2_painpoint` | string | Q2 核心痛點澄清結果 |
@@ -961,7 +961,7 @@ json.dump(d,open(f,'w'),ensure_ascii=False,indent=2)
 
 ## §15 HANDOFF-DISPLAY — 統一 Handoff Banner（UX-01/02）
 
-> 被 `devsop-idea` 和 `gendoc-auto` 共用。呼叫前先從 state 讀取所需變數。
+> 被 `gendoc-auto` 使用。呼叫前先從 state 讀取所需變數。
 
 ### 輸入變數（呼叫前從 state 準備）
 
@@ -973,7 +973,7 @@ _BRD_LINES=$(wc -l < "docs/BRD.md" 2>/dev/null || echo "0")
 _IDEA_REVIEW_ROUNDS=$(python3 -c "import json; d=json.load(open('${_STATE_FILE}')); cs=d.get('completed_steps',[]); print(sum(1 for s in cs if 'idea-review' in s))" 2>/dev/null || echo "0")
 _BRD_REVIEW_ROUNDS=$(python3 -c "import json; d=json.load(open('${_STATE_FILE}')); cs=d.get('completed_steps',[]); print(sum(1 for s in cs if 'brd-review' in s))" 2>/dev/null || echo "0")
 _HANDOFF_SOURCE=$(python3 -c "import json; d=json.load(open('${_STATE_FILE}')); print(d.get('skill_source',''))" 2>/dev/null || echo "")
-_DOWNSTREAM_SKILL=$( [[ "$_HANDOFF_SOURCE" == "devsop-idea" ]] && echo "/devsop-autodev" || echo "/gendoc-flow" )
+_DOWNSTREAM_SKILL="/gendoc-flow"
 ```
 
 ### Banner 顯示格式
@@ -1026,4 +1026,4 @@ AskUserQuestion:
 
 ---
 
-*此參考文件由 MYDEVSOP 維護，如有邏輯更新請同步更新所有引用此文件的 SKILL.md。*
+*此參考文件由 gendoc 維護，如有邏輯更新請同步更新所有引用此文件的 SKILL.md。*

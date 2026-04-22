@@ -1271,7 +1271,7 @@ QA Lead 簽核：{{QA_LEAD_NAME}}
 
 ---
 
-*此文件為 SDLC 文件鏈第 7 層，由 `/devsop-gen-test-plan` 自動生成。*
+*此文件為 SDLC 文件鏈第 7 層，由 `/gendoc test-plan` 自動生成。*
 *上游：docs/ARCH.md、docs/API.md、docs/SCHEMA.md*
 *下游：features/*.feature（BDD）、tests/（TDD）、tests/performance/（效能測試腳本）*
 
