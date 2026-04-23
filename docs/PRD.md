@@ -1,6 +1,6 @@
 # PRD — Product Requirements Document
 <!-- 對應學術標準：IEEE 830 (SRS)，對應業界：Google PRD / Amazon PRFAQ -->
-<!-- Version: v1.1 | Status: DRAFT | DOC-ID: PRD-GENDOC-20260422 -->
+<!-- Version: v1.4 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 -->
 
 ---
 
@@ -10,10 +10,10 @@
 |------|------|
 | **DOC-ID** | PRD-GENDOC-20260422 |
 | **產品名稱** | gendoc — AI-Driven Implementation Blueprint Generator |
-| **文件版本** | v1.1 |
-| **狀態** | DRAFT |
+| **文件版本** | v1.4 |
+| **狀態** | ACTIVE |
 | **作者（PM）** | AI Product Manager Agent |
-| **日期** | 2026-04-22 |
+| **日期** | 2026-04-24 |
 | **上游來源** | MYDEVSOP 文件生成流水線（devsop-gendoc / devsop-autogen） |
 | **審閱者** | 技術架構師、QA Lead |
 | **核准者** | 待定 |
@@ -24,6 +24,7 @@
 
 | 版本 | 日期 | 作者 | 變更摘要 |
 |------|------|------|---------|
+| v1.4 | 2026-04-24 | PM Agent | 12 項流水線可靠性修補（P-01～P-12）：斷點續行重寫（review_progress schema）、quality_status 三態分類、failed_steps 追蹤、special_completed 旗標、pipeline_hash 版本偵測、BDD 增量生成模式、commit trailer 完整記錄 |
 | v1.3 | 2026-04-24 | PM Agent | 補入 §5.5 Gen/Review/Fix 三專家模式與 Expert Roles 完整表；修正 §7.5/§8 BDD 模板欄位（BDD.md → BDD-server.md + BDD-client.md）；State file 完整欄位說明 |
 | v1.2 | 2026-04-24 | PM Agent | 重建文件流水線：加入 VDD（視覺設計）、FRONTEND 獨立步驟、RTM 移至 BDD 之後；修正累積上游鏈；D01-D17 完整編號 |
 | v1.1 | 2026-04-22 | PM Agent | 重新定位核心使命：從文件生成工具 → 可直接實作的開發藍圖生成器；補充藍圖細粒度品質標準 |
@@ -519,17 +520,48 @@ docs/req/（原始輸入層，所有文件的最終上游）
 ```
 
 State file 記錄：
+
+**核心控制欄位**
 - `execution_mode`：`full-auto` / `interactive`
-- `review_strategy`：`rapid` / `standard` / `exhaustive` / `tiered`
-- `completed_steps`：已完成步驟清單（支援斷點續行）
-- `skill_source`：`gendoc-auto`（防止跨套件誤用）
-- `handoff`：true（gendoc-auto → gendoc-flow 移交標記）
+- `review_strategy`：`rapid` / `standard` / `exhaustive` / `tiered` / `custom`
+- `max_rounds`：Review Loop 最大輪次
+- `stop_condition`：Review Loop 停止條件描述
+
+**斷點續行欄位**
+- `completed_steps`：已完成步驟 ID 清單（review 通過，quality_status ≠ failed）
+- `failed_steps`：quality_status=failed 的步驟 ID 清單（CRITICAL/HIGH 未清除，不計入 completed）
 - `start_step`：斷點續行起始步驟 ID（與 pipeline.json step.id 完全一致）
+- `review_progress`：每步驟 Review Loop 進度字典（P-02/P-04/P-05 Skip 判斷依據）
+  ```json
+  {
+    "D06-EDD": {
+      "rounds_done": 3,
+      "terminated": true,
+      "terminate_reason": "zero_finding",
+      "quality_status": "passed",
+      "last_updated": "2026-04-24T05:00:00Z"
+    }
+  }
+  ```
+  - `quality_status` 三態：`passed`（finding=0）/ `degraded`（僅 MEDIUM/LOW）/ `failed`（有 CRITICAL/HIGH）
+  - `terminate_reason` 代碼：`zero_finding` / `tiered_clean` / `max_rounds` / `rapid_cap`
+
+**特殊步驟欄位**
+- `special_completed`：D16-ALIGN / D17-HTML 完成旗標（比 file-exists 更可靠）
+  ```json
+  { "D16-ALIGN": true, "D17-HTML": true }
+  ```
+
+**版本與移交欄位**
+- `pipeline_hash`：SHA256 of pipeline.json（P-11 版本漂移偵測）
+- `handoff`：true（gendoc-auto → gendoc-flow 移交完成標記）
+- `idea_review_passed` / `brd_review_passed`：IDEA/BRD Review Loop 通過旗標（P-01 skip guard）
+- `skill_source`：`gendoc-auto`（防止跨套件誤用）
+
+**專案配置欄位**
 - `client_type`：`none` / `web-saas` / `unity` / `cocos` / `html5-game`（控制條件步驟跳過）
 - `lang_stack`：技術棧標籤（`node/typescript`、`python/fastapi` 等）
 - `github_repo`：GitHub 倉庫 URL（用於 README badge 生成）
-- `max_rounds`：Review Loop 最大輪次
-- `stop_condition`：Review Loop 停止條件描述
 - `last_completed`：最後一個完成的 step ID
 - `last_updated`：ISO 8601 時間戳
 
@@ -685,8 +717,20 @@ Review finding 的嚴重等級涵蓋：
 
 ### 7.2 可靠性
 
-- TF-02 斷點續行：任何步驟中斷後重啟，自動從上次完成點繼續
-- State file 原子寫入，防止部分寫入導致的損毀
+**斷點續行（TF-02）**：任何步驟中斷後重啟，自動從上次完成點繼續。v1.4 以 `review_progress` schema 精確記錄每步驟 Review Loop 進度，支援三種恢復路徑：
+
+| 情境 | 恢復行為 |
+|------|---------|
+| 文件已生成，review 完整完成 | Skip 整個步驟（不重新 gen，不重新 review） |
+| 文件已生成，review 跑到第 N 輪中斷 | Skip gen，從 Round N+1 繼續 review |
+| 文件已生成，review 尚未開始 | Skip gen，從 Round 1 開始 review |
+| 文件未生成 | 完整執行 gen → review |
+
+**品質保證**：
+- State file 原子寫入（tmp → replace），防止部分寫入損毀
+- `quality_status=failed`（CRITICAL/HIGH 未清除）步驟寫入 `failed_steps`，不計入 `completed_steps`
+- 流水線結束時 Total Summary 列出所有 `failed_steps` 及修復建議
+- IDEA/BRD 重跑保護（P-01）：`idea_review_passed` / `brd_review_passed` 旗標防止已完成步驟被重複歸檔與生成
 
 ### 7.3 安全性
 

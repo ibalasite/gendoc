@@ -4,7 +4,7 @@
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](https://github.com/ibalasite/gendoc)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-skill-blueviolet)](https://claude.ai/code)
 
-**AI-driven engineering document generation system for Claude Code.** One command generates BRD, PRD, EDD, ARCH, API, Schema, Runbook and more — each document inherits knowledge from all upstream docs automatically.
+**AI-driven engineering document generation system for Claude Code.** One command generates a complete 17-document implementation blueprint — IDEA, BRD, PRD, PDD, VDD, EDD, ARCH, API, Schema, FRONTEND, test-plan, BDD, RTM, Runbook, LOCAL_DEPLOY, and an HTML documentation site — each document inheriting knowledge from all upstream docs automatically.
 
 ---
 
@@ -15,7 +15,9 @@
 Key capabilities:
 - **Cumulative upstream reading** — every doc reads all ancestor docs, never just its direct parent
 - **Universal generation** — `/gendoc <type>` for any document type, driven by templates
-- **Universal review loop** — `/reviewdoc <type>` with configurable strategy (rapid / standard / exhaustive)
+- **Universal review loop** — `/reviewdoc <type>` with configurable strategy (rapid / standard / exhaustive / tiered / custom)
+- **Reliable breakpoint resume** — `review_progress` schema tracks each review round; any step can be safely interrupted and resumed at the exact round
+- **Quality status tracking** — `passed` / `degraded` / `failed` per step; CRITICAL/HIGH findings block completion, MEDIUM/LOW log as degraded
 - **Auto-update via SessionStart hook** — harness-enforced, LLM-independent, runs in background
 - **Windows native support** — Python-based hook for Windows, bash for macOS/Linux
 
@@ -27,19 +29,20 @@ Key capabilities:
 |-------|---------|---------|
 | `gendoc` | `/gendoc <type>` | Generate any document type |
 | `reviewdoc` | `/reviewdoc <type>` | Review & iteratively fix any document |
-| `gendoc-auto` | `/gendoc-auto` | Full pipeline: all docs + reviews in sequence |
-| `gendoc-flow` | `/gendoc-flow` | Step-through pipeline with pause points |
-| `gendoc-config` | `/gendoc-config` | Configure execution mode & review strategy |
-| `gendoc-align-check` | `/gendoc-align-check` | Cross-document alignment scan |
+| `gendoc-auto` | `/gendoc-auto` | Full pipeline entry point: IDEA + BRD generation, then hands off to gendoc-flow |
+| `gendoc-flow` | `/gendoc-flow` | Template-driven orchestrator (D03–D17) with reliable breakpoint resume |
+| `gendoc-config` | `/gendoc-config` | Configure execution mode, review strategy & restart step interactively |
+| `gendoc-align-check` | `/gendoc-align-check` | Cross-document alignment scan (D16) |
 | `gendoc-align-fix` | `/gendoc-align-fix` | Auto-fix alignment issues |
-| `gendoc-gen-html` | `/gendoc-gen-html` | Generate HTML documentation site |
+| `gendoc-gen-html` | `/gendoc-gen-html` | Generate HTML documentation site (D17) |
 | `gendoc-gen-diagrams` | `/gendoc-gen-diagrams` | Generate architecture diagrams |
-| `gendoc-gen-client-bdd` | `/gendoc-gen-client-bdd` | Client-facing BDD features |
+| `gendoc-gen-client-bdd` | `/gendoc-gen-client-bdd` | Client-facing BDD feature files |
+| `gendoc-rebuild-templates` | `/gendoc-rebuild-templates` | Rebuild all document templates from scratch |
 | `gendoc-update` | `/gendoc-update` | Manual skill upgrade |
 
 ### Supported Document Types
 
-`edd` · `brd` · `prd` · `pdd` · `arch` · `api` · `schema` · `bdd` · `test-plan` · `runbook` · `local-deploy` · `idea` · `readme`
+`idea` · `brd` · `prd` · `pdd` · `vdd` · `edd` · `arch` · `api` · `schema` · `frontend` · `test-plan` · `bdd` · `rtm` · `runbook` · `local-deploy` · `readme`
 
 ---
 
@@ -78,7 +81,16 @@ cd ~/projects/gendoc
 ## Usage
 
 ```bash
-# Generate a single document (reads templates automatically)
+# Full pipeline — start a new project
+/gendoc-auto "I want to build an AI-powered customer service bot"
+
+# Resume after interruption — gendoc-flow auto-resumes from last completed step
+/gendoc-flow
+
+# Configure review strategy or restart from a specific step
+/gendoc-config
+
+# Generate a single document
 /gendoc edd
 /gendoc brd
 /gendoc runbook
@@ -87,9 +99,8 @@ cd ~/projects/gendoc
 /reviewdoc edd
 /reviewdoc runbook
 
-# Full pipeline (interactive)
-/gendoc-config       # set mode: interactive or full-auto
-/gendoc-auto         # run all docs sequentially
+# Generate HTML docs site and deploy to GitHub Pages
+/gendoc-gen-html
 
 # Manual upgrade
 /gendoc-update
@@ -120,19 +131,23 @@ templates/
 
 The **Iron Law**: no document is generated without reading both `TYPE.md` AND `TYPE.gen.md` first. Templates are the single source of truth — editing a template immediately changes behavior of all `/gendoc` and `/reviewdoc` calls.
 
-### Upstream Dependency Chain
+### Pipeline (D01–D17)
 
 ```
-IDEA → BRD → PRD → PDD
-              ↓      ↓
-             EDD → ARCH → API → SCHEMA
-                    ↓      ↓      ↓
-              test-plan  BDD   runbook
-                    ↓
-              local-deploy → README
+D01-IDEA → D02-BRD → D03-PRD → D04-PDD → D05-VDD
+                          ↓
+                       D06-EDD → D07-ARCH → D08-API → D09-SCHEMA
+                                     ↓
+                               D10-FRONTEND
+                                     ↓
+                     D11-test-plan → D12-BDD-server → D12b-BDD-client
+                                          ↓
+                                       D13-RTM → D14-runbook → D15-LOCAL_DEPLOY
+                                                                      ↓
+                                                             D16-ALIGN → D17-HTML
 ```
 
-Each document accumulates knowledge from all ancestors (skips silently if missing).
+Each document accumulates knowledge from **all** ancestors (skips silently if missing). PDD, VDD, FRONTEND, and BDD-client only run when `client_type ≠ none`.
 
 ---
 
