@@ -294,7 +294,7 @@ EOF
 | `version` | string | 固定 "2.0"，用於向後相容判斷 |
 | `project_dir` | string | 專案絕對路徑（`pwd` 輸出） |
 | `brd_path` | string | BRD 檔案路徑（相對或絕對） |
-| `current_step` | string | 已完成的最後一個 STEP（字串，"01"–"31"）|
+| `current_step` | string | legacy alias for start_step，不建議直接使用 |
 | `lang_stack` | string | 語言/框架選型（STEP 02 後設定） |
 | `client_type` | string | Client 類型（"none"/"web"/"web-saas"/"unity"/"cocos"）|
 | `execution_mode` | string | 執行模式（"full-auto"/"interactive"）|
@@ -812,107 +812,13 @@ json.dump(d,open(f,'w'),ensure_ascii=False,indent=2)
 
 ## §12 shared-loop-config【已棄用】
 
-> ⚠️ **DEPRECATED**：`gendoc_loop_count` 已由 `review_strategy` 取代（TF-03/PD-04 決策）。
-> Review 輪次統一從 `review_strategy` 換算：rapid=3 / standard=5 / exhaustive=無上限 / tiered=無上限。
-> 本節保留以供舊版 state 向後相容讀取，新 skill 不應使用 `gendoc_loop_count`。
-
-控制每份文件的 Review Loop 輪數。被 `gendoc-auto` 等多文件生成技能使用。
-
-### 讀取
-
-```bash
-_LOOP_COUNT=$(python3 -c "
-import json
-try: print(int(json.load(open('${_STATE_FILE:-.gendoc-state.json}')).get('gendoc_loop_count', 2)))
-except: print(2)
-" 2>/dev/null || echo "2")
-```
-
-### 互動模式選單
-
-```
-每份文件的精修輪數（Review Loop）：
-
-[1] 快速（1 輪）— 草稿用
-[2] 標準（2 輪）— 預設  ← 推薦
-[3] 深度（3 輪）— 重要文件
-[4] 嚴謹（4 輪）— 接近發佈品質
-[5] 最高（5 輪）— 最終發佈
-```
-
-### 儲存
-
-```bash
-python3 -c "
-import json; f='${_STATE_FILE:-.gendoc-state.json}'
-try: d=json.load(open(f))
-except: d={}
-d['gendoc_loop_count']=${_LOOP_COUNT}
-json.dump(d,open(f,'w'),ensure_ascii=False,indent=2)
-"
-echo "[Loop Config] _LOOP_COUNT=${_LOOP_COUNT}"
-```
-
-### Loop 終止條件
-
-在每個 DOC step 的 Review Loop 中：
-- 當 `REVIEW_JSON.status == "PASS"` → 立即 break，標記 `[PASS]`
-- 當 `_LOOP >= _LOOP_COUNT` → 強制 break，標記 `[LOOP_MAX]`
-- `[LOOP_MAX]` 不阻塞後續步驟，僅記錄警告
+> ⚠️ **DEPRECATED**：`gendoc_loop_count` 已廢棄，請改用 state file 的 `max_rounds`（由 gendoc-config 設定）。
 
 ---
 
 ## §13 shared-start-step【已棄用】
 
-> ⚠️ **DEPRECATED**：`gendoc_start_step` 已由統一的 `start_step`（autodev 31 步編號）取代（TF-03/TF-07 決策）。
-> 起始步驟由 TF-02 狀態機自動判斷（讀取 `completed_steps`），不再詢問使用者。
-> autogen 透過 §STEP-MAPPING 對照表將 autodev STEP 編號翻譯為文件 STEP。
-> 本節保留以供舊版 state 向後相容讀取，新 skill 不應使用 `gendoc_start_step`。
-
-允許使用者跳過已完成的文件步驟，從指定步驟繼續。被 `gendoc-auto` 使用。
-
-### 讀取
-
-```bash
-_START_STEP=$(python3 -c "
-import json
-try: print(int(json.load(open('${_STATE_FILE:-.gendoc-state.json}')).get('gendoc_start_step', 1)))
-except: print(1)
-" 2>/dev/null || echo "1")
-echo "[Start Step] 從 DOC-${_START_STEP} 開始"
-```
-
-### Skip 判斷（每個 DOC step 內使用）
-
-```bash
-# 範例：DOC-03 的 skip 判斷
-_THIS_STEP=3
-_DOC_PATH="$(pwd)/docs/PRD.md"
-_SKIP="false"
-
-if [[ "${_START_STEP}" -gt "${_THIS_STEP}" ]]; then
-  _SKIP="true"
-  echo "[Skip] DOC-0${_THIS_STEP}：起始步驟設定跳過"
-elif [[ -s "${_DOC_PATH}" && "${_EXEC_MODE}" == "full-auto" ]]; then
-  _SKIP="true"
-  echo "[Skip] DOC-0${_THIS_STEP}：文件已存在（full-auto 模式跳過）"
-elif [[ -s "${_DOC_PATH}" && "${_EXEC_MODE}" == "interactive" ]]; then
-  # AskUserQuestion: 文件已存在，是否覆蓋？
-  # [1] 跳過（保留現有）[2] 覆蓋（重新生成）
-fi
-```
-
-### 儲存
-
-```bash
-python3 -c "
-import json; f='${_STATE_FILE:-.gendoc-state.json}'
-try: d=json.load(open(f))
-except: d={}
-d['gendoc_start_step']=${_START_STEP}
-json.dump(d,open(f,'w'),ensure_ascii=False,indent=2)
-"
-```
+> ⚠️ **DEPRECATED**：`gendoc_start_step` 已廢棄，請改用 state file 的 `start_step`（格式 D01-IDEA 至 D14-HTML）。
 
 ---
 
@@ -941,7 +847,7 @@ json.dump(d,open(f,'w'),ensure_ascii=False,indent=2)
 | `brd_review_passed` | bool | BRD Review Loop 已通過 |
 | `handoff` | bool | 已移交下游 skill |
 | `handoff_source` | string | `gendoc-auto` |
-| `start_step` | int | autodev 31 步編號（autogen 透過 §STEP-MAPPING 翻譯）|
+| `start_step` | int | gendoc-flow step ID，格式 D01-IDEA 至 D14-HTML，或 "0" 表示從頭開始 |
 | `q1_users` | string | Q1 主要使用者澄清結果 |
 | `q2_painpoint` | string | Q2 核心痛點澄清結果 |
 | `q3_constraints` | string | Q3 技術限制澄清結果 |

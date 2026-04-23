@@ -367,6 +367,24 @@ Input（我們可控的行動）
 | A1 | {{ASSUMPTION_1}} | 用戶訪談 / A-B Test | {{DATE}} | {{IMPACT}} |
 | A2 | {{ASSUMPTION_2}} | 數據分析 | {{DATE}} | {{IMPACT}} |
 
+### 8.3 技術約束（Technology Constraints）
+
+<!-- 來源：IDEA.md §6 Q3 技術限制或偏好（使用者原始輸入）→ 此處正式化為 BRD 約束。
+     EDD §3.2 ADR 決策時必須以本節為硬性/軟性邊界輸入；不得在 EDD 直接推翻硬性約束。 -->
+
+| 約束 | 類型 | 來源 | 影響 |
+|------|------|------|------|
+| 程式語言：{{LANG_CONSTRAINT}}（e.g. Python / TypeScript / Go） | 硬性/軟性 | 團隊現有技能 / 組織規定 / 使用者偏好 | EDD lang_stack 決策上界 |
+| 框架：{{FRAMEWORK_CONSTRAINT}}（e.g. FastAPI / Next.js / 無限制） | 硬性/軟性 | 團隊經驗 / 生態相容性 | EDD 架構選型 |
+| 基礎設施：{{INFRA_CONSTRAINT}}（e.g. 必須用 AWS / 自建機房 / 無限制） | 硬性/軟性 | 採購合約 / 現有環境 | ARCH 雲端平台選型 |
+| 資料庫：{{DB_CONSTRAINT}}（e.g. 必須用 PostgreSQL / 無限制） | 硬性/軟性 | 現有授權 / DBA 規定 | EDD DB 選型 |
+| 開源授權：{{LICENSE_CONSTRAINT}}（e.g. 禁用 GPL / 僅允許 MIT+Apache） | 硬性 | 法務規定 | 所有第三方套件選型 |
+
+> **填寫指引：**
+> - 硬性（Hard）= EDD 不得違反，需書面豁免才能排除
+> - 軟性（Soft）= 有充分理由可在 EDD ADR 中說明並覆蓋
+> - 若無任何技術約束，明確填寫「N/A — 技術選型完全由 EDD 工程判斷決定」
+
 ---
 
 ## 9. Regulatory & Compliance Requirements

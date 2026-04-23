@@ -13,6 +13,7 @@ upstream-docs:
   - docs/API.md
   - docs/SCHEMA.md
   - docs/test-plan.md
+  - docs/FRONTEND.md  # Layer 6 — 前端元件架構（Client BDD Screen 對應）
 quality-bar: "每個 PRD AC 至少有一個 Scenario（正常路徑 + 錯誤路徑）；所有 API Endpoint 均有 @contract tagged Scenario；邊界條件使用 Scenario Outline；所有 Then 斷言具體且可測試；無技術語言滲入 Given/When/Then；6 個 HTTP 錯誤碼（401/403/404/409/422/429）均有對應 Error Scenario"
 ---
 
@@ -47,6 +48,7 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 | `API.md` | 所有 Endpoint、Request/Response | **@contract tag**：每個 API Endpoint 必須有對應 BDD Scenario |
 | `SCHEMA.md` | 資料模型 | Background 的資料初始化步驟（Given 的 clean state 設計）|
 | `test-plan.md` | §3.3 E2E/BDD、§9 Risk Matrix | Smoke 標記（Risk=High 的功能 Scenario 數量加倍）|
+| `FRONTEND.md`（若存在）| §4 Screen 清單、§5 Component Architecture | Client BDD @ui Scenario 的 Screen 名稱和元件邊界來自 FRONTEND；確保 E2E Scenario Given/When/Then 與實際 Screen 對應 |
 
 若某文件不存在，靜默跳過，依既有流程繼續。
 

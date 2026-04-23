@@ -12,7 +12,8 @@ upstream-docs:
   - docs/API.md
   - docs/SCHEMA.md
   - docs/test-plan.md
-  - docs/BDD.md
+  - features/          # BDD-server 輸出（Server BDD Feature Files）
+  - features/client/   # BDD-client 輸出（Client E2E Feature Files，若 client_type≠none）
   - docs/RUNBOOK.md
   - docs/LOCAL_DEPLOY.md
 ---

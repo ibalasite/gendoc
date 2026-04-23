@@ -13,14 +13,23 @@ allowed-tools:
   - Agent
 ---
 
-# gendoc-auto — 任意輸入→完整文件集+GitHub Pages
+# gendoc-auto — 任意輸入 → IDEA.md + BRD.md → 移交 gendoc-flow
 
 ```
 Input:   IDEA text / Image URL / Document (URL/git/local) / Codebase (git/local)
 Output:  docs/IDEA.md + docs/BRD.md → 移交 gendoc-flow
 Steps:   PRE-1~PRE-4 → Q → R → IDEA → IDEA-Review → BRD → BRD-Review → Handoff
 Experts: PM / UX / System Architect / Backend / QA / Domain
+Scope:   僅負責 D01-IDEA + D02-BRD；其餘文件由 gendoc-flow 接手
 ```
+
+**使用路徑選擇：**
+
+| 情境 | 使用方式 |
+|------|---------|
+| 從 Idea 出發（無任何文件） | `/gendoc-auto` → 自動 handoff 到 gendoc-flow |
+| 已有 BRD.md，直接從 PRD 開始 | 跳過此 skill，直接呼叫 `/gendoc-flow`（確保 docs/BRD.md 存在）|
+| 中途斷點續行（某 D-step 開始）| `/gendoc-config` 選擇起始步驟 → `/gendoc-flow` |
 
 ---
 
@@ -217,27 +226,27 @@ git add $(git ls-files --others --exclude-standard docs/ 2>/dev/null | head -20)
 git commit -m "chore(gendoc-auto): init workspace" 2>/dev/null || true
 ```
 
-**Session Config（固定 full-auto / standard）**：
+**Session Config（以 state file 為主，僅 key 不存在時才寫入預設值）**：
 
 ```bash
-_EXEC_MODE="full-auto"
-_REVIEW_STRATEGY="standard"
-_MAX_ROUNDS=5
-_STOP_CONDITION="任一輪 finding=0 或第 5 輪 fix 完"
-
 python3 -c "
 import json, datetime
 f='${_STATE_FILE}'
 try: d=json.load(open(f))
 except: d={}
-d['execution_mode']  = 'full-auto'
-d['review_strategy'] = 'standard'
-d['max_rounds']      = 5
-d['stop_condition']  = '任一輪 finding=0 或第 5 輪 fix 完'
-d['last_updated']    = datetime.datetime.utcnow().isoformat() + 'Z'
+d.setdefault('execution_mode',  'full-auto')
+d.setdefault('review_strategy', 'standard')
+d.setdefault('max_rounds', 5)
+d.setdefault('stop_condition', '任一輪 finding=0 或第 5 輪 fix 完')
+d['last_updated'] = datetime.datetime.utcnow().isoformat() + 'Z'
 json.dump(d, open(f,'w'), ensure_ascii=False, indent=2)
-print('[Session Config] full-auto / standard / max_rounds=5')
+print('[Session Config] mode=' + d['execution_mode'] + ' / review_strategy=' + d['review_strategy'] + ' / max_rounds=' + str(d['max_rounds']))
 "
+
+_EXEC_MODE=$(python3 -c "import json; print(json.load(open('${_STATE_FILE}')).get('execution_mode','full-auto'))" 2>/dev/null || echo "full-auto")
+_REVIEW_STRATEGY=$(python3 -c "import json; print(json.load(open('${_STATE_FILE}')).get('review_strategy','standard'))" 2>/dev/null || echo "standard")
+_MAX_ROUNDS=$(python3 -c "import json; print(json.load(open('${_STATE_FILE}')).get('max_rounds',5))" 2>/dev/null || echo "5")
+_STOP_CONDITION=$(python3 -c "import json; print(json.load(open('${_STATE_FILE}')).get('stop_condition','任一輪 finding=0 或第 5 輪 fix 完'))" 2>/dev/null || echo "任一輪 finding=0 或第 5 輪 fix 完")
 ```
 
 ---
@@ -696,10 +705,14 @@ d['brd_path']       = 'docs/BRD.md'
 d['idea_path']      = 'docs/IDEA.md'
 d['req_dir']        = 'docs/req'
 d['handoff_source'] = 'gendoc-auto'
-if 'handoff' not in d.get('completed_steps',[]):
-    d.setdefault('completed_steps',[]).append('handoff')
+# 標記 D01-IDEA + D02-BRD 已完成，讓 gendoc-flow 從 D03-PRD 開始
+completed = d.get('completed_steps', [])
+for step_id in ['D01-IDEA', 'D02-BRD', 'handoff']:
+    if step_id not in completed:
+        completed.append(step_id)
+d['completed_steps'] = completed
 json.dump(d, open(f,'w'), ensure_ascii=False, indent=2)
-print('[state] handoff state 已寫入')
+print('[state] handoff state 已寫入（D01+D02 標記完成）')
 "
 ```
 

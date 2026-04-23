@@ -1,0 +1,178 @@
+{
+  "version": "2.0",
+  "description": "gendoc 文件流水線定義 — 此檔案是流水線的唯一順序來源。新增文件類型：(1) 加入本檔案的 steps；(2) 建立 templates/{TYPE}.md + TYPE.gen.md + TYPE.review.md。不需修改任何 skill 檔案。",
+  "steps": [
+    {
+      "id": "D01-IDEA",
+      "type": "IDEA",
+      "layer": "需求層",
+      "output": ["docs/IDEA.md"],
+      "multi_file": false,
+      "condition": "always",
+      "handled_by": "gendoc-auto",
+      "commit_prefix": "docs(gendoc)[D01-IDEA]"
+    },
+    {
+      "id": "D02-BRD",
+      "type": "BRD",
+      "layer": "需求層",
+      "output": ["docs/BRD.md"],
+      "multi_file": false,
+      "condition": "always",
+      "handled_by": "gendoc-auto",
+      "commit_prefix": "docs(gendoc)[D02-BRD]"
+    },
+    {
+      "id": "D03-PRD",
+      "type": "PRD",
+      "layer": "需求層",
+      "output": ["docs/PRD.md"],
+      "multi_file": false,
+      "condition": "always",
+      "commit_prefix": "docs(gendoc)[D03-PRD]"
+    },
+    {
+      "id": "D04-PDD",
+      "type": "PDD",
+      "layer": "需求層",
+      "output": ["docs/PDD.md"],
+      "multi_file": false,
+      "condition": "client_type != none",
+      "commit_prefix": "docs(gendoc)[D04-PDD]"
+    },
+    {
+      "id": "D05-VDD",
+      "type": "VDD",
+      "layer": "設計層",
+      "output": ["docs/VDD.md"],
+      "multi_file": false,
+      "condition": "client_type != none",
+      "commit_prefix": "docs(gendoc)[D05-VDD]"
+    },
+    {
+      "id": "D06-EDD",
+      "type": "EDD",
+      "layer": "設計層",
+      "output": ["docs/EDD.md"],
+      "multi_file": false,
+      "condition": "always",
+      "commit_prefix": "docs(gendoc)[D06-EDD]"
+    },
+    {
+      "id": "D07-ARCH",
+      "type": "ARCH",
+      "layer": "設計層",
+      "output": ["docs/ARCH.md"],
+      "multi_file": false,
+      "condition": "always",
+      "commit_prefix": "docs(gendoc)[D07-ARCH]"
+    },
+    {
+      "id": "D08-API",
+      "type": "API",
+      "layer": "設計層",
+      "output": ["docs/API.md"],
+      "multi_file": false,
+      "condition": "always",
+      "commit_prefix": "docs(gendoc)[D08-API]"
+    },
+    {
+      "id": "D09-SCHEMA",
+      "type": "SCHEMA",
+      "layer": "設計層",
+      "output": ["docs/SCHEMA.md"],
+      "multi_file": false,
+      "condition": "always",
+      "commit_prefix": "docs(gendoc)[D09-SCHEMA]"
+    },
+    {
+      "id": "D10-FRONTEND",
+      "type": "FRONTEND",
+      "layer": "設計層",
+      "output": ["docs/FRONTEND.md"],
+      "multi_file": false,
+      "condition": "client_type != none",
+      "commit_prefix": "docs(gendoc)[D10-FRONTEND]"
+    },
+    {
+      "id": "D11-test-plan",
+      "type": "test-plan",
+      "layer": "品質層",
+      "output": ["docs/test-plan.md"],
+      "multi_file": false,
+      "condition": "always",
+      "commit_prefix": "docs(gendoc)[D11-test-plan]"
+    },
+    {
+      "id": "D12-BDD-server",
+      "type": "BDD-server",
+      "layer": "品質層",
+      "output": ["features/"],
+      "output_glob": "features/*.feature",
+      "multi_file": true,
+      "condition": "always",
+      "commit_prefix": "test(gendoc)[D12-BDD-server]",
+      "note": "BDD-server.gen.md 指示生成多個 .feature 檔案；BDD-server.review.md 審查所有 features/*.feature"
+    },
+    {
+      "id": "D12b-BDD-client",
+      "type": "BDD-client",
+      "layer": "品質層",
+      "output": ["features/client/"],
+      "output_glob": "features/client/*.feature",
+      "multi_file": true,
+      "condition": "client_type != none",
+      "commit_prefix": "test(gendoc)[D12b-BDD-client]",
+      "note": "BDD-client.gen.md 指示生成多個 .feature 檔案；BDD-client.review.md 審查所有 features/client/*.feature"
+    },
+    {
+      "id": "D13-RTM",
+      "type": "RTM",
+      "layer": "品質層",
+      "output": ["docs/RTM.md"],
+      "multi_file": false,
+      "condition": "always",
+      "commit_prefix": "docs(gendoc)[D13-RTM]"
+    },
+    {
+      "id": "D14-runbook",
+      "type": "runbook",
+      "layer": "運維層",
+      "output": ["docs/runbook.md"],
+      "multi_file": false,
+      "condition": "always",
+      "commit_prefix": "docs(gendoc)[D14-runbook]"
+    },
+    {
+      "id": "D15-LOCAL_DEPLOY",
+      "type": "LOCAL_DEPLOY",
+      "layer": "運維層",
+      "output": ["docs/LOCAL_DEPLOY.md"],
+      "multi_file": false,
+      "condition": "always",
+      "commit_prefix": "docs(gendoc)[D15-LOCAL_DEPLOY]"
+    },
+    {
+      "id": "D16-ALIGN",
+      "type": "ALIGN",
+      "layer": "稽核層",
+      "output": ["docs/ALIGN_REPORT.md"],
+      "multi_file": false,
+      "condition": "always",
+      "special_skill": "gendoc-align-check",
+      "commit_prefix": "docs(gendoc)[D16-ALIGN]",
+      "note": "特殊步驟：呼叫 gendoc-align-check skill，不走標準 gen→review 流程"
+    },
+    {
+      "id": "D17-HTML",
+      "type": "HTML",
+      "layer": "稽核層",
+      "output": ["docs/pages/"],
+      "multi_file": false,
+      "condition": "always",
+      "special_skill": "gendoc-gen-html",
+      "commit_prefix": "docs(gendoc)[D17-HTML]",
+      "note": "特殊步驟：呼叫 gendoc-gen-html skill，不走標準 gen→review 流程"
+    }
+  ]
+}

@@ -7,6 +7,7 @@ upstream-docs:
   - docs/BRD.md
   - docs/PRD.md
   - docs/PDD.md
+  - docs/VDD.md     # Layer 3.5 — 視覺設計系統（Design Token、Art Direction、資產規格）
 quality-bar: "所有 PRD P0 功能有對應模組；§7 SCALE 有具體數字；UML 9 大圖全部完成（每種至少一張）；OWASP Top 10 每項有具體對策；STRIDE 6 威脅類型均有對策；SLO/SLI 已量化；Capacity Planning 含計算公式；§20 Feature Flag 5 種類型均已評估；§21 觀測性三支柱均已設計；Runbook 框架已設計；所有數字明確，不得留「視情況」佔位。"
 ---
 
@@ -26,6 +27,7 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 - `docs/BRD.md`：了解業務需求、成功指標——EDD 的 SLO/SLI 設計必須對應 BRD 的業務指標
 - `docs/PRD.md`：了解所有 P0/P1 功能及 AC——EDD 的資料模型、API 設計需覆蓋所有功能
 - `docs/PDD.md`（若存在）：了解畫面設計、欄位定義——**EDD 的 DB Schema 必須依 PDD 畫面欄位設計**，不得新增 PDD 未定義的欄位（除非有技術必要），也不得遺漏 PDD 中的資料欄位
+- `docs/VDD.md`（若存在）：了解視覺設計系統——**Design Token 命名必須與 VDD §6 保持一致**；資產格式規格（圖片壓縮比、字體格式）影響 EDD §7 SCALE 的儲存容量計算；Art Direction 影響 §9 CI/CD 的資產 Pipeline 設計
 
 ### docs/req/ 素材關聯讀取
 
@@ -91,13 +93,24 @@ EDD 必須涵蓋以下所有章節（對應 templates/EDD.md 結構）：
 
 ### §2 技術選型
 
+決策輸入（按以下優先序讀取，再做 ADR）：
+1. **BRD §8.3 技術約束（硬性）** — 不得違反；若需排除，必須在 ADR 中取得 BRD Owner 書面同意
+2. **PRD §X 非功能需求** — 效能、可靠性、合規要求限縮選項
+3. **VDD §6 Design Token 系統**（若存在）— CSS-in-JS / PostCSS / Tailwind 等影響前端框架選擇
+4. **IDEA §7.2 技術生態建議** — 市場生態趨勢（軟性參考）
+
+決策輸出（填入 EDD §3.2 ADR + §3.3 技術棧總覽）：
+
 ```
-語言/框架：<lang_stack>
+語言/框架（lang_stack）：<BRD §8.3 若有硬性約束則從該約束出發；否則依 PRD 需求推薦>
 資料庫：<依需求推薦，預設 PostgreSQL>
 快取：<依需求，預設 Redis>
 Queue：<依需求，預設 NATS>
 容器：Docker（multi-stage）+ k8s（Rancher Desktop）
 ```
+
+> **lang_stack 定錨規則：** 此處決定的語言/框架組合將成為 test-plan、BDD、runbook、LOCAL_DEPLOY
+> 的工具選型基準。下游 gen.md 均從 `EDD §3.3 技術棧總覽` 讀取，此處必須填入具體值，不得留 placeholder。
 
 ### §3 Clean Code 架構
 

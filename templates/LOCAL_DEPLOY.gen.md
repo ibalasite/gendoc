@@ -11,8 +11,10 @@ upstream-docs:
   - docs/ARCH.md
   - docs/API.md
   - docs/SCHEMA.md
+  - docs/FRONTEND.md  # Layer 6 — 前端本地啟動設定（dev server port、env vars、hot reload）
   - docs/test-plan.md
-  - docs/BDD.md
+  - features/          # BDD-server 輸出（Server BDD Feature Files）
+  - features/client/   # BDD-client 輸出（Client E2E Feature Files，若 client_type≠none）
 quality-bar: "新進工程師第一天，依文件操作，5 分鐘內跑起完整本地環境，不需問任何人。"
 ---
 
@@ -49,7 +51,8 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 | `API.md` | API 端點清單、認證方式 | §8 Test Data（API 測試用 curl 範例）|
 | `SCHEMA.md` | DB 表結構、遷移檔案命名 | §7 Database Operations、§4.6 DB 初始化 |
 | `test-plan.md` | 測試策略、E2E 測試工具 | §6 Development Commands（測試命令）|
-| `BDD.md` | 驗收場景 Feature Files 位置 | §6 Development Commands（BDD 執行命令）|
+| `features/*.feature`（BDD-server）| Server BDD Feature Files | §6 Development Commands（後端 BDD 執行命令）|
+| `features/client/*.feature`（BDD-client，若存在）| Client E2E Feature Files | §6 Development Commands（E2E / Playwright 執行命令）|
 
 ---
 

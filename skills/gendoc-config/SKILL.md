@@ -46,7 +46,7 @@ fi
 
 ```bash
 if [[ -n "$_STATE" ]]; then
-  _STEP=$(python3 -c "import json; d=json.load(open('$_STATE')); print(d.get('current_step','0'))" 2>/dev/null || echo "0")
+  _STEP=$(python3 -c "import json; d=json.load(open('$_STATE')); print(d.get('start_step','0'))" 2>/dev/null || echo "0")
   _STRATEGY=$(python3 -c "import json; d=json.load(open('$_STATE')); print(d.get('review_strategy','standard'))" 2>/dev/null || echo "standard")
 
   echo ""
@@ -97,30 +97,42 @@ options:
 ```
 question: "從哪個 STEP 重新開始？"
 options:
-  - "STEP A：IDEA.md 生成"
-  - "STEP B：IDEA Review Loop"
-  - "STEP C：BRD.md 生成"
-  - "STEP D：BRD Review Loop"
-  - "DOC-03：PRD 生成"
-  - "DOC-03R：PRD Review Loop"
-  - "DOC-04：PDD 生成"
-  - "DOC-04R：PDD Review Loop"
-  - "DOC-05：EDD 生成"
-  - "DOC-05R：EDD Review Loop"
-  - "DOC-06：ARCH 生成"
-  - "DOC-06R：ARCH Review Loop"
-  - "DOC-07：API 設計文件生成"
-  - "DOC-07R：API Review Loop"
-  - "DOC-08：Schema 設計文件生成"
-  - "DOC-08R：Schema Review Loop"
-  - "DOC-09：Test Plan + RTM 生成"
-  - "DOC-09R：Test Plan Review Loop"
-  - "DOC-10：BDD Feature Files 生成"
-  - "DOC-10R：BDD Review Loop"
-  - "DOC-11：跨文件對齊掃描（align-check）"
-  - "DOC-11F：對齊問題自動修復（align-fix）"
-  - "DOC-12：HTML 文件網站生成"
-  - "DOC-12P：GitHub Pages 部署驗證"
+  - "D01-IDEA：IDEA.md 生成"
+  - "D01-IDEA-R：IDEA Review Loop"
+  - "D02-BRD：BRD.md 生成"
+  - "D02-BRD-R：BRD Review Loop"
+  - "D03-PRD：PRD 生成"
+  - "D03-PRD-R：PRD Review Loop"
+  - "D04-PDD：PDD 生成（client_type≠none）"
+  - "D04-PDD-R：PDD Review Loop"
+  - "D05-VDD：VDD 視覺設計文件生成（client_type≠none）"
+  - "D05-VDD-R：VDD Review Loop"
+  - "D06-EDD：EDD 生成"
+  - "D06-EDD-R：EDD Review Loop"
+  - "D07-ARCH：ARCH 架構文件生成"
+  - "D07-ARCH-R：ARCH Review Loop"
+  - "D08-API：API 設計文件生成"
+  - "D08-API-R：API Review Loop"
+  - "D09-SCHEMA：Schema 設計文件生成"
+  - "D09-SCHEMA-R：Schema Review Loop"
+  - "D10-FRONTEND：FRONTEND 前端技術設計生成（client_type≠none）"
+  - "D10-FRONTEND-R：FRONTEND Review Loop"
+  - "D11-test-plan：Test Plan 生成"
+  - "D11-test-plan-R：Test Plan Review Loop"
+  - "D12-BDD：Server BDD Feature Files 生成"
+  - "D12-BDD-R：Server BDD Review Loop"
+  - "D12b-BDD-C：Client BDD Feature Files 生成（client_type≠none）"
+  - "D12b-BDD-C-R：Client BDD Review Loop"
+  - "D13-RTM：RTM 需求追溯矩陣生成"
+  - "D13-RTM-R：RTM Review Loop"
+  - "D14-runbook：Runbook 生成"
+  - "D14-runbook-R：Runbook Review Loop"
+  - "D15-LOCAL_DEPLOY：LOCAL_DEPLOY 生成"
+  - "D15-LOCAL_DEPLOY-R：LOCAL_DEPLOY Review Loop"
+  - "D16-ALIGN：跨文件對齊掃描（align-check）"
+  - "D16-ALIGN-F：對齊問題自動修復（align-fix）"
+  - "D17-HTML：HTML 文件網站生成"
+  - "D17-HTML-P：GitHub Pages 部署驗證"
 ```
 
 → 設 `_NEW_STEP = <使用者選擇的 STEP ID>`，繼續 Step 3 → Step 4
@@ -198,7 +210,7 @@ import json
 d = {
   'version': '1.0',
   'project_dir': '$_CWD',
-  'current_step': '0',
+  'start_step': '0',
   'execution_mode': 'full-auto',
   'review_strategy': 'standard',
   'max_rounds': 5,
@@ -216,7 +228,7 @@ python3 - <<PYEOF
 import json, os
 with open('$_STATE') as f:
     d = json.load(f)
-d['current_step']           = '${_NEW_STEP}'
+d['start_step']             = '${_NEW_STEP}'
 d['execution_mode']         = 'full-auto'
 d['review_strategy']        = '${_NEW_STRATEGY}'
 d['review_strategy_custom'] = '${_NEW_STRATEGY_CUSTOM:-}'

@@ -69,6 +69,7 @@ _DOC_TYPE=""   # e.g., "local-deploy"
 # api → API | schema → SCHEMA | bdd → BDD | rtm → RTM
 # test-plan → test-plan | runbook → runbook | local-deploy → LOCAL_DEPLOY
 # idea → IDEA | readme → README | uml-class → UML-CLASS-GUIDE
+# frontend → FRONTEND | client → FRONTEND（向後相容別名）
 
 _CWD="$(pwd)"
 _TEMPLATE_DIR="${_TEMPLATE_DIR:-$_CWD/templates}"

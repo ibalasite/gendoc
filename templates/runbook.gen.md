@@ -11,8 +11,10 @@ upstream-docs:
   - docs/ARCH.md
   - docs/API.md
   - docs/SCHEMA.md
+  - docs/FRONTEND.md  # Layer 6 — 前端部署單元（若 client_type≠none：前端資產打包、靜態檔案服務設定）
   - docs/test-plan.md
-  - docs/BDD.md
+  - features/          # BDD-server 輸出（Server BDD Feature Files）
+  - features/client/   # BDD-client 輸出（Client E2E Feature Files，若 client_type≠none）
 quality-bar: "凌晨 3 點被叫醒，零前情提要，能直接執行，不需問任何人。"
 ---
 
@@ -44,7 +46,8 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 | `API.md` | API 端點清單、認證機制、錯誤碼 | §7 Troubleshooting API 錯誤診斷 |
 | `SCHEMA.md` | DB 名稱、表結構、索引（用於 §7.5 DB troubleshooting 的 psql 查詢） | §7.5 Database Issues |
 | `test-plan.md` | 測試覆蓋範圍、風險評估、性能基準 | §3 SLO 設定依據、§15 Validation |
-| `BDD.md` | 驗收場景、業務行為規格 | §7 Troubleshooting 場景對應 |
+| `features/*.feature`（BDD-server）| Server BDD 驗收場景、業務行為規格 | §7 Troubleshooting 場景對應（後端）|
+| `features/client/*.feature`（BDD-client，若存在）| Client E2E 驗收場景 | §7 Troubleshooting 場景對應（UI / E2E）|
 
 ---
 

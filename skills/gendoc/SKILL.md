@@ -71,6 +71,7 @@ options:
   - "test-plan — Test Plan + RTM"
   - "runbook — Operations Runbook"
   - "local-deploy — Local K8s Deploy Guide"
+  - "frontend — Frontend Design Document"
   - "其他（手動輸入）"
 ```
 
@@ -94,6 +95,8 @@ options:
 # idea          → IDEA
 # readme        → README
 # uml-class     → UML-CLASS-GUIDE
+# frontend      → FRONTEND
+# client        → FRONTEND  （向後相容別名）
 
 _CWD="$(pwd)"
 _TEMPLATE_DIR="${_TEMPLATE_DIR:-$_CWD/templates}"
