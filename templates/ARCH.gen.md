@@ -7,6 +7,7 @@ upstream-docs:
   - docs/BRD.md
   - docs/PRD.md
   - docs/PDD.md
+  - docs/VDD.md     # Layer 3.5 — 視覺設計系統（Design Token 命名空間、資產管線架構影響 CDN/Build Pipeline 選型）
   - docs/EDD.md
 quality-bar: "所有 PRD P0 功能在 §2 有對應元件；每個 Service 有 Interface 定義；依賴方向正確（Controller→Service→Repository）；C4 L1/L2/L3 Mermaid 圖均已生成；Data Flow Diagram 含 PII 流向表；§9 Zero-Trust 安全架構已描述；Network Architecture VPC 圖已生成；Scalability Ceiling Analysis 至少 4 個瓶頸點；ADR 至少 1 個完整條目；Architecture Review Checklist 12 個 NFR 均已驗證；所有 Mermaid 圖均使用 TD 方向。"
 ---
@@ -27,6 +28,7 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 - `docs/BRD.md`：了解業務需求與成功指標——ARCH 的 SLO/可用性設計需與 BRD 的業務指標對應
 - `docs/PRD.md`：了解所有 P0/P1 功能——ARCH 的元件分層必須涵蓋所有功能
 - `docs/PDD.md`（若存在）：了解 UI 設計、畫面欄位、互動模式——ARCH 的前後端介面設計需與 PDD 定義一致
+- `docs/VDD.md`：了解 Design Token 命名空間、資產格式規格、CDN 和 Build Pipeline 的架構需求（若存在）
 - `docs/EDD.md`：了解技術選型、DDD Bounded Context、Security 模型——ARCH 需與 EDD 保持嚴格一致
 
 **EDD 優先原則**：ARCH 的技術選型、架構風格必須與 EDD §2 一致；如有差異，標記 `[UPSTREAM_CONFLICT]`。

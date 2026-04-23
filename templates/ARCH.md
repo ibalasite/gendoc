@@ -10,8 +10,30 @@ approved-by: {{APPROVER}}
 
 # ARCH — 架構設計文件（Architecture Design）
 
-> 版本：v{{VERSION}} | 日期：{{YYYYMMDD}} | 作者：{{AUTHOR}}
-> 上游 EDD：[docs/EDD.md](docs/EDD.md) | 上游 PDD：[docs/PDD.md](docs/PDD.md)
+---
+
+## Document Control
+
+| 欄位 | 內容 |
+|------|------|
+| **DOC-ID** | ARCH-{{PROJECT_SLUG}}-{{YYYYMMDD}} |
+| **專案名稱** | {{PROJECT_NAME}} |
+| **文件版本** | v1.0 |
+| **狀態** | DRAFT / IN_REVIEW / APPROVED |
+| **作者（Tech Lead / Architect）** | {{AUTHOR}} |
+| **日期** | {{DATE}} |
+| **上游 EDD** | [EDD.md](EDD.md) |
+| **上游 PDD** | [PDD.md](PDD.md)（若存在）|
+| **審閱者** | {{REVIEWER_1}}, {{REVIEWER_2}} |
+| **核准者** | {{APPROVER}} |
+
+---
+
+## Change Log
+
+| 版本 | 日期 | 作者 | 變更摘要 |
+|------|------|------|---------|
+| v1.0 | {{DATE}} | {{AUTHOR}} | 初稿 |
 
 ---
 

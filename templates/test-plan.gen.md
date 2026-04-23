@@ -11,6 +11,7 @@ upstream-docs:
   - docs/ARCH.md
   - docs/API.md
   - docs/SCHEMA.md
+  - docs/FRONTEND.md  # Layer 6 — 前端元件架構（E2E 測試目標、VRT 覆蓋範圍）
 quality-bar: "Test Pyramid 比例已說明（Unit 70%/Integration 20%/E2E 10%）；所有 P0 AC 均有對應 TC-ID；OWASP A01–A10 每項均有覆蓋計畫；4 個效能測試場景（Smoke/Load/Stress/Soak）均已定義且含具體 P50/P95/P99 數字；RTM 涵蓋所有 Must-have AC"
 ---
 
@@ -44,6 +45,7 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 | `ARCH.md` | §9 部署拓撲、§10 Scalability、Service Boundaries | Integration 測試的系統邊界和 E2E 測試環境配置來自 ARCH |
 | `API.md` | 所有 Endpoint、錯誤碼 | Contract Testing 必須覆蓋所有 API Endpoint |
 | `SCHEMA.md` | 資料模型、索引策略 | DB 層 Integration 測試和效能測試的 Query 模式來自 SCHEMA |
+| `FRONTEND.md`（若存在）| §4 Screen 清單、§10 E2E 覆蓋範圍、§11 Core Web Vitals 目標 | E2E 測試目標 Screen、VRT 覆蓋策略、Visual Regression 工具選型來自 FRONTEND |
 
 ### IDEA.md Appendix C 素材讀取
 
