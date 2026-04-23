@@ -29,6 +29,8 @@
         <div class="sidebar__label">文件</div>
         <a class="sidebar__link" href="index.html">🏠 首頁</a>
 <a class="sidebar__link active" href="prd.html">📝 產品需求文件 (PRD)</a>
+<a class="sidebar__link" href="client.html">📄 Client</a>
+<a class="sidebar__link" href="gendoc-redesign-decisions.html">📄 Gendoc-Redesign-Decisions</a>
       </div>
     </aside>
     <div class="sidebar-resizer" id="sidebarResizer"></div>
@@ -39,10 +41,10 @@
 <tr><th>欄位</th><th>內容</th></tr>
 <tr><td><strong>DOC-ID</strong></td><td>PRD-GENDOC-20260422</td></tr>
 <tr><td><strong>產品名稱</strong></td><td>gendoc — AI-Driven Implementation Blueprint Generator</td></tr>
-<tr><td><strong>文件版本</strong></td><td>v1.1</td></tr>
-<tr><td><strong>狀態</strong></td><td>DRAFT</td></tr>
+<tr><td><strong>文件版本</strong></td><td>v1.4</td></tr>
+<tr><td><strong>狀態</strong></td><td>ACTIVE</td></tr>
 <tr><td><strong>作者（PM）</strong></td><td>AI Product Manager Agent</td></tr>
-<tr><td><strong>日期</strong></td><td>2026-04-22</td></tr>
+<tr><td><strong>日期</strong></td><td>2026-04-24</td></tr>
 <tr><td><strong>上游來源</strong></td><td>MYDEVSOP 文件生成流水線（devsop-gendoc / devsop-autogen）</td></tr>
 <tr><td><strong>審閱者</strong></td><td>技術架構師、QA Lead</td></tr>
 <tr><td><strong>核准者</strong></td><td>待定</td></tr>
@@ -51,6 +53,9 @@
 <h2>Change Log</h2>
 <table>
 <tr><th>版本</th><th>日期</th><th>作者</th><th>變更摘要</th></tr>
+<tr><td>v1.4</td><td>2026-04-24</td><td>PM Agent</td><td>12 項流水線可靠性修補（P-01～P-12）：斷點續行重寫（review_progress schema）、quality_status 三態分類、failed_steps 追蹤、special_completed 旗標、pipeline_hash 版本偵測、BDD 增量生成模式、commit trailer 完整記錄</td></tr>
+<tr><td>v1.3</td><td>2026-04-24</td><td>PM Agent</td><td>補入 §5.5 Gen/Review/Fix 三專家模式與 Expert Roles 完整表；修正 §7.5/§8 BDD 模板欄位（BDD.md → BDD-server.md + BDD-client.md）；State file 完整欄位說明</td></tr>
+<tr><td>v1.2</td><td>2026-04-24</td><td>PM Agent</td><td>重建文件流水線：加入 VDD（視覺設計）、FRONTEND 獨立步驟、RTM 移至 BDD 之後；修正累積上游鏈；D01-D17 完整編號</td></tr>
 <tr><td>v1.1</td><td>2026-04-22</td><td>PM Agent</td><td>重新定位核心使命：從文件生成工具 → 可直接實作的開發藍圖生成器；補充藍圖細粒度品質標準</td></tr>
 <tr><td>v1.0</td><td>2026-04-22</td><td>PM Agent</td><td>初版 PRD，從 MYDEVSOP 文件生成子系統萃取，建立獨立 gendoc skill 套件</td></tr>
 </table>
@@ -77,7 +82,7 @@
 <tr><td><strong>人類開發者</strong></td><td>開箱即用的任務清單：每個 class 是一張卡片，每個 method 是一個 subtask，每個 test 情境是一個 checklist item</td></tr>
 </table>
 <h3>一句話定位</h3>
-<blockquote><p>gendoc 是一套 Claude Code Skill 系統，從任意形式的輸入（文字 / 圖片 / URL / Git repo），在 60 分鐘內生成一份「細到任何人都能直接開始寫程式碼」的完整技術藍圖，包含 IDEA → BRD → PRD → PDD → EDD → ARCH → API → SCHEMA → Test Plan → BDD → RTM，以及自動部署的 HTML 文件站。</p></blockquote>
+<blockquote><p>gendoc 是一套 Claude Code Skill 系統，從任意形式的輸入（文字 / 圖片 / URL / Git repo），在 60 分鐘內生成一份「細到任何人都能直接開始寫程式碼」的完整技術藍圖，包含 IDEA → BRD → PRD → PDD → VDD → EDD → ARCH → API → SCHEMA → FRONTEND → Test Plan → BDD → RTM → Runbook → LOCAL_DEPLOY，以及自動部署的 HTML 文件站。</p></blockquote>
 <hr>
 <h2>2. Problem Statement</h2>
 <h3>2.1 現狀痛點</h3>
@@ -349,26 +354,187 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
     ├── PM Expert 分析（產品/技術雙視角）
     ├── 網路背景研究（WebSearch × 3）
     ├── gendoc-gen-idea → docs/IDEA.md
-    ├── gendoc-idea-review（Review Loop，驗證藍圖完整性）
-    ├── gendoc-gen-brd → docs/BRD.md
+    ├── gendoc-idea-review（Review Loop）
+    ├── gendoc-gen-brd  → docs/BRD.md
     ├── gendoc-brd-review（Review Loop）
     └── 移交 /gendoc-flow
          ↓
-/gendoc-flow
-    ├── DOC-03: gendoc-gen-prd    → docs/PRD.md
-    ├── DOC-04: gendoc-gen-pdd    → docs/PDD.md
-    ├── DOC-05: gendoc-gen-edd    → docs/EDD.md     ← class + method 細節
-    ├── DOC-06: gendoc-gen-arch   → docs/ARCH.md    ← sequence diagram
-    ├── DOC-07: gendoc-gen-api    → docs/API.md     ← 完整 request/response schema
-    ├── DOC-08: gendoc-gen-schema → docs/SCHEMA.md  ← DDL + index 策略
-    ├── DOC-09: gendoc-gen-test-plan → docs/test-plan.md + RTM.md  ← BVA + EP
-    ├── DOC-10: gendoc-gen-bdd    → docs/BDD.md     ← edge case Scenario
-    ├── DOC-11: gendoc-align-check → 跨文件對齊審查
-    └── DOC-12: gendoc-gen-html   → docs/pages/ + GitHub Pages</code></pre>
-<h3>5.3 State File 管理</h3>
+/gendoc-flow（D01-D17）
+    ├── D01: IDEA.md    ← [需求層] 概念入口（可選）
+    ├── D02: BRD.md     ← 商業需求、範疇、成功指標
+    ├── D03: PRD.md     ← User Stories + Acceptance Criteria
+    ├── D04: PDD.md*    ← UX/互動設計（client_type≠none）
+    ├── D05: VDD.md*    ← 視覺設計、Design Token、Art Direction（client_type≠none）
+    ├── D06: EDD.md     ← [設計層] class + method 細節（讀取 VDD Token 規格）
+    ├── D07: ARCH.md    ← 元件圖、Mermaid C4、sequence diagram
+    ├── D08: API.md     ← 完整 request/response/error schema
+    ├── D09: SCHEMA.md  ← DDL + index + constraint
+    ├── D10: FRONTEND.md* ← 前端技術設計（實作 VDD Design Token）（client_type≠none）
+    ├── D11: test-plan.md ← [品質層] EP + BVA + 並發測試策略
+    ├── D12: BDD.md（server）← Gherkin Scenario
+    ├── D12b: BDD.md（client）*← Client E2E Scenario（client_type≠none）
+    ├── D13: RTM.md     ← 需求追溯矩陣（PRD US → TC → BDD Scenario）
+    ├── D14: RUNBOOK.md ← [運維層] 凌晨 3 點可直接執行
+    ├── D15: LOCAL_DEPLOY.md ← 5 分鐘本地環境啟動
+    ├── D16: ALIGN_REPORT.md ← [稽核層] 跨文件對齊掃描
+    └── D17: docs/pages/ + GitHub Pages ← HTML 文件站（含 README）
+
+    * = client_type ≠ none 時執行（有 UI 的產品）</code></pre>
+<h3>5.3 文件流水線依賴鏈（Pipeline Dependency Chain）</h3>
+<p>每份文件生成時<strong>必須讀取所有上游文件</strong>（累積鏈，非僅直接父文件）。以下為各文件類型的權威累積上游依賴，來源為各 <code>templates/*.gen.md</code> 的 <code>upstream-docs</code> 欄位。</p>
+<h4>層次樹（Hierarchical Tree）</h4>
+<pre><code class="">docs/req/（原始輸入層，所有文件的最終上游）
+│
+└─► IDEA.md（Layer 0：概念入口，可選）
+     └─► BRD.md（Layer 1：商業需求）
+          └─► PRD.md（Layer 2：產品需求）
+               ├─► PDD.md（Layer 3a：UX 互動設計，可選）
+               │    └─► VDD.md（Layer 3.5：視覺設計、Design Token，可選）
+               │         └─► EDD.md（Layer 4：工程技術設計）
+               │              ├─► ARCH.md（Layer 5a：架構設計）
+               │              │    ├─► API.md（Layer 5b：API 定義）
+               │              │    │    └─► SCHEMA.md（Layer 5c：資料模型）
+               │              │    │         └─► FRONTEND.md（Layer 6：前端技術設計，可選）
+               │              │    │              └─► test-plan.md（Layer 7：測試策略）
+               │              │    │                   ├─► BDD features/（Layer 8a：Server BDD）
+               │              │    │                   │    └─► RTM.md（Layer 9：需求追溯矩陣）
+               │              │    │                   └─► BDD client/（Layer 8b：Client BDD，可選）
+               │              │    │
+               │              │    └─► RUNBOOK.md（Layer 9：運維文件）
+               │              │         └─► LOCAL_DEPLOY.md（Layer 9：本地部署）
+               │              │
+               │              └─[稽核層] ALIGN_REPORT.md + README.md → docs/pages/</code></pre>
+<h4>累積上游依賴表（Cumulative Upstream Table）</h4>
+<table>
+<tr><th>文件</th><th>層級</th><th>必須讀取的累積上游</th><th>可選條件</th></tr>
+<tr><td><strong>IDEA.md</strong></td><td>Layer 0</td><td><code>docs/req/</code> 所有素材</td><td>可選</td></tr>
+<tr><td><strong>BRD.md</strong></td><td>Layer 1</td><td><code>docs/req/</code> + IDEA</td><td>—</td></tr>
+<tr><td><strong>PRD.md</strong></td><td>Layer 2</td><td><code>docs/req/</code> + IDEA + BRD</td><td>—</td></tr>
+<tr><td><strong>PDD.md</strong></td><td>Layer 3a</td><td><code>docs/req/</code> + IDEA + BRD + PRD</td><td>client_type ≠ none</td></tr>
+<tr><td><strong>VDD.md</strong></td><td>Layer 3.5</td><td><code>docs/req/</code> + IDEA + BRD + PRD + PDD</td><td>client_type ≠ none</td></tr>
+<tr><td><strong>EDD.md</strong></td><td>Layer 4</td><td><code>docs/req/</code> + IDEA + BRD + PRD + PDD + VDD</td><td>—</td></tr>
+<tr><td><strong>ARCH.md</strong></td><td>Layer 5a</td><td><code>docs/req/</code> + IDEA + BRD + PRD + PDD + VDD + EDD</td><td>—</td></tr>
+<tr><td><strong>API.md</strong></td><td>Layer 5b</td><td><code>docs/req/</code> + IDEA + BRD + PRD + PDD + EDD + ARCH</td><td>—</td></tr>
+<tr><td><strong>SCHEMA.md</strong></td><td>Layer 5c</td><td><code>docs/req/</code> + IDEA + BRD + PRD + PDD + EDD + ARCH + API</td><td>—</td></tr>
+<tr><td><strong>FRONTEND.md</strong></td><td>Layer 6</td><td><code>docs/req/</code> + IDEA + BRD + PRD + PDD + <strong>VDD</strong> + EDD + ARCH + API</td><td>client_type ≠ none</td></tr>
+<tr><td><strong>test-plan.md</strong></td><td>Layer 7</td><td><code>docs/req/</code> + IDEA ~ SCHEMA + <strong>FRONTEND</strong></td><td>—</td></tr>
+<tr><td><strong>BDD features/</strong></td><td>Layer 8a</td><td><code>docs/req/</code> + IDEA ~ SCHEMA + FRONTEND + test-plan</td><td>—</td></tr>
+<tr><td><strong>BDD client/</strong></td><td>Layer 8b</td><td>同 Layer 8a</td><td>client_type ≠ none</td></tr>
+<tr><td><strong>RTM.md</strong></td><td>Layer 9</td><td><code>docs/req/</code> + IDEA ~ SCHEMA + FRONTEND + test-plan + BDD</td><td>—</td></tr>
+<tr><td><strong>RUNBOOK.md</strong></td><td>Layer 9</td><td><code>docs/req/</code> + IDEA ~ SCHEMA + <strong>FRONTEND</strong> + test-plan + BDD</td><td>—</td></tr>
+<tr><td><strong>LOCAL_DEPLOY.md</strong></td><td>Layer 9</td><td><code>docs/req/</code> + IDEA ~ SCHEMA + <strong>FRONTEND</strong> + test-plan + BDD</td><td>—</td></tr>
+<tr><td><strong>README.md</strong></td><td>Layer 10</td><td>全部文件（含 RUNBOOK + LOCAL_DEPLOY）</td><td>—</td></tr>
+<tr><td><strong>ALIGN_REPORT.md</strong></td><td>稽核層</td><td>全部已生成文件（由 align-check 掃描）</td><td>—</td></tr>
+</table>
+<blockquote><p><strong>IDEA Appendix C 特殊處理</strong>：讀取 IDEA.md 時，同步讀取其 Appendix C 列出的所有 <code>docs/req/</code> 素材。若上游文件不存在，靜默跳過，不降低覆蓋深度。</p></blockquote>
+<h4>設計決策說明</h4>
+<table>
+<tr><th>決策</th><th>說明</th></tr>
+<tr><td>VDD 在 EDD 之前</td><td>VDD 定義 Design Token 命名空間和資產格式規格，EDD 的 CDN/Build Pipeline 技術選型依賴此資訊</td></tr>
+<tr><td>FRONTEND 在 SCHEMA 之後</td><td>FRONTEND 依賴 API + ARCH（工程契約），但不依賴 SCHEMA（純後端資料層）</td></tr>
+<tr><td>FRONTEND 在 test-plan 之前</td><td>E2E 測試範圍和 VRT 覆蓋清單必須以 FRONTEND 的 Screen 清單為基準</td></tr>
+<tr><td>RTM 在 BDD 之後</td><td>RTM 建立 US↔TC↔BDD Scenario 三向追溯，BDD 必須先完成</td></tr>
+<tr><td>RUNBOOK/LOCAL_DEPLOY 讀 FRONTEND</td><td>有 UI 的產品必須包含前端部署和本地啟動設定</td></tr>
+</table>
+<h4>合法跳過條件</h4>
+<table>
+<tr><th>文件</th><th>跳過條件</th></tr>
+<tr><td>PDD、VDD、FRONTEND、Client BDD</td><td><code>client_type = none</code>（純 API / CLI 服務，無 UI）</td></tr>
+<tr><td>任何文件的特定章節</td><td>功能明確列在 BRD <code>## Out of Scope</code> 章節</td></tr>
+<tr><td>上游文件不存在</td><td>靜默跳過，不降低生成覆蓋深度</td></tr>
+</table>
+<h3>5.4 State File 管理</h3>
 <pre><code class="">.gendoc-state-{git_user}-{git_branch}.json</code></pre>
 <p>State file 記錄：</p>
-<ul><li><code>execution_mode</code>：<code>full-auto</code> / <code>interactive</code></li><li><code>review_strategy</code>：<code>rapid</code> / <code>standard</code> / <code>exhaustive</code> / <code>tiered</code></li><li><code>completed_steps</code>：已完成步驟清單（支援斷點續行）</li><li><code>skill_source</code>：<code>gendoc-auto</code>（防止跨套件誤用）</li><li><code>handoff</code>：true（gendoc-auto → gendoc-flow 移交標記）</li></ul>
+<p><strong>核心控制欄位</strong></p>
+<ul><li><code>execution_mode</code>：<code>full-auto</code> / <code>interactive</code></li><li><code>review_strategy</code>：<code>rapid</code> / <code>standard</code> / <code>exhaustive</code> / <code>tiered</code> / <code>custom</code></li><li><code>max_rounds</code>：Review Loop 最大輪次</li><li><code>stop_condition</code>：Review Loop 停止條件描述</li></ul>
+<p><strong>斷點續行欄位</strong></p>
+<ul><li><code>completed_steps</code>：已完成步驟 ID 清單（review 通過，quality_status ≠ failed）</li><li><code>failed_steps</code>：quality_status=failed 的步驟 ID 清單（CRITICAL/HIGH 未清除，不計入 completed）</li><li><code>start_step</code>：斷點續行起始步驟 ID（與 pipeline.json step.id 完全一致）</li><li><code>review_progress</code>：每步驟 Review Loop 進度字典（P-02/P-04/P-05 Skip 判斷依據）</li></ul>
+<pre><code class="language-json">  {
+    &quot;D06-EDD&quot;: {
+      &quot;rounds_done&quot;: 3,
+      &quot;terminated&quot;: true,
+      &quot;terminate_reason&quot;: &quot;zero_finding&quot;,
+      &quot;quality_status&quot;: &quot;passed&quot;,
+      &quot;last_updated&quot;: &quot;2026-04-24T05:00:00Z&quot;
+    }
+  }</code></pre>
+<ul><li style="margin-left:1.0rem"><code>quality_status</code> 三態：<code>passed</code>（finding=0）/ <code>degraded</code>（僅 MEDIUM/LOW）/ <code>failed</code>（有 CRITICAL/HIGH）</li><li style="margin-left:1.0rem"><code>terminate_reason</code> 代碼：<code>zero_finding</code> / <code>tiered_clean</code> / <code>max_rounds</code> / <code>rapid_cap</code></li></ul>
+<p><strong>特殊步驟欄位</strong></p>
+<ul><li><code>special_completed</code>：D16-ALIGN / D17-HTML 完成旗標（比 file-exists 更可靠）</li></ul>
+<pre><code class="language-json">  { &quot;D16-ALIGN&quot;: true, &quot;D17-HTML&quot;: true }</code></pre>
+<p><strong>版本與移交欄位</strong></p>
+<ul><li><code>pipeline_hash</code>：SHA256 of pipeline.json（P-11 版本漂移偵測）</li><li><code>handoff</code>：true（gendoc-auto → gendoc-flow 移交完成標記）</li><li><code>idea_review_passed</code> / <code>brd_review_passed</code>：IDEA/BRD Review Loop 通過旗標（P-01 skip guard）</li><li><code>skill_source</code>：<code>gendoc-auto</code>（防止跨套件誤用）</li></ul>
+<p><strong>專案配置欄位</strong></p>
+<ul><li><code>client_type</code>：<code>none</code> / <code>web-saas</code> / <code>unity</code> / <code>cocos</code> / <code>html5-game</code>（控制條件步驟跳過）</li><li><code>lang_stack</code>：技術棧標籤（<code>node/typescript</code>、<code>python/fastapi</code> 等）</li><li><code>github_repo</code>：GitHub 倉庫 URL（用於 README badge 生成）</li><li><code>last_completed</code>：最後一個完成的 step ID</li><li><code>last_updated</code>：ISO 8601 時間戳</li></ul>
+<hr>
+<h3>5.5 Gen / Review / Fix 三專家模式（Standard Step Pattern）</h3>
+<p>每個標準流水線步驟（非 <code>special_skill</code> 步驟）都遵循以下三階段子代理模式：</p>
+<h4>三專家角色</h4>
+<pre><code class="">┌─────────────────────────────────────────────────────────────┐
+│  Step Execution Pattern（每個 D0X 步驟的標準執行流程）        │
+│                                                             │
+│  主 Claude（協調者）                                         │
+│       │                                                     │
+│       ├─► [Gen Subagent] ─── 讀 TYPE.gen.md + 所有上游文件   │
+│       │         │              生成初稿 → 寫入 output 文件    │
+│       │         ▼                                           │
+│       ├─► [Review Subagent] ─ 讀 TYPE.review.md + 初稿       │
+│       │         │              輸出 REVIEW_JSON findings     │
+│       │         ▼                                           │
+│       └─► [Fix Subagent] ─── 讀 findings + 當前文件          │
+│                 │              修復每個 finding，輸出 diff     │
+│                 ▼                                           │
+│       主 Claude 判斷：finding=0 或達 max_rounds → 結束        │
+│       否則 → 下一輪 Review Subagent                          │
+└─────────────────────────────────────────────────────────────┘</code></pre>
+<h4>各文件類型的專家角色</h4>
+<table>
+<tr><th>文件類型</th><th>Gen Subagent 角色</th><th>Review Subagent 角色</th></tr>
+<tr><td><strong>IDEA</strong></td><td>資深 PM + 產品策略師</td><td>PM + 商業分析師</td></tr>
+<tr><td><strong>BRD</strong></td><td>資深商業分析師 + PM</td><td>業務架構師 + PM</td></tr>
+<tr><td><strong>PRD</strong></td><td>資深 PM</td><td>PM + QA Lead</td></tr>
+<tr><td><strong>PDD</strong></td><td>UX Designer + Interaction Designer</td><td>UX Architect + Frontend Lead</td></tr>
+<tr><td><strong>VDD</strong></td><td>資深 Visual Designer / Art Director</td><td>Art Director + Brand Strategist</td></tr>
+<tr><td><strong>EDD</strong></td><td>資深系統架構師 + Software Engineer</td><td>Software Architect + Senior Engineer</td></tr>
+<tr><td><strong>ARCH</strong></td><td>資深 Solution Architect</td><td>Cloud Architect + DevOps Lead</td></tr>
+<tr><td><strong>API</strong></td><td>資深 API Architect + Backend Engineer</td><td>API Architect + Security Engineer</td></tr>
+<tr><td><strong>SCHEMA</strong></td><td>資深 DBA + Backend Engineer</td><td>DBA + Backend Architect</td></tr>
+<tr><td><strong>FRONTEND</strong></td><td>資深 Frontend Architect</td><td>Frontend Architect + UX Engineer</td></tr>
+<tr><td><strong>test-plan</strong></td><td>資深 QA Architect + Test Lead</td><td>QA Architect + PM</td></tr>
+<tr><td><strong>BDD-server</strong></td><td>資深 BDD Expert + Backend QA Architect</td><td>BDD Expert + Backend Engineer</td></tr>
+<tr><td><strong>BDD-client</strong></td><td>資深 Frontend QA Expert + E2E Specialist</td><td>Frontend QA + BDD Expert</td></tr>
+<tr><td><strong>RTM</strong></td><td>資深 QA Architect</td><td>QA Architect + PM</td></tr>
+<tr><td><strong>runbook</strong></td><td>資深 SRE</td><td>SRE + DevOps Engineer</td></tr>
+<tr><td><strong>LOCAL_DEPLOY</strong></td><td>資深 DevOps Engineer</td><td>DevOps + Backend Engineer</td></tr>
+</table>
+<h4>模板讀取時序（每步驟的 Gen Subagent 讀取順序）</h4>
+<pre><code class="">Gen Subagent 被呼叫時：
+
+1. 讀 templates/{TYPE}.gen.md          ← 生成規則（Iron Rule 累積上游）
+2. 讀 templates/{TYPE}.md              ← 文件結構模板
+3. 依 gen.md 的 upstream-docs 欄位，
+   讀取所有上游文件（累積鏈）          ← PRD 說「讀 BRD + IDEA」時，
+                                         gen.md 明確列出哪些章節必讀
+4. 寫入 output 文件                    ← step.output[0]（或多檔案 output_glob）</code></pre>
+<h4>特殊步驟（special_skill）</h4>
+<p>以下步驟不走 Gen/Review/Fix 三階段，而是直接呼叫 Skill tool：</p>
+<table>
+<tr><th>Step ID</th><th>special_skill</th><th>行為</th></tr>
+<tr><td>D16-ALIGN</td><td><code>gendoc-align-check</code></td><td>四維度跨文件對齊掃描，輸出 ALIGN_REPORT.md</td></tr>
+<tr><td>D17-HTML</td><td><code>gendoc-gen-html</code></td><td>MD→HTML 轉換，先呼叫 gendoc-gen-readme，再生成 docs/pages/</td></tr>
+</table>
+<h4>多文件步驟（multi_file=true）</h4>
+<p>BDD-server（D12）和 BDD-client（D12b）生成多個 <code>.feature</code> 檔案而非單一 md：</p>
+<pre><code class="">BDD-server：
+  Gen 讀 BDD-server.gen.md → 生成 features/*.feature（多個）
+  Review 讀 BDD-server.review.md → 掃描 features/ 下所有 .feature
+  commit：test(gendoc)[D12-BDD-server]: gen — 生成 N 個 .feature 檔案
+
+BDD-client：
+  Gen 讀 BDD-client.gen.md → 生成 features/client/*.feature（多個）
+  Review 讀 BDD-client.review.md → 掃描 features/client/ 下所有 .feature
+  commit：test(gendoc)[D12b-BDD-client]: gen — 生成 N 個 client .feature 檔案</code></pre>
 <hr>
 <h2>6. 功能需求</h2>
 <h3>6.1 多元輸入支援（F-01）</h3>
@@ -405,7 +571,16 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
 <h3>7.1 效能</h3>
 <ul><li>Full-Auto 模式下，完整 9 份文件生成時間目標：≤ 60 分鐘</li><li>每份文件 Review Loop 時間目標：≤ 10 分鐘（standard 策略）</li></ul>
 <h3>7.2 可靠性</h3>
-<ul><li>TF-02 斷點續行：任何步驟中斷後重啟，自動從上次完成點繼續</li><li>State file 原子寫入，防止部分寫入導致的損毀</li></ul>
+<p><strong>斷點續行（TF-02）</strong>：任何步驟中斷後重啟，自動從上次完成點繼續。v1.4 以 <code>review_progress</code> schema 精確記錄每步驟 Review Loop 進度，支援三種恢復路徑：</p>
+<table>
+<tr><th>情境</th><th>恢復行為</th></tr>
+<tr><td>文件已生成，review 完整完成</td><td>Skip 整個步驟（不重新 gen，不重新 review）</td></tr>
+<tr><td>文件已生成，review 跑到第 N 輪中斷</td><td>Skip gen，從 Round N+1 繼續 review</td></tr>
+<tr><td>文件已生成，review 尚未開始</td><td>Skip gen，從 Round 1 開始 review</td></tr>
+<tr><td>文件未生成</td><td>完整執行 gen → review</td></tr>
+</table>
+<p><strong>品質保證</strong>：</p>
+<ul><li>State file 原子寫入（tmp → replace），防止部分寫入損毀</li><li><code>quality_status=failed</code>（CRITICAL/HIGH 未清除）步驟寫入 <code>failed_steps</code>，不計入 <code>completed_steps</code></li><li>流水線結束時 Total Summary 列出所有 <code>failed_steps</code> 及修復建議</li><li>IDEA/BRD 重跑保護（P-01）：<code>idea_review_passed</code> / <code>brd_review_passed</code> 旗標防止已完成步驟被重複歸檔與生成</li></ul>
 <h3>7.3 安全性</h3>
 <ul><li>唯讀原則：本地路徑來源嚴禁寫入、刪除、修改原始目錄</li><li>State file 的 <code>skill_source</code> 欄位防止跨套件誤用（<code>gendoc-auto</code> 鎖定）</li></ul>
 <h3>7.4 可維護性</h3>
@@ -418,26 +593,32 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
 <tr><td>API.md</td><td>每個端點有完整 request schema；有全部 error code；有 Rate Limit 定義</td></tr>
 <tr><td>SCHEMA.md</td><td>完整 DDL；有 index 策略（含理由）；有 constraint；有 migration 說明</td></tr>
 <tr><td>test-plan.md</td><td>每個功能有 EP 測試表；有 BVA 邊界值對照表；有並發/冪等性情境</td></tr>
-<tr><td>BDD.md</td><td>每個 Feature 有 happy path、unhappy path、邊界值 Scenario</td></tr>
+<tr><td>BDD-server（features/）</td><td>每個 PRD P0 AC 有 Server Gherkin Scenario；6 種 HTTP 錯誤碼（401/403/404/409/422/429）全部覆蓋；無任何 UI 步驟</td></tr>
+<tr><td>BDD-client（features/client/）</td><td>每個 P0 Screen 有 E2E Scenario；含 happy path、error flow、auth guard；無後端邏輯驗證</td></tr>
 </table>
 <hr>
 <h2>8. 模板清單</h2>
 <table>
-<tr><th>模板檔案</th><th>對應文件</th><th>生成 Skill</th><th>細粒度要求</th></tr>
-<tr><td><code>IDEA.md</code></td><td>docs/IDEA.md</td><td>gendoc-gen-idea</td><td>問題定義、使用者、解法假設</td></tr>
-<tr><td><code>BRD.md</code></td><td>docs/BRD.md</td><td>gendoc-gen-brd</td><td>業務需求、成功指標、範圍</td></tr>
-<tr><td><code>PRD.md</code></td><td>docs/PRD.md</td><td>gendoc-gen-prd</td><td>功能需求、非功能需求</td></tr>
-<tr><td><code>PDD.md</code></td><td>docs/PDD.md</td><td>gendoc-gen-pdd</td><td>Product Design：UX flow、wireframe 描述</td></tr>
-<tr><td><code>EDD.md</code></td><td>docs/EDD.md</td><td>gendoc-gen-edd</td><td><strong>class + method + 型別 + 例外</strong>（4.1 標準）</td></tr>
-<tr><td><code>ARCH.md</code></td><td>docs/ARCH.md</td><td>gendoc-gen-arch</td><td>元件圖、sequence diagram</td></tr>
-<tr><td><code>API.md</code></td><td>docs/API.md</td><td>gendoc-gen-api</td><td><strong>完整 request/response/error schema</strong>（4.2 標準）</td></tr>
-<tr><td><code>SCHEMA.md</code></td><td>docs/SCHEMA.md</td><td>gendoc-gen-schema</td><td><strong>DDL + index + constraint</strong>（4.3 標準）</td></tr>
-<tr><td><code>test-plan.md</code></td><td>docs/test-plan.md</td><td>gendoc-gen-test-plan</td><td><strong>EP + BVA + 並發</strong>（4.4 標準）</td></tr>
-<tr><td><code>RTM.md</code></td><td>docs/RTM.md</td><td>gendoc-gen-test-plan</td><td>需求追蹤矩陣</td></tr>
-<tr><td><code>BDD.md</code></td><td>docs/BDD.md</td><td>gendoc-gen-bdd</td><td><strong>edge case Scenario</strong>（4.5 標準）</td></tr>
-<tr><td><code>README.md</code></td><td>專案 README</td><td>gendoc-gen-readme</td><td>安裝、快速開始、API 概覽</td></tr>
-<tr><td><code>LOCAL_DEPLOY.md</code></td><td>部署說明</td><td>gendoc-gen-html</td><td>本地部署步驟</td></tr>
-<tr><td><code>UML-CLASS-GUIDE.md</code></td><td>UML 指南</td><td>gendoc-gen-diagrams</td><td>Class diagram 規範</td></tr>
+<tr><th>文件</th><th>模板</th><th>對應 gen.md</th><th>層級</th><th>細粒度要求</th></tr>
+<tr><td><code>docs/IDEA.md</code></td><td><code>IDEA.md</code></td><td><code>IDEA.gen.md</code></td><td>Layer 0</td><td>問題定義、使用者、解法假設、Appendix C 素材索引</td></tr>
+<tr><td><code>docs/BRD.md</code></td><td><code>BRD.md</code></td><td><code>BRD.gen.md</code></td><td>Layer 1</td><td>業務需求、MoSCoW、成功指標、範疇</td></tr>
+<tr><td><code>docs/PRD.md</code></td><td><code>PRD.md</code></td><td><code>PRD.gen.md</code></td><td>Layer 2</td><td>User Stories + Acceptance Criteria、功能/非功能需求</td></tr>
+<tr><td><code>docs/PDD.md</code></td><td><code>PDD.md</code></td><td><code>PDD.gen.md</code></td><td>Layer 3a</td><td>UX Flow、Wireframe 描述、Persona、Journey Map（client_type≠none）</td></tr>
+<tr><td><code>docs/VDD.md</code></td><td><code>VDD.md</code></td><td><code>VDD.gen.md</code></td><td>Layer 3.5</td><td>Art Direction、Brand Identity、<strong>Design Token 三層架構</strong>、資產管線規格（client_type≠none）</td></tr>
+<tr><td><code>docs/EDD.md</code></td><td><code>EDD.md</code></td><td><code>EDD.gen.md</code></td><td>Layer 4</td><td><strong>class + method 簽名 + 型別 + 例外</strong>、UML 9 大圖</td></tr>
+<tr><td><code>docs/ARCH.md</code></td><td><code>ARCH.md</code></td><td><code>ARCH.gen.md</code></td><td>Layer 5a</td><td>C4 Model、元件圖、sequence diagram、ADR</td></tr>
+<tr><td><code>docs/API.md</code></td><td><code>API.md</code></td><td><code>API.gen.md</code></td><td>Layer 5b</td><td><strong>完整 request/response/error schema</strong>、Rate Limit</td></tr>
+<tr><td><code>docs/SCHEMA.md</code></td><td><code>SCHEMA.md</code></td><td><code>SCHEMA.gen.md</code></td><td>Layer 5c</td><td><strong>DDL + index + constraint</strong>、ER 圖、Migration 策略</td></tr>
+<tr><td><code>docs/FRONTEND.md</code></td><td><code>FRONTEND.md</code></td><td><code>FRONTEND.gen.md</code></td><td>Layer 6</td><td>元件架構、State Management、<strong>實作 VDD Design Token</strong>（client_type≠none）</td></tr>
+<tr><td><code>docs/test-plan.md</code></td><td><code>test-plan.md</code></td><td><code>test-plan.gen.md</code></td><td>Layer 7</td><td><strong>EP + BVA + 並發</strong>、測試金字塔</td></tr>
+<tr><td><code>features/*.feature</code></td><td><code>BDD-server.md</code></td><td><code>BDD-server.gen.md</code></td><td>Layer 8a</td><td><strong>Gherkin Scenario + edge case + unhappy path</strong>（Server API BDD）</td></tr>
+<tr><td><code>features/client/*.feature</code></td><td><code>BDD-client.md</code></td><td><code>BDD-client.gen.md</code></td><td>Layer 8b</td><td>Client E2E Scenario（client_type≠none）</td></tr>
+<tr><td><code>docs/RTM.md</code></td><td><code>RTM.md</code></td><td><code>RTM.gen.md</code></td><td>Layer 9</td><td>US↔TC↔BDD Scenario 三向追溯矩陣</td></tr>
+<tr><td><code>docs/RUNBOOK.md</code></td><td><code>runbook.md</code></td><td><code>runbook.gen.md</code></td><td>Layer 9</td><td>凌晨 3 點可直接執行，零前情提要</td></tr>
+<tr><td><code>docs/LOCAL_DEPLOY.md</code></td><td><code>LOCAL_DEPLOY.md</code></td><td><code>LOCAL_DEPLOY.gen.md</code></td><td>Layer 9</td><td>新進工程師 5 分鐘內完成本地環境</td></tr>
+<tr><td><code>docs/README.md</code></td><td><code>README.md</code></td><td><code>README.gen.md</code></td><td>Layer 10</td><td>安裝、快速開始、API 概覽</td></tr>
+<tr><td><code>docs/ALIGN_REPORT.md</code></td><td>—</td><td>align-check skill</td><td>稽核層</td><td>跨文件不一致清單</td></tr>
+<tr><td>—</td><td><code>UML-CLASS-GUIDE.md</code></td><td>靜態參考</td><td>—</td><td>Class Diagram 規範（不生成）</td></tr>
 </table>
 <hr>
 <h2>9. 安裝與使用</h2>

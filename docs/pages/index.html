@@ -29,6 +29,8 @@
         <div class="sidebar__label">文件</div>
         <a class="sidebar__link active" href="index.html">🏠 首頁</a>
 <a class="sidebar__link" href="prd.html">📝 產品需求文件 (PRD)</a>
+<a class="sidebar__link" href="client.html">📄 Client</a>
+<a class="sidebar__link" href="gendoc-redesign-decisions.html">📄 Gendoc-Redesign-Decisions</a>
       </div>
     </aside>
     <div class="sidebar-resizer" id="sidebarResizer"></div>
@@ -36,30 +38,31 @@
 <p><a href="LICENSE" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'badge-fallback\',textContent:this.alt}))"></a></p>
 <p><a href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey" alt="Platform" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'badge-fallback\',textContent:this.alt}))"></a></p>
 <p><a href="https://claude.ai/code" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/Claude%20Code-skill-blueviolet" alt="Claude Code" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'badge-fallback\',textContent:this.alt}))"></a></p>
-<p><strong>AI-driven engineering document generation system for Claude Code.</strong> One command generates BRD, PRD, EDD, ARCH, API, Schema, Runbook and more — each document inherits knowledge from all upstream docs automatically.</p>
+<p><strong>AI-driven engineering document generation system for Claude Code.</strong> One command generates a complete 17-document implementation blueprint — IDEA, BRD, PRD, PDD, VDD, EDD, ARCH, API, Schema, FRONTEND, test-plan, BDD, RTM, Runbook, LOCAL_DEPLOY, and an HTML documentation site — each document inheriting knowledge from all upstream docs automatically.</p>
 <hr>
 <h2>Overview</h2>
 <p><code>gendoc</code> is a Claude Code skill suite that automates the full engineering documentation lifecycle. Using a three-layer template architecture (<code>TYPE.md</code> structure + <code>TYPE.gen.md</code> generation rules + <code>TYPE.review.md</code> review criteria), it generates and iteratively reviews production-quality engineering documents from an initial idea through deployment runbooks.</p>
 <p>Key capabilities:</p>
-<ul><li><strong>Cumulative upstream reading</strong> — every doc reads all ancestor docs, never just its direct parent</li><li><strong>Universal generation</strong> — <code>/gendoc &lt;type&gt;</code> for any document type, driven by templates</li><li><strong>Universal review loop</strong> — <code>/reviewdoc &lt;type&gt;</code> with configurable strategy (rapid / standard / exhaustive)</li><li><strong>Auto-update via SessionStart hook</strong> — harness-enforced, LLM-independent, runs in background</li><li><strong>Windows native support</strong> — Python-based hook for Windows, bash for macOS/Linux</li></ul>
+<ul><li><strong>Cumulative upstream reading</strong> — every doc reads all ancestor docs, never just its direct parent</li><li><strong>Universal generation</strong> — <code>/gendoc &lt;type&gt;</code> for any document type, driven by templates</li><li><strong>Universal review loop</strong> — <code>/reviewdoc &lt;type&gt;</code> with configurable strategy (rapid / standard / exhaustive / tiered / custom)</li><li><strong>Reliable breakpoint resume</strong> — <code>review_progress</code> schema tracks each review round; any step can be safely interrupted and resumed at the exact round</li><li><strong>Quality status tracking</strong> — <code>passed</code> / <code>degraded</code> / <code>failed</code> per step; CRITICAL/HIGH findings block completion, MEDIUM/LOW log as degraded</li><li><strong>Auto-update via SessionStart hook</strong> — harness-enforced, LLM-independent, runs in background</li><li><strong>Windows native support</strong> — Python-based hook for Windows, bash for macOS/Linux</li></ul>
 <hr>
 <h2>Skills</h2>
 <table>
 <tr><th>Skill</th><th>Command</th><th>Purpose</th></tr>
 <tr><td><code>gendoc</code></td><td><code>/gendoc &lt;type&gt;</code></td><td>Generate any document type</td></tr>
 <tr><td><code>reviewdoc</code></td><td><code>/reviewdoc &lt;type&gt;</code></td><td>Review &amp; iteratively fix any document</td></tr>
-<tr><td><code>gendoc-auto</code></td><td><code>/gendoc-auto</code></td><td>Full pipeline: all docs + reviews in sequence</td></tr>
-<tr><td><code>gendoc-flow</code></td><td><code>/gendoc-flow</code></td><td>Step-through pipeline with pause points</td></tr>
-<tr><td><code>gendoc-config</code></td><td><code>/gendoc-config</code></td><td>Configure execution mode &amp; review strategy</td></tr>
-<tr><td><code>gendoc-align-check</code></td><td><code>/gendoc-align-check</code></td><td>Cross-document alignment scan</td></tr>
+<tr><td><code>gendoc-auto</code></td><td><code>/gendoc-auto</code></td><td>Full pipeline entry point: IDEA + BRD generation, then hands off to gendoc-flow</td></tr>
+<tr><td><code>gendoc-flow</code></td><td><code>/gendoc-flow</code></td><td>Template-driven orchestrator (D03–D17) with reliable breakpoint resume</td></tr>
+<tr><td><code>gendoc-config</code></td><td><code>/gendoc-config</code></td><td>Configure execution mode, review strategy &amp; restart step interactively</td></tr>
+<tr><td><code>gendoc-align-check</code></td><td><code>/gendoc-align-check</code></td><td>Cross-document alignment scan (D16)</td></tr>
 <tr><td><code>gendoc-align-fix</code></td><td><code>/gendoc-align-fix</code></td><td>Auto-fix alignment issues</td></tr>
-<tr><td><code>gendoc-gen-html</code></td><td><code>/gendoc-gen-html</code></td><td>Generate HTML documentation site</td></tr>
+<tr><td><code>gendoc-gen-html</code></td><td><code>/gendoc-gen-html</code></td><td>Generate HTML documentation site (D17)</td></tr>
 <tr><td><code>gendoc-gen-diagrams</code></td><td><code>/gendoc-gen-diagrams</code></td><td>Generate architecture diagrams</td></tr>
-<tr><td><code>gendoc-gen-client-bdd</code></td><td><code>/gendoc-gen-client-bdd</code></td><td>Client-facing BDD features</td></tr>
+<tr><td><code>gendoc-gen-client-bdd</code></td><td><code>/gendoc-gen-client-bdd</code></td><td>Client-facing BDD feature files</td></tr>
+<tr><td><code>gendoc-rebuild-templates</code></td><td><code>/gendoc-rebuild-templates</code></td><td>Rebuild all document templates from scratch</td></tr>
 <tr><td><code>gendoc-update</code></td><td><code>/gendoc-update</code></td><td>Manual skill upgrade</td></tr>
 </table>
 <h3>Supported Document Types</h3>
-<p><code>edd</code> · <code>brd</code> · <code>prd</code> · <code>pdd</code> · <code>arch</code> · <code>api</code> · <code>schema</code> · <code>bdd</code> · <code>test-plan</code> · <code>runbook</code> · <code>local-deploy</code> · <code>idea</code> · <code>readme</code></p>
+<p><code>idea</code> · <code>brd</code> · <code>prd</code> · <code>pdd</code> · <code>vdd</code> · <code>edd</code> · <code>arch</code> · <code>api</code> · <code>schema</code> · <code>frontend</code> · <code>test-plan</code> · <code>bdd</code> · <code>rtm</code> · <code>runbook</code> · <code>local-deploy</code> · <code>readme</code></p>
 <hr>
 <h2>Quick Start</h2>
 <h3>Install (macOS / Linux / WSL)</h3>
@@ -80,7 +83,16 @@ cd ~/projects/gendoc
 # Or: .\setup.ps1 -Uninstall          # Windows</code></pre>
 <hr>
 <h2>Usage</h2>
-<pre><code class="language-bash"># Generate a single document (reads templates automatically)
+<pre><code class="language-bash"># Full pipeline — start a new project
+/gendoc-auto &quot;I want to build an AI-powered customer service bot&quot;
+
+# Resume after interruption — gendoc-flow auto-resumes from last completed step
+/gendoc-flow
+
+# Configure review strategy or restart from a specific step
+/gendoc-config
+
+# Generate a single document
 /gendoc edd
 /gendoc brd
 /gendoc runbook
@@ -89,9 +101,8 @@ cd ~/projects/gendoc
 /reviewdoc edd
 /reviewdoc runbook
 
-# Full pipeline (interactive)
-/gendoc-config       # set mode: interactive or full-auto
-/gendoc-auto         # run all docs sequentially
+# Generate HTML docs site and deploy to GitHub Pages
+/gendoc-gen-html
 
 # Manual upgrade
 /gendoc-update</code></pre>
@@ -107,15 +118,19 @@ cd ~/projects/gendoc
 ├── &lt;TYPE&gt;.gen.md      ← AI generation rules (Iron Law: must be read first)
 └── &lt;TYPE&gt;.review.md   ← review criteria &amp; quality gates</code></pre>
 <p>The <strong>Iron Law</strong>: no document is generated without reading both <code>TYPE.md</code> AND <code>TYPE.gen.md</code> first. Templates are the single source of truth — editing a template immediately changes behavior of all <code>/gendoc</code> and <code>/reviewdoc</code> calls.</p>
-<h3>Upstream Dependency Chain</h3>
-<pre><code class="">IDEA → BRD → PRD → PDD
-              ↓      ↓
-             EDD → ARCH → API → SCHEMA
-                    ↓      ↓      ↓
-              test-plan  BDD   runbook
-                    ↓
-              local-deploy → README</code></pre>
-<p>Each document accumulates knowledge from all ancestors (skips silently if missing).</p>
+<h3>Pipeline (D01–D17)</h3>
+<pre><code class="">D01-IDEA → D02-BRD → D03-PRD → D04-PDD → D05-VDD
+                          ↓
+                       D06-EDD → D07-ARCH → D08-API → D09-SCHEMA
+                                     ↓
+                               D10-FRONTEND
+                                     ↓
+                     D11-test-plan → D12-BDD-server → D12b-BDD-client
+                                          ↓
+                                       D13-RTM → D14-runbook → D15-LOCAL_DEPLOY
+                                                                      ↓
+                                                             D16-ALIGN → D17-HTML</code></pre>
+<p>Each document accumulates knowledge from <strong>all</strong> ancestors (skips silently if missing). PDD, VDD, FRONTEND, and BDD-client only run when <code>client_type ≠ none</code>.</p>
 <hr>
 <h2>Repository Structure</h2>
 <pre><code class="">gendoc/

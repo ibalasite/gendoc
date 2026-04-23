@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Client — gendoc</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+</head>
+<body>
+  <header class="top-nav">
+    <a href="index.html" class="nav-brand">gendoc</a>
+    <div class="nav-controls">
+      <div class="search-wrap">
+        <input class="search-input" type="search" placeholder="搜尋文件...">
+        <div class="search-results"></div>
+      </div>
+      <a class="nav-gh-link" href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener">⌥ GitHub</a>
+      <button class="sidebar-toggle" id="sidebarToggle" title="收合/展開側欄">☰</button>
+    </div>
+  </header>
+  <div class="doc-page-banner">
+    <p class="banner-breadcrumb"><a href="index.html">gendoc</a> › Client</p>
+    <h1 class="banner-title">Client</h1>
+  </div>
+  <div class="page-wrapper">
+    <aside class="sidebar" aria-label="文件導覽">
+      <div class="sidebar__section">
+        <div class="sidebar__label">文件</div>
+        <a class="sidebar__link" href="index.html">🏠 首頁</a>
+<a class="sidebar__link" href="prd.html">📝 產品需求文件 (PRD)</a>
+<a class="sidebar__link active" href="client.html">📄 Client</a>
+<a class="sidebar__link" href="gendoc-redesign-decisions.html">📄 Gendoc-Redesign-Decisions</a>
+      </div>
+    </aside>
+    <div class="sidebar-resizer" id="sidebarResizer"></div>
+    <main class="doc-content"><h1>CLIENT — Client Frontend Design Document (FDD)</h1>
+<hr>
+<h2>Document Control</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>DOC-ID</strong></td><td>CLIENT-GENDOC-20260423</td></tr>
+<tr><td><strong>專案名稱</strong></td><td>gendoc — AI-Driven Implementation Blueprint Generator（HTML 文件站）</td></tr>
+<tr><td><strong>文件版本</strong></td><td>v1.0</td></tr>
+<tr><td><strong>狀態</strong></td><td>DRAFT</td></tr>
+<tr><td><strong>作者</strong></td><td>Client/Frontend Expert Agent</td></tr>
+<tr><td><strong>日期</strong></td><td>2026-04-23</td></tr>
+<tr><td><strong>上游 PRD</strong></td><td><a href="PRD.md" target="_blank" rel="noopener">PRD.md</a></td></tr>
+<tr><td><strong>上游 API</strong></td><td>不適用（靜態站，無後端 API；見 §6）</td></tr>
+<tr><td><strong>上游 PDD</strong></td><td>不存在（見 §5.2 備註）</td></tr>
+<tr><td><strong>審閱者</strong></td><td>Tech Lead、QA Lead</td></tr>
+</table>
+<blockquote><p><strong>注意</strong>：本文件的上游鏈中，BRD、IDEA、PDD、EDD、API.md 均不存在。</p></blockquote>
+<blockquote><p>所有平台選型、功能對齊及效能目標均依 PRD 推斷，並以 <code>[INFERRED_FROM_PRD]</code> 標注。</p></blockquote>
+<hr>
+<h2>Change Log</h2>
+<table>
+<tr><th>版本</th><th>日期</th><th>作者</th><th>變更摘要</th></tr>
+<tr><td>v1.0</td><td>2026-04-23</td><td>Client/Frontend Expert Agent</td><td>初稿，依 PRD v1.1 及 docs/pages/ 現有實作生成</td></tr>
+</table>
+<hr>
+<h2>1. Overview &amp; Purpose</h2>
+<p>gendoc 的文件站（<code>docs/pages/</code>）是一個以 Vanilla HTML/CSS/JavaScript 實作的靜態文件入口網站，部署於 GitHub Pages，由 Python 腳本 <code>gen_html.py</code> 在每次文件更新後重新生成。前端不依賴任何 JavaScript 框架或建構工具，所有互動邏輯（側欄切換、拖拉縮放、全文搜尋、Mermaid 圖表 Lightbox）均以原生 DOM API 實作，CDN 載入 Mermaid 11 與 Prism.js 作為唯一外部執行期依賴。本文件涵蓋 HTML 文件站的技術選型、畫面清單與流程、靜態資源整合策略、跨瀏覽器相容性，以及測試與效能目標；不涵蓋 Claude Code skill 的後端 CLI 邏輯（見 PRD §5）或 GitHub Actions 部署設定（見 LOCAL_DEPLOY.md，如存在）。</p>
+<p><strong>適用對象</strong>：前端工程師、QA、技術主管</p>
+<p><strong>不包含</strong>：gendoc skill 的 Python/Bash 邏輯、Claude API 呼叫、K8s 部署</p>
+<hr>
+<h2>2. Frontend Tech Stack</h2>
+<h3>2.1 Framework Selection</h3>
+<table>
+<tr><th>項目</th><th>選型</th><th>版本</th><th>選型理由</th></tr>
+<tr><td><strong>核心框架</strong></td><td>Vanilla HTML / CSS / JavaScript（無框架）</td><td>ES2020+</td><td>靜態文件站無需 SPA 框架，零依賴降低維護成本；所有邏輯不超過 110 行 JS</td></tr>
+<tr><td><strong>語言</strong></td><td>JavaScript（無 TypeScript）</td><td>ES2020</td><td>輕量嵌入式工具，無需型別系統額外複雜度</td></tr>
+<tr><td><strong>建構工具</strong></td><td>Python 腳本（<code>docs/pages/gen_html.py</code>）</td><td>Python 3（任意現代版）</td><td>Markdown → HTML 轉換，自動注入側欄、搜尋索引；無 bundler</td></tr>
+<tr><td><strong>套件管理</strong></td><td>無（CDN 直接載入外部庫）</td><td>—</td><td>靜態站，無 node_modules；CDN 版本鎖定於 semver</td></tr>
+</table>
+<h3>2.2 平台選型</h3>
+<table>
+<tr><th>客戶端類型</th><th>技術方案</th><th>適用情境</th></tr>
+<tr><td>Web 桌面瀏覽器</td><td>靜態 HTML + CSS Grid + Vanilla JS</td><td>主要使用場景：開發者閱讀生成的技術藍圖</td></tr>
+<tr><td>Web 行動瀏覽器</td><td>響應式 CSS（768px 斷點隱藏側欄）</td><td>技術主管手機查閱文件摘要</td></tr>
+</table>
+<h3>2.3 核心相依套件</h3>
+<table>
+<tr><th>套件</th><th>用途</th><th>版本（CDN 鎖定）</th></tr>
+<tr><td><code>mermaid</code></td><td>渲染 Mermaid 圖表（flowchart / sequence / ER / C4）</td><td>11.x（<code>mermaid@11</code>）</td></tr>
+<tr><td><code>prismjs</code></td><td>程式碼語法高亮（Python / Bash / YAML / SQL / Go / TypeScript / JSON）</td><td>1.29.0</td></tr>
+<tr><td><code>prism-tomorrow</code> theme</td><td>Prism 暗色主題 CSS</td><td>1.29.0（與 Prism 同步）</td></tr>
+<tr><td>內建 <code>fetch</code> API</td><td>載入 <code>search-data.json</code> 進行全文搜尋</td><td>瀏覽器原生</td></tr>
+<tr><td>內建 <code>localStorage</code></td><td>儲存側欄展開/收合狀態及自訂寬度</td><td>瀏覽器原生</td></tr>
+</table>
+<blockquote><p>[INFERRED_FROM_PRD] 以上套件清單從 <code>gen_html.py</code> 的 HTML 模板及 <code>app.js</code> 直接提取，非推斷。</p></blockquote>
+<hr>
+<h2>3. Target Platforms &amp; Compatibility Matrix</h2>
+<h3>3.1 平台支援矩陣</h3>
+<blockquote><p>[INFERRED_FROM_PRD] BRD 不存在，目標平台依 PRD §3.1（「開發者 / PM」、「技術主管 / 客戶」、「AI 開發工具」為主要使用者）及 GitHub Pages 部署環境推斷。</p></blockquote>
+<table>
+<tr><th>平台</th><th>支援等級</th><th>最低版本</th><th>備註</th></tr>
+<tr><td>Web（Chrome）</td><td>P0-Must</td><td>Chrome 100+</td><td>主要開發者使用瀏覽器</td></tr>
+<tr><td>Web（Firefox）</td><td>P0-Must</td><td>Firefox 100+</td><td>開源社群標準支援</td></tr>
+<tr><td>Web（Safari）</td><td>P0-Must</td><td>Safari 15.4+（macOS 12.3+）</td><td>Apple 生態系開發者常用</td></tr>
+<tr><td>Web（Edge）</td><td>P1-Should</td><td>Edge 100+</td><td>Chromium 核心，相容性高</td></tr>
+<tr><td>iOS Safari</td><td>P1-Should</td><td>iOS 15+</td><td>技術主管行動查閱；側欄在 768px 以下隱藏</td></tr>
+<tr><td>Android Chrome</td><td>P1-Should</td><td>Android 10+</td><td>同上</td></tr>
+<tr><td>IE 11 / Legacy Edge</td><td>Not Supported</td><td>—</td><td>顯示「請使用支援的瀏覽器」提示</td></tr>
+</table>
+<p><strong>支援等級定義</strong>：</p>
+<ul><li><strong>P0-Must</strong>：必須完全相容，任何功能差異為 Critical Bug</li><li><strong>P1-Should</strong>：目標相容，輕微 UI 差異可接受</li><li><strong>P2-Nice</strong>：盡力相容，功能降級可接受</li><li><strong>Not Supported</strong>：明確不支援，顯示「請使用支援的瀏覽器」提示</li></ul>
+<h3>3.2 螢幕尺寸支援</h3>
+<table>
+<tr><th>類別</th><th>尺寸範圍</th><th>代表裝置</th><th>支援等級</th></tr>
+<tr><td>Mobile S</td><td>320px–375px</td><td>iPhone SE</td><td>P1-Should（側欄隱藏，單欄閱讀）</td></tr>
+<tr><td>Mobile L</td><td>376px–428px</td><td>iPhone 14</td><td>P1-Should</td></tr>
+<tr><td>Tablet</td><td>768px–1024px</td><td>iPad</td><td>P1-Should（768px 臨界點：側欄消失）</td></tr>
+<tr><td>Desktop</td><td>1280px–1440px</td><td>MacBook</td><td>P0-Must（主要使用場景）</td></tr>
+<tr><td>Wide</td><td>1920px+</td><td>大型顯示器</td><td>P0-Must（側欄寬度自動擴展至 300px+）</td></tr>
+</table>
+<h3>3.3 Feature Detection vs User Agent</h3>
+<p>優先使用 Feature Detection（CSS @supports、ES feature 測試），不依賴 User Agent sniffing。Mermaid 與 Prism 均有各自的 runtime feature check。<code>localStorage</code> 存取使用 try/catch 防範 Safari Private Mode 的 SecurityError。</p>
+<hr>
+<h2>4. Screen Flow &amp; Navigation Architecture</h2>
+<h3>4.1 畫面清單</h3>
+<blockquote><p>[INFERRED_FROM_PRD] 畫面對應來源：PRD §6.6（HTML 文件網站）、PRD §5.1（gendoc-gen-html）</p></blockquote>
+<table>
+<tr><th>Screen ID</th><th>名稱</th><th>路由（GitHub Pages 路徑）</th><th>對應 PRD US/功能</th></tr>
+<tr><td>SCR-001</td><td>文件首頁（Index）</td><td><code>index.html</code> / <code>/</code></td><td>PRD §6.6 — HTML 文件網站；README.md 轉換為首頁內容</td></tr>
+<tr><td>SCR-002</td><td>文件閱讀頁（Document Page）</td><td><code>{doc-slug}.html</code>（如 <code>prd.html</code>、<code>edd.html</code>）</td><td>PRD §6.6 — 每份 Markdown 文件轉換為獨立 HTML 頁面</td></tr>
+<tr><td>SCR-003</td><td>全文搜尋結果（Search Dropdown）</td><td>疊加於 SCR-001 / SCR-002 上方（非獨立頁面）</td><td>PRD §6.6 — 自動生成導覽；search-data.json 搜尋索引</td></tr>
+<tr><td>SCR-004</td><td>BDD Scenarios 頁</td><td><code>bdd.html</code></td><td>PRD §5.1（gendoc-gen-client-bdd）；僅在 <code>features/</code> 目錄有 .feature 檔時生成</td></tr>
+</table>
+<p><strong>畫面生成規則</strong>：SCR-002 的實際數量取決於 <code>docs/*.md</code> 的文件數量，由 <code>gen_html.py</code> 動態發現。當前已知文件頁包含：<code>prd.html</code>。未來生成後將依序增加 <code>idea.html</code>、<code>brd.html</code>、<code>edd.html</code>、<code>api.html</code>、<code>schema.html</code>、<code>test-plan.html</code> 等。</p>
+<h3>4.2 Navigation Map（Mermaid）</h3>
+<div class="diagram-container"><pre class="mermaid">stateDiagram-v2
+    [*] --> SCR001_Index : 瀏覽器開啟 GitHub Pages URL
+
+    SCR001_Index --> SCR002_DocPage : 點擊側欄文件連結 / 點擊首頁 index-card
+    SCR002_DocPage --> SCR001_Index : 點擊側欄「首頁」連結 / 點擊 Breadcrumb 首頁
+    SCR002_DocPage --> SCR002_DocPage : 點擊側欄其他文件連結（頁面跳轉）
+
+    SCR001_Index --> SCR003_Search : 在搜尋框輸入文字（≥1字元）
+    SCR002_DocPage --> SCR003_Search : 在搜尋框輸入文字（≥1字元）
+    SCR003_Search --> SCR001_Index : 點擊搜尋結果（目標為 index.html）
+    SCR003_Search --> SCR002_DocPage : 點擊搜尋結果（目標為 {doc}.html）
+    SCR003_Search --> SCR001_Index : 點擊搜尋框外側（關閉 Dropdown，留在原頁）
+    SCR003_Search --> SCR002_DocPage : 點擊搜尋框外側（關閉 Dropdown，留在原頁）
+
+    SCR002_DocPage --> SCR002_Lightbox : 點擊 .diagram-container（放大 Mermaid 圖）
+    SCR002_Lightbox --> SCR002_DocPage : 點擊 ✕ 按鈕 / 點擊 Lightbox 背景
+
+    SCR001_Index --> SCR004_BDD : 點擊側欄「BDD Scenarios」（僅在 features/ 存在時顯示）
+    SCR002_DocPage --> SCR004_BDD : 同上
+    SCR004_BDD --> SCR001_Index : 點擊側欄「首頁」
+    SCR004_BDD --> SCR002_DocPage : 點擊側欄其他文件</pre></div>
+<p><strong>注意</strong>：此文件站為靜態網站，無認證機制，所有頁面均為公開存取。Auth Guard 不適用（見 §4.4）。</p>
+<h3>4.3 Deep Link / URL Scheme</h3>
+<table>
+<tr><th>路由</th><th>對應 Screen</th><th>參數</th><th>Guard</th></tr>
+<tr><td><code>index.html</code> 或 <code>/</code></td><td>SCR-001 文件首頁</td><td>—</td><td>無（公開）</td></tr>
+<tr><td><code>prd.html</code></td><td>SCR-002 PRD 文件頁</td><td>—</td><td>無（公開）</td></tr>
+<tr><td><code>{doc-slug}.html</code></td><td>SCR-002 任意文件頁</td><td>doc-slug: 文件名稱（小寫）</td><td>無（公開）</td></tr>
+<tr><td><code>bdd.html</code></td><td>SCR-004 BDD Scenarios</td><td>—</td><td>無（公開；僅在 features/ 存在時生成）</td></tr>
+<tr><td><code>search-data.json</code></td><td>非頁面（搜尋資料）</td><td>—</td><td>無（同域 fetch）</td></tr>
+</table>
+<p><strong>Deep Link 行為</strong>：GitHub Pages 直接對應靜態檔案路徑，無需 SPA 路由設定。所有 URL 均為真實檔案，不依賴 history API。</p>
+<h3>4.4 Auth Guard 規則</h3>
+<p><strong>不適用。</strong> 此文件站為靜態公開網站，部署於 GitHub Pages，無使用者認證機制。<code>localStorage</code> 僅用於儲存 UI 偏好（側欄展開狀態、側欄寬度），不儲存任何身份資訊或 Token。</p>
+<hr>
+<h2>5. Component Architecture</h2>
+<h3>5.1 Component 層次</h3>
+<blockquote><p>此站為靜態 HTML，無 JavaScript Component 框架。以 HTML 結構層次描述：</p></blockquote>
+<pre><code class="">HTML 頁面（每個 .html 為獨立文件，由 gen_html.py 生成）
+├── &lt;header class=&quot;top-nav&quot;&gt;          # 頂部導覽列（全域，每頁相同）
+│   ├── .nav-brand                    # 品牌連結（返回首頁）
+│   └── .nav-controls
+│       ├── .search-wrap              # 搜尋框 + 下拉結果
+│       │   ├── .search-input         # &lt;input type=&quot;search&quot;&gt;
+│       │   └── .search-results       # 動態插入搜尋結果 Dropdown
+│       ├── .nav-gh-link              # GitHub 連結按鈕
+│       └── #sidebarToggle            # 側欄展開/收合按鈕
+├── &lt;div class=&quot;doc-page-banner&quot;&gt;     # 頁面標題橫幅
+│   ├── .banner-breadcrumb            # 麵包屑導覽
+│   └── .banner-title                 # 頁面主標題
+├── &lt;div class=&quot;page-wrapper&quot;&gt;        # 主體 CSS Grid 布局
+│   ├── &lt;aside class=&quot;sidebar&quot;&gt;       # 側邊欄（文件目錄）
+│   │   └── .sidebar__link × N        # 每份文件一個連結（active 狀態）
+│   ├── #sidebarResizer               # 側欄寬度拖拉把手
+│   └── &lt;main class=&quot;doc-content&quot;&gt;    # 文件內容區域
+│       ├── h1 / h2 / h3 / h4         # 標題層次（Markdown 轉換）
+│       ├── table                     # Markdown 表格
+│       ├── pre / code                # 程式碼區塊（Prism 高亮）
+│       ├── .diagram-container        # Mermaid 圖表容器（可點擊放大）
+│       └── .index-card × N           # 首頁文件卡片（僅 index.html）
+└── .lightbox                         # 圖表放大 Lightbox（JS 動態插入）
+    ├── .lightbox__close              # ✕ 關閉按鈕
+    └── .lightbox__content            # 放大後的圖表內容</code></pre>
+<h3>5.2 共用 UI 組件規格</h3>
+<blockquote><p>PDD 不存在 [INFERRED_FROM_PRD]，規格從 <code>style.css</code> 及 <code>gen_html.py</code> 模板直接提取。</p></blockquote>
+<table>
+<tr><th>Component</th><th>關鍵 CSS Class / HTML</th><th>States</th><th>對應 PDD</th></tr>
+<tr><td>頂部導覽列</td><td><code>.top-nav</code></td><td>—</td><td>PDD 未定義；從 style.css 提取</td></tr>
+<tr><td>搜尋輸入框</td><td><code>.search-input</code></td><td>default / focus（border-color: var(--nav-accent)）/ with-results</td><td>PDD 未定義</td></tr>
+<tr><td>搜尋結果 Dropdown</td><td><code>.search-results</code> / <code>.search-result-item</code></td><td>hidden（display:none）/ visible / item:hover</td><td>PDD 未定義</td></tr>
+<tr><td>側欄連結</td><td><code>.sidebar__link</code></td><td>default / hover / active（border-left: var(--accent)）</td><td>PDD 未定義</td></tr>
+<tr><td>文件卡片（首頁）</td><td><code>.index-card</code></td><td>default / hover（translateY(-2px) + shadow）</td><td>PDD 未定義</td></tr>
+<tr><td>Mermaid 圖表容器</td><td><code>.diagram-container</code></td><td>default / hover（border-color: var(--accent)）/ lightbox-open</td><td>PDD 未定義</td></tr>
+<tr><td>Lightbox</td><td><code>.lightbox</code> / <code>.lightbox.active</code></td><td>hidden / visible</td><td>PDD 未定義</td></tr>
+<tr><td>側欄拖拉把手</td><td><code>.sidebar-resizer</code></td><td>default / hover / dragging（background: var(--accent)）</td><td>PDD 未定義</td></tr>
+<tr><td>側欄收合按鈕</td><td><code>.sidebar-toggle</code></td><td>default / hover</td><td>PDD 未定義</td></tr>
+</table>
+<h3>5.3 組件通訊策略</h3>
+<blockquote><p>Vanilla JS，無框架，無 State Management 庫。</p></blockquote>
+<table>
+<tr><th>場景</th><th>通訊方式</th><th>理由</th></tr>
+<tr><td>搜尋輸入 → 結果顯示</td><td>DOM Event（<code>input</code> event → 直接操作 DOM）</td><td>無需狀態庫；邏輯單純</td></tr>
+<tr><td>側欄收合狀態持久化</td><td><code>localStorage.setItem / getItem</code></td><td>跨頁面保持 UI 偏好</td></tr>
+<tr><td>側欄寬度持久化</td><td><code>localStorage</code>（key: <code>sidebar-width</code>） + CSS custom property</td><td>用 <code>document.documentElement.style.setProperty</code> 直接更新</td></tr>
+<tr><td>Lightbox 開關</td><td>DOM classList toggle（<code>.lightbox.active</code>）</td><td>純 CSS 控制顯示/隱藏</td></tr>
+<tr><td>圖表放大內容傳遞</td><td><code>cloneNode(true)</code> 複製 <code>.diagram-container</code> 到 Lightbox</td><td>避免 DOM 共享問題</td></tr>
+<tr><td>搜尋資料初始化</td><td><code>async fetch(&#x27;search-data.json&#x27;)</code> → 模組變數 <code>searchData</code></td><td>非同步載入，一次性</td></tr>
+</table>
+<hr>
+<h2>6. API Integration Map</h2>
+<h3>6.1 Screen × API Endpoint 矩陣</h3>
+<blockquote><p>此文件站為<strong>完全靜態</strong>，無後端 API 呼叫。唯一的非同步資源請求為搜尋索引載入。</p></blockquote>
+<table>
+<tr><th>Screen</th><th>資源請求</th><th>方法</th><th>時機</th><th>失敗處理</th></tr>
+<tr><td>SCR-001 / SCR-002 / SCR-003</td><td><code>fetch(&#x27;search-data.json&#x27;)</code></td><td>GET（同域靜態檔案）</td><td>頁面初始化（<code>initSearch()</code> 呼叫）</td><td><code>try/catch</code> 靜默處理；<code>searchData</code> 保持 <code>null</code>；搜尋功能降級為無反應（不顯示錯誤）</td></tr>
+<tr><td>SCR-002</td><td>Mermaid ESM（CDN）</td><td><code>import</code> via <code>&lt;script type=&quot;module&quot;&gt;</code></td><td><code>&lt;head&gt;</code> 載入時</td><td>CDN 失敗時 Mermaid 區塊顯示原始文字；Prism 失敗時 code 無高亮</td></tr>
+<tr><td>SCR-002</td><td>Prism.js + Components（CDN）</td><td><code>&lt;script src&gt;</code></td><td>頁面載入</td><td>同上</td></tr>
+</table>
+<p><strong>注意</strong>：<code>search-data.json</code> 的路徑為<strong>相對路徑</strong>，在 GitHub Pages 子路徑部署時，如果 HTML 頁面不與 <code>search-data.json</code> 同層，需調整路徑。目前 <code>gen_html.py</code> 將所有檔案輸出至 <code>docs/pages/</code>，同層級存取正確。</p>
+<h3>6.2 Auth Token 管理</h3>
+<p><strong>不適用。</strong> 靜態公開網站，無認證機制，無 Token。<code>localStorage</code> 僅儲存 UI 狀態（<code>sidebar-collapsed</code>：boolean、<code>sidebar-width</code>：px 字串），與身份驗證無關。</p>
+<h3>6.3 Loading / Skeleton 狀態設計</h3>
+<table>
+<tr><th>資料類型</th><th>Loading 呈現</th><th>空資料呈現</th><th>錯誤呈現</th></tr>
+<tr><td>搜尋索引（search-data.json）</td><td>無（fetch 為背景非同步，不阻塞渲染）</td><td>搜尋無反應（Dropdown 不顯示）</td><td>搜尋框 <code>placeholder</code> 文字改為「搜尋暫不可用」（attr via JS after catch）；滑鼠指標改為 <code>not-allowed</code>；不顯示 Toast（進階增強 §9.3 Baseline — 不影響文件閱讀）</td></tr>
+<tr><td>Mermaid 圖表渲染</td><td>顯示原始 <code>&lt;pre class=&quot;mermaid&quot;&gt;</code> 文字直到渲染完成</td><td>—</td><td>顯示原始 Mermaid 語法文字</td></tr>
+<tr><td>文件內容</td><td>靜態 HTML，無載入狀態</td><td>—</td><td>—</td></tr>
+</table>
+<h3>6.4 Request / Response 攔截器</h3>
+<blockquote><p>靜態站無 HTTP Client，無攔截器需求。以下為 <code>app.js</code> 中 <code>initSearch()</code> 的實際實作摘要：</p></blockquote>
+<pre><code class="language-javascript">// app.js — initSearch()
+let searchData = null;
+
+async function initSearch() {
+  try {
+    const res = await fetch(&#x27;search-data.json&#x27;);
+    if (res.ok) searchData = await res.json();
+  } catch {
+    // 靜默失敗：搜尋功能不可用，但頁面正常運作
+  }
+}</code></pre>
+<p><strong>錯誤策略</strong>：網路錯誤或 HTTP 非 2xx 均靜默處理，搜尋功能降級為不可用，不影響文件閱讀主功能。此設計符合漸進增強原則（§9.3）。</p>
+<p><strong>搜尋索引載入失敗</strong>：更新 <code>input.placeholder</code> 為「搜尋暫不可用」並設 <code>cursor: not-allowed</code> — 不 throw，不 Toast。</p>
+<hr>
+<h2>7. State Management Design</h2>
+<h3>7.1 Global State Schema</h3>
+<blockquote><p>Vanilla JS，無 TypeScript，無 Global State 庫。以下為實際執行期的狀態描述：</p></blockquote>
+<pre><code class="language-javascript">// app.js 模組層級變數（非框架 state）
+let searchData = null;  // null = 未載入 / Object = 已載入搜尋索引
+
+// localStorage 持久化狀態
+// key: &#x27;sidebar-collapsed&#x27;  value: &#x27;true&#x27; | &#x27;false&#x27;
+// key: &#x27;sidebar-width&#x27;      value: &#x27;{n}px&#x27;（如 &#x27;260px&#x27;）
+
+// DOM 狀態（無 JS 變數，直接透過 CSS class 管理）
+// .page-wrapper.sidebar-collapsed — 側欄是否收合
+// .lightbox.active              — Lightbox 是否開啟
+// .sidebar-resizer.dragging     — 拖拉把手是否啟動中</code></pre>
+<h3>7.2 State 分層規則</h3>
+<table>
+<tr><th>狀態類型</th><th>管理方式</th><th>範例</th></tr>
+<tr><td>非同步資料</td><td>模組變數（<code>let searchData</code>）</td><td>搜尋索引 JSON</td></tr>
+<tr><td>持久化 UI 偏好</td><td><code>localStorage</code></td><td>側欄展開/收合、側欄寬度</td></tr>
+<tr><td>瞬態 UI 狀態</td><td>DOM className / CSS class toggle</td><td>Lightbox 開關、搜尋 Dropdown 顯示</td></tr>
+<tr><td>頁面路由狀態</td><td>無（靜態多頁面，URL = 檔案路徑）</td><td>—</td></tr>
+</table>
+<h3>7.3 Cache 與持久化</h3>
+<table>
+<tr><th>資料</th><th>持久化策略</th><th>TTL</th><th>清除時機</th></tr>
+<tr><td>側欄收合狀態</td><td><code>localStorage</code>（key: <code>sidebar-collapsed</code>）</td><td>永久（用戶手動清除前）</td><td>用戶點擊側欄收合按鈕時更新</td></tr>
+<tr><td>側欄自訂寬度</td><td><code>localStorage</code>（key: <code>sidebar-width</code>）</td><td>永久</td><td>用戶拖拉調整後更新</td></tr>
+<tr><td>搜尋索引</td><td>記憶體（<code>searchData</code> 變數）</td><td>頁面 Session</td><td>頁面卸載時自動釋放</td></tr>
+</table>
+<hr>
+<h2>8. Responsive Design &amp; Adaptive Layout</h2>
+<h3>8.1 Breakpoint 系統</h3>
+<blockquote><p>以下 CSS custom properties 從 <code>docs/pages/assets/style.css</code> 直接提取（非推斷）：</p></blockquote>
+<pre><code class="language-css">/* docs/pages/assets/style.css — 實際定義 */
+:root {
+  --nav-h:      56px;
+  --sidebar-w:  260px;       /* 預設側欄寬度 */
+}
+
+@media (min-width: 1440px) { :root { --sidebar-w: 280px; } }
+@media (min-width: 1920px) { :root { --sidebar-w: 300px; --content-pad-h: 4rem; } }
+@media (min-width: 2560px) { :root { --sidebar-w: 320px; --content-pad-h: 5rem; } }
+
+@media (max-width: 768px) {
+  /* 行動裝置：單欄布局，側欄隱藏，搜尋框縮短 */
+}</code></pre>
+<p><strong>斷點總結</strong>：</p>
+<table>
+<tr><th>斷點名稱</th><th>觸發條件</th><th>側欄寬度</th></tr>
+<tr><td>Mobile（&lt; 768px）</td><td>max-width: 768px</td><td>隱藏（display: none）</td></tr>
+<tr><td>Desktop（預設）</td><td>768px–1440px</td><td>260px</td></tr>
+<tr><td>Wide（≥ 1440px）</td><td>min-width: 1440px</td><td>280px</td></tr>
+<tr><td>XWide（≥ 1920px）</td><td>min-width: 1920px</td><td>300px</td></tr>
+<tr><td>XXWide（≥ 2560px）</td><td>min-width: 2560px</td><td>320px</td></tr>
+</table>
+<blockquote><p>[INFERRED_FROM_PRD] PDD 不存在，此斷點系統直接對應 style.css 現有實作，無衝突。</p></blockquote>
+<h3>8.2 Layout Grid 規格</h3>
+<table>
+<tr><th>Breakpoint</th><th>布局方式</th><th>側欄</th><th>內容區 Padding</th></tr>
+<tr><td>Mobile（&lt; 768px）</td><td>單欄（<code>grid-template-columns: 1fr</code>）</td><td>隱藏</td><td>1.5rem 上下 / 1rem 左右</td></tr>
+<tr><td>Desktop（768px+）</td><td>CSS Grid（<code>var(--sidebar-w) 4px 1fr</code>）</td><td>260px</td><td>2.5rem 上下 / 3rem 左右</td></tr>
+<tr><td>Wide（1920px+）</td><td>同上</td><td>300px</td><td>2.5rem 上下 / 4rem 左右</td></tr>
+</table>
+<h3>8.3 自適應策略</h3>
+<p>Mobile First 原則：<code>max-width: 768px</code> 為唯一響應式斷點。</p>
+<table>
+<tr><th>元件</th><th>Mobile（&lt; 768px）</th><th>Desktop（768px+）</th><th>Wide（1920px+）</th></tr>
+<tr><td>側欄</td><td><code>display: none</code>（隱藏）</td><td><code>position: sticky</code>，260px 寬，可拖拉縮放</td><td>自動擴展至 300–320px</td></tr>
+<tr><td>搜尋框</td><td>縮短至 140px 寬</td><td>200px 寬</td><td>200px 寬</td></tr>
+<tr><td>GitHub 連結按鈕</td><td><code>display: none</code>（隱藏）</td><td>顯示</td><td>顯示</td></tr>
+<tr><td>文件橫幅</td><td><code>padding: 1.5rem 1rem 1rem</code></td><td><code>padding: 2.5rem 2rem 2rem</code></td><td>同 Desktop</td></tr>
+<tr><td>首頁卡片格</td><td>單欄自動填充（<code>auto-fill, minmax(220px, 1fr)</code>）</td><td>多欄自動填充</td><td>多欄自動填充</td></tr>
+</table>
+<h3>8.4 Fluid Typography</h3>
+<pre><code class="language-css">/* docs/pages/assets/style.css — 實際定義 */
+body { font-size: 15px; line-height: 1.7; }
+.doc-content h1 { font-size: clamp(1.5rem, 3vw, 2rem); }
+.doc-content h2 { font-size: clamp(1.125rem, 2vw, 1.5rem); }
+.banner-title    { font-size: clamp(1.5rem, 3vw, 2.25rem); }</code></pre>
+<hr>
+<h2>9. Cross-Platform Compatibility</h2>
+<h3>9.1 Feature Parity Matrix</h3>
+<table>
+<tr><th>功能</th><th>Web Chrome</th><th>Web Firefox</th><th>Web Safari</th><th>iOS Safari</th><th>Android Chrome</th></tr>
+<tr><td>文件閱讀（靜態 HTML）</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+<tr><td>全文搜尋（fetch + DOM）</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+<tr><td>Mermaid 圖表（ESM import）</td><td>✅</td><td>✅</td><td>✅</td><td>✅（iOS 15+）</td><td>✅</td></tr>
+<tr><td>Prism 語法高亮</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+<tr><td>Lightbox（CSS + DOM）</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+<tr><td>側欄拖拉縮放（mousedown/move）</td><td>✅</td><td>✅</td><td>✅</td><td>⚠️ 不支援（無 mouse events）</td><td>⚠️ 不支援</td></tr>
+<tr><td>localStorage</td><td>✅</td><td>✅</td><td>✅</td><td>⚠️ Private Mode 拋 SecurityError</td><td>✅</td></tr>
+<tr><td>CSS Grid（sidebar layout）</td><td>✅</td><td>✅</td><td>✅</td><td>✅（iOS 15+）</td><td>✅</td></tr>
+<tr><td>CSS Custom Properties</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+<tr><td><code>scroll-behavior: smooth</code></td><td>✅</td><td>✅</td><td>✅</td><td>✅（iOS 15.4+）</td><td>✅</td></tr>
+</table>
+<p><strong>圖例</strong>：✅ 完整支援 ｜ ⚠️ 降級/workaround ｜ ❌ 不支援</p>
+<h3>9.2 Platform-Specific Workarounds</h3>
+<table>
+<tr><th>問題</th><th>影響平台</th><th>Workaround</th><th>測試驗證方式</th></tr>
+<tr><td>iOS Safari Private Mode 中 <code>localStorage.setItem</code> 拋出 SecurityError</td><td>iOS Safari（所有版本 Private Mode）</td><td><code>app.js</code> 中 <code>localStorage</code> 存取已包裹於 <code>try/catch</code>（現有實作）；失敗時 UI 偏好不持久，但功能正常</td><td>在 iOS Safari Private 模式開啟頁面，確認無 JS 錯誤，側欄正常顯示</td></tr>
+<tr><td>iOS Safari 無 <code>mousedown / mousemove</code> 事件</td><td>iOS Safari、iOS Chrome</td><td>側欄拖拉縮放功能在 touch 裝置上不可用；Mobile 斷點下側欄本已隱藏，影響範圍僅限平板橫向（768px–1024px）桌面模式</td><td>在 iPad 上驗證側欄固定寬度無法拖拉，但不影響閱讀</td></tr>
+<tr><td>Safari autoplay 限制</td><td>iOS Safari 14 以下</td><td>本站不含 <code>&lt;audio&gt;</code> / <code>&lt;video&gt;</code> 自動播放，不適用</td><td>—</td></tr>
+<tr><td><code>position: sticky</code> 在 overflow 容器內失效</td><td>Safari 15 以下</td><td><code>.sidebar</code> 的 <code>position: sticky</code> 依賴 <code>.page-wrapper</code> 無 <code>overflow: hidden</code>；現有 CSS 已符合此要求</td><td>Safari 15 下滾動頁面確認側欄固定</td></tr>
+<tr><td>100vh 在 iOS Safari 底部工具列問題</td><td>iOS Safari（所有版本）</td><td>本站 <code>min-height: calc(100vh - var(--nav-h))</code> 僅用於容器最小高度，不影響關鍵功能；視覺上底部可能有空白</td><td>在 iPhone Safari 中確認頁面無內容被工具列遮蓋</td></tr>
+</table>
+<h3>9.3 Progressive Enhancement</h3>
+<table>
+<tr><th>功能層級</th><th>適用平台</th><th>實作方式</th></tr>
+<tr><td>Baseline</td><td>所有 P0/P1 平台</td><td>靜態 HTML + CSS 文件閱讀（無 JS 也可閱讀內容）</td></tr>
+<tr><td>Enhanced</td><td>支援 ES2020 + fetch 的現代瀏覽器</td><td>搜尋功能、側欄互動、Lightbox、UI 偏好持久化</td></tr>
+<tr><td>Full-featured</td><td>支援 ESM import（ES2022+）的現代瀏覽器</td><td>Mermaid 圖表渲染、Prism 語法高亮、圖表放大 Lightbox</td></tr>
+</table>
+<hr>
+<h2>10. Frontend Test Strategy</h2>
+<h3>10.1 測試金字塔</h3>
+<pre><code class="">         ┌─────────────┐
+         │  E2E Tests  │  (Playwright)
+         │  ~10%       │  P0 Screen Flows
+    ┌────┴─────────────┴────┐
+    │  Integration Tests    │  — 靜態站，僅需驗證 gen_html.py 輸出正確性
+    │  ~20%                 │  Python pytest（驗證 HTML 結構）
+┌───┴───────────────────────┴───┐
+│  Unit Tests                   │  (Playwright component / 目前無框架 unit test)
+│  ~70%                         │  (Vitest 可測試純函式，目前 JS 邏輯僅 110 行)
+└───────────────────────────────┘</code></pre>
+<blockquote><p>[INFERRED_FROM_PRD] 測試框架依 CLIENT.gen.md 技術推斷規則：Vanilla JS → Playwright（E2E）/ Vitest（unit）。</p></blockquote>
+<h3>10.2 Unit Test 規範</h3>
+<table>
+<tr><th>測試類型</th><th>框架</th><th>覆蓋率目標</th><th>對應 BDD Tag</th></tr>
+<tr><td><code>gen_html.py</code> Python 邏輯（Markdown 解析、HTML 生成）</td><td>pytest</td><td>95%+</td><td>@unit</td></tr>
+<tr><td><code>app.js</code> 純函式（搜尋過濾邏輯，如提取）</td><td>Vitest</td><td>90%+</td><td>@unit</td></tr>
+<tr><td>CSS 視覺迴歸</td><td>Playwright 截圖</td><td>關鍵 Screens × 2 Breakpoints</td><td>@visual</td></tr>
+</table>
+<blockquote><p><strong>覆蓋率類別對照</strong>：<code>app.js</code> DOM 互動邏輯 → Component（80%+）；<code>app.js</code> initSearch / initSidebar 函式 → Hook/Service（90%+）；<code>gen_html.py</code> Python 工具函式 → Utils（95%+）。</p></blockquote>
+<h3>10.3 E2E 測試覆蓋</h3>
+<table>
+<tr><th>流程</th><th>工具</th><th>覆蓋 Screen</th><th>優先度</th></tr>
+<tr><td>文件首頁載入 + 側欄顯示 + index-card 點擊進入文件頁</td><td>Playwright</td><td>SCR-001 → SCR-002</td><td>P0</td></tr>
+<tr><td>搜尋輸入 → 搜尋結果 Dropdown 顯示 → 點擊跳轉</td><td>Playwright</td><td>SCR-001/002 → SCR-003 → SCR-002</td><td>P0</td></tr>
+<tr><td>Mermaid 圖表顯示 + 點擊放大 + Lightbox 關閉</td><td>Playwright</td><td>SCR-002 + Lightbox</td><td>P0</td></tr>
+<tr><td>側欄收合 → 展開 → 狀態持久化（重新載入）</td><td>Playwright</td><td>SCR-001 / SCR-002</td><td>P1</td></tr>
+<tr><td>行動版（375px）—— 側欄隱藏、單欄閱讀</td><td>Playwright（mobile viewport）</td><td>SCR-001 / SCR-002</td><td>P1</td></tr>
+<tr><td>BDD Scenarios 頁面（條件式）</td><td>Playwright</td><td>SCR-004</td><td>P1</td></tr>
+</table>
+<blockquote><p><strong>SCR-004 注意</strong>：僅當 <code>features/</code> 目錄存在時執行；驗證 <code>bdd.html</code> 正確生成且側欄顯示 BDD Scenarios 連結。</p></blockquote>
+<h3>10.4 Visual Regression</h3>
+<table>
+<tr><th>工具</th><th>快照目標</th><th>閾值</th></tr>
+<tr><td>Playwright 截圖比對</td><td>SCR-001（Index）× 2 Breakpoints（375px / 1440px）；SCR-002（PRD 頁）× 2 Breakpoints</td><td>&lt; 0.1% diff</td></tr>
+</table>
+<blockquote><p>PDD 不存在，Visual Regression 以 Playwright 截圖為主要品質保證手段。</p></blockquote>
+<h3>10.5 Cross-browser 自動化</h3>
+<table>
+<tr><th>工具</th><th>涵蓋瀏覽器</th><th>CI 觸發條件</th></tr>
+<tr><td>Playwright（多瀏覽器模式）</td><td>Chromium、Firefox、WebKit（Safari）</td><td>PR merge 或 <code>gen_html.py</code> 更新後</td></tr>
+</table>
+<hr>
+<h2>11. Performance Budget</h2>
+<h3>11.1 Bundle Size 上限</h3>
+<blockquote><p>靜態站無 JS bundle（無 bundler），以下為每頁傳輸量估算：</p></blockquote>
+<table>
+<tr><th>資源</th><th>大小估算</th><th>備註</th></tr>
+<tr><td>HTML 頁面（每頁）</td><td>&lt; 50KB（未壓縮）</td><td>Markdown 轉換的 HTML，含模板</td></tr>
+<tr><td><code>assets/style.css</code></td><td>&lt; 10KB（未壓縮）</td><td>目前約 6KB</td></tr>
+<tr><td><code>assets/app.js</code></td><td>&lt; 5KB（未壓縮）</td><td>目前約 3.4KB（110 行）</td></tr>
+<tr><td><code>search-data.json</code></td><td>&lt; 50KB（依文件數量）</td><td>9 份文件預估 ~20KB</td></tr>
+<tr><td>Mermaid ESM（CDN）</td><td>~900KB（未壓縮）/ ~300KB gzip</td><td>CDN 快取，不計入 initial load</td></tr>
+<tr><td>Prism.js + themes（CDN）</td><td>~150KB total（未壓縮）/ ~50KB gzip</td><td>CDN 快取</td></tr>
+</table>
+<p><strong>總 Initial Load（不含 CDN）</strong>：&lt; 120KB 未壓縮，遠低於 350KB 預算上限。</p>
+<h3>11.2 Core Web Vitals 目標</h3>
+<table>
+<tr><th>指標</th><th>目標</th><th>測量工具</th></tr>
+<tr><td>LCP</td><td>&lt; 2.5s</td><td>Lighthouse / WebPageTest（GitHub Pages）</td></tr>
+<tr><td>INP</td><td>&lt; 200ms</td><td>Chrome UX Report（互動：搜尋輸入、側欄點擊）</td></tr>
+<tr><td>CLS</td><td>&lt; 0.1</td><td>Lighthouse（主要風險：Mermaid 渲染後的 layout shift）</td></tr>
+<tr><td>FCP</td><td>&lt; 1.5s</td><td>Lighthouse（靜態 HTML，無 JS 阻塞渲染）</td></tr>
+<tr><td>TBT</td><td>&lt; 200ms</td><td>Lighthouse（Mermaid ESM 為非同步載入，不阻塞主線程）</td></tr>
+</table>
+<p><strong>CLS 風險注意</strong>：Mermaid <code>&lt;pre class=&quot;mermaid&quot;&gt;</code> 渲染完成後，圖表尺寸可能導致 layout shift。建議在 <code>.diagram-container</code> 上設定 <code>min-height</code> 預留空間（見 §12.3 及 §13.3）。</p>
+<h3>11.3 Asset 最佳化規則</h3>
+<table>
+<tr><th>資源類型</th><th>最佳化策略</th></tr>
+<tr><td>HTML</td><td><code>gen_html.py</code> 輸出不含多餘空白；CDN 資源版本鎖定（避免意外升級）</td></tr>
+<tr><td>CSS</td><td>單一 <code>style.css</code>，無需 critical CSS 提取（首屏 CSS 全部 &lt; 10KB）</td></tr>
+<tr><td>字型</td><td>系統字型優先（<code>system-ui, &quot;Segoe UI&quot;, &quot;PingFang TC&quot;, ...</code>），無自訂字型，無字型預載需求</td></tr>
+<tr><td>圖片</td><td>目前僅有 README badge 圖片，使用 <code>loading=&quot;lazy&quot;</code> 及 <code>onerror</code> fallback</td></tr>
+<tr><td>Mermaid / Prism</td><td>非同步 CDN 載入，不阻塞首屏渲染；版本鎖定防止 CDN 更新破壞相容性</td></tr>
+</table>
+<hr>
+<h2>12. Frontend Security</h2>
+<h3>12.1 XSS 防護</h3>
+<table>
+<tr><th>風險點</th><th>防護措施</th></tr>
+<tr><td>Markdown → HTML 轉換</td><td><code>gen_html.py</code> 使用 <code>html.escape()</code> 轉義純文字內容；僅 code block、inline code 及特定 HTML 元素例外</td></tr>
+<tr><td>搜尋結果 Dropdown</td><td><code>app.js</code> 使用 template literal 插入 <code>${d.title}</code> 及 <code>${d.excerpt}</code>；<code>search-data.json</code> 由 <code>gen_html.py</code> 在建構期生成，非用戶輸入，但仍建議在 <code>gen_html.py</code> 輸出時對 title / excerpt 做 HTML escape</td></tr>
+<tr><td><code>innerHTML</code> 使用</td><td><code>app.js</code> 中 <code>searchResultsEl.innerHTML = hits.map(...)</code> 使用模板字串插入 CDN-linted 路徑及 <code>gen_html.py</code> 生成的 excerpt；風險低（非用戶輸入），但需確保 <code>gen_html.py</code> 輸出的 excerpt 已 escape</td></tr>
+<tr><td><code>cloneNode(true)</code></td><td>Lightbox 使用 <code>cloneNode</code> 複製 DOM，不引入新的 XSS 向量</td></tr>
+</table>
+<p><strong>建議改進</strong>（非阻塞）：在 <code>app.js</code> 的搜尋結果渲染中，使用 <code>document.createElement</code> + <code>textContent</code> 替代 <code>innerHTML</code> 模板字串插入，以消除潛在 XSS 風險。</p>
+<h3>12.2 Content Security Policy（CSP）</h3>
+<blockquote><p>[INFERRED_FROM_PRD] GitHub Pages 目前不支援自訂 HTTP Response Headers（需透過 meta 標籤或第三方 CDN 如 Cloudflare）。以下為建議的 CSP 配置，可於未來遷移至支援 headers 設定的平台時啟用。</p></blockquote>
+<pre><code class="">Content-Security-Policy:
+  default-src &#x27;self&#x27;;
+  script-src &#x27;self&#x27;
+    https://cdn.jsdelivr.net;
+  style-src &#x27;self&#x27; &#x27;unsafe-inline&#x27;
+    https://cdn.jsdelivr.net;
+  img-src &#x27;self&#x27; data: https:;
+  connect-src &#x27;self&#x27;
+    https://ibalasite.github.io;
+  font-src &#x27;self&#x27;;
+  frame-src &#x27;none&#x27;;
+  object-src &#x27;none&#x27;;
+  base-uri &#x27;self&#x27;;</code></pre>
+<p><strong>說明</strong>：</p>
+<ul><li><code>script-src https://cdn.jsdelivr.net</code>：Mermaid ESM + Prism.js</li><li><code>style-src &#x27;unsafe-inline&#x27;</code>：Mermaid 和 Prism 動態插入 style；可在確認 nonce 方案後收緊</li><li><code>connect-src https://ibalasite.github.io</code>：<code>fetch(&#x27;search-data.json&#x27;)</code> 的同源請求（GitHub Pages 域名）</li><li><strong>注意</strong>：Mermaid ESM 使用 <code>import()</code> 動態載入，CSP 的 <code>script-src</code> 需包含 <code>https://cdn.jsdelivr.net</code></li></ul>
+<h3>12.3 敏感資料處理</h3>
+<table>
+<tr><th>資料類型</th><th>禁止行為</th><th>正確處理</th></tr>
+<tr><td><code>localStorage</code> UI 偏好</td><td>不存入任何用戶身份資訊或 API key</td><td>僅存 <code>sidebar-collapsed</code>（boolean）和 <code>sidebar-width</code>（px）</td></tr>
+<tr><td>文件內容</td><td>不在文件中 inline 任何 secret 或 private key</td><td>文件為公開技術規格，設計上不含敏感資訊</td></tr>
+<tr><td>GitHub 倉庫 URL</td><td><code>GITHUB_REPO</code> 硬編碼於 <code>gen_html.py</code> 中（公開 URL，無 secret）</td><td>公開 URL 符合規範</td></tr>
+</table>
+<hr>
+<h2>13. Build &amp; Bundle Configuration</h2>
+<h3>13.1 Build 目標與指令</h3>
+<table>
+<tr><th>環境</th><th>指令</th><th>輸出目錄</th><th>備註</th></tr>
+<tr><td>本地開發 / 預覽</td><td><code>python docs/pages/gen_html.py</code></td><td><code>docs/pages/</code></td><td>需 Python 3；直接在瀏覽器開啟 <code>docs/pages/index.html</code> 或使用 <code>python -m http.server</code></td></tr>
+<tr><td>Staging</td><td>不適用（無獨立 staging 環境；PR preview 依賴 GitHub Actions 自動部署至 gh-pages branch）</td><td><code>docs/pages/</code> 同 prod</td><td>External</td></tr>
+<tr><td>GitHub Pages 部署</td><td>同上（由 GitHub Actions 或手動執行後 push）</td><td><code>docs/pages/</code>（<code>docs/</code> 作為 Pages source）</td><td>無獨立 staging 環境；由 git push 觸發 Pages 更新</td></tr>
+</table>
+<blockquote><p>此為靜態站，無 webpack / Vite / esbuild。「建構」即執行 <code>gen_html.py</code> 將 <code>docs/<em>.md</code> 轉換為 <code>docs/pages/</em>.html</code>。</p></blockquote>
+<h3>13.2 環境變數規範</h3>
+<table>
+<tr><th>變數名稱</th><th>位置</th><th>用途</th><th>值</th></tr>
+<tr><td><code>GITHUB_REPO</code></td><td><code>gen_html.py</code> 第 16 行（Python 常數）</td><td>GitHub 倉庫連結，用於 Nav bar 和首頁 Breadcrumb</td><td><code>https://github.com/ibalasite/gendoc</code></td></tr>
+<tr><td><code>APP_NAME</code></td><td><code>gen_html.py</code> 第 17 行（Python 常數）</td><td>顯示於頂部導覽列和頁面標題</td><td><code>gendoc</code></td></tr>
+</table>
+<blockquote><p>⚠️ 以上均為<strong>公開值</strong>，硬編碼於 <code>gen_html.py</code> 中。無前端環境變數（無 .env 或 build-time injection），嚴禁包含 API Secret、Private Key 等敏感資訊。</p></blockquote>
+<h3>13.3 Code Splitting 策略</h3>
+<p><strong>不適用（無 bundler）。</strong> 資源載入策略如下：</p>
+<table>
+<tr><th>資源</th><th>載入方式</th><th>預載策略</th></tr>
+<tr><td><code>assets/style.css</code></td><td><code>&lt;link rel=&quot;stylesheet&quot;&gt;</code>（同步）</td><td>首屏關鍵 CSS，完整載入</td></tr>
+<tr><td><code>assets/app.js</code></td><td><code>&lt;script src&gt;</code>（defer 行為，因位於 <code>&lt;/body&gt;</code> 前）</td><td>不阻塞渲染</td></tr>
+<tr><td>Mermaid ESM</td><td><code>&lt;script type=&quot;module&quot;&gt;</code> 內 <code>import mermaid from CDN</code></td><td>非同步，不阻塞</td></tr>
+<tr><td>Prism.js</td><td><code>&lt;script src&gt;</code>（位於 <code>&lt;/body&gt;</code> 前）</td><td>不阻塞渲染</td></tr>
+<tr><td><code>search-data.json</code></td><td><code>fetch()</code>（JS 執行後非同步載入）</td><td>非阻塞背景載入</td></tr>
+</table>
+<p><strong>Mermaid CLS 緩解</strong>：建議在 <code>.diagram-container</code> 新增 <code>min-height: 100px</code>，以減少 Mermaid 渲染完成後的 Layout Shift（見 §11.2）。</p>
+<hr>
+<h2>14. Internationalization（i18n）</h2>
+<h3>14.1 語言支援</h3>
+<p><strong>現階段不支援多語系。</strong> 文件站以繁體中文為主（<code>lang=&quot;zh-Hant&quot;</code>），UI 文字（搜尋框 placeholder、側欄 label、頁面標題）均為繁體中文硬編碼於 <code>gen_html.py</code> 模板中。英文內容（README、PRD 英文段落）以原文呈現。</p>
+<table>
+<tr><th>Locale</th><th>語言</th><th>預設</th><th>備註</th></tr>
+<tr><td><code>zh-TW</code></td><td>繁體中文</td><td>✅</td><td>UI 及文件主語言</td></tr>
+<tr><td><code>en</code></td><td>英文</td><td>❌</td><td>README 及部分文件含英文內容，以原文呈現</td></tr>
+</table>
+<h3>14.2 UI 文字來源</h3>
+<p>所有 UI 文字硬編碼於 <code>gen_html.py</code> 的 <code>HTML_TEMPLATE</code> 及 <code>PAGE_META</code> 字典中。如需支援多語系，需修改 <code>gen_html.py</code> 的模板生成邏輯，加入語言切換機制。</p>
+<h3>14.3 日期 / 數字格式</h3>
+<p>文件站不含動態日期/數字顯示（所有內容均為靜態 Markdown 轉換），此節不適用。</p>
+<hr>
+<h2>15. Appendix</h2>
+<h3>15.1 前端資料夾結構</h3>
+<pre><code class="">docs/
+├── pages/                   # gen_html.py 的輸出目錄（GitHub Pages source）
+│   ├── index.html           # SCR-001 文件首頁（README.md 轉換）
+│   ├── prd.html             # SCR-002 PRD 文件頁（PRD.md 轉換）
+│   ├── {doc-slug}.html      # SCR-002 其他文件頁（依 docs/*.md 動態生成）
+│   ├── bdd.html             # SCR-004 BDD Scenarios（依 features/ 存在而生成）
+│   ├── search-data.json     # 全文搜尋索引（gen_html.py 生成）
+│   └── assets/
+│       ├── style.css        # 全站 CSS（Design Token、Layout、Component 樣式）
+│       └── app.js           # 全站 JS（搜尋、側欄互動、Lightbox）
+├── gen_html.py              # HTML 生成腳本（Python 3，版本 2.8.0）
+│                            # ⚠️ 注意：此檔案在 docs/pages/ 目錄下，而非 docs/ 下</code></pre>
+<blockquote><p><strong>注意</strong>：<code>gen_html.py</code> 的實際位置為 <code>docs/pages/gen_html.py</code>，讀取上層 <code>docs/<em>.md</code> 作為輸入，輸出至同層 <code>docs/pages/</em>.html</code>。</p></blockquote>
+<h3>15.2 Git Commit 規範（Frontend / HTML 文件站）</h3>
+<pre><code class="">feat(client): 新增 {doc-slug}.html 頁面（{文件名} 文件頁）
+fix(client): 修正側欄在 Safari 15 的 position:sticky 問題
+fix(client): 修正 iOS Safari Private Mode localStorage 錯誤
+refactor(client): 重構 gen_html.py md_to_html() 邏輯
+perf(client): 降低 Mermaid 渲染的 CLS（新增 min-height 預留）
+style(client): 更新 style.css Design Token（斷點、側欄寬度）
+test(client): 新增 Playwright E2E — 搜尋 Dropdown 流程</code></pre>
+<h3>15.3 已知限制與未來改進</h3>
+<table>
+<tr><th>項目</th><th>現況</th><th>建議改進</th></tr>
+<tr><td>搜尋功能</td><td>僅支援 title + excerpt 字串比對，無全文搜尋</td><td>考慮使用 Fuse.js 或 FlexSearch 加強搜尋品質</td></tr>
+<tr><td>側欄 Touch 支援</td><td>拖拉縮放僅支援 mouse events，不支援 touch</td><td>新增 <code>touchstart/touchmove/touchend</code> 事件支援</td></tr>
+<tr><td>Mermaid CLS</td><td>圖表渲染後可能有 Layout Shift</td><td>在 <code>.diagram-container</code> 新增 <code>min-height</code></td></tr>
+<tr><td><code>innerHTML</code> XSS</td><td>搜尋結果使用 <code>innerHTML</code> 插入（低風險）</td><td>改用 <code>createElement</code> + <code>textContent</code></td></tr>
+<tr><td>GitHub Pages CSP</td><td>無法設定 HTTP Response Headers</td><td>遷移至 Cloudflare Pages 或使用 <code>&lt;meta http-equiv=&quot;Content-Security-Policy&quot;&gt;</code></td></tr>
+<tr><td>BDD 頁面</td><td>僅在 <code>features/</code> 存在時生成，目前不存在</td><td>執行 <code>gendoc-gen-client-bdd</code> 後自動生成</td></tr>
+</table>
+<hr></main>
+  </div>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({startOnLoad:true,theme:'default',
+      flowchart:{curve:'basis',nodeSpacing:60,rankSpacing:80},
+      er:{layoutDirection:'TD',minEntityWidth:100,fontSize:12},
+      sequence:{actorMargin:60,messageMargin:30}});
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-go.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

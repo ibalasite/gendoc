@@ -2,11 +2,21 @@
   "index.html": {
     "url": "index.html",
     "title": "首頁",
-    "excerpt": "gendoc\n\n\n\nAI-driven engineering document generation system for Claude Code. One command generates BRD, PRD, EDD, ARCH, API, Schema, Runbook and more —"
+    "excerpt": "gendoc\n\n\n\nAI-driven engineering document generation system for Claude Code. One command generates a complete 17-document implementation blueprint — ID"
   },
   "prd.html": {
     "url": "prd.html",
     "title": "產品需求文件 (PRD)",
     "excerpt": "PRD — Product Requirements Document\n\nDocument Control\n\n欄位內容\nDOC-IDPRD-GENDOC-20260422\n產品名稱gendoc — AI-Driven Implementation Blueprint Generator\n文件版本v1"
+  },
+  "client.html": {
+    "url": "client.html",
+    "title": "Client",
+    "excerpt": "CLIENT — Client Frontend Design Document (FDD)\n\nDocument Control\n\n欄位內容\nDOC-IDCLIENT-GENDOC-20260423\n專案名稱gendoc — AI-Driven Implementation Blueprint Ge"
+  },
+  "gendoc-redesign-decisions.html": {
+    "url": "gendoc-redesign-decisions.html",
+    "title": "Gendoc-Redesign-Decisions",
+    "excerpt": "gendoc 重新設計 — 決策清單\n本文件列出所有待決策的修改項目，請在「決策」欄填入 ✅ 同意 / ❌ 拒絕 / 🔄 修改（附說明）。\n\n背景確認\nLOCAL_DEPLOY 是否參考 RUNBOOK？\n確認：否。LOCAL_DEPLOY.gen.md 的 upstream-docs = req/"
   }
 }
