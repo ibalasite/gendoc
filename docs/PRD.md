@@ -24,6 +24,7 @@
 
 | 版本 | 日期 | 作者 | 變更摘要 |
 |------|------|------|---------|
+| v1.3 | 2026-04-24 | PM Agent | 補入 §5.5 Gen/Review/Fix 三專家模式與 Expert Roles 完整表；修正 §7.5/§8 BDD 模板欄位（BDD.md → BDD-server.md + BDD-client.md）；State file 完整欄位說明 |
 | v1.2 | 2026-04-24 | PM Agent | 重建文件流水線：加入 VDD（視覺設計）、FRONTEND 獨立步驟、RTM 移至 BDD 之後；修正累積上游鏈；D01-D17 完整編號 |
 | v1.1 | 2026-04-22 | PM Agent | 重新定位核心使命：從文件生成工具 → 可直接實作的開發藍圖生成器；補充藍圖細粒度品質標準 |
 | v1.0 | 2026-04-22 | PM Agent | 初版 PRD，從 MYDEVSOP 文件生成子系統萃取，建立獨立 gendoc skill 套件 |
@@ -523,6 +524,101 @@ State file 記錄：
 - `completed_steps`：已完成步驟清單（支援斷點續行）
 - `skill_source`：`gendoc-auto`（防止跨套件誤用）
 - `handoff`：true（gendoc-auto → gendoc-flow 移交標記）
+- `start_step`：斷點續行起始步驟 ID（與 pipeline.json step.id 完全一致）
+- `client_type`：`none` / `web-saas` / `unity` / `cocos` / `html5-game`（控制條件步驟跳過）
+- `lang_stack`：技術棧標籤（`node/typescript`、`python/fastapi` 等）
+- `github_repo`：GitHub 倉庫 URL（用於 README badge 生成）
+- `max_rounds`：Review Loop 最大輪次
+- `stop_condition`：Review Loop 停止條件描述
+- `last_completed`：最後一個完成的 step ID
+- `last_updated`：ISO 8601 時間戳
+
+---
+
+### 5.5 Gen / Review / Fix 三專家模式（Standard Step Pattern）
+
+每個標準流水線步驟（非 `special_skill` 步驟）都遵循以下三階段子代理模式：
+
+#### 三專家角色
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Step Execution Pattern（每個 D0X 步驟的標準執行流程）        │
+│                                                             │
+│  主 Claude（協調者）                                         │
+│       │                                                     │
+│       ├─► [Gen Subagent] ─── 讀 TYPE.gen.md + 所有上游文件   │
+│       │         │              生成初稿 → 寫入 output 文件    │
+│       │         ▼                                           │
+│       ├─► [Review Subagent] ─ 讀 TYPE.review.md + 初稿       │
+│       │         │              輸出 REVIEW_JSON findings     │
+│       │         ▼                                           │
+│       └─► [Fix Subagent] ─── 讀 findings + 當前文件          │
+│                 │              修復每個 finding，輸出 diff     │
+│                 ▼                                           │
+│       主 Claude 判斷：finding=0 或達 max_rounds → 結束        │
+│       否則 → 下一輪 Review Subagent                          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### 各文件類型的專家角色
+
+| 文件類型 | Gen Subagent 角色 | Review Subagent 角色 |
+|---------|------------------|---------------------|
+| **IDEA** | 資深 PM + 產品策略師 | PM + 商業分析師 |
+| **BRD** | 資深商業分析師 + PM | 業務架構師 + PM |
+| **PRD** | 資深 PM | PM + QA Lead |
+| **PDD** | UX Designer + Interaction Designer | UX Architect + Frontend Lead |
+| **VDD** | 資深 Visual Designer / Art Director | Art Director + Brand Strategist |
+| **EDD** | 資深系統架構師 + Software Engineer | Software Architect + Senior Engineer |
+| **ARCH** | 資深 Solution Architect | Cloud Architect + DevOps Lead |
+| **API** | 資深 API Architect + Backend Engineer | API Architect + Security Engineer |
+| **SCHEMA** | 資深 DBA + Backend Engineer | DBA + Backend Architect |
+| **FRONTEND** | 資深 Frontend Architect | Frontend Architect + UX Engineer |
+| **test-plan** | 資深 QA Architect + Test Lead | QA Architect + PM |
+| **BDD-server** | 資深 BDD Expert + Backend QA Architect | BDD Expert + Backend Engineer |
+| **BDD-client** | 資深 Frontend QA Expert + E2E Specialist | Frontend QA + BDD Expert |
+| **RTM** | 資深 QA Architect | QA Architect + PM |
+| **runbook** | 資深 SRE | SRE + DevOps Engineer |
+| **LOCAL_DEPLOY** | 資深 DevOps Engineer | DevOps + Backend Engineer |
+
+#### 模板讀取時序（每步驟的 Gen Subagent 讀取順序）
+
+```
+Gen Subagent 被呼叫時：
+
+1. 讀 templates/{TYPE}.gen.md          ← 生成規則（Iron Rule 累積上游）
+2. 讀 templates/{TYPE}.md              ← 文件結構模板
+3. 依 gen.md 的 upstream-docs 欄位，
+   讀取所有上游文件（累積鏈）          ← PRD 說「讀 BRD + IDEA」時，
+                                         gen.md 明確列出哪些章節必讀
+4. 寫入 output 文件                    ← step.output[0]（或多檔案 output_glob）
+```
+
+#### 特殊步驟（special_skill）
+
+以下步驟不走 Gen/Review/Fix 三階段，而是直接呼叫 Skill tool：
+
+| Step ID | special_skill | 行為 |
+|---------|--------------|------|
+| D16-ALIGN | `gendoc-align-check` | 四維度跨文件對齊掃描，輸出 ALIGN_REPORT.md |
+| D17-HTML | `gendoc-gen-html` | MD→HTML 轉換，先呼叫 gendoc-gen-readme，再生成 docs/pages/ |
+
+#### 多文件步驟（multi_file=true）
+
+BDD-server（D12）和 BDD-client（D12b）生成多個 `.feature` 檔案而非單一 md：
+
+```
+BDD-server：
+  Gen 讀 BDD-server.gen.md → 生成 features/*.feature（多個）
+  Review 讀 BDD-server.review.md → 掃描 features/ 下所有 .feature
+  commit：test(gendoc)[D12-BDD-server]: gen — 生成 N 個 .feature 檔案
+
+BDD-client：
+  Gen 讀 BDD-client.gen.md → 生成 features/client/*.feature（多個）
+  Review 讀 BDD-client.review.md → 掃描 features/client/ 下所有 .feature
+  commit：test(gendoc)[D12b-BDD-client]: gen — 生成 N 個 client .feature 檔案
+```
 
 ---
 
@@ -612,7 +708,8 @@ Review finding 的嚴重等級涵蓋：
 | API.md | 每個端點有完整 request schema；有全部 error code；有 Rate Limit 定義 |
 | SCHEMA.md | 完整 DDL；有 index 策略（含理由）；有 constraint；有 migration 說明 |
 | test-plan.md | 每個功能有 EP 測試表；有 BVA 邊界值對照表；有並發/冪等性情境 |
-| BDD.md | 每個 Feature 有 happy path、unhappy path、邊界值 Scenario |
+| BDD-server（features/） | 每個 PRD P0 AC 有 Server Gherkin Scenario；6 種 HTTP 錯誤碼（401/403/404/409/422/429）全部覆蓋；無任何 UI 步驟 |
+| BDD-client（features/client/） | 每個 P0 Screen 有 E2E Scenario；含 happy path、error flow、auth guard；無後端邏輯驗證 |
 
 ---
 
@@ -631,8 +728,8 @@ Review finding 的嚴重等級涵蓋：
 | `docs/SCHEMA.md` | `SCHEMA.md` | `SCHEMA.gen.md` | Layer 5c | **DDL + index + constraint**、ER 圖、Migration 策略 |
 | `docs/FRONTEND.md` | `FRONTEND.md` | `FRONTEND.gen.md` | Layer 6 | 元件架構、State Management、**實作 VDD Design Token**（client_type≠none） |
 | `docs/test-plan.md` | `test-plan.md` | `test-plan.gen.md` | Layer 7 | **EP + BVA + 並發**、測試金字塔 |
-| `features/*.feature` | `BDD.md` | `BDD.gen.md` | Layer 8a | **Gherkin Scenario + edge case + unhappy path** |
-| `features/client/*.feature` | `BDD.md` | `BDD.gen.md` | Layer 8b | Client E2E Scenario（client_type≠none） |
+| `features/*.feature` | `BDD-server.md` | `BDD-server.gen.md` | Layer 8a | **Gherkin Scenario + edge case + unhappy path**（Server API BDD） |
+| `features/client/*.feature` | `BDD-client.md` | `BDD-client.gen.md` | Layer 8b | Client E2E Scenario（client_type≠none） |
 | `docs/RTM.md` | `RTM.md` | `RTM.gen.md` | Layer 9 | US↔TC↔BDD Scenario 三向追溯矩陣 |
 | `docs/RUNBOOK.md` | `runbook.md` | `runbook.gen.md` | Layer 9 | 凌晨 3 點可直接執行，零前情提要 |
 | `docs/LOCAL_DEPLOY.md` | `LOCAL_DEPLOY.md` | `LOCAL_DEPLOY.gen.md` | Layer 9 | 新進工程師 5 分鐘內完成本地環境 |
