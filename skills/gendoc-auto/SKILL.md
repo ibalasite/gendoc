@@ -194,6 +194,27 @@ if [[ -n "$_EXISTING_STATE" ]]; then
     exit 1
   fi
   echo "[Resume] 偵測到既有 state（skill_source=${_SKILL_SOURCE}），將從上次中斷點繼續"
+
+  # P-08：若 handoff 已完成，導流至 gendoc-flow
+  _HANDOFF_DONE=$(python3 -c "
+import json
+try:
+    d = json.load(open('$_EXISTING_STATE'))
+    print(str(d.get('handoff', False)))
+except:
+    print('False')
+" 2>/dev/null || echo "False")
+
+  if [[ "$_HANDOFF_DONE" == "True" ]]; then
+    echo ""
+    echo "╔══════════════════════════════════════════════════════╗"
+    echo "║  [P-08] Handoff 已完成                               ║"
+    echo "╠══════════════════════════════════════════════════════╣"
+    echo "║  IDEA.md + BRD.md 已生成並通過 Review。              ║"
+    echo "║  請執行 /gendoc-flow 繼續後續文件生成流水線。         ║"
+    echo "╚══════════════════════════════════════════════════════╝"
+    exit 0
+  fi
 fi
 ```
 
@@ -549,20 +570,60 @@ _RESEARCH_COUNT = <找到的參考資源數>
 
 ## Step 5：生成 IDEA.md（C-09/C-16）
 
+### Skip Guard（P-01：避免已完成步驟重跑）
+
+```bash
+# ── P-01 Skip Guard：避免已完成步驟重跑 ─────────────────────────
+_COMPLETED_NOW=$(python3 -c "
+import json
+try:
+    d = json.load(open('${_STATE_FILE}'))
+    print(','.join(d.get('completed_steps', [])))
+except:
+    print('')
+" 2>/dev/null || echo "")
+
+_IDEA_REVIEWED=$(python3 -c "
+import json
+try:
+    d = json.load(open('${_STATE_FILE}'))
+    print(str(d.get('idea_review_passed', False)))
+except:
+    print('False')
+" 2>/dev/null || echo "False")
+
+_SKIP_IDEA_GEN=""
+_RESUME_IDEA_REVIEW=""
+
+if [[ ",${_COMPLETED_NOW}," == *",D01-IDEA,"* ]]; then
+  if [[ "$_IDEA_REVIEWED" == "True" ]]; then
+    echo "[Skip P-01] D01-IDEA 已完成且 review 通過，跳過 IDEA 生成與 review"
+    _SKIP_IDEA_GEN="true"
+  else
+    echo "[Resume P-01] D01-IDEA 已生成但 review 未通過，跳過生成，直接進入 review"
+    _SKIP_IDEA_GEN="true"
+    _RESUME_IDEA_REVIEW="true"
+  fi
+fi
+```
+
 ### 舊版文件歸檔（C-16）
 
 ```bash
-if [[ -f "docs/IDEA.md" ]]; then
-  _TS=$(date +%Y%m%d-%H%M%S)
-  mv "docs/IDEA.md" "docs/req/old-IDEA-${_TS}.md"
-  echo "[Archive] 舊 docs/IDEA.md → docs/req/old-IDEA-${_TS}.md"
+if [[ -z "$_SKIP_IDEA_GEN" ]]; then
+  if [[ -f "docs/IDEA.md" ]]; then
+    _TS=$(date +%Y%m%d-%H%M%S)
+    mv "docs/IDEA.md" "docs/req/old-IDEA-${_TS}.md"
+    echo "[Archive] 舊 docs/IDEA.md → docs/req/old-IDEA-${_TS}.md"
+  fi
 fi
 ```
 
 ### 寫入 Q1-Q5 + 研究摘要到 state（供 gen-idea 使用）
 
 ```bash
-python3 -c "
+if [[ -z "$_SKIP_IDEA_GEN" ]]; then
+  python3 -c "
 import json; f='${_STATE_FILE}'
 try: d=json.load(open(f))
 except: d={}
@@ -575,11 +636,16 @@ d['research_summary'] = '''${_RESEARCH_SUMMARY}'''
 json.dump(d, open(f,'w'), ensure_ascii=False, indent=2)
 print('[state] Q1-Q5 + research_summary 已寫入')
 "
+fi
 ```
 
 ### 呼叫 gendoc idea（C-09）
 
 透過 **Skill tool** 呼叫 `gendoc`，args: `idea`（不得 inline 生成，生成規則由 templates/IDEA.gen.md 定義）。
+
+```bash
+if [[ -z "$_SKIP_IDEA_GEN" ]]; then
+```
 
 **以 Agent tool 建立 subagent**，prompt 填入以下內容（替換 `$_PROJECT_DIR` 和 `$_STATE_FILE` 為實際路徑）：
 
@@ -594,22 +660,28 @@ print('[state] Q1-Q5 + research_summary 已寫入')
 gen-idea 完成後：
 
 ```bash
-python3 -c "
+  python3 -c "
 import json; f='${_STATE_FILE}'
 try: d=json.load(open(f))
 except: d={}
 d['idea_generated'] = True
 d['idea_path'] = 'docs/IDEA.md'
-if 'gen-idea' not in d.get('completed_steps',[]):
-    d.setdefault('completed_steps',[]).append('gen-idea')
+if 'D01-IDEA' not in d.get('completed_steps',[]):
+    d.setdefault('completed_steps',[]).append('D01-IDEA')
 json.dump(d, open(f,'w'), ensure_ascii=False, indent=2)
 "
-git add docs/IDEA.md && git commit -m "docs(gendoc-auto): init IDEA" 2>/dev/null || true
+  git add docs/IDEA.md && git commit -m "docs(gendoc-auto): init IDEA" 2>/dev/null || true
+fi
 ```
 
 ---
 
 ## Step 5.5：IDEA.md Review Loop（C-10）
+
+```bash
+# 僅在 IDEA 未曾 review 通過、或需要重跑 review 時執行
+if [[ -z "$_SKIP_IDEA_GEN" ]] || [[ -n "$_RESUME_IDEA_REVIEW" ]]; then
+```
 
 透過 **Skill tool** 呼叫 `reviewdoc`，args: `idea`。
 
@@ -626,23 +698,61 @@ git add docs/IDEA.md && git commit -m "docs(gendoc-auto): init IDEA" 2>/dev/null
 
 等 Agent 回傳後，state 應有 `idea_review_passed: true`。
 
+```bash
+fi  # 結束 Step 5.5 skip guard
+```
+
 ---
 
 ## Step 5.6：生成 BRD.md（C-11/C-16）
 
+### Skip Guard（P-01：避免已完成步驟重跑）
+
+```bash
+# ── P-01 Skip Guard：BRD ─────────────────────────────────────
+_BRD_REVIEWED=$(python3 -c "
+import json
+try:
+    d = json.load(open('${_STATE_FILE}'))
+    print(str(d.get('brd_review_passed', False)))
+except:
+    print('False')
+" 2>/dev/null || echo "False")
+
+_SKIP_BRD_GEN=""
+_RESUME_BRD_REVIEW=""
+
+if [[ ",${_COMPLETED_NOW}," == *",D02-BRD,"* ]]; then
+  if [[ "$_BRD_REVIEWED" == "True" ]]; then
+    echo "[Skip P-01] D02-BRD 已完成且 review 通過，跳過 BRD 生成與 review"
+    _SKIP_BRD_GEN="true"
+  else
+    echo "[Resume P-01] D02-BRD 已生成但 review 未通過，跳過生成，直接進入 review"
+    _SKIP_BRD_GEN="true"
+    _RESUME_BRD_REVIEW="true"
+  fi
+fi
+```
+
 ### 舊版文件歸檔（C-16）
 
 ```bash
-if [[ -f "docs/BRD.md" ]]; then
-  _TS=$(date +%Y%m%d-%H%M%S)
-  mv "docs/BRD.md" "docs/req/old-BRD-${_TS}.md"
-  echo "[Archive] 舊 docs/BRD.md → docs/req/old-BRD-${_TS}.md"
+if [[ -z "$_SKIP_BRD_GEN" ]]; then
+  if [[ -f "docs/BRD.md" ]]; then
+    _TS=$(date +%Y%m%d-%H%M%S)
+    mv "docs/BRD.md" "docs/req/old-BRD-${_TS}.md"
+    echo "[Archive] 舊 docs/BRD.md → docs/req/old-BRD-${_TS}.md"
+  fi
 fi
 ```
 
 ### 呼叫 gendoc brd（C-11）
 
 透過 **Skill tool** 呼叫 `gendoc`，args: `brd`（不得 inline 生成，生成規則由 templates/BRD.gen.md 定義）。
+
+```bash
+if [[ -z "$_SKIP_BRD_GEN" ]]; then
+```
 
 **以 Agent tool 建立 subagent**，prompt 填入以下內容：
 
@@ -657,22 +767,28 @@ fi
 gen-brd 完成後：
 
 ```bash
-python3 -c "
+  python3 -c "
 import json; f='${_STATE_FILE}'
 try: d=json.load(open(f))
 except: d={}
 d['brd_generated'] = True
 d['brd_path'] = 'docs/BRD.md'
-if 'gen-brd' not in d.get('completed_steps',[]):
-    d.setdefault('completed_steps',[]).append('gen-brd')
+if 'D02-BRD' not in d.get('completed_steps',[]):
+    d.setdefault('completed_steps',[]).append('D02-BRD')
 json.dump(d, open(f,'w'), ensure_ascii=False, indent=2)
 "
-git add docs/BRD.md && git commit -m "docs(gendoc-auto): init BRD" 2>/dev/null || true
+  git add docs/BRD.md && git commit -m "docs(gendoc-auto): init BRD" 2>/dev/null || true
+fi
 ```
 
 ---
 
 ## Step 5.7：BRD Review Loop（C-12）
+
+```bash
+# 僅在 BRD 未曾 review 通過、或需要重跑 review 時執行
+if [[ -z "$_SKIP_BRD_GEN" ]] || [[ -n "$_RESUME_BRD_REVIEW" ]]; then
+```
 
 透過 **Skill tool** 呼叫 `reviewdoc`，args: `brd`（C-12）。
 
@@ -688,6 +804,10 @@ git add docs/BRD.md && git commit -m "docs(gendoc-auto): init BRD" 2>/dev/null |
 - 每輪自動 git commit（`docs(brd-review): round N fixes`）
 
 等 Agent 回傳後，state 應有 `brd_review_passed: true`。
+
+```bash
+fi  # 結束 Step 5.7 skip guard
+```
 
 ---
 
@@ -742,7 +862,22 @@ echo "正在啟動 /gendoc-flow ..."
 
 **立即用 Skill 工具呼叫 `gendoc-flow`**（不得輸出成文字，必須真正觸發工具）。
 
-> 若因任何原因 Skill 工具未能自動觸發，提示使用者在終端輸入 `/gendoc-flow`
+**若 Skill 工具未能自動觸發**：
+
+立即輸出以下醒目提示（不可只在 prose 中提及）：
+
+```bash
+echo ""
+echo "╔══════════════════════════════════════════════════════════╗"
+echo "║  [P-08] gendoc-flow 需手動啟動                           ║"
+echo "╠══════════════════════════════════════════════════════════╣"
+echo "║  IDEA.md + BRD.md 已就緒，請在本 session 執行：          ║"
+echo "║                                                          ║"
+echo "║     /gendoc-flow                                         ║"
+echo "║                                                          ║"
+echo "║  若想從特定 step 開始，先執行 /gendoc-config 設定。      ║"
+echo "╚══════════════════════════════════════════════════════════╝"
+```
 
 ---
 
