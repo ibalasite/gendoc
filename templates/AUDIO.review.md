@@ -22,6 +22,12 @@ upstream-alignment:
   - field: BGM 場景對應
     source: PRD.md 功能流程
     check: §2 BGM 清單是否為每個主要 PRD 場景填寫了對應 BGM
+  - field: VO 觸發事件
+    source: PRD.md / 腳本文件
+    check: §4 每條 VO 的觸發條件是否精確對應 PRD 或腳本文件中定義的事件名稱，無模糊描述或裸 placeholder
+  - field: 載入策略對齊
+    source: EDD.md §4 / FRONTEND.md §7
+    check: §8 各類音效的載入時機與載入方式是否與 EDD.md §4 資源管理設計及 FRONTEND.md §7 資源管理策略一致
 ---
 
 # AUDIO Review Items
@@ -30,9 +36,20 @@ upstream-alignment:
 審查角色：三角聯合審查（音效設計專家 + 技術音效工程師 + QA 音效測試員）
 審查標準：「假設公司聘請一位 10 年以上音效工程師，以可直接完成音效實作為標準進行驗收。」
 
+> **注意**：含 `.5` 後綴的 Layer（如 Layer 3.5、Layer 6.5）和 item（如 item 17.5）為後續輪次補充插入，不影響原有核心序號體系，引用時以完整帶後綴編號為準。
+
 ---
 
 ## Review Items
+
+### Layer 0: Document Control（由音效設計專家主審）
+
+#### [HIGH] 0 — Document Control 未填寫具體值
+**Check**: Document Control 區塊的 VERSION、STATUS、AUTHOR、DATE、ENGINE 五個欄位是否均已填寫具體值，無裸 placeholder（如 `{{VERSION}}`、`{{AUTHOR}}` 等未替換的佔位符）？ENGINE 是否填入確切引擎名稱與版本（如「Cocos Creator 3.8.2」而非「{{ENGINE}}」）？
+**Risk**: Document Control 含裸 placeholder 表示文件未完成初始化，後續審查無法確認版本與責任人，造成版本管理混亂。
+**Fix**: 填入 VERSION（依專案版本）、STATUS（Draft/Review/Approved）、AUTHOR（負責人姓名）、DATE（今日日期，格式 YYYY-MM-DD）、ENGINE（確切引擎名稱與版本）。
+
+---
 
 ### Layer 1: 設計目標完整性（由音效設計專家主審）
 
@@ -70,14 +87,23 @@ upstream-alignment:
 **Fix**: 逐一比對 PRD P0 功能，補充缺漏的 SFX 記錄。
 
 #### [HIGH] 6 — §3 SFX 最大同播數缺失
-**Check**: §3.1 和 §3.2 的「最大同播數」欄位是否全部填寫具體數字？是否有空白或 placeholder？
-**Risk**: 高頻觸發時音效疊加超出引擎頻道上限，導致音效截斷或雜音。
-**Fix**: 所有 SFX 必須填入最大同播數（按鈕 = 1，攻擊命中 ≤ 3，爆炸 ≤ 2）。
+**Check**: §3.1、§3.2 和 §3.3 的「最大同播數」欄位是否全部填寫具體數字？是否有空白或 placeholder？§3.3 Ambient 環境音效的最大同播數是否 ≤ 2？
+**Risk**: 高頻觸發時音效疊加超出引擎頻道上限，導致音效截斷或雜音；環境音效同時播放過多加劇頻道耗盡。
+**Fix**: 所有 SFX 必須填入最大同播數（按鈕 = 1，攻擊命中 ≤ 3，爆炸 ≤ 2，§3.3 Ambient ≤ 2）。
 
 #### [MEDIUM] 7 — §3 SFX 優先級分配不合理
 **Check**: 是否有非核心 SFX 設定了 CRITICAL 優先級？是否有核心互動（攻擊命中、勝利）設定了 LOW 優先級？
 **Risk**: 重要音效被低優先級音效搶佔頻道，核心體驗受損。
 **Fix**: 依 §5.1 定義重新分配優先級。
+
+---
+
+### Layer 3.5: 語音／旁白清單完整性（由音效設計專家主審）
+
+#### [HIGH] 3.5 — §4 語音／旁白清單缺失或含裸 Placeholder
+**Check**: §4 是否明確聲明「本專案無語音/旁白設計」或提供完整的 VO 清單？若有 VO 清單：是否存在裸 `{{TEXT}}`、`{{TRIGGER}}`、`{{LANG}}` 等未替換的 placeholder（允許 `[TBD-腳本確認中]` 但須標注）？觸發條件是否精確到事件名稱（而非模糊描述）？多語言 VO 是否每種語言各有獨立行？優先級欄位是否填寫（CRITICAL / HIGH / MEDIUM）？
+**Risk**: VO 記錄缺失導致旁白靜音；觸發條件模糊導致工程師實作偏差；多語言版本遺漏。
+**Fix**: 補充缺漏的 VO 記錄，或明確標注「無 VO」；替換裸 placeholder 為實際文本或 `[TBD-腳本確認中]`；觸發條件精確至事件名；多語言各條獨立行；補充優先級欄位。
 
 ---
 
@@ -128,6 +154,15 @@ upstream-alignment:
 
 ---
 
+### Layer 6.5: 音效載入策略合理性（由技術音效工程師主審）
+
+#### [HIGH] 6.5 — §8 音效載入策略不合理或含空白欄位
+**Check**: §8 是否有任何欄位（載入時機、載入方式、記憶體策略）為空白或含裸 placeholder？BGM 是否設定為串流或背景非同步載入（符合 FRONTEND.md 資源管理策略）？SFX P0 核心音效是否設定為啟動時預載常駐記憶體？VO 是否設定為按需下載並在播放完畢後釋放？載入策略是否與 EDD.md / FRONTEND.md §7 資源管理策略一致？
+**Risk**: 策略不一致導致音效靜音（未預載就觸發）或 OOM（大型 BGM 常駐記憶體）；VO 按需下載但未釋放造成記憶體堆積。
+**Fix**: 對照 EDD.md / FRONTEND.md 逐行修正 §8；BGM 首場景改為應用啟動後背景預載，其他場景改為進場前非同步預載；SFX P0 改為啟動時預載；VO 補充「播放完畢即釋放」策略；所有空白欄位補充具體策略描述。
+
+---
+
 ### Layer 7: 效能預算（由技術音效工程師 + QA 主審）
 
 #### [CRITICAL] 15 — §9 效能預算含裸 Placeholder
@@ -149,7 +184,12 @@ upstream-alignment:
 **Risk**: SFX 資產缺失或命名錯誤在測試階段被忽略，上線後靜音。
 **Fix**: 補充缺漏的 SFX 觸發驗證測試。
 
-#### [MEDIUM] 18 — §10 缺少 iOS 首次播放測試
-**Check**: §10 是否包含「iOS Safari 首次點擊後 BGM/SFX 正常播放」的測試案例？
-**Risk**: iOS 特有的 Web Audio 限制未被測試覆蓋，上線後 iOS 用戶無聲。
-**Fix**: 補充 AUD-T-IOS 測試案例。
+#### [HIGH] 17.5 — §10 缺少 VO 記憶體釋放測試
+**Check**: 若 §4 含 VO 記錄，§10 是否包含至少 1 條「VO 播放完畢後記憶體正確釋放（無殘留 AudioBuffer）」的測試案例？
+**Risk**: VO 播放後 AudioBuffer 未釋放，長期運行導致 OOM（記憶體不足崩潰）。
+**Fix**: 補充 VO 記憶體釋放測試案例，驗證每條 VO 播放完畢後 AudioBuffer 已被正確回收（可透過 Memory Profiler 或 DevTools Memory 面板確認無殘留實例）。
+
+#### [HIGH] 18 — §10 iOS 首次播放解鎖測試遭刪除
+**Check**: §10 是否保留了 AUD-T-005 iOS 首次播放解鎖測試（gen agent 不得刪除此預置測試）？
+**Risk**: iOS 特有的 Web Audio Context 鎖定機制未被測試覆蓋，上線後 iOS 用戶完全無聲，且此測試為必要預置，刪除後需人工補回。
+**Fix**: 確認 AUD-T-005「iOS Safari 首次點擊後 BGM/SFX 正常播放」測試案例存在於 §10 清單中；若缺失，立即補充。

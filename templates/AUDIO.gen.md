@@ -8,7 +8,7 @@ upstream-docs:
   - docs/PRD.md
   - docs/EDD.md
   - docs/FRONTEND.md
-quality-bar: "§2 每個主要場景都有對應 BGM；§3 所有 P0 User Story 觸發的互動都有對應 SFX；§5 音效觸發邏輯完整無歧義；§6 引擎設定代碼可直接複製使用；§7 資產命名符合規範；§9 效能預算已填具體數值；§10 測試清單覆蓋 §3 所有 SFX；無裸 placeholder"
+quality-bar: "§2 每個主要場景都有對應 BGM；§3 所有 P0 User Story 觸發的互動都有對應 SFX；§4 若有劇情/教學則每條 VO 觸發條件精確到事件名稱且無裸 placeholder；§5 音效觸發邏輯完整無歧義；§6 引擎設定代碼可直接複製使用；§7 資產命名符合規範；§8 載入策略與 EDD.md/FRONTEND.md 一致；§9 效能預算已填具體數值；§10 測試清單覆蓋 §3 所有 SFX；無裸 placeholder"
 ---
 
 # AUDIO.gen.md — 音效設計文件生成規則
@@ -34,6 +34,16 @@ docs/req/* 中的所有素材也必須全部關聯讀取。
 | 資深音效設計師（Senior Audio Designer） | §1, §2, §3, §4, §5 | 10 年遊戲/互動音效設計，熟悉情感設計、聲景設計、循環音樂剪輯 |
 | 技術音效工程師（Technical Audio Engineer） | §6, §7, §8, §9 | 深度熟悉 Cocos AudioEngine、Unity AudioMixer、Web Audio API、Howler.js 整合實作 |
 | QA 音效測試員（Audio QA） | §10 | 熟悉音效壓力測試、跨平台音效相容性驗證、記憶體洩漏偵測 |
+
+---
+
+## 全域規則（Global Invariant）
+
+生成完成的 AUDIO.md 中不得出現任何未替換的 `{{PLACEHOLDER}}`（Document Control、Change Log 及 §1～§10 全部章節）。
+
+唯一例外：VO 文本尚未確定時，允許使用 `[TBD-腳本確認中]` 標注，但禁止保留原始 `{{TEXT}}`、`{{TRIGGER}}`、`{{LANG}}` 等裸 placeholder。
+
+生成代理必須在完成全部章節後執行一次全文掃描，確認無裸 placeholder 殘留後方可輸出。
 
 ---
 
@@ -66,12 +76,16 @@ if 無法偵測 → 三個引擎設定章節全部展開（通用版）
 - FRONTEND.md 引擎版本 vs §6 代碼範例 API（是否與該引擎版本相符）
 - BRD.md 目標平台 vs §1.3 平台限制表（是否每個目標平台都有對應行）
 - PRD P0 互動事件 vs §3.1/§3.2 SFX 清單（是否每個 P0 事件都有對應 SFX-ID）
+- PRD/腳本文件中定義的 VO 觸發事件 vs §4 VO 清單的觸發條件欄位（是否每條 VO 的觸發條件精確對應文件中事件名稱，而非模糊描述）
+- EDD.md §4 資源管理設計 + FRONTEND.md §7 資源管理策略 vs §8 載入策略（各類音效的載入時機與載入方式是否一致）
 
 ---
 
 ## 生成步驟
 
 ### Step 1：確認音效風格與引擎
+
+填入 Document Control：PROJECT 填專案代號（用於 DOC-ID，如 `PROJ-ALPHA`）、VERSION 依專案版本、STATUS 設 Draft、AUTHOR 填負責人、DATE 填今日日期（格式 YYYY-MM-DD）、ENGINE 依偵測結果填入確切引擎名稱與版本。注意 DOC-ID 由 `AUDIO-{{PROJECT}}-{{DATE}}` 構成，必須同時替換 PROJECT 和 DATE 兩個 placeholder。
 
 1. 從 IDEA.md 推斷音效情感風格（卡通輕快 / 史詩壯闊 / 清新自然 / 電子科技 / 其他）
 2. 從 FRONTEND.md 確認確切引擎名稱與版本
@@ -112,12 +126,24 @@ if 無法偵測 → 三個引擎設定章節全部展開（通用版）
 
 **SFX 填寫規範：**
 - 優先級：影響戰鬥勝負 → CRITICAL；技能音效 → HIGH；UI 互動 → MEDIUM；背景 → LOW
-- 最大同播數：爆炸/命中類 ≤ 3，按鈕 ≤ 1，BGM 永遠 = 1
+- 最大同播數：爆炸/命中類 ≤ 3，按鈕 ≤ 1，BGM 永遠 = 1，§3.3 環境音（Ambient）≤ 2
 
 ### Step 4：VO 清單（§4）
 
 若 IDEA/PRD 中有劇情引導、教學旁白、角色對話，則填寫 §4。
 若無，§4 填「本專案無語音/旁白設計（純音效）」並跳過。
+
+**VO 填寫規範：**
+
+1. **ID 格式**：`VO-{三位數序號}`，從 VO-001 開始遞增，不得跳號。
+2. **文本內容**：從 PRD/腳本逐句提取原文，保留完整語句。若文本尚未確定，標注 `[TBD-腳本確認中]`，禁止使用裸 `{{TEXT}}` placeholder。
+3. **觸發條件**：必須精確到事件名稱（如 `onTutorialStep1Enter`、`onCutsceneStart`），不得寫模糊描述（如「進入教學」）。
+4. **語言碼**：使用 ISO 639-1 雙字母代碼（`zh`、`en`、`ja`、`ko`、`fr` 等）。
+5. **多語言規則**：每種語言的同一條 VO 獨立成一行，ID 相同但語言碼不同（如 VO-001 zh、VO-001 en）。
+6. **優先級**：
+   - 教學旁白、劇情必播 VO → `CRITICAL`（不得被任何 SFX 打斷）
+   - 一般角色提示、劇情旁白 → `HIGH`（可打斷低優先級 SFX）
+   - 可選/重複性提示 VO → `MEDIUM`
 
 ### Step 5：音效觸發邏輯（§5）
 
@@ -148,7 +174,17 @@ if 無法偵測 → 三個引擎設定章節全部展開（通用版）
 
 1. §7.1 命名規範：確認範例符合本專案的模組命名（MODULE 替換為實際模組名）
 2. §7.2 格式規格：確認 HTML5 專案包含 .webm 主格式（Safari 需要 .mp3 備用）
-3. §7.3 目錄結構：根據 EDD/FRONTEND 確認資產根目錄名稱（`assets/audio/` 或 `Resources/Audio/` 等）
+3. §7.3 目錄結構：根據引擎偵測結果，從下表選取對應的資產根目錄，並確保 §2/§3/§4 所有清單的「檔案路徑」均以此根目錄為前綴：
+
+   | 引擎 | 資產根目錄 |
+   |------|----------|
+   | Cocos Creator 3.x | `assets/audio/` |
+   | Cocos Creator 2.x | `resources/audio/` |
+   | Unity（Resources.Load 方式） | `Assets/Resources/Audio/` |
+   | Unity（AssetBundle 方式） | `Assets/Audio/` |
+   | HTML5（Vite / CRA / Next.js 等前端框架） | `public/audio/` 或 `src/assets/audio/`（依前端框架約定） |
+
+   **所有清單路徑必須使用此處確認的根目錄，不得保留通用 placeholder。**
 
 ### Step 8：載入策略（§8）
 
@@ -169,9 +205,9 @@ if 無法偵測 → 三個引擎設定章節全部展開（通用版）
 
 ### Step 10：測試清單（§10）
 
-§10 預設 8 個測試案例必須全部保留，並依 §3 SFX 清單補充：
+§10 預設 8 個測試案例（AUD-T-001 至 AUD-T-008）必須全部保留，不得刪除。其中 AUD-T-005（iOS Safari 首次點擊後 BGM/SFX 正常播放）為平台相容性必備測試，即使專案不主打 iOS 也必須保留。依 §3 SFX 清單補充：
 - 每個 SFX-ID 補一條「觸發驗證」測試（AUD-T-00N）
-- 若有 VO，補「VO 播放完畢後不殘留」測試
+- 若有 VO，補一條「VO 播放完畢後 AudioBuffer 正確釋放（無殘留實例）」測試，通過條件為透過 Memory Profiler 或 DevTools Memory 面板確認播放後無殘留 AudioBuffer 實例
 
 ---
 
@@ -187,6 +223,7 @@ if 無法偵測 → 三個引擎設定章節全部展開（通用版）
 | 效能預算 | §9 所有欄位填具體數值，無 `{{PLACEHOLDER}}` |
 | 命名規範 | 所有 ID 符合 BGM-xxx / SFX-UI-xxx / SFX-GAME-xxx / VO-xxx 格式 |
 | 測試清單 | §10 測試數 ≥ §3 SFX 數量 + 8 個基礎測試 |
+| VO 覆蓋 | 若 PRD 含劇情/教學，§4 每條 VO 的觸發條件精確到事件名稱，無裸 {{TEXT}}/{{TRIGGER}}/{{LANG}} placeholder；無 VO 則明確標注「本專案無語音/旁白設計」 |
 
 若任何檢查未通過，在 AUDIO.md 末尾附加警告區塊：
 ```markdown
