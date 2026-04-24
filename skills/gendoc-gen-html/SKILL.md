@@ -1200,6 +1200,29 @@ ls -la $(pwd)/docs/pages/*.html
 
 ---
 
+## Step 6.5：Prototype 生成（條件性）
+
+```bash
+# 偵測是否有 Frontend / Client 需求文件
+_HAS_FRONTEND=0
+[[ -f "$(pwd)/docs/FRONTEND.md" ]] && _HAS_FRONTEND=1
+[[ -f "$(pwd)/docs/PDD.md"      ]] && _HAS_FRONTEND=1
+
+echo "_HAS_FRONTEND=${_HAS_FRONTEND}"
+```
+
+**若 `_HAS_FRONTEND=1`**：用 Skill 工具呼叫 `/gendoc-gen-prototype`：
+- 該 skill 會讀取 PRD/PDD/VDD/FRONTEND/AUDIO/ANIM/SCHEMA 文件，生成互動式 HTML prototype
+- 輸出至 `docs/pages/prototype/`
+- 自動更新 README.md 和 `docs/pages/index.html` 中的 prototype 連結
+
+**若 `_HAS_FRONTEND=0`**：
+```
+[Skip] 無 FRONTEND.md / PDD.md — 跳過 prototype 生成
+```
+
+---
+
 ## Step 7：git commit
 
 ```bash

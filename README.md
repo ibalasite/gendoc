@@ -35,10 +35,12 @@ Key capabilities:
 | `gendoc-align-check` | `/gendoc-align-check` | Cross-document alignment scan (D16) |
 | `gendoc-align-fix` | `/gendoc-align-fix` | Auto-fix alignment issues |
 | `gendoc-gen-html` | `/gendoc-gen-html` | Generate HTML documentation site (D17) |
+| `gendoc-gen-prototype` | `/gendoc-gen-prototype` | Generate interactive HTML prototype from design docs (SaaS / game / HTML5) |
 | `gendoc-gen-diagrams` | `/gendoc-gen-diagrams` | Generate architecture diagrams |
 | `gendoc-gen-client-bdd` | `/gendoc-gen-client-bdd` | Client-facing BDD feature files |
 | `gendoc-rebuild-templates` | `/gendoc-rebuild-templates` | Rebuild all document templates from scratch |
 | `gendoc-update` | `/gendoc-update` | Manual skill upgrade |
+| `reviewtemplate` | `/reviewtemplate <TYPE>` | Review & iteratively fix a template three-file set (TYPE.md + .gen.md + .review.md) |
 
 ### Supported Document Types
 
