@@ -62,23 +62,23 @@ upstream-alignment:
 **Fix**: 補充 Mermaid System Context 圖和 Container 圖；確保圖中的服務、資料庫、外部系統與 §3.3 技術棧描述完全一致。
 
 #### [CRITICAL] 5b — UML 9 大圖缺失或不完整
-**Check**: EDD §4.5 是否包含全部 9 種 UML 圖？逐一確認：
-(1) §4.5.1 Use Case Diagram：是否有 Mermaid 程式碼塊，涵蓋所有主要 Actor？
-(2) §4.5.2 Class Diagram：是否有 classDiagram 程式碼塊，按架構層次分張（Domain/Application/Infrastructure/Presentation）？每個 class 是否標注 stereotype 和可見性？每個 public method 是否列出回傳型別？6 種關聯關係（Inheritance/Realization/Composition/Aggregation/Association/Dependency）是否各至少出現 1 次？
-(3) §4.5.3 Object Diagram：是否有物件實例快照（欄位含真實範例值）？
-(4) §4.5.4 Sequence Diagram：是否有每個主要業務流程的循序圖（含 Happy Path 和 Error Path）？
-(5) §4.5.5 Communication Diagram：是否有物件協作關係圖（訊息標注序號）？
-(6) §4.5.6 State Machine Diagram：是否有每個有狀態 Entity 的狀態機圖？
-(7) §4.5.7 Activity Diagram：是否有每個主要業務流程的活動圖（含決策點）？
-(8) §4.5.8 Component Diagram：是否有元件依賴圖？
-(9) §4.5.9 Deployment Diagram：是否有 k8s 部署拓撲圖？
+**Check**: EDD §10（Mermaid 架構圖）是否包含全部 9 種 UML 圖？逐一確認（注意：EDD 的 UML 圖集在 §10，不是 §4.5；§4.5 是 Domain Events）：
+(1) Use Case Diagram（§10.1 或等效段落）：是否有 Mermaid 程式碼塊，涵蓋所有主要 Actor？
+(2) Class Diagram（§10.2 或等效段落）：是否有 classDiagram 程式碼塊，按架構層次分張（Domain/Application/Infrastructure/Presentation）？每個 class 是否標注 stereotype 和可見性？每個 public method 是否列出回傳型別？6 種關聯關係（Inheritance/Realization/Composition/Aggregation/Association/Dependency）是否各至少出現 1 次？
+(3) Object Diagram（§10.3 或等效段落）：是否有物件實例快照（欄位含真實範例值）？
+(4) Sequence Diagram（§10.4 或等效段落）：是否有每個主要業務流程的循序圖（含 Happy Path 和 Error Path）？
+(5) Communication Diagram（§10.5 或等效段落）：是否有物件協作關係圖（訊息標注序號）？
+(6) State Machine Diagram（§10.6 或等效段落）：是否有每個有狀態 Entity 的狀態機圖？
+(7) Activity Diagram（§10.7 或等效段落）：是否有每個主要業務流程的活動圖（含決策點）？
+(8) Component Diagram（§10.8 或等效段落）：是否有元件依賴圖？
+(9) Deployment Diagram（§10.9 或等效段落）：是否有 k8s 部署拓撲圖？
 **Risk**: UML 圖缺失使工程師只能讀文字推斷系統結構，無法基於圖示進行精確實作，不同工程師對同一系統的理解會出現分歧，導致實作偏差。Class Diagram 缺失更直接導致無法推導 unit test skeleton，測試覆蓋率無從保證。
-**Fix**: 為每種缺失的 UML 圖補充對應的 Mermaid 程式碼塊（參考 `templates/UML-CLASS-GUIDE.md` 範例）。Class Diagram 必須嚴格遵循 Clean Architecture 分層，所有 class 必須標注 stereotype，方法必須含回傳型別。多圖原則：每個主要業務流程一張 Sequence Diagram，每個有狀態 Entity 一張 State Machine，每個 P0 User Story 一張 Activity Diagram。
+**Fix**: 為每種缺失的 UML 圖補充對應的 Mermaid 程式碼塊至 §10（參考 `templates/UML-CLASS-GUIDE.md` 範例）。Class Diagram 必須嚴格遵循 Clean Architecture 分層，所有 class 必須標注 stereotype，方法必須含回傳型別。多圖原則：每個主要業務流程一張 Sequence Diagram，每個有狀態 Entity 一張 State Machine，每個 P0 User Story 一張 Activity Diagram。
 
 #### [CRITICAL] 5c — Class Diagram class inventory 缺失
-**Check**: EDD §4.5.2 是否在 Class Diagram 之後提供 Class Inventory 表格（列出所有 class 名稱、stereotype、架構層次、推斷的 src 路徑、推斷的 test 路徑）？缺少 Class Inventory 表格視為 CRITICAL。
+**Check**: EDD §10 的 Class Diagram 段落之後是否提供 Class Inventory 表格（列出所有 class 名稱、stereotype、架構層次、推斷的 src 路徑、推斷的 test 路徑）？缺少 Class Inventory 表格視為 CRITICAL。
 **Risk**: 無 Class Inventory，test-plan 撰寫者必須人工掃描 classDiagram 程式碼塊提取 class 清單，容易遺漏，導致部分 class 完全沒有 unit test 覆蓋，在驗收時才被發現。
-**Fix**: 在 §4.5.2 Class Diagram 程式碼塊之後，加入 Class Inventory 表格（格式見 templates/UML-CLASS-GUIDE.md §3）。表格必須覆蓋所有出現在 classDiagram 中的 class。
+**Fix**: 在 §10 Class Diagram 程式碼塊之後，加入 Class Inventory 表格（格式見 templates/UML-CLASS-GUIDE.md §3）。表格必須覆蓋所有出現在 classDiagram 中的 class。
 
 ---
 
