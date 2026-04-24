@@ -46,6 +46,10 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 | `SCHEMA.md` | 資料表清單、索引定義 | 補充 DB Layer 的 Integration Test 場景（如 unique constraint）|
 | `FRONTEND.md`（若存在）| §4 Screen 清單、§10 E2E 覆蓋範圍 | 前端元件追溯到 E2E Test Case；§5 E2E Test RTM 的 Screen Name 欄位和 VRT 覆蓋條目來自 FRONTEND |
 | `test-plan.md` | 測試策略、工具組合、覆蓋率目標 | 確認測試工具選型，填入 Tool 欄位；對齊覆蓋率目標 |
+| `docs/diagrams/class-inventory.md`（若存在）| 全文 | 提取 Class 清單，填入 §15.4 Class→Test 覆蓋追蹤 |
+| `docs/diagrams/sequence-*.md`（若存在）| 全文 | 列出所有 Sequence Diagram 檔案，填入 §15.3 Diagram-Test Traceability |
+| `docs/diagrams/activity-*.md`（若存在）| 全文 | 列出所有 Activity Diagram 檔案，填入 §15.3 |
+| `docs/diagrams/state-machine-*.md`（若存在）| 全文 | 列出所有 State Machine 檔案，填入 §15.3 |
 | `features/*.feature`（BDD-server）| Server BDD Scenario、@TC-ID tag | 提取 @TC-ID tag，建立 Server BDD → RTM 映射；填入 §5 E2E Test RTM（後端行為）|
 | `features/client/*.feature`（BDD-client，若存在）| Client E2E Scenario、@TC-ID tag | 填入 §5 E2E Test RTM（UI / E2E 行為）；Screen Flow 覆蓋率計算 |
 | `PDD.md`（若存在） | Screen 清單、SC-ID | 填入 §5 E2E Test RTM 的 SC-ID 和 Screen Name 欄位 |
@@ -105,6 +109,22 @@ TC-ID 全域唯一，跨三個分類不重複。
 - 從 `features/client/*.feature`（BDD-client，若存在）掃描所有 `@TC-E2E-*` 格式的 @tag → 對應 §5 E2E Test RTM（UI / E2E）
 - 每個 BDD Scenario 的 @tag 對應一個 RTM TC-ID 或 E2E-ID
 - 若 BDD Scenario 無 @tag，標記為 `[MISSING_TAG]` 並在 §5 中記錄
+
+### UML Diagram Traceability 建立規則
+
+#### §15.3 填充規則
+1. 掃描 `docs/diagrams/sequence-*.md` 獲得所有 Sequence Diagram 清單
+2. 掃描 `docs/diagrams/activity-*.md` 獲得所有 Activity Diagram 清單
+3. 掃描 `docs/diagrams/state-machine-*.md` 獲得所有 State Machine 清單
+4. 對照 PRD US-ID，建立 US → Diagram → TC-ID 三向追蹤
+5. 若某個 US 無對應 Diagram 檔案，標注「⚠️ 缺 Diagram：需執行 /gendoc-gen-diagrams」
+6. 若某個 Diagram 無對應 TC-ID，標注「❌ 缺 TC-ID：需補充測試」
+
+#### §15.4 填充規則
+1. 讀取 `docs/diagrams/class-inventory.md`（若不存在，讀取 EDD §4.5.2 classDiagram 推斷）
+2. 為每個 class 的每個 public method 生成 TC-UNIT-ID（格式：`TC-UNIT-{MODULE}-{SEQ}-{CASE}`）
+3. 計算 Method 覆蓋率（有 TC-ID 的 Method / 總 Public Method 數）
+4. 覆蓋率 < 80% 時在 §1 Summary Statistics 加注 `[WARNING] Method 覆蓋率不足`
 
 ---
 

@@ -151,6 +151,7 @@ C4Context
 **REQ-ID：** US-{{FEATURE_CODE}}-001（對應 BRD §{{BRD_GOAL_REF}}）
 **優先度：** P0（Must Have）/ P1（Should Have）/ P2（Nice to Have）
 **關聯 BRD 目標：** §{{BRD_GOAL_REF}}
+**活動圖（Activity Diagram）：** [activity-{{FLOW_NAME}}.md](../docs/diagrams/activity-{{FLOW_NAME}}.md)
 
 **Acceptance Criteria（可測試、無歧義）：**
 
@@ -178,6 +179,7 @@ C4Context
 **REQ-ID：** US-{{FEATURE_CODE}}-002（對應 BRD §{{BRD_GOAL_REF}}）
 **優先度：** P0（Must Have）/ P1（Should Have）/ P2（Nice to Have）
 **關聯 BRD 目標：** §{{BRD_GOAL_REF}}
+**活動圖（Activity Diagram）：** [activity-{{FLOW_NAME}}.md](../docs/diagrams/activity-{{FLOW_NAME}}.md)
 
 **Acceptance Criteria（可測試、無歧義）：**
 

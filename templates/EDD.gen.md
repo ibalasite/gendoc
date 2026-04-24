@@ -295,19 +295,34 @@ GitHub Actions Pipeline：
 - 緩解：<具體的技術控制>
 - 測試：<如何驗證此控制有效>
 
-### §10 Mermaid 架構圖（9 種 UML，各至少一張，一律 TD 方向）
+### §4.5 UML 9 大圖（強制，所有 9 種圖每種至少一張，缺一不可）
 
-必須包含的 UML 圖種類：
+> **Iron Law**：任何 EDD 必須在 §4.5 完整包含以下 9 種 UML 圖，每種至少一張。
+> 不得留空、不得用文字替代、設計評審前必須完成。
 
-1. **Use Case Diagram（§10.5）**：每個主要角色的使用案例
-2. **Class Diagram（§10.6）**（最重要）：含 Interface 定義，依層次分張
-3. **Object Diagram（§10.7）**：具體物件實例示範
-4. **Sequence Diagram（§10.2）**：Happy Path + Error Path，每個主要流程各一張
-5. **Communication Diagram（§10.8）**：元件間通訊訊息序列
-6. **State Machine Diagram（§10.4）**：主要 Entity 的狀態流轉
-7. **Activity Diagram（§10.9）**：關鍵業務流程
-8. **Component Diagram（§10.1）**：系統架構元件依賴
-9. **Deployment Diagram（§10.3）**：k8s 部署拓撲
+必須包含的 UML 圖種類（§4.5.1–§4.5.9）：
+
+1. **§4.5.1 Use Case Diagram（使用案例圖）**：每個主要 Actor 角色的使用案例（Mermaid flowchart TD 或 graph TD）
+2. **§4.5.2 Class Diagram（類別圖）⭐（最重要）**：含 Interface 定義，依架構層次分張（Domain/Application/Infrastructure/Presentation 各一）；每個 class 必須標注 stereotype（<<Entity>>/<<UseCase>>/<<Repository>> 等），並列出所有 public method 含回傳型別
+3. **§4.5.3 Object Diagram（物件圖）**：具體物件實例快照，欄位含真實範例值（非型別定義）
+4. **§4.5.4 Sequence Diagram（循序圖）**：每個主要業務流程各一張（Happy Path + Error Path 分開）；參與者含 Controller/Service/Repository/DB
+5. **§4.5.5 Communication Diagram（通訊圖）**：元件間通訊訊息序列，訊息標注序號（Mermaid flowchart LR）
+6. **§4.5.6 State Machine Diagram（狀態機圖）**：每個有狀態 Entity（Order/User/Payment 等）各一張（Mermaid stateDiagram-v2）
+7. **§4.5.7 Activity Diagram（活動圖）**：每個關鍵業務流程各一張，含決策點和平行路徑（Mermaid flowchart TD）
+8. **§4.5.8 Component Diagram（元件圖）**：系統架構元件依賴（Mermaid flowchart LR）
+9. **§4.5.9 Deployment Diagram（部署圖）**：k8s 部署拓撲（Mermaid flowchart TD）
+
+**多圖原則（強制）：**
+- Sequence Diagram：每個主要業務流程（登入/註冊/建立訂單/支付/退款等）各一張，不得合併到單一圖
+- Class Diagram：依架構層次分張（Domain 一張、Application 一張、Infrastructure+Presentation 一張），每張包含完整的 6 種關聯關係（Inheritance/Realization/Composition/Aggregation/Association/Dependency）
+- State Machine Diagram：每個有狀態 Entity 各一張
+- Activity Diagram：每個 PRD P0 User Story 各一張
+
+**Class Diagram Class Inventory 要求：**
+每個 classDiagram 生成後，必須在 §4.5.2 尾部加入 Class Inventory 表格：
+| Class | Stereotype | Layer | src 路徑 | test 路徑 |
+|-------|-----------|-------|---------|---------|
+（依實際 class 名稱和推斷的 lang_stack 填入路徑）
 
 ### §10.5 SLO / SLI / Error Budget
 

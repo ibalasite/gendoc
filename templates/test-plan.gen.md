@@ -46,6 +46,7 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 | `API.md` | 所有 Endpoint、錯誤碼 | Contract Testing 必須覆蓋所有 API Endpoint |
 | `SCHEMA.md` | 資料模型、索引策略 | DB 層 Integration 測試和效能測試的 Query 模式來自 SCHEMA |
 | `FRONTEND.md`（若存在）| §4 Screen 清單、§10 E2E 覆蓋範圍、§11 Core Web Vitals 目標 | E2E 測試目標 Screen、VRT 覆蓋策略、Visual Regression 工具選型來自 FRONTEND |
+| `docs/diagrams/class-inventory.md`（若存在）| 全文 | 提取所有 class 清單（Class 名稱/stereotype/src 路徑/test 路徑），用於自動填充 §15.2 Unit Test RTM 的 Class 和 Test File 欄位；未在 class-inventory 的 class 視為測試覆蓋漏洞 |
 
 ### IDEA.md Appendix C 素材讀取
 
@@ -75,6 +76,19 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 §13 Reporting & Metrics、§14 RACI Matrix、§15 Requirements Traceability Matrix（RTM）、
 §16 Glossary、§17 References、§18 Approval Sign-off、
 §19 Mobile Testing Strategy、§20 Accessibility Testing Strategy、§21 Test Debt Management。
+
+---
+
+## Class Inventory 讀取規則
+
+若 `docs/diagrams/class-inventory.md` 存在，必須：
+1. 讀取全文，提取所有 class 條目（Class / Stereotype / Layer / src 路徑 / test 路徑）
+2. 以 class-inventory 為基礎，在 §15.2 Unit Test RTM 中為每個 class 生成至少 3 個 TC-ID 條目（S=Success / E=Error / B=Boundary）
+3. TC-ID 格式：`TC-UNIT-{MODULE}-{SEQ}-{CASE}`（MODULE 從 class 名稱縮寫取 2-5 字母，SEQ 為序號，CASE 為 S/E/B）
+4. 若某個 class 只有 private methods（如純 DTO / ValueObject），標注「僅需建構子測試（TC-UNIT-{MODULE}-001-B）」
+5. 生成 §15.2 時，Test File 欄位必須從 class-inventory 的「test 路徑」欄位直接複製，不得自行猜測
+
+**若 class-inventory.md 不存在**：從 EDD §4.5.2 的 classDiagram 程式碼塊手動提取 class 名稱，推斷路徑後填入，並在段落開頭標注 `[WARNING] class-inventory.md 未找到，Class 路徑為推斷值，請執行 /gendoc-gen-diagrams 後更新。`
 
 ---
 

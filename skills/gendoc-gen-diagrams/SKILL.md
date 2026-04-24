@@ -1,19 +1,23 @@
 ---
 name: gendoc-gen-diagrams
 description: |
-  依 EDD / ARCH / SCHEMA / API / CI 文件，自動生成所有 Mermaid 圖表 .md 檔案，
-  存放於 docs/diagrams/ 目錄。
-  一律使用 TD 方向（sequenceDiagram 除外），格式含 frontmatter。
+  依 EDD §4.5（九大 UML 圖）、API.md、PRD User Stories 生成完整 UML 圖集，
+  輸出至 docs/diagrams/，另輸出 docs/diagrams/class-inventory.md（class→test file 對應表）。
+  一律使用 Mermaid 語法，不依賴外部腳本。
   可獨立呼叫或由 gendoc-auto 自動呼叫。
 allowed-tools:
   - Read
   - Write
+  - Bash
   - Skill
 ---
 
-# gendoc-gen-diagrams — 自動生成 Mermaid 圖表
+# gendoc-gen-diagrams — 依 EDD §4.5 生成九大 UML 圖
 
-從各設計文件提取架構資訊，輸出到 docs/diagrams/*.md。
+從 EDD §4.5（單一真相來源）提取所有 Mermaid 程式碼，補充 API.md / PRD.md 動態內容，
+輸出至 `docs/diagrams/`，並額外產生 `class-inventory.md`（class → test file 對應表）。
+
+核心原則：**從 EDD §4.5 提取，不重新發明**。
 
 ---
 
@@ -23,303 +27,405 @@ allowed-tools:
 
 ---
 
-## Step 1：讀取輸入
+## Step 0：讀取環境與 state
 
 ```bash
-_DOCS="${_DOCS:-$(pwd)/docs}"
-_BRD="${_BRD:-$_DOCS/BRD.md}"
-_PRD="${_PRD:-$_DOCS/PRD.md}"
-_PDD="${_PDD:-$_DOCS/PDD.md}"
-_EDD="${_EDD:-$_DOCS/EDD.md}"
-_ARCH="${_ARCH:-$_DOCS/ARCH.md}"
-_API="${_API:-$_DOCS/API.md}"
-_SCHEMA="${_SCHEMA:-$_DOCS/SCHEMA.md}"
-_DIAGRAMS="${_DIAGRAMS:-$_DOCS/diagrams}"
+_CWD="$(pwd)"
+_DOCS_DIR="${_CWD}/docs"
+_DIAGRAMS_DIR="${_DOCS_DIR}/diagrams"
+mkdir -p "$_DIAGRAMS_DIR"
+_APP_NAME=$(python3 -c "import json; d=json.load(open('.gendoc-state.json')); print(d.get('project_name','') or '$(basename $_CWD)')" 2>/dev/null || basename "$_CWD")
+_LANG_STACK=$(python3 -c "import json; d=json.load(open('.gendoc-state.json')); print(d.get('lang_stack','unknown'))" 2>/dev/null || echo "unknown")
+echo "專案：$_APP_NAME"
+echo "語言：$_LANG_STACK"
+echo "=== 掃描上游文件 ==="
+for f in EDD.md ARCH.md API.md SCHEMA.md PRD.md PDD.md; do
+  [[ -f "${_DOCS_DIR}/$f" ]] && echo "✓ $f" || echo "✗ $f（跳過）"
+done
 ```
 
-### 1.1 讀取累積上游文件鏈
+---
 
-依「全上游對齊」規則，Mermaid 圖表生成需讀取完整上游鏈：
+## Step 1：讀取上游文件
 
-| 文件 | 必讀章節 | 用途 |
+讀取順序（缺檔靜默跳過）：
+
+| 文件 | 讀取目標 | 用途 |
 |------|---------|------|
-| `BRD.md` | §2 Problem Statement、業務流程 | **Business Process Diagram**：業務事件觸發鏈、使用者角色關係圖 |
-| `PRD.md` | §6 User Flows、State Machine | **User Flow 圖**（使用者操作路徑）、**State Machine 圖**（功能狀態轉換）|
-| `PDD.md`（若存在）| §6 互動設計、§4 畫面清單 | **Screen Flow Diagram**（畫面跳轉圖）；UI 元件與後端 API 的互動序列 |
-| `EDD.md` | §2 C4 Model、§3 DDD、§6 Domain Events | System Context 圖、Data Flow 圖、部署拓撲圖 |
-| `ARCH.md` | §3 元件架構、§9 部署 | System Architecture 圖、元件依賴圖 |
-| `API.md` | 所有 Endpoint | API Sequence Diagram（呼叫順序）|
-| `SCHEMA.md` | 資料模型 | ER Diagram |
+| `docs/EDD.md` | §4.5 整節（§4.5.1–§4.5.9） | 九大 UML 圖的 Mermaid 程式碼（**主要來源**）|
+| `docs/ARCH.md` | Component / Deployment 章節 | Component Diagram、Deployment Diagram 補充 |
+| `docs/API.md` | 所有 Endpoint 列表 | 補充生成多張 Sequence Diagram |
+| `docs/SCHEMA.md` | 資料模型章節 | ER Diagram（額外，非 UML 9 之一）|
+| `docs/PRD.md` | §User Stories / §業務流程 | 補充生成多張 Activity Diagram |
 
-若某文件不存在，靜默跳過，略過對應圖表或以已存在文件替代素材。
+**提取規則：**
 
----
-
-## Step 2：生成圖表清單
-
-依文件內容，生成以下圖表（依實際系統調整，最少 6 個）：
-
-| 檔案 | 來源 | 類型 | 方向 |
-|------|------|------|------|
-| `system-context.md` | EDD | `graph TD` | TD |
-| `system-arch.md` | EDD / ARCH | `graph TD` | TD |
-| `data-flow.md` | EDD | `sequenceDiagram` | 例外（橫向）|
-| `deployment.md` | EDD / k8s | `graph TD` | TD |
-| `er-diagram.md` | SCHEMA | `erDiagram` | TD |
-| `cicd-pipeline.md` | EDD §9（CI/CD 設計）| `graph TD` | TD |
-| `state-machine.md` | EDD（若有）| `stateDiagram-v2` | TD |
-| `api-flow.md` | API | `sequenceDiagram` | 例外（橫向）|
+- 從 EDD §4.5 中直接複製 Mermaid 程式碼塊，不重新生成
+- 若 EDD §4.5 中已有完整 `classDiagram` 程式碼塊，直接提取；若按架構層次分張（Domain / Application / Infrastructure），分別提取各層
+- 從 API.md 提取 Endpoint 列表（格式：`METHOD /path — 說明`），每個 P0 Endpoint 生成一張 Sequence Diagram
+- 從 PRD §User Stories 提取每個主要業務流程，每個生成一張 Activity Diagram
+- EDD §4.5 中若某類圖缺失，則依 EDD 其他章節的描述推斷並生成（非憑空捏造）
+- 若相關上游文件均不存在，則跳過對應圖，在摘要中標注「✗ 跳過（缺乏來源）」
 
 ---
 
-## Step 3：每個圖表的 .md 格式
+## Step 2：生成九大 UML 圖
 
-每個檔案使用以下 frontmatter + 標題 + 說明 + Mermaid 程式碼區塊：
+逐一生成以下檔案，使用 **Write 工具**寫入 `docs/diagrams/`。
+
+每個檔案的標準格式：
 
 ```markdown
 ---
-diagram: <圖表名稱，如 system-arch>
-source: <來源文件，如 EDD.md>
-generated: <ISO 8601 時間戳>
-direction: <TD 或 sequenceDiagram>
+diagram: <圖表識別名>
+uml-type: <UML 圖類型中文名>
+source: <來源文件及章節>
+generated: <ISO8601 時間戳>
 ---
 
 # <圖表標題>
 
-> 自動生成自 <來源文件> §<章節>
+> 來源：<文件> §<章節>
 
 \`\`\`mermaid
-<Mermaid 語法>
+<從上游文件提取或依上游文件內容推斷的 Mermaid 程式碼>
 \`\`\`
 ```
 
 ---
 
-## Step 4：各圖表生成規範
+### 2.1 use-case.md — Use Case Diagram
 
-### 4.1 system-context.md（系統邊界圖）
+**UML 類型**：Use Case Diagram（UML 九大之一）
 
-展示系統的外部邊界：哪些是此系統，哪些是外部系統：
+**來源**：EDD §4.5.1
 
-```mermaid
-graph TD
-    subgraph "External Systems"
-        USER["👤 End User\n(Browser / Mobile)"]
-        ADMIN["👤 Admin\n(Dashboard)"]
-        EXT_PAY["💳 Payment Gateway\n(Stripe / 第三方)"]
-        EXT_MAIL["📧 Email Service\n(SendGrid)"]
-    end
+展示所有 Actor 和 Use Case 邊界。因 Mermaid 不支援原生 usecase 語法，使用 `flowchart TD`：
+- 橢圓形節點（`(( ))`）表示 Use Case
+- 矩形節點（`[ ]`）表示 Actor
+- 系統邊界用 `subgraph` 表示
 
-    subgraph "Our System"
-        API["<App> API\n(此系統)"]
-        DB[("PostgreSQL")]
-        CACHE[("Redis")]
-        QUEUE["Message Queue\n(NATS)"]
-    end
-
-    USER --> API
-    ADMIN --> API
-    API --> DB
-    API --> CACHE
-    API --> QUEUE
-    API --> EXT_PAY
-    API --> EXT_MAIL
-```
-
-### 4.2 system-arch.md（系統元件依賴圖）
-
-從 EDD §10.1 / ARCH §8 提取，展示所有服務元件與依賴：
-
-```mermaid
-graph TD
-    GW["API Gateway\n(Ingress / Traefik)"]
-
-    subgraph "Application"
-        API["API Service\n(Controller Layer)"]
-        SVC["Business Services\n(Service Layer)"]
-        REPO["Repositories\n(Repository Layer)"]
-    end
-
-    subgraph "Infrastructure"
-        CACHE["Redis Cache"]
-        MQ["NATS Queue"]
-        WORKER["Async Worker"]
-    end
-
-    DB[("PostgreSQL\n(Primary)")]
-    REPLICA[("PostgreSQL\n(Read Replica)")]
-
-    GW --> API
-    API --> SVC
-    SVC --> REPO
-    SVC --> CACHE
-    SVC --> MQ
-    REPO --> DB
-    DB -.->|replication| REPLICA
-    MQ --> WORKER
-    WORKER --> REPO
-```
-
-### 4.3 data-flow.md（主要請求資料流）
-
-從 EDD §10.2 提取，展示請求完整流程（sequenceDiagram）：
-
-```mermaid
-sequenceDiagram
-    participant U as User/Client
-    participant GW as API Gateway
-    participant API as API Service
-    participant SVC as Business Service
-    participant CACHE as Redis
-    participant DB as PostgreSQL
-
-    U->>GW: HTTPS Request
-    GW->>GW: JWT Verify + Rate Limit
-    GW->>API: Route request
-    API->>API: Input validation
-    API->>SVC: Business operation
-    SVC->>CACHE: Check cache
-    alt Cache Hit
-        CACHE-->>SVC: Cached data
-    else Cache Miss
-        SVC->>DB: Query
-        DB-->>SVC: Data rows
-        SVC->>CACHE: Set cache (TTL=60s)
-    end
-    SVC-->>API: Result
-    API-->>U: JSON Response
-```
-
-### 4.4 deployment.md（k8s 部署架構）
-
-從 EDD §10.3 提取，展示 k8s 資源關係：
-
-```mermaid
-graph TD
-    subgraph "Rancher Desktop k3s"
-        subgraph "Namespace: <app>"
-            ING["Ingress\n(Traefik)"]
-            SVC_K["Service\n(ClusterIP)"]
-
-            subgraph "Deployment (HPA: 2-10 pods)"
-                POD1["Pod 1\n<app>"]
-                POD2["Pod 2\n<app>"]
-                PODN["Pod N..."]
-            end
-
-            HPA["HPA\n(CPU 70%)"]
-            CM["ConfigMap\n(non-secret)"]
-            SEC["Secret\n(from OS Keystore)"]
-        end
-    end
-
-    DEV["Developer\n localhost:80"]
-    
-    DEV --> ING
-    ING --> SVC_K
-    SVC_K --> POD1
-    SVC_K --> POD2
-    SVC_K --> PODN
-    HPA -.->|scales| POD1
-    POD1 --> CM
-    POD1 --> SEC
-```
-
-### 4.5 er-diagram.md（資料庫 ER 圖）
-
-從 SCHEMA §1 提取，主表在上，外鍵表向下展開：
-
-直接複製 SCHEMA.md 的 erDiagram 區塊並包成獨立 .md 檔。
-
-### 4.6 cicd-pipeline.md（CI/CD 流水線）
-
-**來源：EDD §9（CI/CD 設計）**。從 EDD §9 提取 Job 設計和依賴關係，
-不讀取 `.github/workflows/` 實際檔案——以 EDD 為準，避免與已生成的 workflow 產生循環依賴。
-
-展示 GitHub Actions Pipeline 的 Job 依賴關係：
-
-```mermaid
-graph TD
-    PUSH["git push\n(main branch)"]
-
-    subgraph "CI Jobs (並行)"
-        LINT["job: lint\n程式碼風格"]
-        TEST["job: test\nUnit + Integration\n(含 coverage 報告)"]
-    end
-
-    subgraph "Build & Deploy"
-        BUILD["job: build-image\nDocker multi-stage"]
-        K8S["job: deploy-k8s\nkubectl apply\n(Rancher Desktop)"]
-        LOAD["job: load-test\nk6 (P99<500ms)"]
-    end
-
-    subgraph "Docs"
-        DOCS["job: build-docs\nMD → HTML"]
-        PAGES["job: deploy-pages\nGitHub Pages"]
-    end
-
-    PUSH --> LINT
-    PUSH --> TEST
-    LINT --> BUILD
-    TEST --> BUILD
-    BUILD --> K8S
-    K8S --> LOAD
-    LOAD --> DOCS
-    DOCS --> PAGES
-```
-
-### 4.7 state-machine.md（業務狀態機，若有）
-
-**判斷條件**：讀取 EDD §10.4 的 stateDiagram-v2 區塊。
-若該區塊包含實際狀態節點定義（即不只是純佔位符文字如 `[*] --> State1` 的空模板），則生成 state-machine.md；
-否則跳過此圖（不生成空白或無意義的狀態圖）。
-
-從 EDD §10.4 提取，若 EDD 無狀態機則略過此圖：
-
-```mermaid
-stateDiagram-v2
-    [*] --> Created: POST /api/v1/<resource>
-    Created --> Processing: 觸發條件（如 Payment confirmed）
-    Processing --> Completed: 成功條件
-    Processing --> Failed: 失敗條件（含原因）
-    Failed --> Processing: 重試（限 3 次）
-    Completed --> [*]
-    Failed --> [*]: 超過重試上限，標記為 Abandoned
-```
-
-### 4.8 api-flow.md（API 呼叫序列）
-
-從 API.md §4 提取最重要的 API 序列圖（直接複製）：
-
-sequenceDiagram（橫向，為唯一例外，符合時序閱讀習慣）。
+若 EDD §4.5.1 已有 Mermaid 程式碼，**直接提取**；若無，依 EDD §2（系統功能列表）和 §3（DDD 用例）推斷。
 
 ---
 
-## Step 5：確認清單
+### 2.2 class-domain.md — Class Diagram（Domain Layer）
 
-- [ ] 所有架構圖使用 `graph TD`（禁止 LR）
-- [ ] sequenceDiagram 除外（橫向可接受）
-- [ ] erDiagram 主表在最上方
-- [ ] 每個 .md 有正確 frontmatter（diagram / source / generated / direction）
-- [ ] state-machine.md 僅在 EDD 有狀態機時生成
+**UML 類型**：Class Diagram（UML 九大之一）
+
+**來源**：EDD §4.5.2
+
+提取 Domain 層 `classDiagram`，包含：
+- Entity（`<<Entity>>`）
+- Value Object（`<<ValueObject>>`）
+- Domain Event（`<<DomainEvent>>`）
+- Repository Interface（`<<Repository>>`，抽象）
+- Aggregate Root（`<<AggregateRoot>>`）
+
+若 EDD §4.5.2 按層次提供多個 classDiagram，提取 Domain 層那張；若只有一張完整 classDiagram，從中篩選 Domain 層的 class。
 
 ---
 
-## Step 6：寫入並輸出摘要
+### 2.3 class-application.md — Class Diagram（Application Layer）
 
-將所有圖表 .md 寫入 `$_DIAGRAMS/` 目錄。
+**UML 類型**：Class Diagram（UML 九大之一）
+
+**來源**：EDD §4.5.2
+
+提取 Application 層 `classDiagram`，包含：
+- Use Case / Command Handler（`<<UseCase>>` 或 `<<CommandHandler>>`）
+- Application Service（`<<ApplicationService>>`）
+- DTO（`<<DTO>>`）
+- Port / Interface（`<<Port>>`）
+
+---
+
+### 2.4 class-infra-presentation.md — Class Diagram（Infrastructure + Presentation Layer）
+
+**UML 類型**：Class Diagram（UML 九大之一）
+
+**來源**：EDD §4.5.2
+
+提取 Infrastructure 和 Presentation 層，包含：
+- Repository 實作（`<<RepositoryImpl>>`）
+- 外部服務 Adapter（`<<Adapter>>`）
+- Controller（`<<Controller>>`）
+- REST DTO（`<<RequestDTO>>`, `<<ResponseDTO>>`）
+
+**若 EDD §4.5.2 未按層次分張**，則從整體 Class Diagram 依架構層次拆分成 2–3 張，每張對應一個層次。
+
+---
+
+### 2.5 object-snapshot.md — Object Diagram
+
+**UML 類型**：Object Diagram（UML 九大之一）
+
+**來源**：EDD §4.5.3
+
+展示具體物件實例快照（特定場景下的物件狀態）。使用 `classDiagram` 語法，以具名實例（`objectName : ClassName`）表示：
+
+```mermaid
+classDiagram
+    class orderA {
+        <<instance>>
+        id: "ord-001"
+        status: "Processing"
+        amount: 150.00
+    }
+    class userB {
+        <<instance>>
+        id: "usr-123"
+        name: "Alice"
+    }
+    userB --> orderA : owns
+```
+
+若 EDD §4.5.3 已有程式碼，直接提取；若無，依 EDD §3（DDD Aggregate 設計）取一個代表性場景推斷。
+
+---
+
+### 2.6 sequence-{flow-name}.md — Sequence Diagram（每個主要業務流程一張）
+
+**UML 類型**：Sequence Diagram（UML 九大之一）
+
+**來源**：EDD §4.5.4（主）+ API.md Endpoint（補充）
+
+**生成規則**：
+1. EDD §4.5 中的每個 `sequenceDiagram` 區塊，各自存成一個獨立檔案
+2. 從每個 sequenceDiagram 的第一行 `Note over` 或流程說明提取 flow-name
+3. 若 API.md 有 P0 Endpoint 但 EDD 無對應 Sequence Diagram，依 API endpoint 說明推斷並生成
+4. 若 EDD §4.5.4 只有一張「通用請求流程圖」，額外為每個主要 API 端點補充一張
+
+**檔名格式**：`sequence-{flow-name}.md`
+
+範例：`sequence-login.md`, `sequence-create-order.md`, `sequence-payment-callback.md`
+
+---
+
+### 2.7 communication.md — Communication Diagram
+
+**UML 類型**：Communication Diagram（UML 九大之一）
+
+**來源**：EDD §4.5.5
+
+展示物件間的協作關係與訊息傳遞（強調結構關係，不同於 Sequence 的時序）。
+使用 `flowchart LR`，邊上標注訊息序號（`1: message`、`2: response`）。
+
+若 EDD §4.5.5 已有程式碼，直接提取；若無，依 EDD §3（DDD Context Map）或 EDD §10（元件交互）推斷主要物件協作關係。
+
+---
+
+### 2.8 state-machine-{entity}.md — State Machine Diagram（每個有狀態 Entity 一張）
+
+**UML 類型**：State Machine Diagram（UML 九大之一）
+
+**來源**：EDD §4.5.6
+
+**生成規則**：
+1. 從 EDD §4.5.6 提取每個 `stateDiagram-v2` 區塊
+2. 每個有狀態的 Entity 獨立一個檔案
+3. 若 EDD §4.5.6 有多個 Entity 的狀態機，分別提取
+
+**檔名格式**：`state-machine-{entity-name}.md`
+
+範例：`state-machine-order.md`, `state-machine-payment.md`, `state-machine-shipment.md`
+
+**判斷條件**：若 EDD §4.5.6 為空或只有佔位符（`[*] --> State1` 的空模板），跳過此圖，在摘要中標注。
+
+---
+
+### 2.9 activity-{flow}.md — Activity Diagram（每個主要業務流程一張）
+
+**UML 類型**：Activity Diagram（UML 九大之一）
+
+**來源**：EDD §4.5.7（主）+ PRD §User Stories（補充）
+
+**生成規則**：
+1. 從 EDD §4.5.7 提取每個業務流程的 Activity Diagram
+2. 使用 `flowchart TD`：決策點用菱形（`{ }`），平行流程用 `subgraph`，開始/結束用（`([ ])`）
+3. 若 PRD 有 User Story 但 EDD §4.5.7 無對應 Activity，依 User Story 描述推斷並生成
+
+**檔名格式**：`activity-{flow-name}.md`
+
+範例：`activity-user-registration.md`, `activity-checkout.md`, `activity-refund.md`
+
+---
+
+### 2.10 component.md — Component Diagram
+
+**UML 類型**：Component Diagram（UML 九大之一）
+
+**來源**：EDD §4.5.8（主）+ ARCH.md（補充）
+
+展示微服務 / 模組邊界、內外部依賴關係。使用 `graph TD`：
+- `subgraph` 表示服務邊界
+- 箭頭表示依賴關係（`-->` 同步，`-.->` 非同步）
+
+若 EDD §4.5.8 已有程式碼，直接提取；若無，從 ARCH.md 元件架構章節推斷。
+
+---
+
+### 2.11 deployment.md — Deployment Diagram
+
+**UML 類型**：Deployment Diagram（UML 九大之一）
+
+**來源**：EDD §4.5.9（主）+ ARCH.md 部署章節（補充）
+
+展示 k8s 部署拓撲（Namespace、Deployment、Service、Ingress、HPA、ConfigMap、Secret）。
+使用 `graph TD`，以 `subgraph` 表示 Namespace 邊界。
+
+若 EDD §4.5.9 已有程式碼，直接提取；若無，從 ARCH.md §部署 或 EDD §CI/CD 推斷。
+
+---
+
+### 2.12 er-diagram.md — ER Diagram（額外，非 UML 9 之一）
+
+**類型**：ER Diagram（資料庫關聯圖）
+
+**來源**：SCHEMA.md
+
+**明確標注**：此為資料庫表格關聯圖，與 UML Class Diagram 性質不同：
+- ER Diagram → 資料庫表格、欄位、外鍵關係（`erDiagram`）
+- Class Diagram → 物件模型、方法、繼承、介面實作
+
+直接複製 SCHEMA.md 的 `erDiagram` 區塊。若 SCHEMA.md 不存在，跳過此圖。
+
+Frontmatter 中加入：
+
+```yaml
+diagram: er-diagram
+uml-type: ER Diagram（資料庫關聯圖，非 UML Class Diagram）
+note: 此圖描述資料庫表格關聯，請勿與 class-*.md 的物件模型混淆
+```
+
+---
+
+## Step 3：生成 class-inventory.md
+
+這是最重要的額外輸出，供 `test-plan` 和 RTM 讀取。
+
+**來源**：解析 Step 2 生成的所有 `class-*.md` 中的 `class ClassName` 定義。
+
+### 推斷 src/test 路徑規則
+
+從 `.gendoc-state.json` 的 `lang_stack` 欄位判斷：
+
+| lang_stack | src 副檔名 | src 根路徑 | test 命名 | test 根路徑 |
+|-----------|-----------|-----------|---------|-----------|
+| `typescript` / `javascript` | `.ts` / `.js` | `src/` | `*.test.ts` | `tests/unit/` |
+| `python` | `.py` | `src/` | `test_*.py` | `tests/unit/` |
+| `java` | `.java` | `src/main/java/` | `*Test.java` | `src/test/java/` |
+| `golang` / `go` | `.go` | `internal/` | `*_test.go` | `internal/`（同目錄）|
+| `csharp` / `dotnet` | `.cs` | `src/` | `*.Tests.cs` | `tests/unit/` |
+| `php` | `.php` | `src/` | `*Test.php` | `tests/unit/` |
+| 其他 | 標注 `（待確認）` | — | — | — |
+
+### 路徑推斷邏輯
+
+1. 從 classDiagram 中解析每個 `class ClassName` 和其 stereotype（`<<Entity>>`, `<<UseCase>>`, `<<Controller>>` 等）
+2. 依 stereotype 對應架構層次（Domain / Application / Infrastructure / Presentation）
+3. 依層次對應目錄結構：
+   - Domain → `src/domain/{entity-name}/`
+   - Application → `src/application/{use-case-name}/`
+   - Infrastructure → `src/infrastructure/{adapter-name}/`
+   - Presentation → `src/presentation/{controller-name}/` 或 `src/api/`
+4. 生成 TC-ID 前綴：`TC-UNIT-{CLASSNAME-UPPER}`
+
+### class-inventory.md 格式
+
+```markdown
+---
+generated: <ISO8601>
+source: docs/diagrams/class-*.md
+purpose: class-to-test mapping for test-plan RTM
+---
+
+# Class Inventory — 類別清單與測試追蹤
+
+> 自動生成自 docs/diagrams/class-*.md
+> 規則：1 Class → 1 src/ 實作檔 → 1 tests/unit/ 測試檔
+
+## 類別清單
+
+| Class | Stereotype | Layer | src 路徑（推斷）| test 路徑（推斷）| TC-ID 前綴 |
+|-------|-----------|-------|--------------|--------------|-----------|
+| User | Entity | Domain | src/domain/user/User.ts | tests/unit/domain/User.test.ts | TC-UNIT-USER |
+| IUserRepository | interface/Repository | Domain | src/domain/user/IUserRepository.ts | tests/unit/domain/IUserRepository.test.ts | TC-UNIT-IUSERREPO |
+| CreateUserUseCase | UseCase | Application | src/application/user/CreateUserUseCase.ts | tests/unit/application/CreateUserUseCase.test.ts | TC-UNIT-CREATEUSER |
+| UserRepositoryImpl | RepositoryImpl | Infrastructure | src/infrastructure/user/UserRepositoryImpl.ts | tests/unit/infrastructure/UserRepositoryImpl.test.ts | TC-UNIT-USERREPOIMPL |
+| UserController | Controller | Presentation | src/presentation/user/UserController.ts | tests/unit/presentation/UserController.test.ts | TC-UNIT-USERCTRL |
+
+## 測試追蹤統計
+
+| 層次 | Class 數 | 預期 Test File 數 |
+|------|---------|----------------|
+| Domain | N | N |
+| Application | N | N |
+| Infrastructure | N | N |
+| Presentation | N | N |
+| **合計** | **N** | **N** |
+
+## 1:1:N 規則提醒
+
+- 每個 Class 對應一個測試檔案（1:1）
+- 每個 Public Method 至少 3 個測試案例：S（Success）/ E（Error）/ B（Boundary）（1:N）
+
+## 給 test-plan 的指示
+
+test-plan.md §15.2 Unit Test RTM 應從本表格填充 Class 和 Test File 欄位。
+每個 TC-ID 前綴後接 `-S01`, `-E01`, `-B01` 等流水號。
+```
+
+---
+
+## Step 4：輸出摘要
+
+生成完成後輸出以下摘要：
 
 ```
-Mermaid 圖表生成完成：
-  輸出目錄：$_DIAGRAMS/
-  生成圖表：
-    + system-context.md（graph TD）
-    + system-arch.md（graph TD）
-    + data-flow.md（sequenceDiagram）
-    + deployment.md（graph TD）
-    + er-diagram.md（erDiagram）
-    + cicd-pipeline.md（graph TD）
-    + state-machine.md（stateDiagram-v2）[若有]
-    + api-flow.md（sequenceDiagram）
-  總計：N 個圖表
+=== gendoc-gen-diagrams 完成 ===
+  輸出目錄：docs/diagrams/
+  
+  UML 九大圖：
+    ✓/✗ use-case.md                  （Use Case Diagram，來自 EDD §4.5.1）
+    ✓/✗ class-domain.md              （Class Diagram - Domain，來自 EDD §4.5.2）
+    ✓/✗ class-application.md        （Class Diagram - Application，來自 EDD §4.5.2）
+    ✓/✗ class-infra-presentation.md （Class Diagram - Infra/Presentation，來自 EDD §4.5.2）
+    ✓/✗ object-snapshot.md          （Object Diagram，來自 EDD §4.5.3）
+    ✓/✗ sequence-{flow}.md          （Sequence Diagram，共 N 張，來自 EDD §4.5.4 + API.md）
+    ✓/✗ communication.md            （Communication Diagram，來自 EDD §4.5.5）
+    ✓/✗ state-machine-{entity}.md   （State Machine Diagram，共 N 張，來自 EDD §4.5.6）
+    ✓/✗ activity-{flow}.md          （Activity Diagram，共 N 張，來自 EDD §4.5.7 + PRD.md）
+    ✓/✗ component.md                （Component Diagram，來自 EDD §4.5.8）
+    ✓/✗ deployment.md               （Deployment Diagram，來自 EDD §4.5.9）
+  
+  額外圖表：
+    ✓/✗ er-diagram.md               （ER Diagram，資料庫關聯圖，來自 SCHEMA.md）
+  
+  關鍵輸出：
+    ✓/✗ class-inventory.md          （Class → Test File 對應表，共 N 個 class）
+
+  注意：
+    - test-plan.md §15.2 RTM 應讀取 class-inventory.md 填充 Class 欄位
+    - ER Diagram ≠ Class Diagram（前者為 DB 表格，後者為物件模型）
+    - Sequence Diagram 每個主要業務流程各一張（共 N 張）
+
+總計：N 個 UML 圖 + 1 個 er-diagram.md + class-inventory.md
 ```
+
+---
+
+## 附錄：UML 九大圖對照表
+
+| # | UML 圖類型 | EDD §章節 | 輸出檔案 | Mermaid 語法 |
+|---|-----------|----------|---------|-------------|
+| 1 | Use Case Diagram | §4.5.1 | `use-case.md` | `flowchart TD` |
+| 2 | Class Diagram | §4.5.2 | `class-domain.md`, `class-application.md`, `class-infra-presentation.md` | `classDiagram` |
+| 3 | Object Diagram | §4.5.3 | `object-snapshot.md` | `classDiagram`（instance 模式）|
+| 4 | Sequence Diagram | §4.5.4 | `sequence-{flow}.md`（多張）| `sequenceDiagram` |
+| 5 | Communication Diagram | §4.5.5 | `communication.md` | `flowchart LR` |
+| 6 | State Machine Diagram | §4.5.6 | `state-machine-{entity}.md`（多張）| `stateDiagram-v2` |
+| 7 | Activity Diagram | §4.5.7 | `activity-{flow}.md`（多張）| `flowchart TD` |
+| 8 | Component Diagram | §4.5.8 | `component.md` | `graph TD` |
+| 9 | Deployment Diagram | §4.5.9 | `deployment.md` | `graph TD` |
+| — | ER Diagram（額外）| SCHEMA.md | `er-diagram.md` | `erDiagram` |

@@ -68,6 +68,18 @@
       "commit_prefix": "docs(gendoc)[D07-ARCH]"
     },
     {
+      "id": "D07b-UML",
+      "type": "UML",
+      "layer": "設計層",
+      "output": ["docs/diagrams/"],
+      "output_glob": "docs/diagrams/*.md",
+      "multi_file": true,
+      "condition": "always",
+      "special_skill": "gendoc-gen-diagrams",
+      "commit_prefix": "docs(gendoc)[D07b-UML]",
+      "note": "特殊步驟：呼叫 gendoc-gen-diagrams skill，生成 9 大 UML 圖 + class-inventory.md。不走標準 gen→review 流程。class-inventory.md 供 D11-test-plan 和 D13-RTM 讀取。"
+    },
+    {
       "id": "D08-API",
       "type": "API",
       "layer": "設計層",

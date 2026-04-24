@@ -194,3 +194,12 @@ upstream-alignment:
 **Check**: 文件中是否有 `{{PLACEHOLDER}}` 格式未替換的空白佔位符（`{{DOMAIN}}`、`{{RESOURCE}}`、`{{RESOURCE_UPPER}}`、`{{YYYYMMDD}}`、`{{AUTHOR}}`）？逐一掃描全文，列出所有裸 placeholder 及其位置（章節）。注意：格式範例型 placeholder（如 `{{RESOURCE_NAME}}`）若有說明則允許；純空白無說明的才是 finding。
 **Risk**: 裸 placeholder 讓工程師無法直接使用 API 文件，需要人工詢問填寫缺漏值，失去文件自動生成的價值。
 **Fix**: 對每個裸 placeholder，依上游文件或業務設定填入真實值；若真的無法確定，改為 `（待確認：描述）` 說明而非保留 `{{PLACEHOLDER}}`。
+
+---
+
+### Layer 8: UML 圖完整性（由 API Design Expert 主審，共 1 項）
+
+#### [HIGH] 28 — 缺少對應的 Sequence Diagram
+**Check**: 對照 `docs/diagrams/` 目錄，每個 P0 Endpoint 是否有對應的 Sequence Diagram（`docs/diagrams/sequence-*.md`）？確認方式：逐一列出 API.md 的 P0 Endpoint，搜尋是否有對應的 `sequence-{flow}.md`（如 POST /auth/login → sequence-login.md）。無對應 Sequence Diagram 的 P0 Endpoint 視為 HIGH。
+**Risk**: 缺少 Sequence Diagram，工程師在實作時沒有「訊息傳遞時序」的視覺指引，各層之間的呼叫順序只能靠口頭溝通，容易造成 Controller 直接呼叫 Repository（跳過 Service 層）、Cache 操作順序錯誤、事件發布時機不一致等架構缺陷，且難以在 Code Review 中被發現。
+**Fix**: 執行 `/gendoc-gen-diagrams` 自動生成所有 Endpoint 的 Sequence Diagram；或手動為每個 P0 Endpoint 在 EDD §4.5.4 補充對應的 sequenceDiagram 程式碼塊，再由 gen-diagrams 提取。每張 Sequence Diagram 必須包含：Controller → Service → Repository → DB 完整呼叫鏈，以及 Happy Path 和至少 2 個 Error Path（使用者不存在、驗證失敗等）。

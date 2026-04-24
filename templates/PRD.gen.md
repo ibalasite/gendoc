@@ -154,6 +154,14 @@ Scenario：[典型使用場景一段描述]
 - `NNN`：同功能下的流水號（001, 002, …）
 - 每個 User Story 至少 2 個 AC（正常路徑 + 錯誤路徑）
 
+### User Story Activity Diagram 連結規則
+
+每個 P0/P1 User Story 在生成時，必須在其描述中加入對應的 Activity Diagram 連結欄位：
+- 連結格式：`[activity-{flow-name}.md](../docs/diagrams/activity-{flow-name}.md)`
+- `{flow-name}` 從 User Story 的動詞+名詞推斷（kebab-case，如 `user-login`、`create-order`、`process-payment`）
+- 若 `docs/diagrams/` 目錄下還未有對應 Activity Diagram，標注「[待生成：/gendoc-gen-diagrams]」
+- 每個 P0 User Story 必須有活動圖連結；P1 建議有；P2 可選
+
 ### §6 User Flows
 
 **必須包含三種 Mermaid 圖**：

@@ -360,4 +360,44 @@ Todo_Count,{{TODO_COUNT}},Need scheduling
 
 ---
 
+### §15.3 UML 圖追蹤矩陣（Diagram-Test Traceability）
+
+> 確認每個重要業務流程既有 UML 圖（Sequence/Activity/State Machine）描述，也有對應的測試案例。
+> 雙向追蹤：從業務流程 → UML 圖 → Test Case；從 Test Case → UML 圖 → 業務流程。
+
+| US-ID | 業務流程 | Sequence Diagram | Activity Diagram | State Machine | 對應 TC-ID | 覆蓋狀態 |
+|-------|---------|-----------------|-----------------|--------------|-----------|---------|
+| US-001 | {{FLOW_NAME}} | [sequence-{{FLOW}}.md](../diagrams/sequence-{{FLOW}}.md) | [activity-{{FLOW}}.md](../diagrams/activity-{{FLOW}}.md) | - | TC-E2E-001 / TC-INT-001 | ✅ 已覆蓋 |
+| US-002 | | | | | | ⚠️ 無 Sequence Diagram |
+| （依實際 PRD User Stories 填入）| | | | | | |
+
+**覆蓋狀態說明：**
+- ✅ 已覆蓋：有 UML 圖且有對應 TC-ID
+- ⚠️ 缺 Diagram：無對應 UML 圖（需執行 /gendoc-gen-diagrams 補充）
+- ❌ 缺 TC-ID：有 UML 圖但無對應 Test Case（需補充測試）
+
+### §15.4 Class→Test 覆蓋追蹤（Class-Test Traceability）
+
+> 來源：docs/diagrams/class-inventory.md（由 /gendoc-gen-diagrams 生成）
+> 確認每個 Class 的每個 Public Method 都有至少 S/E/B 三個測試案例。
+
+| Class | Method | TC-UNIT-ID | 測試描述 | Test File | 狀態 |
+|-------|--------|-----------|---------|----------|------|
+| {{CLASS_NAME}} | {{METHOD_NAME}}() | TC-UNIT-{{MOD}}-001-S | 正常成功案例 | {{TEST_FILE}} | TODO |
+| {{CLASS_NAME}} | {{METHOD_NAME}}() | TC-UNIT-{{MOD}}-001-E | 錯誤/異常案例 | {{TEST_FILE}} | TODO |
+| {{CLASS_NAME}} | {{METHOD_NAME}}() | TC-UNIT-{{MOD}}-001-B | 邊界值案例 | {{TEST_FILE}} | TODO |
+（依 class-inventory.md 完整列出所有 class 的所有 public method）
+
+**Method 覆蓋率統計：**
+
+| 類別 | 總 Method 數 | 已有 TC-ID | 覆蓋率 |
+|------|------------|-----------|-------|
+| Domain Layer | {{N}} | {{N}} | {{N}}% |
+| Application Layer | {{N}} | {{N}} | {{N}}% |
+| Infrastructure Layer | {{N}} | {{N}} | {{N}}% |
+| Presentation Layer | {{N}} | {{N}} | {{N}}% |
+| **合計** | **{{N}}** | **{{N}}** | **{{N}}%** |
+
+---
+
 *RTM 文件應在每次 Sprint 結束後同步更新，並在 Release 前確認所有 Must-have 需求的 PASS 率達 100%。*
