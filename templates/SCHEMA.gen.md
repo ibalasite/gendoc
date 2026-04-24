@@ -249,7 +249,7 @@ $$ LANGUAGE plpgsql;
 ## 生成前自我檢核清單
 
 - [ ] §2 命名規範已說明（表名/欄位名大小寫規則 + ID 策略選擇：UUID/BIGSERIAL）
-- [ ] §3 Soft Delete 模式已定義（deleted_at + 唯一索引策略）
+- [ ] §2.4 Soft Delete 模式已定義（deleted_at + 唯一索引策略）
 - [ ] §4 正規化規則已說明（1NF-BCNF + 刻意反正規化需有理由）
 - [ ] §5 索引策略已填寫（B-Tree/Hash/GIN/Partial/Covering + 選擇性查詢）
 - [ ] §6 Audit Log Schema 已定義（含 GDPR erasure 支援）

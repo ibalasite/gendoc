@@ -222,7 +222,21 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 
 ---
 
-### §4 Typography System（字型系統）[all]
+### §6 Character & UI Visual Specs → §4 & §5 重組說明
+
+> **骨架對照**：VDD.md 的 §4 = 角色與世界設計、§5 = UI 視覺系統（含 Typography）、§6 = Design Token → 工程交付。
+> 以下生成規則依骨架 §-編號排列。
+
+### §4 角色與世界設計（Character & World Design）[game / 部分 saas-web]
+
+依 Product Type 生成：
+- **[game]**：角色視覺規格（外觀、配色、動作語言）、場景 / 環境設計語言、世界觀色彩體系
+- **[saas-web / mobile]**：品牌吉祥物（若有）、插畫風格定義、Icon 視覺語言
+- 若無角色設計需求，填入「N/A — 本產品無角色設計需求」並說明替代視覺識別方式
+
+---
+
+### §5 UI 視覺系統（UI Visual System，含 Typography System）[all]
 
 **必填項目**：
 
@@ -257,7 +271,7 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 
 ---
 
-### §5 Design Tokens（設計代幣）[all]
+### §6 Design Token → 工程交付（Design Tokens）[all]
 
 **必填項目**（三層架構，必須全部完整，不得留 placeholder）：
 
@@ -389,9 +403,9 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 
 ---
 
-### §6 Character & UI Visual Specs（角色與 UI 視覺規格）
+### §4 詳細生成規則 / §5 元件規格（Character & UI Component Detail Rules）
 
-#### §6a [game] Character Design（角色設計）
+#### §4a [game] Character Design（角色設計）
 
 **必填項目**：
 
@@ -424,7 +438,7 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
    |------|-------|---------|-----------|------------|
    | <場景 1（來自 PRD）> | <色調描述> | <左上 / 頂部 / 逆光> | <晴天 / 夜晚 / 雨天> | <霧氣 / 粒子效果 / 動態背景> |
 
-#### §6b [saas-web] [mobile] UI Component Visual Specs（UI 元件視覺規格）
+#### §5a [saas-web] [mobile] UI Component Visual Specs（UI 元件視覺規格）
 
 **必填項目**（≥8 個元件，每個元件涵蓋所有 States）：
 

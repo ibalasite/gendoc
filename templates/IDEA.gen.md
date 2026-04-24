@@ -26,10 +26,10 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 | 上游素材 | 提供資訊 | 對應 IDEA.md 章節 |
 |---------|---------|-----------------|
 | `docs/req/*.md / *.txt / *.pdf` | 產品原始構想、市場研究、競品資料、技術調研、使用者訪談紀錄 | 全章節（依 Appendix C 標記的應用範圍） |
-| Q1 澄清結果（目標使用者） | 使用者族群、規模、核心需求 | §2 Target Users、§4 Problem Definition |
-| Q2 澄清結果（痛點） | 痛點陳述、現有替代方案的不足 | §4 Problem Definition |
-| Q3 澄清結果（限制條件） | 技術限制、預算、時間、法規 | §5 Constraints |
-| Q4 澄清結果（規模） | 使用量、市場規模估算 | §3 Market Opportunity |
+| Q1 澄清結果（目標使用者） | 使用者族群、規模、核心需求 | §3 Target Users、§2 Problem Statement |
+| Q2 澄清結果（痛點） | 痛點陳述、現有替代方案的不足 | §2 Problem Statement |
+| Q3 澄清結果（限制條件） | 技術限制、預算、時間、法規 | §6 Clarification Interview Record |
+| Q4 澄清結果（規模） | 使用量、市場規模估算 | §7 Market Intelligence |
 | Q5 澄清結果（補充資訊） | 其他關鍵背景資訊 | 各相關章節 |
 | Web Research 摘要 | 競品分析、市場動態、技術建議 | §7 Market Intelligence（競品/技術章節）|
 
@@ -75,63 +75,93 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
   4. Why Now（為什麼現在是時機）
   5. Key Differentiator（與現有方案的核心差異）
 - 禁止使用模糊詞語（如「更好的體驗」「創新方案」）—— 必須具體、可驗證
+- §1.2 核心假說（Lean Hypothesis）：填寫「我們相信 [目標使用者] 若能 [我們提供的解決方案]，將能 [實現什麼目標]，我們知道成功當 [驗證指標]」
+- §1.3 成功願景：3 年後這個產品成功了，世界會有什麼不同？（1-2 段）
+- §1.4 Innovation Type：選擇並說明創新類型（Disruptive / Sustaining / Efficiency）
 
-### §2 Target Users（目標使用者）
+### §2 Problem Statement（問題陳述）
+- 來自 Q2 澄清結果
+- §2.1 As-Is Narrative：現狀工作流描述（含 workaround 行為、痛點發生頻率）
+- §2.2 根本原因分析（5 Whys）：連續追問 5 個「為什麼」找出根本原因
+- §2.3 問題規模：頻率 × 影響度 = 優先程度，含量化估算或定性說明
+- 禁止泛泛描述——必須引用 Q2 原文或 docs/req/ 素材
+
+### §3 Target Users（目標使用者）
 - 來自 Q1 澄清結果
-- 描述使用者族群的 3-5 個特徵（職業/行為/環境/需求）
-- 包含「不是我們的使用者」（明確排除群體，至少 1 條）
+- §3.1 主要使用者群：描述使用者族群的 3-5 個特徵（職業/行為/環境/需求）
+- §3.2 Jobs to Be Done：使用者要完成的核心任務（至少 3 個）
+- §3.3 非目標使用者：明確排除群體（至少 1 條）+ 排除原因
 - 規模估算（定性或定量均可，但需說明依據）
 
-### §3 Market Opportunity（市場機會）
-- 來自 Q4 澄清結果 + Web Research
-- TAM/SAM 初步估算（可為定性描述）
-- 市場時機說明（趨勢驅動因素）
+### §4 Value Hypothesis（價值假說）
+- §4.1 核心價值主張（Value Proposition Canvas）：填寫「對 [目標使用者]，[產品名] 是一個 [解決方案類型]，能夠 [核心價值]，不像 [替代方案]，我們 [差異化優勢]」
+- §4.2 差異化定位：與至少 2 個競品或替代方案的對比（優勢 / 劣勢各列）
+- 禁止使用「全方位解決方案」「業界最佳」等模糊聲明
 
-### §4 Problem Definition（問題定義）
-- 來自 Q2 澄清結果
-- As-Is Narrative（現狀工作流描述，含 workaround 行為）
-- 問題的嚴重性評估（頻率 × 影響度）
-- 與市場已有解法的不足說明
+### §5 MVP & Learning Plan（最小可行驗證計畫）
+- §5.1 MVP 邊界定義：P0 必做功能（不超過 5 項，每項附假設驗證方式）
+  - P1 應該做功能（可延後）
+  - P2 未來可考慮功能
+- §5.2 Validation Metrics：驗證成功的可量化指標（至少 3 個，含目標數值）
+- §5.3 Riskiest Assumption：最高風險假設（Leap of Faith），並說明如何用 MVP 驗證它
 
-### §5 Constraints（已知限制）
-- 來自 Q3 澄清結果
-- 分類列出：技術限制、預算限制、時間限制、法規/合規限制
-- 硬性限制（不可協商）vs. 軟性限制（可討論）需區分標注
-
-### §6 Q1–Q5 澄清訪談記錄（完整保存）
-- 原文保存 Q1-Q5 的問題與回答
+### §6 Clarification Interview Record（澄清訪談記錄）
+- 原文保存 Q1-Q5 的問題與回答（含技術限制、預算、時間、法規等限制條件）
 - 禁止摘要或改寫——保留原始輸入
 - 目的：作為後續 BRD/PRD 生成的可追溯原始資料
 
-### §7 Market Intelligence（市場研究）
-- 來自 Web Research 摘要
-- **競品分析**：至少 2 個競品的優劣勢對比表
-- **技術調研**：關鍵技術選項或趨勢
-- **風險評估**：市場或技術層面已知風險
+### §7 Market & Competitive Intelligence（市場與競品情報）
+- 來自 Q4 澄清結果 + Web Research 摘要
+- §7.1 競品 / 參考資源：至少 2 個競品的優劣勢對比表（功能、定價、市場份額）
+- §7.2 技術生態建議：關鍵技術選項或趨勢（依 docs/req/ 素材或 Web Research）
+- §7.3 研究來源：列出所有引用的市場資料來源
+- TAM/SAM 初步估算（可為定性描述）+ 市場時機說明（趨勢驅動因素）
 
-### §8 Initial Feature Hypotheses（初始功能假設）
-- P0 必做功能（MVP 核心，不超過 5 項）
-- P1 應該做功能
-- P2 未來可考慮功能
-- 每項功能附一句「假設驗證方式」
+### §8 Initial Risk Assessment（初始風險評估）
+- §8.1 風險矩陣：列出已知風險（可能性 × 影響度），至少 3 條
+- §8.2 Kill Conditions：至少 2 條明確的專案終止條件（觸發條件 + 觸發閾值）
+  - 例：「若 Pilot 期間 NPS < 20，終止開發」
+  - 禁止使用「若無市場需求」等模糊條件
+- §8.3 Dependencies & External Risks：外部依賴（第三方 API、法規、合作夥伴）風險
+- §8.4 Pre-mortem：若 1 年後此專案失敗，最可能的失敗原因是什麼？（至少 2 條）
 
-### §9 IDEA Quality Score（品質評分）
+### §9 Business Potential（初步商業潛力）
+- §9.1 商業模式假說：初步推斷的獲利方式（訂閱 / 廣告 / 交易抽成 / 授權等）
+- §9.2 戰略對齊：與公司現有產品線或戰略方向的關聯說明
+- 若商業模式尚不明確，標注「商業模式 TBD，由 BRD 定義」並說明暫緩原因
+
+### §10 Executive Sponsorship & Stakeholder Alignment（執行贊助與利害關係人對齊）
+- §10.1 執行贊助人：填寫負責人姓名（若未知，填「TBD — 由 BRD 釐清」）
+- §10.2 Stakeholder Pre-alignment Matrix：關鍵利害關係人清單（角色 / 訴求 / 對齊狀態）
+- §10.3 Communication Plan：如何定期向利害關係人報告進度（頻率 / 格式）
+
+### §11 IDEA Quality Score（品質評分）
 - 對照生成結果，自評各維度分數（1-5 分）
 - 維度：問題清晰度、使用者明確度、差異化明確度、可行性、市場時機
 - 若任一維度 ≤ 2，需在此節說明原因與補救方式
 
-### §10 Risk & Kill Conditions（風險與終止條件）
-- 至少 2 條明確的 Kill Conditions（觸發條件 + 觸發閾值）
-- 例：「若 Pilot 期間 NPS < 20，終止開發」
-- 禁止使用「若無市場需求」等模糊條件
+### §12 Critical Assumptions（關鍵假設清單）
+- 列出本 IDEA 成立的所有前提假設（至少 3 條）
+- 每條附：假設描述 / 驗證方法 / 驗證時間點
+- 標注優先驗證順序（最不確定且影響最大的先驗證）
 
-### Handoff Checklist（移交清單）
+### §13 Open Questions（待解問題）
+- 列出尚未解答、需在 BRD 或 PRD 階段釐清的問題
+- 格式：問題描述 / 負責人 / 期限
+
+### §14 IDEA → BRD Handoff Checklist（移交清單）
 - 確認以下事項已完成後，才可進行 BRD 生成：
-  - [ ] Q1-Q5 澄清結果均已記錄
-  - [ ] 競品分析已完成（≥ 2 個競品）
-  - [ ] Kill Conditions 已定義（≥ 2 條）
+  - [ ] Q1-Q5 澄清結果均已記錄（§6）
+  - [ ] 競品分析已完成（≥ 2 個競品，§7）
+  - [ ] Kill Conditions 已定義（≥ 2 條，§8.2）
   - [ ] docs/req/ 素材均已關聯至對應章節
-  - [ ] IDEA Quality Score ≥ 3（所有維度）
+  - [ ] IDEA Quality Score ≥ 3（所有維度，§11）
+  - [ ] Critical Assumptions 已列出（≥ 3 條，§12）
+
+### §15 Traceability Note（溯源說明）
+- 說明本 IDEA.md 與原始輸入素材（docs/req/）的對應關係
+- 列出哪些章節來自哪個素材檔案（格式：§章節 ← docs/req/檔案名）
+- 目的：確保 BRD/PRD 生成時可追溯回最原始的使用者輸入
 
 ### Appendix C（素材清單）
 - 列出所有引用的 docs/req/ 素材
@@ -157,13 +187,15 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 - [ ] DOC-ID 格式正確（IDEA-XXX-YYYYMMDD）
 - [ ] §0 Input Source：輸入類型和素材清單已填寫
 - [ ] §1 Idea Essence：Elevator Pitch 5 句已填寫（Who / Problem / Solution / Why Now / Differentiator）
-- [ ] §2 Target Users：明確的使用者描述 + 「不是我們的使用者」
-- [ ] §4 Problem Definition：As-Is Narrative 已填寫（非泛泛描述）
-- [ ] §5 Constraints：硬性 / 軟性限制已區分
-- [ ] §6 Q1-Q5：原始澄清結果已完整保存
+- [ ] §2 Problem Statement：As-Is Narrative 已填寫（非泛泛描述）
+- [ ] §3 Target Users：明確的使用者描述 + 「不是我們的使用者」
+- [ ] §4 Value Hypothesis：差異化定位（對比 ≥ 2 個競品）
+- [ ] §5 MVP & Learning Plan：P0 功能 ≤ 5 項，每項有假設驗證方式
+- [ ] §6 Clarification Interview Record：Q1-Q5 原始澄清結果已完整保存
 - [ ] §7 Market Intelligence：競品分析表 ≥ 2 個競品
-- [ ] §9 IDEA Quality Score：每個維度有分數（非空白）
-- [ ] §10 Risk & Kill Conditions：Kill Conditions ≥ 2 條且具體可測
-- [ ] Handoff Checklist：已填寫完畢
+- [ ] §8 Initial Risk Assessment：Kill Conditions ≥ 2 條且具體可測
+- [ ] §11 IDEA Quality Score：每個維度有分數（非空白）
+- [ ] §12 Critical Assumptions：關鍵假設 ≥ 3 條
+- [ ] §14 Handoff Checklist：已填寫完畢
 - [ ] Appendix C：docs/req/ 素材清單已列出所有引用檔案
 - [ ] 全文無 "TBD"、"待補"、"N/A（無資料）" 等空白佔位

@@ -227,6 +227,43 @@ for round in range(1, max_rounds + 1):
 - [ ] C-7: 是否有覆蓋「引擎 API 版本正確性」的審查項（若涉及多引擎）？
 - [ ] C-8: upstream-alignment 是否列出所有關鍵上游對齊點？
 
+### D. 三件套章節引用對齊審查（Section Number Alignment）
+
+**背景**：歷史上 EDD.gen.md 曾出現 §4.5=Domain Events、§10=UML 的錯誤，而骨架 EDD.md 實際是 §4.5=UML、§10=Observability。此錯置導致 AI 把 UML 生成在錯誤的章節位置。此類別專門檢查三件套之間的章節號一致性。
+
+**執行步驟**：
+1. 從 {TYPE}.md 提取所有主要章節（`## N. 章節名` 或 `## §N 章節名`）→ 建立「骨架章節表」
+2. 從 {TYPE}.gen.md 的「章節結構 / Key Fields / TOC」區段提取所有 §N 引用 → 對照骨架
+3. 從 {TYPE}.review.md 提取所有審查項目中的 §N 引用 → 對照骨架
+
+- [ ] D-1: {TYPE}.gen.md 的章節結構 TOC 中，每個 §N 所描述的內容是否與骨架 §N 的標題一致？
+  - 若 gen.md 說「§4 UML 圖」但骨架 §4 是「服務邊界」→ 判定為 CRITICAL 錯置
+- [ ] D-2: {TYPE}.gen.md 中是否存在重複的 §N（同一節號出現兩次描述不同內容）？
+  - 重複 §N 必然會讓 AI 混淆要在哪裡生成什麼 → CRITICAL
+- [ ] D-3: {TYPE}.gen.md 的 Key Fields / ### §N 詳細規則，其 §N 是否與骨架的實際位置一致？
+  - 若 gen.md Key Fields 說「### §1 ADR Index」但骨架 §1 是「架構目標」→ CRITICAL
+- [ ] D-4: {TYPE}.review.md 的審查項目中引用的 §N，是否與骨架實際位置一致？
+  - 若 review.md 說「檢查 §10 的 UML 圖」但骨架 §10 是「Observability」→ HIGH
+- [ ] D-5: {TYPE}.gen.md 的章節結構是否引用了骨架中不存在的 §N？
+  - 若 gen.md 說 §17 但骨架最多到 §16 → HIGH（孤立的幻影章節）
+
+**判斷方法**：
+```
+骨架 §N 章節表（從 {TYPE}.md 提取）：
+  §1 = [標題A]
+  §2 = [標題B]
+  ...
+
+Gen.md TOC 引用（從 {TYPE}.gen.md 章節結構 / Key Fields 提取）：
+  §1 = [Gen說的內容X]  → 比對骨架 §1=[標題A]：一致 / 不一致
+  §2 = [Gen說的內容Y]  → 比對骨架 §2=[標題B]：一致 / 不一致
+  ...
+
+不一致 → D-1 CRITICAL
+重複§N → D-2 CRITICAL
+§N不存在於骨架 → D-5 HIGH
+```
+
 **完成後必須輸出（格式嚴格）：**
 TEMPLATE_REVIEW_RESULT:
   type: {TYPE}
@@ -282,6 +319,11 @@ TEMPLATE_REVIEW_RESULT:
 - B-6（缺 Quality Gate）→ 加入品質門表格 + 警告區塊模板
 - C-5（缺 Fix 段落）→ 在審查項目末尾加入 **Fix**: 行
 - C-2（CRITICAL 不足）→ 將最高風險的 HIGH 升級為 CRITICAL，並加入 Risk 說明
+- D-1（章節錯置）→ 步驟：(1) 讀取 {TYPE}.md 確認骨架實際章節號 (2) 在 gen.md 章節結構 TOC 中找到錯誤的 §N (3) 修正為正確 §N 及正確內容描述 (4) 同步修正 Key Fields 中的 ### §N 標題
+- D-2（重複 §N）→ 讀取骨架確認該 §N 的真正內容，保留正確的描述，刪除或重新編號錯誤的那個
+- D-3（Key Fields §N 錯置）→ 讀取骨架確認正確位置，修改 ### §N 標題及內部描述對應到正確骨架章節
+- D-4（review.md §N 錯置）→ 讀取骨架確認正確 §N，在 review.md 中找到並修正對應審查項的 §N 引用
+- D-5（幻影 §N）→ 讀取骨架確認最大 §N，若 gen.md 引用超出範圍的 §N，刪除或修改為骨架實際存在的 §N
 
 **完成後必須輸出：**
 TEMPLATE_FIX_RESULT:
@@ -350,3 +392,7 @@ elif terminate_reason.startswith("MAX_ROUNDS"):
 | §章節未被審查覆蓋 | .review.md | MEDIUM | 加入對應 layer 的審查項 |
 | 上游鏈不完整 | .gen.md | MEDIUM | 比對 frontmatter upstream-docs，補缺漏的上游 |
 | frontmatter quality-bar 太模糊 | .gen.md | MEDIUM | 改為可驗證的具體條件（如「§9 所有數值非 placeholder」） |
+| gen.md §N 與骨架 §N 內容不一致（錯置） | .gen.md | CRITICAL | 讀骨架確認正確 §N，修正 gen.md TOC + Key Fields 對應位置 |
+| gen.md 同一 §N 出現兩次（重複）| .gen.md | CRITICAL | 保留正確描述，刪除或重編號錯誤條目 |
+| review.md §N 引用與骨架不一致 | .review.md | HIGH | 讀骨架確認正確 §N，修正 review.md 審查項引用 |
+| gen.md 引用骨架不存在的 §N（幻影）| .gen.md | HIGH | 刪除幻影 §N 或對應到骨架實際存在的章節 |

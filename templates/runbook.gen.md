@@ -184,6 +184,42 @@ SLO Burn Rate PromQL（Google SRE Workbook 標準）：
 - §7.9 Backup Failure（若 EDD §13.5 有備份策略）
 - §7.10 Cron Job / Batch Failure（若 EDD 有 CronJob 設計）
 
+### §8 Routine Maintenance
+
+**§8.1 Maintenance Schedule** — 從以下來源填入真實數據：
+- Maintenance Window：從 BRD 峰值流量窗口 + PRD 維護窗口限制推導（非預設 03:00 UTC）
+- `{{CUSTOM_MAINTENANCE_TASK}}`：從 EDD §9 CI/CD 設計或 PDD 特殊維護需求補充自訂任務列
+- Secrets rotation Owner：`Security team — see §11.1`（anchor 必須指向真實章節）
+
+**§8.2 Database Maintenance** — 所有 kubectl 命令使用真實變數：
+- `{{DB_NAMESPACE}}`：來自 Key Fields `DB_NAMESPACE`
+- `{{DB_APP_LABEL}}`：來自 Key Fields `API_APP_LABEL`（若 DB 有獨立 label，從 EDD §7 提取）
+- `{{DB_USER}}`：來自 Key Fields `DB_USER`
+- `{{DB_NAME}}`：來自 Key Fields `DB_NAME`
+- `{{VACUUM_DURATION}}` + `{{DB_SIZE_GB}}`：從 SCHEMA.md §13 資料量估算推導（若無則省略此行）
+- `{{INDEX_NAME}}`：列出 SCHEMA.md §5 中所有複合索引名稱（逐一對應）
+- 每個命令保留 `# Expected:` 說明（非範本預設值）
+
+**§8.3 Log Rotation and Cleanup** — 填入真實值：
+- `{{K8S_NAMESPACE}}`：使用 Key Fields `K8S_NAMESPACE`
+- `{{API_APP_LABEL}}`：使用 Key Fields `API_APP_LABEL`
+- `{{LOG_RETENTION_DAYS}}`：從 BRD 資料分類或 EDD §13.5 保留期限推斷（若無，預設 30）
+- `{{LOGGING_PLATFORM}}` + `{{LOGGING_URL}}`：從 EDD §10 或 ARCH.md 日誌平台推斷；若無集中日誌平台，替換為 `kubectl logs` 替代說明
+- **若所有 pod 日誌均輸出至 stdout（K8s 標準）**：移除 `find /app/logs` 行並加注釋「日誌輸出至 stdout，由 containerd log driver 管理，無需手動輪換」
+
+**§8.4 Capacity Review** — 填入真實值：
+- `{{GRAFANA_INFRA_DASHBOARD}}`：從 EDD §10 Grafana 設定提取；若無，使用格式範例佔位符
+- `{{API_DEPLOYMENT_NAME}}`：使用 Key Fields `API_DEPLOYMENT_NAME`
+- `{{K8S_NAMESPACE}}`：使用 Key Fields `K8S_NAMESPACE`
+- Capacity Review 輸出表格：行數依 EDD §7 K8s 資源規格的真實元件（api-server / worker / postgres / redis / 若無 worker 則移除 worker 列）
+- `{{CAPACITY_REVIEW_TRACKER_URL}}`：使用格式範例佔位符（`https://{{ISSUE_TRACKER}}/capacity-review`）
+- `{{CAPACITY_SPEND_THRESHOLD}}`：若 BRD 有預算說明則填入；否則使用格式範例佔位符
+
+**§8 通用要求：**
+- §8.4 Capacity Review 必須每月執行並留存記錄
+- 所有維護任務禁止「Requires Downtime: Yes」（應確認每個任務的不停機替代方案）
+- 若 EDD 有額外 CronJob（`CRON_JOB_NAME`），在 §8.1 Maintenance Schedule 加入對應列
+
 ### §9 Rollback Procedures
 
 **§9 各子章節完整自包含（不得引用「見上方」）：**

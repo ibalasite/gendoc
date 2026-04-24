@@ -9,7 +9,7 @@ upstream-docs:
   - docs/PDD.md
   - docs/VDD.md     # Layer 3.5 — 視覺設計系統（Design Token 命名空間、資產管線架構影響 CDN/Build Pipeline 選型）
   - docs/EDD.md
-quality-bar: "所有 PRD P0 功能在 §2 有對應元件；每個 Service 有 Interface 定義；依賴方向正確（Controller→Service→Repository）；C4 L1/L2/L3 Mermaid 圖均已生成；Data Flow Diagram 含 PII 流向表；§9 Zero-Trust 安全架構已描述；Network Architecture VPC 圖已生成；Scalability Ceiling Analysis 至少 4 個瓶頸點；ADR 至少 1 個完整條目；Architecture Review Checklist 12 個 NFR 均已驗證；所有 Mermaid 圖均使用 TD 方向。"
+quality-bar: "所有 PRD P0 功能在 §3 元件清單有對應元件；每個 Service 有 Interface 定義（§2 定義規範）；依賴方向正確（Controller→Service→Repository）；§3.1~§3.3 C4 L1/L2/L3 Mermaid 圖均已生成（TD 方向）；§3.4 Data Flow Diagram 含 PII 流向表；§9.2 Zero-Trust 安全架構已描述；§9.4 Network Architecture VPC 圖已生成；§10.2 Scalability Ceiling Analysis 至少 4 個瓶頸點；§14 ADR 至少 1 個完整條目；§15 Architecture Review Checklist 12 個 NFR 均已驗證；§5.2 API Gateway + Circuit Breaker 配置已說明；所有 Mermaid 圖均使用 TD 方向。"
 ---
 
 # ARCH 生成規則
@@ -55,28 +55,24 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 ARCH 必須涵蓋以下所有章節（對應 templates/ARCH.md 結構）：
 
 - §0 Document Control（DOC-ID / 上游文件連結）
-- §1 ADR Index（架構決策記錄索引，至少 3 個標題）
-- §2 元件清單（Module / Package / Service）
-- §3 分層設計（含依賴方向）
+- §1 架構目標（§1.1 品質屬性需求 Quality Attribute Requirements + §1.2 ADR Index 架構決策記錄索引，至少 3 個標題）
+- §2 架構模式選擇（Clean Arch / DDD / Hexagonal 等架構風格，含介面定義規範與元件命名規則）
+- §3 系統元件圖（元件清單 Module/Package/Service + 分層設計含依賴方向 + Domain 模型）
 - §3.1~§3.3 C4 Model（L1 Context / L2 Container / L3 Component）
 - §3.4 Data Flow Diagram（Write Path 序列圖 + PII 敏感資料流向表 + Masking 規則）
-- §4 介面定義（Interface / Abstract Class，以 LANG_STACK 語法）
-- §4 Service Boundaries（Context Map / Anti-Corruption Layer）
-- §5 Domain 模型（不含 ORM annotation，純業務語意）
-- §6 跨元件通訊設計
-- §7 錯誤處理策略（分層錯誤轉換 + 錯誤碼規範）
-- §7 High-Availability Design（HA 策略）
-- §8 Mermaid 架構圖（TD 方向，至少 2 張）
-- §9.1 Zero-Trust 安全架構（mTLS / RBAC / 網路分隔）
-- §9.2 Secret Rotation Strategy（DB 憑證 / API Key 輪替週期）
-- §9.4 Network Architecture（VPC 拓撲 Mermaid 圖 + Security Group 規則表 + AZ 配置）
-- §9.5 Compliance Architecture Mapping（法規/元件/資料類型/技術措施/稽核日誌）
-- §10.2 Scalability Ceiling Analysis（瓶頸上限表 + 架構演進 4 Phase 路線）
-- §12 Observability Architecture（Metrics / Tracing / Logging 三支柱）
-- §14 ADR（完整 ADR 條目，含 Context/Decision/Consequences）
-- §15 Architecture Review Checklist（12 個 Non-Functional Requirements）
+- §4 服務邊界（Context Map / Anti-Corruption Layer / Interface 定義）
+- §5 通訊模式（§5.1 同步/非同步矩陣 + §5.2 Service Mesh/API Gateway + §5.3 Event-Driven 含事件定義表）
+- §6 資料分層（分層架構 + 錯誤轉換策略 + 錯誤碼規範）
+- §7 高可用設計（HA 策略：Active-Active / Active-Standby）
+- §8 災難恢復（DR）（RTO/RPO 目標 + Backup 策略 + Failover 計畫）
+- §9 安全架構（§9.1 縱深防禦 / §9.2 Zero-Trust Network Policy / §9.3 Secret 輪換策略 / §9.4 Network Architecture / §9.5 Compliance Mapping）
+- §10 擴展策略（§10.2 Scalability Ceiling Analysis + 瓶頸上限表 + 架構演進 4 Phase 路線）
+- §11 技術棧全覽
+- §12 Observability 架構（Metrics / Tracing / Logging 三支柱）
+- §13 外部依賴地圖
+- §14 ADR（完整 ADR 條目，含 Context/Decision/Consequences，至少 1 個）
+- §15 架構審查檢查清單（12 個 Non-Functional Requirements）
 - §16 FinOps Cost Optimization（成本分配 Tag 策略 + 月度 Review 規則）
-- §17 API Gateway & Service Mesh（Kong/AWS API GW 配置 + Circuit Breaker 狀態機）
 
 ---
 
@@ -89,14 +85,39 @@ ARCH 必須涵蓋以下所有章節（對應 templates/ARCH.md 結構）：
 - 上游 PDD：`[PDD.md](PDD.md)`（若存在）
 - 上游 PRD：`[PRD.md](PRD.md)`
 
-### §1 ADR Index（架構決策記錄索引）
+### §1 架構目標（品質屬性需求 + ADR Index 索引）
 
-至少列出 3 個架構決策標題，例如：
+**§1.1 品質屬性需求**：填入所有 QAR（可用性、延遲、吞吐量、安全、可維護性）目標值，從 PRD §7 Non-Functional Requirements 繼承。
+
+**§1.2 ADR Index**：至少列出 3 個架構決策標題，例如：
 - ADR-001 選擇 PostgreSQL 作為主資料庫
 - ADR-002 採用 Canary 部署策略
 - ADR-003 使用 NATS 作為消息佇列
 
-### §2 元件清單
+### §2 架構模式選擇
+
+說明所選架構風格（Clean Architecture / DDD / Hexagonal / Event-Driven 等）及理由，並定義以下規範：
+- 介面定義規範（Interface / Abstract Class，以 LANG_STACK 語法）— 每個 Service 和 Repository 必須先定義 Interface
+- 元件命名規則（命名空間、前綴/後綴約定）
+
+**Interface 定義範例（Python）**：
+```python
+from abc import ABC, abstractmethod
+class UserServiceInterface(ABC):
+    @abstractmethod
+    async def get_user(self, user_id: str): ...
+```
+**Interface 定義範例（Go）**：
+```go
+type UserService interface {
+    GetUser(ctx context.Context, userID string) (*User, error)
+}
+```
+依實際 lang_stack 選擇對應語言語法。
+
+### §3 系統元件圖（元件清單 + 分層設計 + Domain 模型）
+
+**元件清單表**：
 
 | 元件 | 層次 | 職責 | 對應 PRD 功能 |
 |------|------|------|-------------|
@@ -105,6 +126,18 @@ ARCH 必須涵蓋以下所有章節（對應 templates/ARCH.md 結構）：
 | `repository.<entity>` | Repository | DB 操作、返回 Domain 物件 | — |
 | `infra.cache` | Infrastructure | Redis 快取封裝 | — |
 | `infra.queue` | Infrastructure | NATS/消息佇列封裝 | — |
+
+**Domain 模型**（不含 ORM annotation，純業務語意）：列出所有 Domain 物件，例如：
+```markdown
+#### User
+- id: UUID
+- email: string（不可變）
+- status: UserStatus（active / inactive / suspended）
+```
+
+> **跨文件命名一致性（必須）**：本節列出的 Domain 物件名稱（Entity / Aggregate 名稱），
+> 必須與 EDD §4.5.2 Class Diagram 和 SCHEMA.md 的 Table 名稱完全對應（可使用不同大小寫格式，如
+> `User` ↔ `users` table，但語義必須相同）。若名稱有差異，必須在 §14 ADR 中說明並記錄決策。
 
 ### §3 分層設計（含依賴方向）
 
@@ -148,56 +181,18 @@ ARCH 必須涵蓋以下所有章節（對應 templates/ARCH.md 結構）：
 | Email | API → UserService → DB | PostgreSQL | Log 中遮罩後 4 碼 |
 | Phone | <依業務> | <依業務> | 僅顯示後 4 碼 |
 
-### §4 介面定義
+### §4 服務邊界
 
-每個 Service 和 Repository 必須先定義 Interface（以 LANG_STACK 語法）。
-
-**Python 範例**：
-```python
-# service/interfaces.py
-from abc import ABC, abstractmethod
-from typing import Optional
-from domain.models import User, Order
-
-class UserServiceInterface(ABC):
-    @abstractmethod
-    async def get_user(self, user_id: str) -> Optional[User]: ...
-
-    @abstractmethod
-    async def create_user(self, email: str, name: str) -> User: ...
-```
-
-**Go 範例**：
-```go
-// service/interfaces.go
-type UserService interface {
-    GetUser(ctx context.Context, userID string) (*User, error)
-    CreateUser(ctx context.Context, email, name string) (*User, error)
-}
-```
-
-依實際 lang_stack 選擇對應語言語法。
-
-### §4 Service Boundaries
-
-- Context Map（依 EDD §3.4 對應）
+- Context Map（依 EDD §3.4 對應）：列出所有 Bounded Context 及其邊界
 - Anti-Corruption Layer：若有外部系統整合，說明翻譯層設計
+- Interface 定義參照 §2 定義的規範
+- **API.md 端點歸屬對照**：列出 API.md §3 的所有 Endpoint 與本節 Service 的對應關係。
+  格式：`POST /api/v1/users → UserService（本節 §4 Bounded Context "User Management"）`
+  確保每個 Endpoint 可追溯至對應 Service，無孤立端點。
 
-### §5 Domain 模型
+### §5 通訊模式
 
-列出所有 Domain 物件（不含 ORM annotation，純業務語意）：
-
-```markdown
-#### User
-- id: UUID
-- email: string（不可變，建立後不可修改）
-- name: string
-- status: UserStatus（active / inactive / suspended）
-- createdAt: DateTime（UTC）
-- deletedAt: DateTime?（軟刪除）
-```
-
-### §6 跨元件通訊設計
+**§5.1 同步/非同步通訊矩陣**：
 
 | 通訊類型 | 使用場景 | 實作方式 |
 |---------|---------|---------|
@@ -206,22 +201,40 @@ type UserService interface {
 | 快取 | 高頻讀取 | Redis（TTL 依業務決定）|
 | DB 事務 | 跨表寫入 | PostgreSQL transaction block |
 
-事件定義表（若有 Message Queue）：
+**事件定義表（§5.3 Event-Driven，若有 Message Queue）**：
 
 | 事件名稱 | Publisher | Subscriber | Payload |
 |---------|----------|-----------|---------|
 | `order.created` | OrderService | NotificationService | {order_id, user_id, amount} |
 | `user.status_changed` | UserService | AuditService | {user_id, from, to} |
 
-### §7 錯誤處理策略
+**§5.2 API Gateway & Service Mesh（Kong / AWS API Gateway）**：
 
-**分層錯誤轉換**
+| Plugin | 配置值 | 目的 |
+|--------|--------|------|
+| JWT Auth | RS256，Token TTL 1h | 認證 |
+| Rate Limiting | 100 req/min per IP | 防濫用 |
+| Prometheus | 每個 route 暴露 metrics | 可觀測性 |
+| Request Transform | Header 注入 Correlation ID | 追蹤 |
+
+Circuit Breaker 狀態機（熔斷器）：
+```
+Closed ──(錯誤率 > 閾值)──► Open ──(等待 Timeout)──► Half-Open
+  ▲                                                       │
+  └──────────────(測試請求成功)──────────────────────────┘
+```
+- 錯誤閾值：50%（超過 10 次請求）
+- Open 持續時間：30 秒
+
+### §6 資料分層（含錯誤處理策略）
+
+**分層錯誤轉換**：
 
 1. Repository 層 → 回傳 Domain Error（DatabaseError、NotFoundError）
 2. Service 層 → 轉換為 Business Error（UserNotFound、InsufficientBalance）
 3. Controller 層 → 轉換為 HTTP 4xx / 5xx
 
-**錯誤碼規範**
+**錯誤碼規範**：
 
 | HTTP 碼 | 場景 |
 |---------|------|
@@ -234,26 +247,32 @@ type UserService interface {
 | 429 | Rate limit |
 | 500 | 系統錯誤（不揭露內部訊息）|
 
-### §7 High-Availability Design
+### §7 高可用設計
 
 - HA 策略：Active-Active / Active-Standby（必須選定並說明理由）
 - 失效轉移設計
 - 健康檢查頻率
 - 最小健康 Pod 數
 
-### §8 Mermaid 架構圖（TD 方向，至少 2 張）
+### §8 災難恢復（DR）
 
-**§8.1 元件依賴圖**：展示 Controller / Service / Repository / Infrastructure 層的完整依賴關係。
+- **RTO/RPO 目標**：依 PRD 或 BRD 的 SLA 填入（如 RTO ≤ 30 min, RPO ≤ 5 min）
+- **Backup 策略**：DB 備份頻率 / 備份保留期 / 異地備援
+- **Failover 計畫**：主區域故障時的切換步驟（含預期 Recovery Time）
 
-**§8.2 請求生命週期圖**：依主要功能的 Sequence Diagram，展示完整請求從 Client 到 DB 的路徑。
+> **Mermaid 圖分佈說明**：ARCH 中的架構 Mermaid 圖分佈在各章節（§3.1~§3.3 C4 Model / §3.4 DFD / §5 通訊模式 / §9.4 Network Architecture），均使用 TD 方向，所有節點使用真實服務名稱，不留 placeholder。
 
-### §9.1 Zero-Trust 安全架構
+### §9.1 縱深防禦（Defense in Depth）
+
+縱深防禦層次圖（必須使用 Mermaid TD，包含：網路層 / 應用層 / 資料層）。
+
+### §9.2 Zero-Trust Network Policy
 
 - mTLS：服務間通訊均需雙向 TLS 認證
 - RBAC：角色 → 權限 → 資源的完整映射
 - 網路分隔：Public Subnet（Ingress only）/ Private Subnet（Service）/ Data Subnet（DB/Cache）
 
-### §9.2 Secret Rotation Strategy
+### §9.3 Secret 輪換策略
 
 | Secret 類型 | 輪替頻率 | 輪替方式 | 告警 |
 |------------|---------|---------|------|
@@ -366,55 +385,31 @@ type UserService interface {
 
 **成本優化重點**：Reserved Instance / Spot Instance 比例、未使用資源清理、DB 儲存空間 + PIOPS 優化。
 
-### §17 API Gateway & Service Mesh
-
-**API Gateway 配置標準（Kong / AWS API Gateway）**
-
-| Plugin | 配置值 | 目的 |
-|--------|--------|------|
-| JWT Auth | RS256，Token TTL 1h | 認證 |
-| Rate Limiting | 100 req/min per IP | 防濫用 |
-| Prometheus | 每個 route 暴露 metrics | 可觀測性 |
-| Request Transform | Header 注入 Correlation ID | 追蹤 |
-
-**Circuit Breaker 狀態機**
-
-```
-Closed ──(錯誤率 > 閾值)──► Open ──(等待 Timeout)──► Half-Open
-  ▲                                                       │
-  └──────────────(測試請求成功)──────────────────────────┘
-```
-
-配置：
-- 錯誤閾值：50%（超過 10 次請求）
-- Open 持續時間：30 秒
-- Half-Open 測試次數：3 次
-
 ---
 
 ## Self-Check Checklist（生成前品質核查）
 
-- [ ] 所有 PRD P0 功能在 ARCH §2 有對應元件
-- [ ] 每個 Service 有對應 Interface 定義
+- [ ] 所有 PRD P0 功能在 ARCH §3 元件清單有對應元件
+- [ ] 每個 Service 有對應 Interface 定義（§2 架構模式選擇中定義規範）
 - [ ] 依賴方向正確（Controller → Service → Repository，不逆向）
-- [ ] Domain 模型不含 DB 框架 annotation（純業務語意）
-- [ ] §8 至少 2 張 Mermaid 圖，均為 TD 方向
-- [ ] §1 ADR Index 已建立（至少列出 3 個架構決策標題）
-- [ ] §3.1~§3.3 C4 L1/L2/L3 Mermaid 圖均已生成（含真實服務名稱）
+- [ ] §3 Domain 模型不含 DB 框架 annotation（純業務語意）
+- [ ] §3.1~§3.3 C4 L1/L2/L3 Mermaid 圖均已生成（含真實服務名稱，TD 方向）
 - [ ] §3.4 Data Flow Diagram 已生成（Write Path 序列圖 + PII 資料流向表）
-- [ ] §9.1 Zero-Trust 安全架構已描述（含 mTLS/RBAC/網路分隔）
-- [ ] §9.2 Secret Rotation Strategy 已填寫（DB 憑證/API Key 輪替週期）
+- [ ] §1.2 ADR Index 已建立（至少列出 3 個架構決策標題）
+- [ ] §4 服務邊界（Context Map / Anti-Corruption Layer）是否已明確？
+- [ ] §5.2 API Gateway：Kong/AWS API GW 配置標準（JWT + Rate Limiting + Prometheus plugin）是否已說明？
+- [ ] §5.2 Circuit Breaker：熔斷器狀態機（Closed/Open/Half-Open + 錯誤閾值配置）是否已設計？
+- [ ] §7 高可用設計：HA 策略（Active-Active / Active-Standby）是否已定義？
+- [ ] §8 災難恢復（DR）：RTO/RPO 目標是否已設定？
+- [ ] §9.2 Zero-Trust 安全架構已描述（含 mTLS/RBAC/網路分隔）
+- [ ] §9.3 Secret Rotation Strategy 已填寫（DB 憑證/API Key 輪替週期）
 - [ ] §9.4 Network Architecture VPC 圖已生成（含 Public/Private/Data Subnet + SG 規則）
 - [ ] §9.5 Compliance Architecture Mapping 已填寫（至少識別 PII 相關元件）
 - [ ] §10.2 Scalability Ceiling Analysis 已填寫（至少 4 個瓶頸點 + 架構演進路線）
+- [ ] §12 Observability Architecture：Metrics / Tracing / Logging 三支柱是否已定義？
 - [ ] §14 ADR 至少 1 個完整 ADR 條目（含 Context/Decision/Consequences）
 - [ ] §15 Architecture Review Checklist 已生成（12 個 NFR 均已驗證）
-- [ ] §4 Service Boundaries：服務邊界定義（Context Map / Anti-Corruption Layer）是否已明確？
-- [ ] §7 High-Availability Design：HA 策略（Active-Active / Active-Standby）是否已定義？
-- [ ] §12 Observability Architecture：Metrics / Tracing / Logging 三支柱是否已定義？
 - [ ] §16 FinOps Cost Optimization：成本分配 Tag 策略（Environment/Service/Team）是否已定義？
 - [ ] §16 月度 FinOps Review：成本預算警報規則（80%/100%/120% 閾值）是否已設定？
-- [ ] §17 API Gateway：Kong/AWS API GW 配置標準（JWT + Rate Limiting + Prometheus plugin）是否已說明？
-- [ ] §17 Circuit Breaker：熔斷器狀態機（Closed/Open/Half-Open + 錯誤閾值配置）是否已設計？
 
 若有遺漏，自行補齊後再寫入檔案。

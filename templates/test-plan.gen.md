@@ -328,16 +328,35 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 
 ---
 
-## §8 Test Schedule 生成規則
+## §8 Test Automation & CI/CD Integration 生成規則
 
-| 測試階段 | 開始條件 | 預計週期 | 執行方式 |
-|---------|---------|---------|---------|
-| Unit Test | 每次 commit | 持續 | CI 自動化 |
-| Integration Test | PR created | 持續 | CI 自動化 |
-| E2E Test | PR merged to main | Daily + Nightly | CI 自動化 |
-| Performance Test | Staging deploy | Weekly + Release | 排程 CI |
-| Security Test | Weekly | Weekly | 排程 CI |
-| UAT | Release Candidate 確認 | 3-5 個工作天 | 手動 |
+CI Pipeline 測試閘門（必須定義每個觸發條件）：
+
+```
+PR Created → Unit Test → Integration Test → SAST Scan → Build
+PR Merged  → E2E Test (Staging) → Smoke Test (Staging)
+Nightly    → Load Test + Security DAST
+Weekly     → Soak Test + Stress Test + Full Security Scan
+Release    → Soak Test + Stress Test + UAT Gate
+```
+
+測試執行時間目標（PR CI 必須在 10 分鐘內完成）：
+- Unit Test：< 2 分鐘
+- Integration Test：< 5 分鐘
+- SAST：< 3 分鐘
+
+並行執行策略：Unit + SAST 並行；Integration 在 Unit 通過後觸發。
+
+工具矩陣（完整版，含版本目標和設定檔位置）：
+
+| 類型 | 工具 | 版本目標 | 設定檔位置 |
+|------|------|---------|-----------|
+| Unit | （依 lang_stack）| latest stable | 對應設定檔 |
+| Integration | （依 lang_stack）| latest stable | 對應設定檔 |
+| E2E | Playwright | latest stable | `playwright.config.ts` |
+| Performance | （k6 或 Locust）| latest stable | `tests/performance/` |
+| SAST | （依 lang_stack）| latest stable | CI 設定 |
+| DAST | OWASP ZAP | latest | `zap/` |
 
 ---
 
@@ -377,57 +396,78 @@ SLO / SLI 矩陣（P50/P95/P99 均必須有具體數字）：
 
 ---
 
-## §11 CI/CD Integration 生成規則
+## §11 Security Testing Scope 生成規則
 
-CI Pipeline 測試閘門（必須定義每個觸發條件）：
+依 EDD §4（Security）和 OWASP 標準定義安全測試範圍：
 
-```
-PR Created → Unit Test → Integration Test → SAST Scan → Build
-PR Merged  → E2E Test (Staging) → Smoke Test (Staging)
-Nightly    → Load Test + Security DAST
-Weekly     → Soak Test + Stress Test + Full Security Scan
-Release    → Soak Test + Stress Test + UAT Gate
-```
+**SAST（Static Application Security Testing）：**
+- 工具：依 lang_stack（SonarQube / Bandit / Semgrep / CodeQL）
+- 觸發：PR 提交時自動執行
+- 必須掃描：注入漏洞、驗證繞過、敏感資料洩漏
 
-測試執行時間目標（PR CI 必須在 10 分鐘內完成）：
-- Unit Test：< 2 分鐘
-- Integration Test：< 5 分鐘
-- SAST：< 3 分鐘
+**DAST（Dynamic Application Security Testing）：**
+- 工具：OWASP ZAP
+- 觸發：Nightly 和 Release 前
+- 掃描目標：所有 API Endpoint（來自 API.md §3）
 
-並行執行策略：Unit + SAST 並行；Integration 在 Unit 通過後觸發。
+**必測的 OWASP Top 10 項目**（每項標注測試方法和工具）：
 
----
+| OWASP 項目 | 測試類型 | 工具 | 觸發條件 |
+|-----------|---------|------|---------|
+| A01 Broken Access Control | 整合測試 + DAST | ZAP | Nightly |
+| A02 Cryptographic Failures | SAST + 程式碼審查 | SonarQube | PR |
+| A03 Injection（SQL/NoSQL/Command）| SAST + DAST | SonarQube + ZAP | PR + Nightly |
+| A05 Security Misconfiguration | DAST + Config Scan | ZAP + Trivy | Weekly |
+| A07 Identification/Authentication | 整合測試 | 自撰測試 | PR |
 
-## §12 Tooling Matrix 生成規則
-
-完整工具矩陣表格（含版本目標和設定檔位置）：
-
-| 類型 | 工具 | 版本目標 | 設定檔位置 |
-|------|------|---------|-----------|
-| Unit | （依 lang_stack）| latest stable | 對應設定檔 |
-| Integration | （依 lang_stack）| latest stable | 對應設定檔 |
-| E2E | Playwright | latest stable | `playwright.config.ts` |
-| Performance | （k6 或 Locust）| latest stable | `tests/performance/` |
-| SAST | （依 lang_stack）| latest stable | CI 設定 |
-| DAST | OWASP ZAP | latest | `zap/` |
-| Coverage | 含於 Unit tool | - | CI 設定 |
+**滲透測試計畫**（Release 前）：若有 P0 認證 / 金融相關功能，必須列出 Pen Test 委外計畫。
 
 ---
 
-## §13 Reporting & Metrics 生成規則
+## §12 UAT Plan 生成規則
 
-**CI 報告：**
+依 PRD P0 User Story 和業務利害關係人需求，定義用戶驗收測試計畫：
+
+**UAT 範圍和參與者**：
+- 列出哪些 PRD P0 功能需要 UAT（通常為所有使用者直接操作的 P0 功能）
+- 定義 UAT 參與者（Product Owner / 業務代表 / 測試用戶）
+
+**UAT 測試案例格式**（每個 P0 功能至少 1 個 UAT 場景）：
+
+| UAT-ID | 功能 | 前置條件 | 測試步驟 | 預期結果 | 驗收標準 |
+|--------|------|---------|---------|---------|---------|
+| UAT-001 | （來自 PRD P0 功能）| （環境狀態）| 1. 操作步驟 | 系統回應 | AC 達成標準 |
+
+**UAT 環境和資料**：
+- 環境：Staging（與 Production 配置一致）
+- 測試資料：指定測試帳號和預載資料
+- 時間：Release Candidate 確認後，3-5 個工作天
+
+**UAT 通過條件**：所有 P0 UAT 案例通過 + 無 CRITICAL 缺陷 → 核准上線。
+
+---
+
+## §13 Test Schedule & Milestones 生成規則
+
+依 PRD 里程碑和 Sprint 計畫，定義測試時程：
+
+| 測試階段 | 開始條件 | 預計週期 | 執行方式 | 里程碑 |
+|---------|---------|---------|---------|-------|
+| Unit Test | 每次 commit | 持續 | CI 自動化 | 每個 PR |
+| Integration Test | PR created | 持續 | CI 自動化 | 每個 PR |
+| E2E Test | PR merged to main | Daily + Nightly | CI 自動化 | Sprint Review |
+| Performance Test | Staging deploy | Weekly + Release | 排程 CI | Release Candidate |
+| Security Test | Weekly | Weekly | 排程 CI | Release Candidate |
+| UAT | Release Candidate 確認 | 3-5 個工作天 | 手動 | Sign-off 前 |
+| Smoke Test（Production）| 每次部署後 | < 15 分鐘 | CI 自動化 | 每次 Release |
+
+**測試階段關鍵 Go/No-Go 條件**：列出各里程碑的通過標準（如「Sprint Review 通過：所有 Unit Test 通過，覆蓋率 ≥ 80%」）。
+
+**CI 報告（自動化）：**
 - 每次 CI run 產出 Coverage Report（HTML + JSON badge）
 - E2E 失敗自動截圖 + trace 存入 CI artifact（保留 30 天）
 - Performance 測試產出 HTML report（含 P50/P95/P99 圖表）
-
-**品質 Dashboard 指標（每週更新）：**
-- 測試覆蓋率趨勢（週對週）
-- Defect Density（per feature）
-- MTTR（平均修復時間）
-- Test Automation Rate
-
-閾值告警：覆蓋率下降 > 5% 觸發 Slack 通知。
+- 品質指標告警：覆蓋率下降 > 5% 觸發 Slack 通知
 
 ---
 
@@ -459,21 +499,72 @@ Release    → Soak Test + Stress Test + UAT Gate
 
 ---
 
-## §16 Glossary 生成規則
+## §16 Test Summary Report Template 生成規則
 
-必須包含以下術語定義：
+生成一個可在測試周期結束時填寫的 Test Summary Report 模板：
 
-| 術語 | 定義 |
-|------|------|
-| SLO | Service Level Objective：對服務品質的目標承諾 |
-| SLI | Service Level Indicator：衡量 SLO 達成度的指標 |
-| P99 | 第 99 百分位數回應時間 |
+**測試總結報告結構**：
+
+```markdown
+# Test Summary Report — {{PROJECT_NAME}} v{{VERSION}}
+
+**測試期間**：{{START_DATE}} – {{END_DATE}}
+**測試環境**：Staging（版本 {{STAGING_VERSION}}）
+**測試負責人**：{{QA_LEAD}}
+
+## 執行摘要
+| 測試類型 | 計劃數 | 執行數 | 通過 | 失敗 | 跳過 | 通過率 |
+|---------|-------|-------|------|------|------|-------|
+| Unit Test | N | N | N | N | N | N% |
+| Integration Test | N | N | N | N | N | N% |
+| E2E Test | N | N | N | N | N | N% |
+
+## 覆蓋率
+- 程式碼覆蓋率：N%（目標：80%+）
+- PRD P0 AC 覆蓋率：N%（目標：100%）
+
+## 缺陷摘要
+| 嚴重度 | 發現 | 已修復 | 殘留 |
+|-------|------|-------|------|
+| CRITICAL | N | N | N |
+| HIGH | N | N | N |
+
+## Go / No-Go 建議
+[ ] GO — 所有通過條件達成，建議上線
+[ ] NO-GO — 原因：{{REASON}}
+```
+
+**術語表（同時放入此節尾部）**：SLO / SLI / P99 / MTTR / TC-ID 的標準定義。
 | Soak Test | 長時間低負載測試，用於發現記憶體洩漏 |
 | SAST | Static Application Security Testing |
 | DAST | Dynamic Application Security Testing |
 | RTM | Requirements Traceability Matrix |
 | VU | Virtual User（虛擬用戶，效能測試並發單位）|
 | DoD | Definition of Done：功能完成的驗收標準 |
+
+---
+
+## §17 Open Questions 生成規則
+
+列出測試規劃過程中尚未解答的問題，需在 Sprint Planning 前釐清：
+
+| # | 問題 | 影響範圍 | 負責人 | 目標釐清時間 |
+|---|------|---------|-------|-----------|
+| 1 | （例：外部支付 API 的 Sandbox 環境是否支援 Webhook 測試？）| E2E 測試 | Dev Lead | Sprint N 開始前 |
+
+若所有問題均已在文件生成時確認，填入「無待解問題」。
+
+---
+
+## §18 Approval Sign-off 生成規則
+
+填寫核准欄位（姓名 + 日期欄位留空，供實際簽核時填入）：
+
+| 角色 | 姓名 | 簽核日期 | 備注 |
+|------|------|---------|------|
+| QA Lead | {{QA_LEAD}} | ________ | |
+| Dev Lead | {{DEV_LEAD}} | ________ | |
+| Product Owner | {{PO}} | ________ | 最終 Release 核准人 |
 
 ---
 

@@ -169,12 +169,28 @@ Context Map 關係：
 必須包含的 UML 圖種類（§4.5.1–§4.5.9）：
 
 1. **§4.5.1 Use Case Diagram（使用案例圖）**：每個主要 Actor 角色的使用案例（Mermaid `flowchart TD`）
-2. **§4.5.2 Class Diagram（類別圖）⭐（最重要）**：含 Interface 定義，依架構層次分張（Domain/Application/Infrastructure/Presentation 各一）；每個 class 必須標注 stereotype（`<<Entity>>`/`<<UseCase>>`/`<<Repository>>` 等），並列出所有 public method 含回傳型別
-3. **§4.5.3 Object Diagram（物件圖）**：具體物件實例快照，欄位含真實範例值（非型別定義）
-4. **§4.5.4 Sequence Diagram（循序圖）**：每個主要業務流程各一張（Happy Path + Error Path 分開）；參與者含 Controller/Service/Repository/DB；**最少 3 張**
-5. **§4.5.5 Communication Diagram（通訊圖）**：元件間通訊訊息序列，訊息標注序號（Mermaid `flowchart LR`）
+2. **§4.5.2 Class Diagram（類別圖）⭐（最重要）**：含 Interface 定義，依架構層次分張（Domain/Application/Infrastructure/Presentation 各一）。
+   - 每個 class **必須**標注 stereotype（`<<Entity>>`/`<<AggregateRoot>>`/`<<ValueObject>>`/`<<UseCase>>`/`<<Repository>>`/`<<DomainEvent>>` 等）
+   - 所有 public method 含回傳型別和參數型別（禁止空方法列表）
+   - 最低要求：Domain Layer 至少包含 1 個 `<<AggregateRoot>>`、2 個 `<<Entity>>`、1 個 `<<Repository>>` Interface
+   - 所有關聯線必須標注 UML 關係類型（1:1 / 1:N / M:N）和方向箭頭
+   - **命名對齊**：本節所有 Entity / Aggregate 名稱必須與 ARCH.md §3 Domain 模型和 SCHEMA.md Table 名稱一致
+3. **§4.5.3 Object Diagram（物件圖）**：具體物件實例快照，欄位含真實範例值（非型別定義）。
+   - **觸發條件**：若 §4.5.2 有 `<<AggregateRoot>>`，則必須為每個 Aggregate Root 生成至少 1 張 Object Diagram，展示具體狀態下的欄位值
+4. **§4.5.4 Sequence Diagram（循序圖）**：展示**服務內部**協作視角（與 API.md 的 Client 視角互補，不得矛盾）。
+   - 最少張數 = PRD §7 P0 User Story 中涉及狀態變更的流程總數（≥ 3 張）
+   - 每張：Happy Path 和 Error Path 必須分開為獨立圖
+   - 參與者：Controller / Service / Repository / DB（+ MessageQueue / ExternalService 若有）
+   - 非同步操作使用 `par [async]` 塊；重試機制使用 `loop [retry N times]` 塊
+   - Error Path 必須包含：1 個業務規則違反 + 1 個系統故障 + 認證失敗（若有認證）
+   - **上下游一致性**：對同一業務操作，本節的服務內部流程必須與 API.md §1 的 Client 視角邏輯一致；若有差異，標記 `[UPSTREAM_CONFLICT]`
+5. **§4.5.5 Communication Diagram（通訊圖）**：元件間通訊訊息序列，訊息標注序號（Mermaid `flowchart LR`）。
+   - **觸發條件**：若系統含 Message Queue / Event Bus，必須生成；否則標記「N/A — 無事件驅動設計」
 6. **§4.5.6 State Machine Diagram（狀態機圖）**：每個有狀態 Entity（Order/User/Payment 等）各一張（Mermaid `stateDiagram-v2`）；**最少 1 張**
-7. **§4.5.7 Activity Diagram（活動圖）**：每個關鍵業務流程各一張，含決策點和平行路徑（Mermaid `flowchart TD`）；**最少 3 張**
+7. **§4.5.7 Activity Diagram（活動圖）**：每個關鍵業務流程各一張，含決策點和平行路徑（Mermaid `flowchart TD`）；**最少 3 張**。
+   - 第 1 張：用戶主線操作（User-initiated，3-5 個步驟，2 個以上決策點）
+   - 第 2 張：系統內部處理流程（System-driven，7-10 個步驟，含 fork/join 平行路徑）
+   - 第 3 張：異常/補救流程（Exception/Compensation，如退款/回滾，4-6 個步驟）
 8. **§4.5.8 Component Diagram（元件圖）**：系統架構元件依賴（Mermaid `flowchart LR`）
 9. **§4.5.9 Deployment Diagram（部署圖）**：k8s / Cloud 部署拓撲（Mermaid `flowchart TD`）
 
@@ -191,6 +207,12 @@ Context Map 關係：
 |-------|-----------|-------|---------|---------|
 （依實際 class 名稱和推斷的 lang_stack 填入路徑）
 
+生成前自我檢查（若有任一未通過，標記「（需手動驗證）」但不中止生成）：
+- [ ] 所有 class 均有 stereotype 標記（禁止裸 class 無標注）
+- [ ] lang_stack 已填入 `.gendoc-state.json`（非 unknown）
+- [ ] class 命名遵循各層慣例：Domain（User）/ Application（CreateUserUseCase）/ Infra（UserRepositoryImpl）
+- [ ] 每個 `<<DomainEvent>>` class 在 §4.6 Domain Events 表中有對應行（命名和 Payload 一致）
+
 ---
 
 ### §4.6 Domain Events
@@ -202,6 +224,8 @@ Context Map 關係：
 | `<Entity>Created` | <Entity> 建立成功後 | `{id, created_at}` | <訂閱服務> | 是（event_id dedup）|
 | `<Entity>StatusChanged` | 狀態轉換後 | `{id, old_status, new_status}` | <訂閱服務> | 是 |
 | `<Entity>Deleted` | 軟刪除後 | `{id, deleted_at, deleted_by}` | <訂閱服務> | 是 |
+
+> **對齊要求**：此表中每個事件名稱（`<Entity>Created` 等）必須在 §4.5.2 Class Diagram 中有對應的 `<<DomainEvent>>` class。若 Class Diagram 有 `<<DomainEvent>>` class，此表中必須有對應行。兩者不得出現只在其中一邊的孤立事件。
 
 ### §5 BDD 設計
 

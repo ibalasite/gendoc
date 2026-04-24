@@ -216,6 +216,64 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 - ORM = Alembic：`alembic stamp head` 步驟
 - Redis：maxmemory 設定
 
+### §8 Test Data & Fixtures
+
+依以下來源填入真實內容（禁止保留裸 `{{ROLE_NAME}}`/`{{ENTITY_1}}` 等 placeholder）：
+
+**Default User Accounts（角色行）：**
+- 角色來源：BRD 業務功能描述中的使用者角色 + PRD 使用者類型
+- 每個 PRD/BRD 定義的角色必須有一行（不得只保留 Admin + Regular User 兩行）
+- Email 格式：`<lowercase-role>@{{PROJECT_SLUG}}.local`（PROJECT_SLUG 替換為真實值）
+- 密碼：統一使用 `Password1!`（強度足夠本機開發）
+
+**Sample Data（Entity 行）：**
+- Entity 清單：從 SCHEMA.md §3 資料表定義提取所有業務表（非系統表），每個業務表對應一行
+- Count：依 PRD 功能測試需求推斷（至少覆蓋所有 AC 的邊界情境）
+- 說明欄：列出該 Entity 涵蓋的狀態類型（active / inactive / archived / pending 等）
+- Edge case Entity（最後一行）：至少 1 個資料集覆蓋最大欄位長度 + 特殊字元（Unicode CJK）
+
+**pgadmin 登入（必須填入真實 port）：**
+- `{{PGADMIN_PORT}}`：來自 Key Fields `PGADMIN_PORT`
+- `{{PROJECT_SLUG}}-pgadmin-secret`：使用真實 PROJECT_SLUG
+- DB Name：`{{PROJECT_SLUG}}_dev`（替換為真實值）
+
+### §11 Logs & Debugging
+
+所有 kubectl 命令使用真實 namespace 和 deployment 名稱：
+- `{{K8S_NAMESPACE}}`：使用 Key Fields `K8S_NAMESPACE`
+- `{{RUNTIME_CMD}}`：使用 Key Fields 中推斷的 `RUNTIME_CMD`（node / python3 / go 等）
+
+**「查看 Pod 日誌」區塊：**
+- 若 EDD §7 無 `worker` Deployment → 移除 `make logs-worker` 行並加注釋
+- 若 EDD §7 無 `web-app` Deployment（純後端）→ 移除 `make logs-web` 行
+
+**「常見 Log 模式」表格：**
+- `{{name}}`（Worker job）行：從 EDD §7 CronJob/Worker 定義中提取真實 job 名稱（若無 Worker，移除此兩行）
+- `[ERROR] Migration {{name}} failed` 行：`{{name}}` 替換為 EDD §3.3 ORM 遷移工具的典型錯誤格式（Prisma → `migration XXX_...`、Alembic → `Rev: ...`）
+
+### §12 Port Reference
+
+**Ingress 表格：**
+- `{{PROJECT_SLUG}}.local`：替換為真實 PROJECT_SLUG（全表）
+- 若純後端（無 web-app）→ 移除 `http://{{PROJECT_SLUG}}.local/` 前端行，並加注釋「純後端服務，無前端 UI」
+- Ingress path 清單與 §5 Service Reference 表格完全對齊（無矛盾行）
+
+**port-forward 表格：**
+- 所有 port 數字來自 Key Fields（`API_PORT`、`WEB_PORT`、`DB_PORT`、`REDIS_PORT`、`MINIO_PORT`、`MAIL_PORT`、`PGADMIN_PORT`）
+- 若某 port 為 `N/A`（如純後端的 WEB_PORT）→ 移除對應行
+- `{{K8S_NAMESPACE}}`：替換為真實值（全表）
+
+**驗證一致性**：§12 Port Reference 所有 port 必須與 §2 Architecture Overview Mermaid 圖中的 port 標注一致。
+
+### §13 Local HTTPS 設定
+
+- `{{PROJECT_SLUG}}.local` + `*.{{PROJECT_SLUG}}.local`：替換為真實值（生成憑證命令）
+- mkcert 憑證路徑（`.pem` 檔案名稱）：依 mkcert 預設命名規則（`{{PROJECT_SLUG}}.local+1.pem`）填入
+- K8s TLS Secret 名稱：`{{PROJECT_SLUG}}-local-tls`（替換為真實 PROJECT_SLUG）
+- `{{K8S_NAMESPACE}}`：替換為真實值
+- 若 EDD §3.5 未提及 HTTPS 需求 → 在本節標頭加注釋「若無 OAuth 回調 / SameSite Secure Cookie 需求，可跳過此節」
+- `.gitignore` 加入憑證私鑰：`{{PROJECT_SLUG}}.local-key.pem`（替換為真實值）
+
 ### §14 Mock Services
 
 從 EDD §2.1 外部依賴建立 Mock 表格：
@@ -255,7 +313,7 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 
 ---
 
-## Self-Check Checklist（生成後自我檢核，共 25 項）
+## Self-Check Checklist（生成後自我檢核，共 27 項）
 
 **欄位提取正確性（10 項）**
 - [ ] PROJECT_SLUG 已從 EDD Document Control 正確提取（小寫連字號格式）
@@ -269,13 +327,15 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 - [ ] secrets.env 路徑和 `--from-env-file` 建立方式已正確記錄
 - [ ] Quick Start 的 git clone URL 含真實 GITHUB_ORG 和 GITHUB_REPO
 
-**結構完整性（8 項）**
+**結構完整性（10 項）**
 - [ ] §1 Prerequisites 包含 Rancher Desktop（非 Docker Desktop）
 - [ ] §2 Architecture 的 Mermaid 圖節點 port 標注與 §12 Port Reference 一致
 - [ ] §4.3 明確說明 secrets.env 已加入 .gitignore，且不提交 git
 - [ ] §4.4 包含 `imagePullPolicy: Never` 的說明
 - [ ] §5 port-forward 表與 §12 Port Reference 完全一致（無矛盾）
+- [ ] §8 Test Data 角色清單來自 BRD/PRD 定義（無裸 `{{ROLE_NAME}}`/`{{ENTITY_N}}` placeholder）
 - [ ] §10 Common Issues 涵蓋 Pending / CrashLoopBackOff / ImagePullBackOff / Ingress 解析失敗 / DB 連線拒絕
+- [ ] §11 Logs & Debugging 所有 kubectl 命令使用真實 namespace（非 placeholder）
 - [ ] §14 Mock Services 表從 EDD §2.1 外部依賴生成（非全部保留模板預設）
 - [ ] §15 Inner Loop 若純後端已移除/標記前端段落
 

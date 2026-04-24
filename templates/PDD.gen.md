@@ -67,20 +67,20 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 
 Document Control + Platform Scope Declaration 之後，依序包含：
 
-- §1 Client 技術棧與平台（含 §1.2 PRD 需求對應表、§1.3 Design Principles）
-- §2 User Personas（5-field 卡片）+ User Journey Map（5 階段情緒圖）+ JTBD（Functional/Emotional/Social）+ Service Blueprint（5 層視角）
+- §1 Design Brief（§1.1 設計目標 + §1.2 PRD 需求對應 + §1.3 Design Principles；Client 技術棧偵測結果記錄於 Platform Scope Declaration）
+- §2 User Research Summary（§2.0 User Personas 5-field 卡片 + §2.4 User Journey Map 5 階段情緒圖 + §2.5 JTBD + §2.6 Service Blueprint 5 層視角）
 - §3 Information Architecture（§3.1 Sitemap 樹狀圖 + §3.2 導覽模式 + §3.3 Content Priority F/Z Pattern）
-- §4 Feature Requirements（每功能含 User Flow、Wireframe 說明、互動說明）
-- §5 Design System（Typography、Color Token、Spacing、Component Library）
-- §6 Interaction Design（含 §6.1.1 Motion Design Spec：easing 函數 + prefers-reduced-motion、§6.7 Haptic Feedback Design）
-- §7 Responsive Design（7 斷點 + 元件行為矩陣）
-- §8 Accessibility（§8.4 WCAG 2.1 AA 合規矩陣 12 準則 + 工具鏈）
-- §9 Design Tokens（§9.3 三層架構 + §9.4 Dark Mode Token Mapping 13 Token 含 WCAG 對比度）
+- §4 User Flows（§4.1 主流程 Happy Path + §4.2 替代流程 + §4.3 錯誤流程；含 Mermaid stateDiagram-v2）
+- §5 Screen Specifications（每畫面的 Component 清單 + Wireframe 說明 + Props/States）
+- §6 Interaction Design（含 §6.1.1 Motion Design Spec：easing 函數 + prefers-reduced-motion、§6.5 Micro-interaction Catalog、§6.6 Gesture & Touch Design、§6.7 Haptic Feedback Design）
+- §7 Responsive & Adaptive Design（7 斷點 + 元件行為矩陣）
+- §8 Accessibility（A11y）Specifications（§8.4 WCAG 2.1 AA 合規矩陣 12 準則 + 工具鏈）
+- §9 Design System Reference（§9.3 Design Token 三層架構 + §9.4 Dark Mode Token Mapping 13 Token 含 WCAG 對比度 + §9.5 Client Class Diagram）
 - §10 Copy & Content Design（§10.1 Tone of Voice + §10.2 關鍵文案清單 + §10.3 i18n 字串清單）
 - §11 Prototype & Validation Plan（§11.1 Prototype 連結 + §11.2 設計驗證計畫）
 - §12 Open Questions（設計待解問題）
-- §13 Engineering Handoff（Handoff Checklist + Design QA 驗收標準）
-- §14 Performance Design（Core Web Vitals 目標）
+- §13 Engineering Handoff Specification（Figma Handoff Checklist + Usability Testing Protocol）
+- §14 References（含效能預算 Core Web Vitals 目標：LCP/INP/CLS + JS Bundle Budget）
 - §15 Approval Sign-off（Design Lead + PM + Engineering Lead 簽核表）
 - Appendix：BDD 連結、Screen Inventory
 
@@ -143,17 +143,22 @@ Document Control + Platform Scope Declaration 之後，依序包含：
 | **支援系統** | OAuth / JWT | <資料庫 / 快取> | 通知服務 |
 | **實體證據** | URL / 書籤 | <操作截圖 / 確認信> | 報告 / 回執 |
 
-### §4 UX Flow（Mermaid stateDiagram-v2）
+### §4 User Flows（主流程 / 替代流程 / 錯誤流程）
 
-- 涵蓋 PRD 每個 User Story 的頁面流程
+**§4.1 主流程 Happy Path**（Mermaid stateDiagram-v2）：
+- 涵蓋 PRD 每個 User Story 的主要頁面流程
+- 使用 Mermaid stateDiagram-v2，每個狀態對應真實畫面名稱
+
+**§4.2 替代流程 + §4.3 錯誤流程**：
 - 錯誤狀態、Loading 狀態都要有
+- 每條 transition 都要標示觸發事件
 
-### §4 UI Component / Screen 清單
+### §5 Screen Specifications（UI Component / Screen 清單）
 
 - 每個 Screen 名稱 + 路由
-- 每個 Component：名稱、用途、Props 清單、States
+- 每個 Component：名稱、用途、Props 清單、States（Default / Hover / Focus / Disabled / Error）
 
-### §5 Design Token
+### §9 Design System Reference（Design Tokens）
 
 ```
 Color: Primary / Secondary / Error / Warning / Success / Neutral
@@ -201,11 +206,14 @@ Border Radius / Shadow / Transition Duration
 
 最小觸控目標：44×44px（iOS HIG / Material Design 規範）
 
-### §14 效能預算
+### §14 References（含效能預算）
 
+**效能預算（Core Web Vitals 目標）**：
 - LCP < 2.5s / INP < 200ms / CLS < 0.1
 - JS Bundle < 300kb gzipped
 - 圖片最大尺寸 / format（AVIF / WebP）
+
+**References**：列出設計參考來源（Figma link、設計規範、競品分析報告等）。
 
 ### §13 Engineering Handoff Specification
 
