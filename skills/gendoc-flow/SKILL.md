@@ -148,38 +148,39 @@ for f in ['docs/IDEA.md', 'docs/BRD.md', 'docs/PRD.md']:
     except: pass
 combined = ' '.join(texts)
 
+# 遊戲關鍵字（優先判斷）→ client_type=game，觸發 AUDIO/ANIM 生成
+game_keywords = [
+    'game', 'arcade', 'unity', 'cocos', 'canvas', 'webgl', 'opengl', 'phaser', 'pixijs',
+    '遊戲', '魚機', '博弈', '遊藝', '投幣', '玩家', '角色', '場景',
+    '卡牌', '棋牌', '捕魚', '電子遊戲', '老虎機', '水果機',
+]
+# 通用 UI 關鍵字 → client_type=web（SaaS/管理後台/行動 App，不觸發 AUDIO/ANIM）
 ui_keywords = [
-    # 通用 UI
     'ui', 'ux', 'interface', 'screen', 'display', 'frontend', 'front-end',
     'dashboard', 'portal', 'panel', 'page', 'view', 'layout', 'widget',
-    # 中文
     '介面', '畫面', '螢幕', '顯示', '前端', '操作面板', '儀表板', '視覺',
     '按鈕', '頁面', '視窗', '彈窗', '選單',
-    # Web
     'web', 'html', 'css', 'react', 'vue', 'angular', 'svelte',
-    # Mobile / Native
     'app', 'mobile', 'native', 'ios', 'android', 'flutter', 'swift', 'kotlin',
-    # Game / Arcade
-    'game', 'arcade', 'unity', 'cocos', 'canvas', 'webgl', 'opengl',
-    '遊戲', '魚機', '博弈', '遊藝', '投幣', '玩家', '角色', '場景',
-    # Hardware display
     'lcd', 'oled', 'touchscreen', '觸控', '嵌入式顯示',
-    # Client
     'client', '客戶端', '用戶端',
 ]
-found = [kw for kw in ui_keywords if kw in combined]
-if found:
+if any(kw in combined for kw in game_keywords):
+    print('game')
+elif any(kw in combined for kw in ui_keywords):
     print('web')
 else:
     print('api-only')
 PYEOF
   )
 
-  if [[ "$_CLIENT_TYPE" == "web" ]]; then
-    echo "[P-13] ✅ 偵測到 UI 關鍵字 → client_type=web（PDD/VDD/FRONTEND/BDD-client 將執行）"
+  if [[ "$_CLIENT_TYPE" == "game" ]]; then
+    echo "[P-13] ✅ 偵測到遊戲關鍵字 → client_type=game（AUDIO/ANIM 將生成，PDD/VDD/FRONTEND/BDD-client 將執行）"
+  elif [[ "$_CLIENT_TYPE" == "web" ]]; then
+    echo "[P-13] ✅ 偵測到 UI 關鍵字 → client_type=web（PDD/VDD/FRONTEND/BDD-client 將執行，AUDIO/ANIM 跳過）"
   else
     echo "[P-13] ℹ️  未偵測到 UI 關鍵字 → client_type=api-only（PDD/VDD/FRONTEND/BDD-client 跳過）"
-    echo "[P-13]    若專案實際有 UI，請執行 /gendoc-config 手動設定 client_type=web"
+    echo "[P-13]    若專案實際有 UI，請執行 /gendoc-config 手動設定 client_type=web 或 client_type=game"
   fi
 
   # 寫入 state（原子寫入）
@@ -334,8 +335,9 @@ for step in pipeline:
     # P-10/P-13：client_type 條件步驟跳過
     # 接受 'api-only'（新格式）和 'none'（舊格式 backward compat）
     _is_no_client = _CLIENT_TYPE in ("api-only", "none")
-    if step["condition"] == "client_type != none" and _is_no_client:
-        # P-10：若有殘檔（先前用不同 client_type 跑過），歸檔至 docs/req/
+    _is_game = _CLIENT_TYPE == "game"
+
+    def _archive_and_skip(step, reason_msg):
         for out_path in step.get("output", []):
             if file_exists_and_nonempty(out_path):
                 import os, datetime
@@ -345,8 +347,16 @@ for step in pipeline:
                 os.rename(out_path, archive)
                 git_add_and_commit(archive, msg=f"chore(gendoc)[{step['id']}]: 歸檔殘檔（client_type={_CLIENT_TYPE}）")
                 print(f"[P-10] client_type={_CLIENT_TYPE}，{out_path} 已歸檔至 {archive}")
-        print(f"[Skip] {step['id']} — client_type={_CLIENT_TYPE}（no UI project），跳過")
+        print(f"[Skip] {step['id']} — {reason_msg}，跳過")
         update_state_completed(step["id"])
+
+    if step["condition"] == "client_type != none" and _is_no_client:
+        _archive_and_skip(step, f"client_type={_CLIENT_TYPE}（no UI project）")
+        continue
+
+    # AUDIO/ANIM：僅遊戲專案生成（client_type=game）；web/api-only 跳過
+    if step["condition"] == "client_type == game" and not _is_game:
+        _archive_and_skip(step, f"client_type={_CLIENT_TYPE}（非遊戲專案，AUDIO/ANIM 不適用）")
         continue
     
     # ── P-02/P-04/P-05 Skip 5 重寫：review_progress 優先 ─────
@@ -854,8 +864,10 @@ PYEOF
 ║  Total findings 修復：{total_fixed} 個                                   ║
 ║  殘留 findings（未修復）：{total_unfixed} 個                              ║
 ╚══════════════════════════════════════════════════════════════════════════╝
-* client_type={_CLIENT_TYPE}（api-only）→ 跳過 PDD / VDD / FRONTEND / Client BDD
-  若專案有 UI，執行 /gendoc-config 或手動設定 state["client_type"]="web" 後重跑
+* client_type={_CLIENT_TYPE}（api-only）→ 跳過 PDD / VDD / FRONTEND / Client BDD / AUDIO / ANIM
+  若專案有 UI，執行 /gendoc-config 手動設定 client_type=web（SaaS/App）或 client_type=game（遊戲）後重跑
+* client_type={_CLIENT_TYPE}（web）→ 跳過 AUDIO / ANIM（SaaS/管理後台/行動 App 不需音效與動畫設計文件）
+  若專案為遊戲，執行 /gendoc-config 手動設定 client_type=game 後重跑
 
 已生成文件（依層次）：
   需求層：docs/BRD.md（已有）docs/IDEA.md（已有）docs/PRD.md

@@ -77,6 +77,7 @@ options:
   - "重新跑全部流程（從頭開始，保留文件）"
   - "從某個 STEP 重新開始"
   - "只更換審查強度（不重設進度）"
+  - "手動設定 client_type（web / game / api-only）"
   - "清除全部設定（刪除所有 state file）"
 ```
 
@@ -117,6 +118,10 @@ options:
   - "D09-SCHEMA-R：Schema Review Loop"
   - "D10-FRONTEND：FRONTEND 前端技術設計生成（client_type≠none）"
   - "D10-FRONTEND-R：FRONTEND Review Loop"
+  - "D10b-AUDIO：AUDIO 音效設計文件生成（client_type=game）"
+  - "D10b-AUDIO-R：AUDIO Review Loop"
+  - "D10c-ANIM：ANIM 動畫特效設計文件生成（client_type=game）"
+  - "D10c-ANIM-R：ANIM Review Loop"
   - "D11-test-plan：Test Plan 生成"
   - "D11-test-plan-R：Test Plan Review Loop"
   - "D12-BDD-server：Server BDD Feature Files 生成"
@@ -142,6 +147,25 @@ options:
 ### 選「只更換審查強度」
 
 → 設 `_NEW_STEP = $_STEP`（維持現有進度），繼續 Step 3（審查強度）→ Step 4 寫入
+
+---
+
+### 選「手動設定 client_type」
+
+用 `AskUserQuestion` 詢問：
+
+```
+question: "請選擇 client_type（影響 AUDIO / ANIM / FRONTEND / PDD / BDD-client 是否執行）"
+options:
+  - "web   — 一般 SaaS / 管理後台 / 行動 App（執行 PDD/FRONTEND/BDD-client，跳過 AUDIO/ANIM）"
+  - "game  — 遊戲專案（執行全部，含 AUDIO/ANIM）"
+  - "api-only — 純後端 API 服務（跳過所有 client 側文件）"
+```
+
+取得 `_NEW_CLIENT_TYPE`。
+
+→ 維持 `_NEW_STEP = $_STEP`（不重設進度）
+→ 直接跳到 Step 4 寫入（跳過 Step 3 審查強度）
 
 ---
 
@@ -235,6 +259,9 @@ d['review_strategy_custom'] = '${_NEW_STRATEGY_CUSTOM:-}'
 d['max_rounds']             = ${_NEW_MAX_ROUNDS}
 d['stop_condition']         = '${_NEW_STOP_CONDITION}'
 d['last_updated']           = '$_NOW'
+# 若使用者手動設定了 client_type，覆寫自動偵測值
+if '${_NEW_CLIENT_TYPE:-}':
+    d['client_type'] = '${_NEW_CLIENT_TYPE}'
 with open('$_TMP', 'w') as f:
     json.dump(d, f, indent=2)
 os.replace('$_TMP', '$_STATE')
@@ -253,6 +280,7 @@ PYEOF
 ║  執行模式：full-auto                                  ║
 ║  審查強度：<_NEW_STRATEGY>（最多 <_NEW_MAX_ROUNDS> 輪）║
 ║  從 STEP：<_NEW_STEP> 開始                            ║
+║  client_type：<_NEW_CLIENT_TYPE 若有設定，否則顯示「沿用自動偵測」> ║
 ╚══════════════════════════════════════════════════════╝
 ```
 
