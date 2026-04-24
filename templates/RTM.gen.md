@@ -173,6 +173,29 @@ Pie Chart 使用計算後的真實數字，不保留 `{{...}}` 佔位符。
 
 ---
 
+## §2 Status 狀態碼說明生成規則
+
+本節為固定對照表，直接照搬 `templates/RTM.md §2` 的完整表格，不替換任何欄位。
+
+**禁止：**
+- 新增或移除任何狀態碼列（5 列固定：TODO / IN_PROGRESS / PASS / FAIL / SKIP）
+- 修改欄位的英文 Meaning 說明（統一詞彙，跨團隊溝通基礎）
+- 省略「行動」欄（QA 依此欄決定後續行動）
+
+生成時直接輸出：
+
+```
+| 狀態 | 說明（中文）| Meaning（English）| 行動 |
+|------|------------|-------------------|------|
+| `TODO` | 測試尚未撰寫 | Test not yet written | 排入 Sprint backlog |
+| `IN_PROGRESS` | 測試撰寫中 | Test being developed | 確認完成日期 |
+| `PASS` | 測試通過 | Test passing in CI | 無需行動 |
+| `FAIL` | 測試失敗 | Test failing in CI | 立即建立 bug ticket |
+| `SKIP` | 測試暫緩（有原因）| Test deliberately skipped | 記錄跳過原因，定期 review |
+```
+
+---
+
 ## §3 Unit Test RTM 生成規則
 
 ### §3.2 Unit Test 追溯表填入規則
