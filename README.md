@@ -133,21 +133,85 @@ The **Iron Law**: no document is generated without reading both `TYPE.md` AND `T
 
 ### Pipeline (D01–D17)
 
-```
-D01-IDEA → D02-BRD → D03-PRD → D04-PDD → D05-VDD
-                          ↓
-                       D06-EDD → D07-ARCH → D08-API → D09-SCHEMA
-                                     ↓
-                               D10-FRONTEND
-                                     ↓
-                     D11-test-plan → D12-BDD-server → D12b-BDD-client
-                                          ↓
-                                       D13-RTM → D14-runbook → D15-LOCAL_DEPLOY
-                                                                      ↓
-                                                             D16-ALIGN → D17-HTML
+```mermaid
+flowchart TD
+    INPUT([任意輸入\n文字 · URL · 圖片 · Repo]) --> AUTO
+    subgraph AUTO["/gendoc-auto — 入口"]
+        direction LR
+        G1["⚙ Gen IDEA\n資深 PM Expert"] --> R1["↻ Review + Fix Loop\nfinding = 0 → pass"]
+        R1 --> G2["⚙ Gen BRD\n資深商業分析師"]
+        G2 --> R2["↻ Review + Fix Loop"]
+    end
+    R2 -->|"finding = 0\nhandoff = true 寫入 state"| FLOW
+    subgraph FLOW["/gendoc-flow — 每步驟 Gen ⚙ Review ↻ Fix ✎ Commit ↑"]
+        subgraph REQ["需求層"]
+            D03["D03 PRD"] --> D04["D04 PDD ✦"] --> D05["D05 VDD ✦"]
+        end
+        subgraph DES["設計層"]
+            D06["D06 EDD"] --> D07["D07 ARCH"] --> D08["D08 API"] --> D09["D09 SCHEMA"] --> D10["D10 FRONTEND ✦"]
+        end
+        subgraph QA["品質層"]
+            D11["D11 test-plan"] --> D12["D12 BDD-server"] --> D12b["D12b BDD-client ✦"] --> D13["D13 RTM"]
+        end
+        subgraph OPS["運維層"]
+            D14["D14 runbook"] --> D15["D15 LOCAL_DEPLOY"]
+        end
+        subgraph AUDIT["稽核層"]
+            D16["D16 ALIGN ★"] --> D17["D17 HTML ★"]
+        end
+        REQ --> DES --> QA --> OPS --> AUDIT
+    end
+    FLOW --> DONE([GitHub Pages 文件站])
+    RESUME(["/gendoc-flow 斷點續行"]) -.->|"review_progress\ncompleted_steps"| FLOW
+    CONFIG(["/gendoc-config 設定"]) -.-> FLOW
+    classDef condNode fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
+    classDef specNode fill:#fef3c7,stroke:#f59e0b,color:#78350f
+    classDef ioNode fill:#d1fae5,stroke:#059669,color:#064e3b
+    class D04,D05,D10,D12b condNode
+    class D16,D17 specNode
+    class INPUT,DONE ioNode
 ```
 
-Each document accumulates knowledge from **all** ancestors (skips silently if missing). PDD, VDD, FRONTEND, and BDD-client only run when `client_type ≠ none`.
+> **✦ 藍色節點**（PDD / VDD / FRONTEND / BDD-client）：`client_type ≠ none` 才啟用。**★ 黃色節點**：稽核層特殊步驟。
+
+### 文件上下層關係（Document Hierarchy）
+
+```mermaid
+graph TD
+    REQ([docs/req/ 原始素材])
+    L0["L0 IDEA.md"]
+    L1["L1 BRD.md"]
+    L2["L2 PRD.md"]
+    L3a["L3a PDD.md"]:::cond
+    L35["L3.5 VDD.md"]:::cond
+    L4["L4 EDD.md"]
+    L5a["L5a ARCH.md"]
+    L5b["L5b API.md"]
+    L5c["L5c SCHEMA.md"]
+    L6["L6 FRONTEND.md"]:::cond
+    L7["L7 test-plan.md"]
+    L8a["L8a BDD-server"]
+    L8b["L8b BDD-client"]:::cond
+    L9a["L9a RTM.md"]
+    L9b["L9b RUNBOOK.md"]
+    L9c["L9c LOCAL_DEPLOY.md"]
+    L10["L10 README.md"]
+    AUDIT["稽核層 ALIGN → docs/pages/"]:::audit
+
+    REQ --> L0 --> L1 --> L2
+    L2 --> L3a --> L35 --> L4
+    L2 --> L4
+    L4 --> L5a --> L5b --> L5c --> L6 --> L7
+    L7 --> L8a --> L9a
+    L7 --> L8b --> L9a
+    L5a --> L9b --> L9c
+    L9a & L9b & L9c --> L10 --> AUDIT
+
+    classDef cond fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
+    classDef audit fill:#fef3c7,stroke:#f59e0b,color:#78350f
+```
+
+Each document accumulates knowledge from **all** ancestors (skips silently if missing). Blue nodes only run when `client_type ≠ none`.
 
 ---
 

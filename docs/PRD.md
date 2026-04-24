@@ -401,43 +401,54 @@ Feature: 使用者登入
 | | `gendoc-align-check` | 跨文件對齊審查 |
 | | `gendoc-align-fix` | 自動修復對齊問題 |
 
-### 5.2 完整流程圖
+### 5.2 完整流程圖（SOP）
 
-```
-使用者輸入（文字/圖片/URL/Git/本地）
-    ↓
-/gendoc-auto
-    ├── 輸入類型偵測（text/image_url/doc_url/doc_git/codebase_local/codebase_git）
-    ├── 素材保存至 docs/req/（唯讀原則）
-    ├── PM Expert 分析（產品/技術雙視角）
-    ├── 網路背景研究（WebSearch × 3）
-    ├── gendoc-gen-idea → docs/IDEA.md
-    ├── gendoc-idea-review（Review Loop）
-    ├── gendoc-gen-brd  → docs/BRD.md
-    ├── gendoc-brd-review（Review Loop）
-    └── 移交 /gendoc-flow
-         ↓
-/gendoc-flow（D01-D17）
-    ├── D01: IDEA.md    ← [需求層] 概念入口（可選）
-    ├── D02: BRD.md     ← 商業需求、範疇、成功指標
-    ├── D03: PRD.md     ← User Stories + Acceptance Criteria
-    ├── D04: PDD.md*    ← UX/互動設計（client_type≠none）
-    ├── D05: VDD.md*    ← 視覺設計、Design Token、Art Direction（client_type≠none）
-    ├── D06: EDD.md     ← [設計層] class + method 細節（讀取 VDD Token 規格）
-    ├── D07: ARCH.md    ← 元件圖、Mermaid C4、sequence diagram
-    ├── D08: API.md     ← 完整 request/response/error schema
-    ├── D09: SCHEMA.md  ← DDL + index + constraint
-    ├── D10: FRONTEND.md* ← 前端技術設計（實作 VDD Design Token）（client_type≠none）
-    ├── D11: test-plan.md ← [品質層] EP + BVA + 並發測試策略
-    ├── D12: BDD.md（server）← Gherkin Scenario
-    ├── D12b: BDD.md（client）*← Client E2E Scenario（client_type≠none）
-    ├── D13: RTM.md     ← 需求追溯矩陣（PRD US → TC → BDD Scenario）
-    ├── D14: RUNBOOK.md ← [運維層] 凌晨 3 點可直接執行
-    ├── D15: LOCAL_DEPLOY.md ← 5 分鐘本地環境啟動
-    ├── D16: ALIGN_REPORT.md ← [稽核層] 跨文件對齊掃描
-    └── D17: docs/pages/ + GitHub Pages ← HTML 文件站（含 README）
+每個標準步驟執行**三專家子代理模式**：Gen ⚙ → Review ↻ → Fix ✎ → Commit ↑，直至 finding = 0 或達 max_rounds。  
+`✦` = client_type ≠ none 時執行（有 UI 的產品）　`★` = special_skill（不走三專家，直接呼叫 Skill）
 
-    * = client_type ≠ none 時執行（有 UI 的產品）
+```mermaid
+flowchart TD
+    INPUT([任意輸入\n文字 · URL · 圖片 · Repo]) --> AUTO
+
+    subgraph AUTO["/gendoc-auto — 入口"]
+        direction LR
+        G1["⚙ Gen IDEA\n資深 PM Expert"] --> R1["↻ Review + Fix Loop\nfinding = 0 → pass\nfinding > 0 → Fix → re-Review"]
+        R1 --> G2["⚙ Gen BRD\n資深商業分析師"]
+        G2 --> R2["↻ Review + Fix Loop"]
+    end
+
+    R2 -->|"finding = 0\nhandoff = true 寫入 state"| FLOW
+
+    subgraph FLOW["/gendoc-flow — 每步驟 Gen ⚙ Review ↻ Fix ✎ Commit ↑"]
+        subgraph REQ["需求層"]
+            D03["D03 PRD"] --> D04["D04 PDD ✦"] --> D05["D05 VDD ✦"]
+        end
+        subgraph DES["設計層"]
+            D06["D06 EDD"] --> D07["D07 ARCH"] --> D08["D08 API"] --> D09["D09 SCHEMA"] --> D10["D10 FRONTEND ✦"]
+        end
+        subgraph QA["品質層"]
+            D11["D11 test-plan"] --> D12["D12 BDD-server"] --> D12b["D12b BDD-client ✦"] --> D13["D13 RTM"]
+        end
+        subgraph OPS["運維層"]
+            D14["D14 runbook"] --> D15["D15 LOCAL_DEPLOY"]
+        end
+        subgraph AUDIT["稽核層"]
+            D16["D16 ALIGN ★"] --> D17["D17 HTML ★"]
+        end
+        REQ --> DES --> QA --> OPS --> AUDIT
+    end
+
+    FLOW --> DONE([GitHub Pages 文件站])
+
+    RESUME(["/gendoc-flow\n斷點續行"]) -.->|"review_progress\ncompleted_steps"| FLOW
+    CONFIG(["/gendoc-config\n設定強度 / 重跑點"]) -.-> FLOW
+
+    classDef condNode fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
+    classDef specNode fill:#fef3c7,stroke:#f59e0b,color:#78350f
+    classDef ioNode fill:#d1fae5,stroke:#059669,color:#064e3b
+    class D04,D05,D10,D12b condNode
+    class D16,D17 specNode
+    class INPUT,DONE ioNode
 ```
 
 ### 5.3 文件流水線依賴鏈（Pipeline Dependency Chain）
@@ -470,6 +481,51 @@ docs/req/（原始輸入層，所有文件的最終上游）
                │              └─[稽核層] ALIGN_REPORT.md + README.md → docs/pages/
 ```
 
+#### 文件上下層關係圖（Document Hierarchy Diagram）
+
+```mermaid
+graph TD
+    REQ([docs/req/ 原始素材])
+    L0["L0 IDEA.md<br/><small>概念入口（可選）</small>"]
+    L1["L1 BRD.md<br/><small>商業需求</small>"]
+    L2["L2 PRD.md<br/><small>產品需求</small>"]
+    L3a["L3a PDD.md<br/><small>UX 互動設計</small>"]
+    L35["L3.5 VDD.md<br/><small>視覺設計 / Design Token</small>"]
+    L4["L4 EDD.md<br/><small>工程技術設計</small>"]
+    L5a["L5a ARCH.md<br/><small>架構設計</small>"]
+    L5b["L5b API.md<br/><small>API 定義</small>"]
+    L5c["L5c SCHEMA.md<br/><small>資料模型</small>"]
+    L6["L6 FRONTEND.md<br/><small>前端技術設計</small>"]
+    L7["L7 test-plan.md<br/><small>測試策略</small>"]
+    L8a["L8a BDD features/<br/><small>Server BDD</small>"]
+    L8b["L8b BDD client/<br/><small>Client BDD</small>"]
+    L9a["L9a RTM.md<br/><small>需求追溯矩陣</small>"]
+    L9b["L9b RUNBOOK.md<br/><small>運維文件</small>"]
+    L9c["L9c LOCAL_DEPLOY.md<br/><small>本地部署</small>"]
+    L10["L10 README.md<br/><small>專案總覽</small>"]
+    AUDIT["稽核層<br/>ALIGN_REPORT → docs/pages/"]
+
+    REQ --> L0 --> L1 --> L2
+    L2 --> L3a --> L35 --> L4
+    L2 --> L4
+    L4 --> L5a --> L5b --> L5c --> L6 --> L7
+    L7 --> L8a --> L9a
+    L7 --> L8b
+    L8b --> L9a
+    L5a --> L9b --> L9c
+    L9a & L9b & L9c --> L10
+    L10 --> AUDIT
+
+    classDef cond fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
+    classDef audit fill:#fef3c7,stroke:#f59e0b,color:#78350f
+    classDef io fill:#d1fae5,stroke:#059669,color:#064e3b
+    class L3a,L35,L6,L8b cond
+    class AUDIT audit
+    class REQ,L10 io
+```
+
+> **藍色節點**（PDD / VDD / FRONTEND / BDD-client）：`client_type ≠ none` 時才啟用。**黃色**：稽核層特殊步驟。
+
 #### 累積上游依賴表（Cumulative Upstream Table）
 
 | 文件 | 層級 | 必須讀取的累積上游 | 可選條件 |
@@ -494,6 +550,59 @@ docs/req/（原始輸入層，所有文件的最終上游）
 | **ALIGN_REPORT.md** | 稽核層 | 全部已生成文件（由 align-check 掃描） | — |
 
 > **IDEA Appendix C 特殊處理**：讀取 IDEA.md 時，同步讀取其 Appendix C 列出的所有 `docs/req/` 素材。若上游文件不存在，靜默跳過，不降低覆蓋深度。
+
+#### 累積上游關聯圖（Cumulative Reference Visualization）
+
+每個節點顏色深度代表累積讀取的文件層數；箭頭方向為「讀取方向」（下游文件讀上游文件）。
+
+```mermaid
+graph LR
+    REQ(["docs/req/ ●"]):::l0
+    ID["IDEA ●●"]:::l1
+    BR["BRD ●●●"]:::l2
+    PR["PRD ●●●●"]:::l3
+    PD["PDD ●●●●●"]:::cond
+    VD["VDD ●●●●●●"]:::cond
+    ED["EDD ●●●●●●●"]:::l4
+    AR["ARCH ●●●●●●●●"]:::l5
+    AP["API ●●●●●●●●●"]:::l6
+    SC["SCHEMA ●●●●●●●●●●"]:::l6
+    FE["FRONTEND ●●●●●●●●●●●"]:::cond
+    TP["test-plan ●●●●●●●●●●●●"]:::l7
+    BS["BDD-server ●●●●●●●●●●●●●"]:::l8
+    BC["BDD-client ●●●●●●●●●●●●●"]:::cond
+    RM["RTM ●●●●●●●●●●●●●●"]:::l9
+    RB["RUNBOOK ●●●●●●●●●●●●●●"]:::l9
+    LD["LOCAL_DEPLOY ●●●●●●●●●●●●●●●"]:::l9
+    ME["README ★ 全量"]:::l10
+    AL["ALIGN ★ 全量掃描"]:::audit
+
+    REQ --> ID --> BR --> PR
+    PR --> PD --> VD --> ED
+    PR --> ED
+    ED --> AR --> AP --> SC --> FE --> TP
+    TP --> BS --> RM
+    TP --> BC --> RM
+    AR --> RB --> LD
+    RM & RB & LD --> ME
+    ME --> AL
+
+    classDef l0 fill:#f0fdf4,stroke:#86efac,color:#14532d
+    classDef l1 fill:#dcfce7,stroke:#4ade80,color:#14532d
+    classDef l2 fill:#bbf7d0,stroke:#22c55e,color:#14532d
+    classDef l3 fill:#86efac,stroke:#16a34a,color:#14532d
+    classDef l4 fill:#fef9c3,stroke:#fde047,color:#713f12
+    classDef l5 fill:#fef08a,stroke:#facc15,color:#713f12
+    classDef l6 fill:#fde68a,stroke:#f59e0b,color:#78350f
+    classDef l7 fill:#fed7aa,stroke:#fb923c,color:#7c2d12
+    classDef l8 fill:#fca5a5,stroke:#f87171,color:#7f1d1d
+    classDef l9 fill:#f87171,stroke:#ef4444,color:#7f1d1d
+    classDef l10 fill:#c4b5fd,stroke:#8b5cf6,color:#2e1065
+    classDef cond fill:#bfdbfe,stroke:#3b82f6,color:#1e3a5f
+    classDef audit fill:#fef3c7,stroke:#d97706,color:#78350f
+```
+
+> 顏色深度從綠（少量上游）→ 黃 → 橙 → 紅（大量上游）→ 紫（全量），反映生成時的知識密度。**藍色**節點為條件啟用。
 
 #### 設計決策說明
 
