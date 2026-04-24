@@ -117,16 +117,88 @@ except: print('')
 
 _CLIENT_TYPE=$(python3 -c "
 import json
-try: print(json.load(open('${_STATE_FILE}')).get('client_type','none'))
-except: print('none')
-" 2>/dev/null || echo "none")
+try: print(json.load(open('${_STATE_FILE}')).get('client_type',''))
+except: print('')
+" 2>/dev/null || echo "")
 
 echo "[Session] mode=${_EXEC_MODE} | strategy=${_REVIEW_STRATEGY} | max_rounds=${_MAX_ROUNDS}"
-echo "[Session] start_step=${_START_STEP} | completed=[${_COMPLETED}] | client_type=${_CLIENT_TYPE}"
+echo "[Session] start_step=${_START_STEP} | completed=[${_COMPLETED}] | client_type=${_CLIENT_TYPE:-（未設定，待推斷）}"
 ```
 
 **已有值**：沿用已設定，直接繼續。
 **無值（首次）**：顯示標準選單（execution_mode + review_strategy），寫入 state。
+
+---
+
+### Step 0-C：client_type 自動推斷（P-13）
+
+**若 `_CLIENT_TYPE` 為空或仍為舊格式 `none`，從 IDEA/BRD/PRD 掃描關鍵字自動決定。**
+
+> **設計原則**：有 UI 的專案比純後端多；預設應傾向「有 client」而非「無 client」。
+> 只有在文件中完全找不到任何 UI 跡象時，才輸出 `api-only`。
+
+```bash
+if [[ -z "$_CLIENT_TYPE" || "$_CLIENT_TYPE" == "none" ]]; then
+  echo "[P-13] client_type 未設定或為舊格式，從 IDEA/BRD/PRD 自動推斷..."
+  _CLIENT_TYPE=$(python3 - <<'PYEOF'
+import os
+texts = []
+for f in ['docs/IDEA.md', 'docs/BRD.md', 'docs/PRD.md']:
+    try: texts.append(open(f).read().lower())
+    except: pass
+combined = ' '.join(texts)
+
+ui_keywords = [
+    # 通用 UI
+    'ui', 'ux', 'interface', 'screen', 'display', 'frontend', 'front-end',
+    'dashboard', 'portal', 'panel', 'page', 'view', 'layout', 'widget',
+    # 中文
+    '介面', '畫面', '螢幕', '顯示', '前端', '操作面板', '儀表板', '視覺',
+    '按鈕', '頁面', '視窗', '彈窗', '選單',
+    # Web
+    'web', 'html', 'css', 'react', 'vue', 'angular', 'svelte',
+    # Mobile / Native
+    'app', 'mobile', 'native', 'ios', 'android', 'flutter', 'swift', 'kotlin',
+    # Game / Arcade
+    'game', 'arcade', 'unity', 'cocos', 'canvas', 'webgl', 'opengl',
+    '遊戲', '魚機', '博弈', '遊藝', '投幣', '玩家', '角色', '場景',
+    # Hardware display
+    'lcd', 'oled', 'touchscreen', '觸控', '嵌入式顯示',
+    # Client
+    'client', '客戶端', '用戶端',
+]
+found = [kw for kw in ui_keywords if kw in combined]
+if found:
+    print('web')
+else:
+    print('api-only')
+PYEOF
+  )
+
+  if [[ "$_CLIENT_TYPE" == "web" ]]; then
+    echo "[P-13] ✅ 偵測到 UI 關鍵字 → client_type=web（PDD/VDD/FRONTEND/BDD-client 將執行）"
+  else
+    echo "[P-13] ℹ️  未偵測到 UI 關鍵字 → client_type=api-only（PDD/VDD/FRONTEND/BDD-client 跳過）"
+    echo "[P-13]    若專案實際有 UI，請執行 /gendoc-config 手動設定 client_type=web"
+  fi
+
+  # 寫入 state（原子寫入）
+  python3 - <<PYEOF2
+import json, os
+f = '${_STATE_FILE}'
+try: d = json.load(open(f))
+except: d = {}
+d['client_type'] = '${_CLIENT_TYPE}'
+tmp = f + '.tmp'
+with open(tmp, 'w', encoding='utf-8') as fp:
+    json.dump(d, fp, indent=2, ensure_ascii=False)
+os.replace(tmp, f)
+print('[P-13] client_type 已寫入 state：${_CLIENT_TYPE}')
+PYEOF2
+fi
+
+echo "[Session] client_type 最終值：${_CLIENT_TYPE}"
+```
 
 ---
 
@@ -259,7 +331,10 @@ for step in pipeline:
         continue
     
     # ── Condition ─────────────────────────────────────────
-    if step["condition"] == "client_type != none" and _CLIENT_TYPE == "none":
+    # P-10/P-13：client_type 條件步驟跳過
+    # 接受 'api-only'（新格式）和 'none'（舊格式 backward compat）
+    _is_no_client = _CLIENT_TYPE in ("api-only", "none")
+    if step["condition"] == "client_type != none" and _is_no_client:
         # P-10：若有殘檔（先前用不同 client_type 跑過），歸檔至 docs/req/
         for out_path in step.get("output", []):
             if file_exists_and_nonempty(out_path):
@@ -268,9 +343,9 @@ for step in pipeline:
                 basename = os.path.basename(out_path.rstrip("/"))
                 archive = f"docs/req/old-{basename}-{ts}"
                 os.rename(out_path, archive)
-                git_add_and_commit(archive, msg=f"chore(gendoc)[{step['id']}]: 歸檔殘檔（client_type 已改為 none）")
-                print(f"[P-10] client_type=none，{out_path} 已歸檔至 {archive}")
-        print(f"[Skip] {step['id']} — client_type=none，跳過")
+                git_add_and_commit(archive, msg=f"chore(gendoc)[{step['id']}]: 歸檔殘檔（client_type={_CLIENT_TYPE}）")
+                print(f"[P-10] client_type={_CLIENT_TYPE}，{out_path} 已歸檔至 {archive}")
+        print(f"[Skip] {step['id']} — client_type={_CLIENT_TYPE}（no UI project），跳過")
         update_state_completed(step["id"])
         continue
     
@@ -779,7 +854,8 @@ PYEOF
 ║  Total findings 修復：{total_fixed} 個                                   ║
 ║  殘留 findings（未修復）：{total_unfixed} 個                              ║
 ╚══════════════════════════════════════════════════════════════════════════╝
-* client_type={_CLIENT_TYPE} → 跳過 PDD / VDD / FRONTEND / Client BDD
+* client_type={_CLIENT_TYPE}（api-only）→ 跳過 PDD / VDD / FRONTEND / Client BDD
+  若專案有 UI，執行 /gendoc-config 或手動設定 state["client_type"]="web" 後重跑
 
 已生成文件（依層次）：
   需求層：docs/BRD.md（已有）docs/IDEA.md（已有）docs/PRD.md

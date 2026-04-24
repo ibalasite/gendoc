@@ -211,8 +211,8 @@ _write_state() {
 
   # 先從 state file 讀回 client_type，避免 Agent 跨邊界失效
   _CLIENT_TYPE=$(python3 -c \
-    "import json; d=json.load(open('${_STATE_FILE:-.gendoc-state.json}')); print(d.get('client_type','none'))" \
-    2>/dev/null || echo "${_CLIENT_TYPE:-none}")
+    "import json; d=json.load(open('${_STATE_FILE:-.gendoc-state.json}')); print(d.get('client_type',''))" \
+    2>/dev/null || echo "${_CLIENT_TYPE:-}")
 
   # 使用 mktemp 建立臨時檔案（原子寫入防護）
   local _TMP
@@ -231,7 +231,7 @@ _write_state() {
   "brd_path": "${_BRD_PATH:-docs/BRD.md}",
   "current_step": "$step",
   "lang_stack": "${_LANG_STACK:-}",
-  "client_type": "${_CLIENT_TYPE:-none}",
+  "client_type": "${_CLIENT_TYPE:-}",
   "auto_mode": "${_AUTO_MODE:-full}",
   "review_mode": "${_REVIEW_MODE:-MODE-C}",
   "execution_mode": "${_EXEC_MODE:-interactive}",
@@ -271,7 +271,7 @@ _write_state_direct() {
   "brd_path": "${_BRD_PATH:-docs/BRD.md}",
   "current_step": "$step",
   "lang_stack": "${_LANG_STACK:-}",
-  "client_type": "${_CLIENT_TYPE:-none}",
+  "client_type": "${_CLIENT_TYPE:-}",
   "auto_mode": "${_AUTO_MODE:-full}",
   "review_mode": "${_REVIEW_MODE:-MODE-C}",
   "execution_mode": "${_EXEC_MODE:-interactive}",
@@ -296,7 +296,7 @@ EOF
 | `brd_path` | string | BRD 檔案路徑（相對或絕對） |
 | `current_step` | string | legacy alias for start_step，不建議直接使用 |
 | `lang_stack` | string | 語言/框架選型（STEP 02 後設定） |
-| `client_type` | string | Client 類型（"none"/"web"/"web-saas"/"unity"/"cocos"）|
+| `client_type` | string | Client 類型（""=未設定→P-13自動推斷/"web"/"unity"/"cocos"/"api-only"=純後端）</br>⚠️ 舊格式 "none" 仍被接受（backward compat），新格式用 "api-only" |
 | `execution_mode` | string | 執行模式（"full-auto"/"interactive"）|
 | `review_strategy` | string | Review 策略（"rapid"/"standard"/"exhaustive"/"tiered"/"custom"）|
 | `review_strategy_custom` | string | 自訂 Review 策略描述（strategy=custom 時使用）|
