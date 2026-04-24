@@ -57,7 +57,7 @@ done
 
 | 文件 | 讀取目標 | 用途 |
 |------|---------|------|
-| `docs/EDD.md` | **全文掃描**（優先看 §10 Mermaid 架構圖，其次 §4.5，其次全文） | 九大 UML 圖的 Mermaid 程式碼（**主要來源**）|
+| `docs/EDD.md` | **全文掃描**（優先看 §4.5 UML 9 大圖，其次 §10，其次全文） | 九大 UML 圖的 Mermaid 程式碼（**主要來源**）|
 | `docs/ARCH.md` | Component / Deployment 章節 | Component Diagram、Deployment Diagram 補充 |
 | `docs/API.md` | 所有 Endpoint 列表 | 補充生成多張 Sequence Diagram |
 | `docs/SCHEMA.md` | 資料模型章節 | ER Diagram（額外，非 UML 9 之一）|
@@ -65,11 +65,11 @@ done
 
 **提取規則：**
 
-- **EDD 掃描策略（section-agnostic，防止 section 編號差異導致漏圖）：**
-  1. 優先讀取 EDD §10（Mermaid 架構圖）整節，提取所有 mermaid 程式碼塊
-  2. 若 §10 找不到，嘗試 EDD §4.5（舊版 EDD 的 UML 位置）
+- **EDD 掃描策略（含版本 fallback，防止 section 編號差異導致漏圖）：**
+  1. 優先讀取 EDD §4.5（UML 9 大圖，骨架標準位置）整節，提取所有 mermaid 程式碼塊
+  2. 若 §4.5 找不到或圖數 < 3，嘗試 EDD §10（舊版因規則錯誤而落地於此的 UML）
   3. 最後 fallback：掃描 EDD 全文，以 mermaid 塊類型分類（`classDiagram` / `stateDiagram-v2` / `sequenceDiagram` / `erDiagram` / `flowchart` / `graph`）
-  4. 以找到圖最多的那個策略為準，並在摘要中記錄「提取源：§10 / §4.5 / 全文掃描」
+  4. 以找到圖最多的那個策略為準，並在摘要中記錄「提取源：§4.5 / §10 / 全文掃描」
 - 從 API.md 提取 Endpoint 列表（格式：`METHOD /path — 說明`），每個 P0 Endpoint 生成一張 Sequence Diagram
 - 從 PRD §User Stories 提取每個主要業務流程，每個生成一張 Activity Diagram
 - EDD 中若某類圖缺失，則依 EDD 其他章節的描述推斷並生成（非憑空捏造）
