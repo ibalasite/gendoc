@@ -262,6 +262,7 @@ d['last_updated']           = '$_NOW'
 # 若使用者手動設定了 client_type，覆寫自動偵測值
 if '${_NEW_CLIENT_TYPE:-}':
     d['client_type'] = '${_NEW_CLIENT_TYPE}'
+    d['client_type_source'] = 'manual'  # P-14：標記為手動設定，防止 D03-PRD 後被自動偵測覆寫
 with open('$_TMP', 'w') as f:
     json.dump(d, f, indent=2)
 os.replace('$_TMP', '$_STATE')

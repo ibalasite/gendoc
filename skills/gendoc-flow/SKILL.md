@@ -190,11 +190,12 @@ f = '${_STATE_FILE}'
 try: d = json.load(open(f))
 except: d = {}
 d['client_type'] = '${_CLIENT_TYPE}'
+d['client_type_source'] = 'auto'   # P-14：標記為自動偵測，允許 D03-PRD 後重新驗證
 tmp = f + '.tmp'
 with open(tmp, 'w', encoding='utf-8') as fp:
     json.dump(d, fp, indent=2, ensure_ascii=False)
 os.replace(tmp, f)
-print('[P-13] client_type 已寫入 state：${_CLIENT_TYPE}')
+print('[P-13] client_type 已寫入 state：${_CLIENT_TYPE}（source=auto）')
 PYEOF2
 fi
 
@@ -406,7 +407,46 @@ for step in pipeline:
     # _skip_gen_only=True：略過 Gen，直接從 _resume_from_round 開始 Review
     execute_step(step, skip_gen=_skip_gen_only, resume_from_round=_resume_from_round)
     update_state_completed(step["id"])
+
+    # ── P-14：D03-PRD 完成後重新驗證 client_type ──────────
+    # 理由：Step 0-C 執行時 PRD 尚未生成（由 gendoc-flow 負責），
+    #       若關鍵遊戲/UI 關鍵字僅出現在 PRD，初次偵測可能錯判。
+    #       PRD 生成並審查完成後立即重新偵測，確保後續步驟條件正確。
+    if step["id"] == "D03-PRD":
+        _client_type_source = state.get("client_type_source", "auto")
+        if _client_type_source != "manual":
+            _CLIENT_TYPE_NEW = python3_detect_client_type()  # 重跑 P-13 偵測腳本
+            if _CLIENT_TYPE_NEW != _CLIENT_TYPE:
+                print(f"[P-14] ⚠️  client_type 重新偵測結果不同：{_CLIENT_TYPE} → {_CLIENT_TYPE_NEW}")
+                print(f"[P-14]     PRD 內容提供了更明確的專案類型線索，已更新。")
+                _CLIENT_TYPE = _CLIENT_TYPE_NEW
+                # 原子寫入更新後的 client_type
+                update_state_client_type(_CLIENT_TYPE)
+            else:
+                print(f"[P-14] ✅ client_type 確認一致（PRD 驗證後）：{_CLIENT_TYPE}")
 ```
+
+**P-14 偵測腳本（與 Step 0-C 完全相同的 python3 block）：**
+
+```python
+# update_state_client_type 輔助函式（原子寫入）
+def update_state_client_type(ct):
+    import json, os
+    f = _STATE_FILE
+    try: d = json.load(open(f))
+    except: d = {}
+    d['client_type'] = ct
+    d['client_type_source'] = 'auto'
+    tmp = f + '.tmp'
+    open(tmp,'w').write(json.dumps(d, indent=2, ensure_ascii=False))
+    os.replace(tmp, f)
+    print(f"[P-14] client_type 已更新至 state：{ct}")
+```
+
+**P-14 注意事項：**
+- 若使用者透過 `/gendoc-config` 手動設定 `client_type`，則 `client_type_source = "manual"`，P-14 不覆寫
+- 若 D03-PRD 是被 skip（P-02/P-05 resume），P-14 仍執行（PRD 已存在，可讀取）
+- 若重新偵測結果改變，條件步驟（D04/D05/D10/D12b/D10b/D10c）的 skip/execute 判斷會以新值為準
 
 ---
 
@@ -840,6 +880,49 @@ PYEOF
 
 > **State 更新時機**：在步驟的所有 commits 完成之後才更新 state，確保 Git log 與 state 一致。
 > 若 git commit 失敗，不更新 state（下次執行會自動重試該步驟）。
+
+---
+
+## Step 1-E：Pipeline 完整性驗證（P-15）
+
+**在 Total Summary 之前執行，確保所有預期步驟都有記錄。**
+
+```python
+# P-15：Pipeline 完整性掃描
+import json
+
+with open(_STATE_FILE) as f:
+    state = json.load(f)
+
+completed_now = state.get("completed_steps", [])
+failed_now = state.get("failed_steps", [])
+processed = set(completed_now + failed_now)
+
+# 根據 client_type 決定哪些步驟應該執行
+expected_ids = []
+for s in pipeline_steps:
+    cond = s.get("condition", "always")
+    if cond == "always":
+        expected_ids.append(s["id"])
+    elif cond == "client_type != none":
+        if _CLIENT_TYPE not in ("api-only", "none"):
+            expected_ids.append(s["id"])
+    elif cond == "client_type == game":
+        if _CLIENT_TYPE == "game":
+            expected_ids.append(s["id"])
+
+# 找出未處理的步驟（未在 completed 也未在 failed）
+missing = [sid for sid in expected_ids if sid not in processed]
+
+if missing:
+    print(f"\n[P-15] ⚠️  發現以下步驟未見執行記錄（請確認是否真的完成）：")
+    for sid in missing:
+        print(f"  ✗ {sid}")
+    print(f"  → 若確實遺漏，請執行 /gendoc-config 從該步驟重新開始")
+    print(f"  → 若已執行但 state 未更新，可能是中斷時未寫入，重跑會自動 skip 已完成文件")
+else:
+    print(f"\n[P-15] ✅ Pipeline 完整性驗證通過：所有 {len(expected_ids)} 個預期步驟均有記錄")
+```
 
 ---
 
