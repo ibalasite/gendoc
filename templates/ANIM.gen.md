@@ -2,14 +2,13 @@
 doc-type: ANIM
 output-path: docs/ANIM.md
 upstream-docs:
-  - docs/req/
   - docs/IDEA.md
   - docs/BRD.md
   - docs/PRD.md
   - docs/EDD.md
   - docs/VDD.md
   - docs/FRONTEND.md
-quality-bar: "§2 所有 P0 角色/物件都有完整骨骼動畫狀態機；§4 粒子特效最大粒子數已填具體值；§6 引擎設定代碼可直接複製使用；§7 資產命名規範完整；§9 所有效能指標填具體數值且有 LOD 策略；§10 測試清單覆蓋幀率/記憶體/跨平台；無裸 placeholder"
+quality-bar: "§2 所有 P0 角色/物件都有完整骨骼動畫狀態機；§5 粒子特效最大粒子數已填具體值；§7 引擎設定代碼可直接複製使用；§8 資產命名規範完整；§9 所有效能指標填具體數值且有 LOD 策略；§10 測試清單覆蓋幀率/記憶體/跨平台；無裸 placeholder"
 ---
 
 # ANIM.gen.md — 動畫特效設計文件生成規則
@@ -24,6 +23,18 @@ quality-bar: "§2 所有 P0 角色/物件都有完整骨骼動畫狀態機；§4
 若某上游文件不存在，靜默跳過；不得因上游缺失而降低覆蓋深度。
 
 **Iron Law**：生成任何 ANIM.md 之前，必須先讀取 `ANIM.md`（結構）和 `ANIM.gen.md`（本規則）。
+
+---
+
+## 全域禁止裸 Placeholder 規則
+
+**所有 §1~§10 及 Document Control 的 `{{PLACEHOLDER}}` 均必須替換為具體值，不得保留任何未填欄位。**
+
+常見遺漏欄位（特別注意）：
+- **§1**：`{{VISUAL_FEEDBACK_GOAL}}`、`{{PERF_GOAL}}`、`{{TARGET_FPS}}` 等設計目標欄位必須填入具體描述和數值。
+- **§6**：{{SHADER_NAME}}、{{RENDER_QUEUE}}、{{GPU_INSTANCING}} 等 Shader 技術規格中的 placeholder 必須替換為實際 Shader 名稱、渲染佇列設定和 GPU Instancing 開關。
+
+若任何 placeholder 未替換，生成結果視為不通過品質門（Quality Gate）。
 
 ---
 
@@ -46,7 +57,7 @@ quality-bar: "§2 所有 P0 角色/物件都有完整骨骼動畫狀態機；§4
 | `IDEA.md`（若存在）| 全文 | 確認產品類型（動作遊戲/休閒遊戲/Web App）→ 決定動畫豐富程度和特效風格 |
 | `BRD.md` | 目標平台、目標裝置 | 決定 §9 效能預算基準（低階 Android = 嚴格預算；PC/主機 = 寬鬆）；確認是否需要多解析度 Spine 圖集 |
 | `PRD.md` | 所有 User Stories、P0/P1/P2 功能 | §2 骨骼動畫必須覆蓋所有 P0 角色的所有狀態；§4 Tween 必須覆蓋所有 P0 UI 互動 |
-| `EDD.md` | §2 技術棧、§3 架構 | 確認引擎（Cocos/Unity/HTML5）→ 決定 §6 展開哪個引擎章節；確認資源管理策略 |
+| `EDD.md` | §2 技術棧、§3 架構 | 確認引擎（Cocos/Unity/HTML5）→ 決定 §7 展開哪個引擎設定章節；確認資源管理策略 |
 | `VDD.md`（若存在）| §3 Brand Identity、§4 Motion Design、§6 Design Token | **最重要的視覺上游**：Motion Easing 函數（§4）直接對應 §4 Tween Easing；Lottie/CSS Animation 定義的動畫時長規格必須反映在 §4 |
 | `FRONTEND.md`（若存在）| §2 平台選型、§5 Component 架構 | 確認引擎具體版本、Spine runtime 版本（必須與 FRONTEND.md 一致）；Component 邊界決定動畫由誰負責觸發 |
 
@@ -73,6 +84,7 @@ if 無法偵測 → 三個引擎章節全部展開
 - FRONTEND.md Spine 版本 vs §2 骨骼動畫格式（.skel vs .json，runtime 版本要匹配）
 - BRD 最低目標裝置 vs §9 效能預算（預算是否在低階裝置可達成）
 - PRD P0 角色列表 vs §2 骨骼動畫清單（是否每個 P0 角色都有完整動畫狀態）
+- **EDD.md 技術棧（WebGL vs Canvas 2D）vs §6 Shader 清單**：若 EDD.md 確認渲染技術為 Canvas 2D（不含 WebGL），則 §6 不得列入依賴 WebGL 的自訂 Shader。此時 §6 應改為「本專案不支援自訂 Shader，使用引擎內建濾鏡替代（如 PixiJS 內建 BlurFilter、ColorMatrixFilter 等）」。
 
 ---
 
@@ -114,6 +126,8 @@ if 無法偵測 → 三個引擎章節全部展開
 幀數建議：簡單迴圈 8~12 幀；複雜動作 16~24 幀。
 若無幀動畫，§3 填「本專案使用骨骼動畫替代幀動畫」或「無幀動畫需求」。
 
+**禁止裸 Placeholder（Strict）**：§3 每條記錄的名稱、幀數、幀率、圖集路徑必須填入具體值，不得保留 `{{NAME}}`、`{{FRAMES}}`、`{{FPS}}` 等 placeholder。
+
 ### Step 4：Tween / 緩動動畫清單（§4）
 
 **必須覆蓋（P0 UI 動畫，不得省略）：**
@@ -130,6 +144,8 @@ if 無法偵測 → 三個引擎章節全部展開
 - Unity（DOTween）：`Ease.OutBack`
 - HTML5（GSAP）：`"back.out"`
 → 同一 Tween 項目必須標注所有使用引擎的 easing 名稱（若多引擎）
+
+**禁止裸 Placeholder（Strict）**：§4 每條記錄的起始值與結束值必須填具體數值。特別是含 `{{OFF_SCREEN}}`、`{{ON_SCREEN}}` 的欄位，必須依 BRD 目標解析度計算出實際座標數值（如 `y: -1920` 表示解析度 1920 高度時螢幕外起始位置），不得保留 placeholder。
 
 ### Step 5：粒子特效清單（§5）
 
@@ -223,6 +239,7 @@ if 無法偵測 → 三個引擎章節全部展開
 | 檢查項 | 標準 |
 |-------|------|
 | 骨骼動畫覆蓋 | PRD P0 角色/物件全部有 §2 記錄 |
+| 幀動畫覆蓋 | §3 每條記錄的名稱/幀數/幀率/圖集路徑均填具體值；或聲明本專案無幀動畫需求 |
 | Tween 覆蓋 | 所有 P0 UI 互動有對應 Tween 項目 |
 | 粒子數量 | §5 每條特效填具體最大粒子數 |
 | 引擎代碼 | §7 代碼無裸 placeholder，版本/路徑均已填具體值 |

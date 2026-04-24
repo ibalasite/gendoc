@@ -25,6 +25,12 @@ upstream-alignment:
   - field: Spine 版本
     source: FRONTEND.md
     check: §2.2 Spine runtime 版本是否與 FRONTEND.md 引入的 Spine 版本一致
+  - field: 幀動畫物件需求
+    source: PRD.md User Stories
+    check: §3 幀動畫清單是否涵蓋 PRD 中所有需要幀動畫的物件，或明確聲明本專案無幀動畫需求
+  - field: 渲染技術與 Shader 能力
+    source: EDD.md §2 技術棧
+    check: 若 EDD 確認 Canvas 2D，§6 是否已改為引擎內建濾鏡替代（禁止列入依賴 WebGL 的自訂 Shader）
 ---
 
 # ANIM Review Items
@@ -70,6 +76,20 @@ upstream-alignment:
 
 ---
 
+### Layer 2.5: 幀動畫規格（由技術動畫師主審）
+
+#### [HIGH] 5.1 — §3 幀動畫清單含裸 Placeholder
+**Check**: §3 幀動畫清單中每條記錄的名稱、幀數、幀率、圖集路徑是否填入具體值？是否仍有 `{{NAME}}`、`{{FRAMES}}`、`{{FPS}}` 等未替換的 placeholder？
+**Risk**: 美術不知道要製作哪些幀動畫資產，資產規格不明確，導致製作返工或遺漏交付。
+**Fix**: 補充具體規格，替換所有 `{{NAME}}`、`{{FRAMES}}`、`{{FPS}}` 為實際數值（幀數建議：簡單迴圈 8~12 幀；複雜動作 16~24 幀）。
+
+#### [MEDIUM] 5.2 — §3 幀動畫覆蓋 PRD 需求
+**Check**: §3 幀動畫清單是否覆蓋了 PRD 中所有需要幀動畫的物件（爆炸特效、硬幣旋轉、角色非骨骼動畫等）？若本專案無幀動畫需求，§3 是否明確聲明「本專案使用骨骼動畫替代幀動畫」或「無幀動畫需求」？
+**Risk**: 遺漏需要幀動畫的物件，美術製作階段才發現需求，影響排期。
+**Fix**: 補充 PRD 中缺漏的幀動畫記錄，或在 §3 明確添加無需求聲明。
+
+---
+
 ### Layer 3: Tween 動畫合理性（由技術動畫師主審）
 
 #### [HIGH] 6 — §4 Tween 缺少 P0 UI 基礎動畫
@@ -100,10 +120,10 @@ upstream-alignment:
 
 ### Layer 5: Shader 特效正確性（由 VFX 工程師主審）
 
-#### [HIGH] 10 — §6 Shader 代碼含裸 Placeholder 或 API 錯誤
+#### [CRITICAL] 10 — §6 Shader 代碼含裸 Placeholder 或 API 錯誤
 **Check**: §6 展開的 Shader 代碼（Cocos Effect / Unity Shader Graph / GLSL）是否有裸 placeholder？代碼是否與引擎版本的渲染管線一致（如 Unity URP 的 Shader Graph 與 Built-in Shader 語法不同）？
-**Risk**: Shader 代碼無法直接使用，VFX 工程師需重寫。
-**Fix**: 替換 placeholder，確認渲染管線一致性。
+**Risk**: Shader 代碼有裸 placeholder 或渲染管線 API 不匹配，VFX 工程師無法直接使用，嚴重性與 §7 引擎設定代碼不可用相同。§6 Shader 是多個 P0/P1 事件的視覺依賴（如溶解消亡、描邊高亮、勝利閃光），代碼完全錯誤則相關功能的視覺效果無法交付。
+**Fix**: 替換所有 placeholder，確認渲染管線一致性；Shader 代碼必須是完整可直接引用的最小可用範例。
 
 #### [MEDIUM] 11 — §6 缺少 Shader 資產路徑
 **Check**: §6 每個 Shader 特效是否標注了具體的資產路徑（Cocos Effect 檔案 / Unity Shader Graph 資產 / GLSL 檔案）？
