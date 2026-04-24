@@ -1,9 +1,10 @@
 ---
 name: gendoc-gen-prototype
 description: |
-  從工程文件（PRD/PDD/VDD/FRONTEND/AUDIO/ANIM/SCHEMA）自動生成完整可點擊的 HTML Prototype，
-  輸出至 docs/pages/prototype/。100% 擬真還原：前端畫面、導覽流程、動畫特效、音效觸發、色彩配置。
-  含 gen→review→fix loop（依 state file 設定），commit，並自動更新 README.md 和 pages/index.html。
+  從工程文件自動生成互動式 HTML Prototype，輸出至 docs/pages/prototype/。支援兩種模式：
+  UI Prototype（PRD/PDD/VDD/FRONTEND/AUDIO/ANIM → 可點擊畫面 + 動畫音效）
+  API Explorer（API.md/SCHEMA.md → Postman 式試打介面，JavaScript 模擬回應，含 deep-link 分享）
+  兩種文件同時存在時並行生成（full 模式）。含 gen→review→fix loop，commit，並自動更新 README.md。
   可獨立呼叫（/gendoc-gen-prototype）或由 gendoc-gen-html 自動呼叫。
 allowed-tools:
   - Read
@@ -59,17 +60,19 @@ except: print('standard')
 echo "[proto] EXEC_MODE=${_EXEC_MODE}  strategy=${_REVIEW_STRATEGY}  max_rounds=${_MAX_ROUNDS}"
 ```
 
-### Step 0-B：Frontend 需求偵測
+### Step 0-B：Prototype 模式偵測
 
 ```bash
-# 掃描現有文件判斷是否有 Frontend 需求
+# 掃描現有文件，決定 Prototype 模式
 _HAS_FRONTEND=0
+_HAS_API=0
 _HAS_AUDIO=0
 _HAS_ANIM=0
 _DOCS_FOUND=""
 
 [ -f "docs/FRONTEND.md" ]  && _HAS_FRONTEND=1 && _DOCS_FOUND="$_DOCS_FOUND FRONTEND.md"
 [ -f "docs/PDD.md" ]       && _HAS_FRONTEND=1 && _DOCS_FOUND="$_DOCS_FOUND PDD.md"
+[ -f "docs/API.md" ]       && _HAS_API=1       && _DOCS_FOUND="$_DOCS_FOUND API.md"
 [ -f "docs/VDD.md" ]       && _DOCS_FOUND="$_DOCS_FOUND VDD.md"
 [ -f "docs/AUDIO.md" ]     && _HAS_AUDIO=1    && _DOCS_FOUND="$_DOCS_FOUND AUDIO.md"
 [ -f "docs/ANIM.md" ]      && _HAS_ANIM=1     && _DOCS_FOUND="$_DOCS_FOUND ANIM.md"
@@ -77,19 +80,30 @@ _DOCS_FOUND=""
 [ -f "docs/EDD.md" ]       && _DOCS_FOUND="$_DOCS_FOUND EDD.md"
 [ -f "docs/SCHEMA.md" ]    && _DOCS_FOUND="$_DOCS_FOUND SCHEMA.md"
 
-echo "[proto] 偵測到文件：${_DOCS_FOUND}"
-echo "[proto] HAS_FRONTEND=${_HAS_FRONTEND}  HAS_AUDIO=${_HAS_AUDIO}  HAS_ANIM=${_HAS_ANIM}"
+# 決定 Prototype 模式
+if [ "$_HAS_FRONTEND" -eq 1 ] && [ "$_HAS_API" -eq 1 ]; then
+  _PROTO_MODE="full"          # 全棧：UI Prototype + API Explorer
+elif [ "$_HAS_FRONTEND" -eq 1 ]; then
+  _PROTO_MODE="ui"            # 純前端：可點擊畫面 + 導覽流程
+elif [ "$_HAS_API" -eq 1 ]; then
+  _PROTO_MODE="api-explorer"  # 純後端：API 試打介面 + Mock 回應
+else
+  _PROTO_MODE="ui"            # 無文件，依 PRD + EDD 推斷畫面
+fi
 
-if [ "$_HAS_FRONTEND" -eq 0 ]; then
+echo "[proto] 偵測到文件：${_DOCS_FOUND}"
+echo "[proto] MODE=${_PROTO_MODE}  HAS_FRONTEND=${_HAS_FRONTEND}  HAS_API=${_HAS_API}  HAS_AUDIO=${_HAS_AUDIO}  HAS_ANIM=${_HAS_ANIM}"
+
+if [ "$_HAS_FRONTEND" -eq 0 ] && [ "$_HAS_API" -eq 0 ]; then
   echo ""
-  echo "⚠️  未偵測到 Frontend 設計文件（docs/FRONTEND.md 或 docs/PDD.md）。"
-  echo "   若確定有 Frontend 需求，請先執行 /gendoc frontend 或 /gendoc pdd 生成相關文件。"
-  echo "   或在 interactive 模式下手動確認繼續。"
+  echo "⚠️  未偵測到 Frontend 或 API 設計文件。"
+  echo "   Frontend 專案：先執行 /gendoc pdd 或 /gendoc frontend"
+  echo "   API 專案：先執行 /gendoc api"
 fi
 ```
 
-**若 `_EXEC_MODE=interactive` 且 `_HAS_FRONTEND=0`**：用 `AskUserQuestion` 確認是否繼續。
-**若 `_EXEC_MODE=full-auto` 且 `_HAS_FRONTEND=0`**：仍繼續生成（依 PRD + EDD 推斷）。
+**若 `_EXEC_MODE=interactive` 且 `_HAS_FRONTEND=0` 且 `_HAS_API=0`**：用 `AskUserQuestion` 確認是否繼續。
+**若 `_EXEC_MODE=full-auto` 且無任何設計文件**：仍繼續生成（依 PRD + EDD 推斷）。
 
 ---
 
@@ -166,6 +180,106 @@ PROTOTYPE_SPEC:
 ```
 
 Agent 執行完成後，主 Claude 解析輸出的 `PROTOTYPE_SPEC` 供後續步驟使用。
+
+> **若 `_PROTO_MODE=api-explorer`**：跳過本 Step，直接執行 Step 1-B。
+> **若 `_PROTO_MODE=full`**：執行本 Step + Step 1-B，兩份規格並行使用。
+
+---
+
+## Step 1-B：API Explorer 規格提取（僅 api-explorer / full 模式）
+
+**`_PROTO_MODE` 為 `api-explorer` 或 `full` 時執行。**
+
+用 **Agent tool** 派送「API Specification Subagent」：
+
+```
+你是 API Specification Analyst（資深 API 設計分析師）。
+任務：從 docs/API.md 和 docs/SCHEMA.md 提取所有 API endpoint 規格，輸出結構化清單
+供後續 API Explorer Prototype 生成使用。
+
+**讀取步驟（不得跳過）：**
+1. 讀取 docs/API.md → 提取所有 endpoint：method, path, description, parameters（path/query/header）,
+   request_body schema, response codes（200/400/401/404/500）及 response schema
+2. 若存在，讀取 docs/SCHEMA.md → 提取所有 Entity 定義和 example data，用於組裝 mock 回應
+3. 若存在，讀取 docs/EDD.md → 提取：base_url、認證方式（Bearer Token / API Key / OAuth2 / none）
+4. 若存在，讀取 docs/PRD.md → 提取：功能分組標籤（用於 endpoint 側欄分組）
+
+**輸出格式（必須輸出此結構）：**
+
+API_EXPLORER_SPEC:
+  project_name: "..."
+  base_url: "https://api.example.com/v1"   # 從 EDD 或 API.md 提取；若無則用此預設
+  auth:
+    type: "bearer | api_key | oauth2 | none"
+    header: "Authorization"
+    placeholder: "Bearer <your_token>"
+  groups:
+    - id: "users"
+      name: "User Management"
+      color: "#2d9ef5"   # 每組一個主色（用於 sidebar 色條）
+      endpoints:
+        - id: "list-users"
+          method: "GET"          # GET / POST / PUT / PATCH / DELETE
+          path: "/users"
+          summary: "取得使用者列表"
+          description: "回傳分頁使用者清單，支援關鍵字篩選"
+          params:
+            - name: "page"
+              in: "query"          # path | query | header
+              type: "integer"
+              required: false
+              default: "1"
+              description: "頁碼（從 1 開始）"
+            - name: "q"
+              in: "query"
+              type: "string"
+              required: false
+              default: ""
+              description: "關鍵字搜尋"
+          request_body: null       # 或 schema JSON string（POST/PUT 時使用）
+          responses:
+            - code: 200
+              description: "成功"
+              example: |
+                {
+                  "data": [
+                    {"id": 1, "name": "Alice", "email": "alice@example.com"},
+                    {"id": 2, "name": "Bob",   "email": "bob@example.com"}
+                  ],
+                  "total": 42,
+                  "page": 1,
+                  "per_page": 20
+                }
+            - code: 401
+              description: "未授權"
+              example: |
+                {"error": "unauthorized", "message": "Token invalid or expired"}
+          mock_entity: "User"    # 對應 SCHEMA.md 的 Entity 名稱，用於填充 example data
+        - id: "create-user"
+          method: "POST"
+          path: "/users"
+          summary: "建立使用者"
+          description: "建立新使用者帳號"
+          params: []
+          request_body: |
+            {
+              "name": "string",
+              "email": "string",
+              "role": "admin | member"
+            }
+          responses:
+            - code: 201
+              description: "建立成功"
+              example: |
+                {"id": 3, "name": "Charlie", "email": "charlie@example.com"}
+            - code: 400
+              description: "參數錯誤"
+              example: |
+                {"error": "validation_failed", "fields": {"email": "already exists"}}
+          mock_entity: "User"
+```
+
+Agent 執行完成後，主 Claude 解析輸出的 `API_EXPLORER_SPEC` 供後續 Step 2-B 使用。
 
 ---
 
@@ -434,6 +548,206 @@ PROTOTYPE_GEN_RESULT:
   summary: "生成了 N 個畫面的 Prototype，涵蓋 M 個使用者流程..."
 ```
 
+> **若 `_PROTO_MODE=ui`**：完成後跳至 Step 3（Review）。
+> **若 `_PROTO_MODE=api-explorer`**：跳過本 Step，執行 Step 2-B。
+> **若 `_PROTO_MODE=full`**：本 Step 完成後繼續執行 Step 2-B，兩者都生成。
+
+---
+
+## Step 2-B：API Explorer 生成（僅 api-explorer / full 模式）
+
+**`_PROTO_MODE` 為 `api-explorer` 或 `full` 時執行。**
+
+用 **Agent tool** 派送「API Explorer Generation Subagent」：
+
+```
+你是 API Explorer Engineer，任務是依照 API_EXPLORER_SPEC 生成一個完整可使用的
+API Explorer HTML，儲存至 docs/pages/prototype/api-explorer/index.html。
+這是一個自給自足的單一 HTML 檔案（inline CSS + JS），不依賴任何本地框架，
+用 JavaScript 模擬 API 回應——使用者試打時不需要真實 server。
+
+**輸入**：已解析的 API_EXPLORER_SPEC（包含所有 endpoint、mock responses、SCHEMA entities）
+
+**生成步驟（不得跳過）：**
+
+Step G-1：建立目錄
+  mkdir -p docs/pages/prototype/api-explorer/
+
+Step G-2：生成 docs/pages/prototype/api-explorer/index.html
+
+HTML 結構規範：
+
+```
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{project_name} — API Explorer</title>
+  <style>
+    /* 完整 CSS inline，必須包含：
+       - CSS 變數（--primary, --success, --error, --warning, --bg, --surface, --border）
+       - .sidebar（固定寬度，endpoint 列表）
+       - .main-panel（endpoint 詳情 + Try It 面板）
+       - .method-badge（GET/POST/PUT/PATCH/DELETE 各自顏色）
+       - .response-panel（程式碼顯示區，深色背景）
+       - .param-row（參數列）
+       - .status-badge（200=綠/400=橙/401=紅/500=深紅）
+       - .spinner（試打時的載入動畫）
+    */
+  </style>
+</head>
+<body>
+  <!-- Top Nav -->
+  <header class="top-nav">
+    <span class="brand">{project_name} API Explorer</span>
+    <div class="auth-section">
+      <input id="auth-token" type="text" placeholder="{auth.placeholder}" 
+             oninput="saveAuth(this.value)">
+      <label><input type="checkbox" id="auth-enabled" checked> 自動帶入 Auth Header</label>
+    </div>
+    <a class="nav-link" href="../index.html">← 文件站</a>
+  </header>
+
+  <div class="layout">
+    <!-- Sidebar：endpoint 列表 -->
+    <nav class="sidebar">
+      <input class="search-input" placeholder="搜尋 endpoint..." oninput="filterEndpoints(this.value)">
+      <!-- 依 API_EXPLORER_SPEC.groups 動態生成 -->
+      <div id="endpoint-list"></div>
+    </nav>
+
+    <!-- Main Panel -->
+    <main class="main-panel" id="main-panel">
+      <div class="welcome-state">
+        <h2>選擇左側 Endpoint 開始試打</h2>
+        <p>所有回應均為 JavaScript Mock — 無需啟動後端服務</p>
+      </div>
+    </main>
+  </div>
+
+  <script>
+  // ─── API_EXPLORER_SPEC（內嵌）────────────────────────
+  // 依 API_EXPLORER_SPEC 生成完整 JS 資料物件，包含：
+  // - groups[]（endpoint 分組）
+  // - 每個 endpoint 的 id, method, path, summary, params, request_body, responses[]
+  // - MOCK_DB：{ entity_name: example_array }（從 SCHEMA entity examples 組裝，≥3 筆）
+
+  const SPEC = { /* 完整 API_EXPLORER_SPEC 資料 */ };
+
+  const MOCK_DB = {
+    // 每個 Entity 至少 3 筆擬真範例資料（非 lorem ipsum）
+  };
+
+  // ─── Mock Engine ─────────────────────────────────────
+  // 依 endpoint id + 使用者填入的參數模擬 API 回應
+  function mockRequest(endpointId, params, body) {
+    const ep = findEndpoint(endpointId);
+    // 模擬 200ms 延遲
+    // 若有 auth-enabled 且 auth-token 為空 → 回傳 401
+    // 根據 params/body 內容決定回傳哪個 response code
+    // 使用 MOCK_DB 填充真實資料（列表加分頁、單筆 by id 等）
+    return new Promise(resolve => {
+      setTimeout(() => resolve(buildMockResponse(ep, params, body)), 200);
+    });
+  }
+
+  // ─── 參數表單渲染 ──────────────────────────────────
+  // 每個參數渲染成一個 .param-row，含：
+  // [必填標記] [參數名] [說明] [輸入控制項]
+  //
+  // 輸入控制項設計（雙模式）：
+  //   若 param.enum 存在（或從 SCHEMA 推斷出枚舉值）：
+  //     <datalist id="param-{name}-opts"> + <input list="...">
+  //     同時顯示快選 Chips（點擊直接填入）
+  //   否則：
+  //     單純 <input type="text|number"> + default value 預填
+  //
+  // Request Body 區塊：
+  //   若 endpoint 有 request_body：
+  //     顯示 Presets 下拉選單（從 spec 的 request_body examples 組裝）
+  //     + 可編輯的 <textarea>（JSON 格式，預設填入第一個 preset）
+  //     選 preset 後自動填入 textarea，使用者可繼續修改
+
+  function renderEndpoint(epId) {
+    // 更新 URL hash：#endpoint-{epId}（deep link）
+    location.hash = 'endpoint-' + epId;
+    // 渲染 endpoint 詳情 + 參數表單 + Try It 按鈕 + response 面板
+  }
+
+  // ─── Try It ───────────────────────────────────────
+  async function tryIt(endpointId) {
+    showSpinner();
+    const params = collectParams(endpointId);
+    const body   = collectBody(endpointId);
+    const result = await mockRequest(endpointId, params, body);
+    hideSpinner();
+    renderResponse(result);
+    renderCurlCommand(endpointId, params, body);  // "Copy as cURL" 區塊
+  }
+
+  // ─── Deep Link（hash routing）────────────────────
+  // 頁面載入時解析 #endpoint-{id} → 自動開啟對應 endpoint
+  function initHash() {
+    const hash = location.hash.slice(1);
+    if (hash.startsWith('endpoint-')) renderEndpoint(hash.replace('endpoint-', ''));
+  }
+
+  // ─── Auth 持久化 ─────────────────────────────────
+  function saveAuth(token) { localStorage.setItem('api-explorer-token', token); }
+  function loadAuth() {
+    const t = localStorage.getItem('api-explorer-token');
+    if (t) document.getElementById('auth-token').value = t;
+  }
+
+  // ─── Endpoint 篩選 ────────────────────────────────
+  function filterEndpoints(q) {
+    // 過濾 sidebar 中的 endpoint 列表（method + path + summary）
+  }
+
+  // ─── Init ────────────────────────────────────────
+  renderSidebar();
+  loadAuth();
+  initHash();
+  </script>
+</body>
+</html>
+```
+
+**參數雙模式 UX 規格（必須實作）：**
+
+| 情境 | 控制項 | 說明 |
+|------|--------|------|
+| 有枚舉值（status: active/inactive/pending）| 快選 Chips + 可輸入 input | chips 點擊 → 填入 input；input 仍可自由打值 |
+| 有明確格式（email, url, uuid）| input + placeholder 格式提示 | |
+| 數值範圍（page ≥ 1）| number input + min 屬性 | |
+| 一般字串 | text input + default 預填 | |
+| Request Body | Presets 下拉 + 可編輯 textarea | 選 preset 填入 textarea，可繼續修改後送出 |
+
+**品質要求（生成後自我驗證）：**
+- [ ] docs/pages/prototype/api-explorer/index.html 存在且可在 file:// 開啟
+- [ ] MOCK_DB 每個 entity 有 ≥ 3 筆擬真資料（非 lorem ipsum）
+- [ ] 所有 endpoint 的 params 均有對應輸入欄位
+- [ ] 枚舉型參數有 Chips 快選 + 可自由輸入
+- [ ] Request Body 有 Presets 下拉 + 可編輯 textarea
+- [ ] "Try It" 按鈕可執行，顯示 ≥200ms 模擬延遲 + mock 回應
+- [ ] 回應面板顯示 status code badge + formatted JSON
+- [ ] "Copy as cURL" 按鈕可用，複製後命令包含 auth header
+- [ ] Hash routing 可用：`#endpoint-{id}` 直接開啟對應 endpoint
+- [ ] Auth token 持久化（localStorage）：重新整理後保留
+- [ ] 無 401 mock（auth 啟用時帶入 token）
+- [ ] sidebar 搜尋可過濾 endpoint 列表
+
+完成後輸出：
+API_EXPLORER_GEN_RESULT:
+  endpoints_generated: N
+  groups: N
+  mock_entities: N
+  files:
+    - docs/pages/prototype/api-explorer/index.html
+  summary: "生成了 N 個 endpoint 的 API Explorer，涵蓋 M 個資源分組..."
+```
+
 ---
 
 ## Step 3：Review → Fix Loop
@@ -454,16 +768,21 @@ PROTOTYPE_GEN_RESULT:
 3. **Technical Quality Reviewer（技術品質審查員）**
    — 驗證 JS 無語法錯誤、音效/動畫邏輯正確
 
-**審查目標：**
+**審查目標（依 _PROTO_MODE 決定）：**
+
+UI Prototype（_PROTO_MODE = ui / full）：
   docs/pages/prototype/index.html
   docs/pages/prototype/assets/prototype.css
   docs/pages/prototype/assets/prototype.js
   docs/pages/prototype/assets/audio-engine.js（若存在）
   docs/pages/prototype/assets/fx-engine.js（若存在）
 
-**審查清單（共 10 項）：**
+API Explorer（_PROTO_MODE = api-explorer / full）：
+  docs/pages/prototype/api-explorer/index.html
 
-### P. Prototype 品質審查
+**審查清單：**
+
+### P. UI Prototype 品質審查（_PROTO_MODE = ui / full）
 
 - [ ] P-1: **畫面覆蓋** — 所有 PROTOTYPE_SPEC.screens 的 id 是否都有對應的 render 函式？（UX Flow）
 - [ ] P-2: **導覽完整** — 是否所有 nav_to 連結都可點擊且有 router.navigate() 綁定？無死結畫面？（UX Flow）
@@ -475,6 +794,19 @@ PROTOTYPE_GEN_RESULT:
 - [ ] P-8: **音效觸發** — 若有 audio-engine.js，BGM 進入首頁時是否觸發？P0 SFX 事件是否綁定？（Technical）
 - [ ] P-9: **iOS 音效解鎖** — 是否有 audio-unlock-btn 或等效的首次點擊解鎖機制？（Technical）
 - [ ] P-10: **無 JS 語法錯誤** — prototype.js 和 audio-engine.js 是否無明顯語法錯誤（未閉合的 {}/[]/"，缺少分號，未定義變數）？（Technical）
+
+### A. API Explorer 品質審查（_PROTO_MODE = api-explorer / full）
+
+- [ ] A-1: **Endpoint 覆蓋** — API_EXPLORER_SPEC 所有 endpoint 是否都在 sidebar 列出且可點擊？
+- [ ] A-2: **Mock 擬真** — MOCK_DB 每個 entity 是否有 ≥ 3 筆擬真資料（非 lorem ipsum / placeholder）？
+- [ ] A-3: **雙模式參數輸入** — 枚舉型參數是否有 Chips 快選 + 可自由打值的 input？非枚舉是否有 default 預填？
+- [ ] A-4: **Request Body Presets** — POST/PUT endpoint 是否有 Presets 下拉 + 可編輯 textarea？選 preset 後 textarea 是否自動填入？
+- [ ] A-5: **Try It 可用** — 點擊 Try It 是否顯示 ≥200ms spinner + 顯示 mock response（JSON）？
+- [ ] A-6: **Status Code Badge** — response panel 是否顯示正確顏色的 status badge（200=綠/400=橙/401=紅/500=深紅）？
+- [ ] A-7: **cURL 複製** — "Copy as cURL" 按鈕是否可用，命令是否包含 auth header（auth 啟用時）？
+- [ ] A-8: **Hash Deep Link** — `#endpoint-{id}` 是否可直接開啟對應 endpoint？分享連結是否有效？
+- [ ] A-9: **Auth 持久化** — Auth token 是否透過 localStorage 持久化（重新整理後保留）？
+- [ ] A-10: **無 JS 語法錯誤** — index.html inline script 是否無明顯語法錯誤？
 
 **完成後輸出（格式嚴格）：**
 PROTOTYPE_REVIEW_RESULT:
@@ -573,14 +905,36 @@ for round in range(1, max_rounds + 1):
 
 ### Step 4-A：更新 README.md
 
-搜尋 README.md 中的 `## Demo` 或 `## 文件站` 區塊，插入 Prototype 連結：
+搜尋 README.md 中的 `## Demo` 或 `## 文件站` 區塊，依 `_PROTO_MODE` 插入對應連結：
 
+**`_PROTO_MODE=ui`**：
 ```markdown
 ## Interactive Prototype
 
 | 連結 | 說明 |
 |------|------|
-| [📱 Interactive Prototype](docs/pages/prototype/index.html) | 可點擊的前端原型展示（{N} 個畫面，含動畫音效） |
+| [📱 Interactive Prototype](docs/pages/prototype/index.html) | 可點擊的前端原型（{N} 個畫面，含動畫音效） |
+| [📚 文件站](docs/pages/index.html) | 完整工程文件 |
+```
+
+**`_PROTO_MODE=api-explorer`**：
+```markdown
+## API Explorer
+
+| 連結 | 說明 |
+|------|------|
+| [🔌 API Explorer](docs/pages/prototype/api-explorer/index.html) | 互動式 API 試打介面（{N} 個 endpoint，JavaScript Mock） |
+| [📚 文件站](docs/pages/index.html) | 完整工程文件 |
+```
+
+**`_PROTO_MODE=full`**：
+```markdown
+## Interactive Demos
+
+| 連結 | 說明 |
+|------|------|
+| [📱 UI Prototype](docs/pages/prototype/index.html) | 可點擊的前端原型（{N} 個畫面，含動畫音效） |
+| [🔌 API Explorer](docs/pages/prototype/api-explorer/index.html) | 互動式 API 試打介面（{M} 個 endpoint，JavaScript Mock） |
 | [📚 文件站](docs/pages/index.html) | 完整工程文件 |
 ```
 
@@ -588,13 +942,23 @@ for round in range(1, max_rounds + 1):
 
 ### Step 4-B：更新 docs/pages/index.html
 
-在 `index-grid` 卡片群組中，插入 Prototype 卡片（置於最前）：
+在 `index-grid` 卡片群組中，依 `_PROTO_MODE` 插入卡片（置於最前）：
 
+**UI Prototype 卡片（_PROTO_MODE = ui / full）：**
 ```html
 <a class="index-card" href="prototype/index.html" style="border-color: var(--accent); background: linear-gradient(135deg, #eff8ff 0%, #fff 100%);">
-  <div class="index-card__icon">🎮</div>
+  <div class="index-card__icon">📱</div>
   <div class="index-card__title">Interactive Prototype</div>
   <div class="index-card__desc">{N} 個畫面 · 可點擊體驗 · 含動畫音效</div>
+</a>
+```
+
+**API Explorer 卡片（_PROTO_MODE = api-explorer / full）：**
+```html
+<a class="index-card" href="prototype/api-explorer/index.html" style="border-color: #10b981; background: linear-gradient(135deg, #ecfdf5 0%, #fff 100%);">
+  <div class="index-card__icon">🔌</div>
+  <div class="index-card__title">API Explorer</div>
+  <div class="index-card__desc">{M} 個 Endpoint · JavaScript Mock · 可試打體驗</div>
 </a>
 ```
 
@@ -609,14 +973,35 @@ count = len([f for f in glob.glob('docs/pages/prototype/*.html')])
 print(count)
 " 2>/dev/null || echo "?")
 
+_HAS_API_EXPLORER=$([[ -f "docs/pages/prototype/api-explorer/index.html" ]] && echo "1" || echo "0")
+
 git add docs/pages/prototype/ README.md docs/pages/index.html
 
-git commit -m "feat(gendoc)[prototype]: 生成互動式 HTML Prototype（${_PROTO_SCREENS} 畫面）
+if [[ "$_PROTO_MODE" == "api-explorer" ]]; then
+  _MSG="feat(gendoc)[prototype]: 生成 API Explorer（${_PROTO_SCREENS} endpoints）
+
+- 基於 API.md/SCHEMA.md 生成互動式 API 試打介面
+- JavaScript Mock 回應：無需啟動後端
+- 雙模式參數輸入：Chips 快選 + 自由打值
+- Request Body Presets + 可編輯 textarea
+- Copy as cURL、Hash Deep Link、Auth 持久化
+- 連結已更新至 README.md 和 docs/pages/index.html"
+elif [[ "$_PROTO_MODE" == "full" ]]; then
+  _MSG="feat(gendoc)[prototype]: 生成 UI Prototype + API Explorer
+
+- UI：${_PROTO_SCREENS} 個畫面，含導覽路由、Mock Data、動畫音效
+- API Explorer：基於 API.md 生成可試打介面，JavaScript Mock 回應
+- 連結已更新至 README.md 和 docs/pages/index.html"
+else
+  _MSG="feat(gendoc)[prototype]: 生成互動式 HTML Prototype（${_PROTO_SCREENS} 畫面）
 
 - 基於 PRD/PDD/VDD/FRONTEND/AUDIO/ANIM 生成完整可點擊原型
 - 包含導覽路由、Mock Data、動畫特效、音效觸發
 - 流程地圖 Modal 可全覽所有畫面
-- 連結已更新至 README.md 和 docs/pages/index.html
+- 連結已更新至 README.md 和 docs/pages/index.html"
+fi
+
+git commit -m "${_MSG}
 
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
