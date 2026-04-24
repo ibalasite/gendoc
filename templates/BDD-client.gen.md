@@ -11,6 +11,8 @@ upstream-docs:
   - docs/PDD.md
   - docs/FRONTEND.md
   - docs/EDD.md
+  - docs/AUDIO.md    # 若存在：音效觸發事件 → 按鈕點擊/場景切換 音訊行為 scenario
+  - docs/ANIM.md     # 若存在：動畫狀態清單 → 進場/離場/載入動畫 scenario
   - docs/test-plan.md
 quality-bar: "所有 PRD P0 AC 有對應 Client BDD Scenario（UI Happy Path + Error Flow）；所有 FRONTEND.md P0 Screen Flow 有 E2E Scenario 覆蓋；無後端業務邏輯驗證（DB 狀態、業務計算）出現在 Then 步驟；可直接用 Playwright / Cypress 執行"
 gen-expert: "資深 Frontend QA Expert + E2E Automation Specialist（10 年以上 Playwright / Cypress BDD 經驗）"

@@ -12,6 +12,8 @@ upstream-docs:
   - docs/API.md
   - docs/SCHEMA.md
   - docs/FRONTEND.md  # Layer 6 — 前端本地啟動設定（dev server port、env vars、hot reload）
+  - docs/AUDIO.md    # 若存在：本地音訊資產路徑設定（dev server static 目錄、CORS 頭設定）
+  - docs/ANIM.md     # 若存在：本地動畫資產路徑、Spine/DragonBones runtime 安裝
   - docs/test-plan.md
   - features/          # BDD-server 輸出（Server BDD Feature Files）
   - features/client/   # BDD-client 輸出（Client E2E Feature Files，若 client_type≠none）

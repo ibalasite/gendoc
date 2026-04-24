@@ -2,11 +2,13 @@
 doc-type: ANIM
 output-path: docs/ANIM.md
 upstream-docs:
+  - docs/req/       # 所有 req 素材（IDEA 定義）
   - docs/IDEA.md
   - docs/BRD.md
   - docs/PRD.md
+  - docs/PDD.md     # UX 設計流程 → 動畫觸發時機、目標平台渲染能力
+  - docs/VDD.md     # 視覺設計系統 → 運動語言、easing 函數、品牌色
   - docs/EDD.md
-  - docs/VDD.md
   - docs/FRONTEND.md
 quality-bar: "§2 所有 P0 角色/物件都有完整骨骼動畫狀態機；§5 粒子特效最大粒子數已填具體值；§7 引擎設定代碼可直接複製使用；§8 資產命名規範完整；§9 所有效能指標填具體數值且有 LOD 策略；§10 測試清單覆蓋幀率/記憶體/跨平台；無裸 placeholder"
 ---

@@ -12,6 +12,8 @@ upstream-docs:
   - docs/API.md
   - docs/SCHEMA.md
   - docs/FRONTEND.md  # Layer 6 — 前端元件追溯到 E2E Test Case
+  - docs/AUDIO.md    # 若存在：音效需求追溯到對應測試案例
+  - docs/ANIM.md     # 若存在：動畫需求追溯到對應測試案例
   - docs/test-plan.md
   - features/          # BDD-server 輸出（Server BDD Feature Files）
   - features/client/   # BDD-client 輸出（Client E2E Feature Files，若 client_type≠none）

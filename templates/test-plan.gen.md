@@ -12,6 +12,8 @@ upstream-docs:
   - docs/API.md
   - docs/SCHEMA.md
   - docs/FRONTEND.md  # Layer 6 — 前端元件架構（E2E 測試目標、VRT 覆蓋範圍）
+  - docs/AUDIO.md    # 若存在：音效觸發清單、效能預算 → 音訊播放/靜音/格式/FPS 測試案例
+  - docs/ANIM.md     # 若存在：動畫規格、效能預算 → 幀率/記憶體/reduced-motion 測試案例
 quality-bar: "Test Pyramid 比例已說明（Unit 70%/Integration 20%/E2E 10%）；所有 P0 AC 均有對應 TC-ID；OWASP A01–A10 每項均有覆蓋計畫；4 個效能測試場景（Smoke/Load/Stress/Soak）均已定義且含具體 P50/P95/P99 數字；RTM 涵蓋所有 Must-have AC"
 ---
 

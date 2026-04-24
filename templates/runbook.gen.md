@@ -12,6 +12,8 @@ upstream-docs:
   - docs/API.md
   - docs/SCHEMA.md
   - docs/FRONTEND.md  # Layer 6 — 前端部署單元（若 client_type≠none：前端資產打包、靜態檔案服務設定）
+  - docs/AUDIO.md    # 若存在：音訊資產部署路徑、CDN 設定、MIME type（audio/ogg、audio/mpeg）
+  - docs/ANIM.md     # 若存在：動畫資產部署路徑、WASM 模組、Spine/DragonBones 資產打包
   - docs/test-plan.md
   - features/          # BDD-server 輸出（Server BDD Feature Files）
   - features/client/   # BDD-client 輸出（Client E2E Feature Files，若 client_type≠none）

@@ -2,10 +2,12 @@
 doc-type: AUDIO
 output-path: docs/AUDIO.md
 upstream-docs:
-  - docs/req/
+  - docs/req/       # 所有 req 素材（IDEA 定義）
   - docs/IDEA.md
   - docs/BRD.md
   - docs/PRD.md
+  - docs/PDD.md     # 目標平台（iOS/Android/Web）→ 音訊 codec/格式選擇
+  - docs/VDD.md     # 視覺設計語言 → 音效與視覺事件時序對齊（情緒、氛圍）
   - docs/EDD.md
   - docs/FRONTEND.md
 quality-bar: "§2 每個主要場景都有對應 BGM；§3 所有 P0 User Story 觸發的互動都有對應 SFX；§4 若有劇情/教學則每條 VO 觸發條件精確到事件名稱且無裸 placeholder；§5 音效觸發邏輯完整無歧義；§6 引擎設定代碼可直接複製使用；§7 資產命名符合規範；§8 載入策略與 EDD.md/FRONTEND.md 一致；§9 效能預算已填具體數值；§10 測試清單覆蓋 §3 所有 SFX；無裸 placeholder"
