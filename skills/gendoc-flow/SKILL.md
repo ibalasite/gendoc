@@ -859,7 +859,7 @@ PYEOF
 
 已生成文件（依層次）：
   需求層：docs/BRD.md（已有）docs/IDEA.md（已有）docs/PRD.md
-  設計層：docs/EDD.md docs/ARCH.md docs/API.md docs/SCHEMA.md
+  設計層：docs/EDD.md docs/ARCH.md diagrams/（UML×9+class-inventory）docs/API.md docs/SCHEMA.md [docs/FRONTEND.md] [docs/AUDIO.md] [docs/ANIM.md]
   品質層：docs/test-plan.md features/（BDD-server）docs/RTM.md
   運維層：docs/runbook.md docs/LOCAL_DEPLOY.md
   稽核層：docs/ALIGN_REPORT.md
@@ -904,6 +904,8 @@ if _failed:
 | API | 資深 API Designer | API Designer + Backend Engineer |
 | SCHEMA | 資深 DBA | DBA + Backend Architect |
 | FRONTEND | 資深 Frontend Architect | Frontend Architect + UX Engineer |
+| AUDIO | 資深音效設計師（Senior Audio Designer） | 音效設計師 + 技術音效工程師 + QA 音效測試員 |
+| ANIM | 資深技術動畫師（Senior Technical Animator） | 技術動畫師 + VFX 技術工程師 + 效能工程師 |
 | test-plan | 資深 QA Architect | QA Architect + SRE |
 | BDD-server | 資深 BDD Expert | BDD Expert + Backend Engineer |
 | BDD-client | 資深 Frontend QA Expert | Frontend QA + BDD Expert |
