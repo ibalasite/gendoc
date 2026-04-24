@@ -4,7 +4,7 @@
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](https://github.com/ibalasite/gendoc)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-skill-blueviolet)](https://claude.ai/code)
 
-**AI-driven engineering document generation system for Claude Code.** One command generates a complete 17-document implementation blueprint — IDEA, BRD, PRD, PDD, VDD, EDD, ARCH, API, Schema, FRONTEND, test-plan, BDD, RTM, Runbook, LOCAL_DEPLOY, and an HTML documentation site — each document inheriting knowledge from all upstream docs automatically.
+**AI-driven engineering document generation system for Claude Code.** One command generates a complete implementation blueprint — IDEA, BRD, PRD, PDD, VDD, EDD, ARCH, API, Schema, FRONTEND, AUDIO, ANIM, test-plan, BDD, RTM, Runbook, LOCAL_DEPLOY, and an HTML documentation site — each document inheriting knowledge from all upstream docs automatically. For game projects (`client_type=game`), AUDIO and ANIM design documents are also generated.
 
 ---
 
@@ -18,6 +18,9 @@ Key capabilities:
 - **Universal review loop** — `/reviewdoc <type>` with configurable strategy (rapid / standard / exhaustive / tiered / custom)
 - **Reliable breakpoint resume** — `review_progress` schema tracks each review round; any step can be safely interrupted and resumed at the exact round
 - **Quality status tracking** — `passed` / `degraded` / `failed` per step; CRITICAL/HIGH findings block completion, MEDIUM/LOW log as degraded
+- **Three-value project type** — `game` (AUDIO+ANIM+UI prototype) / `web` (SaaS/App, UI prototype) / `api-only` (API Explorer prototype); auto-detected from IDEA/BRD/PRD keywords, re-verified after PRD generation (P-14)
+- **Interactive prototypes** — `/gendoc-gen-prototype` generates a clickable HTML prototype for any project type: UI flow prototype (web/game) or API Explorer with mock responses (api-only, like Postman)
+- **Pipeline integrity check** — P-15 verifies all expected steps have a record before marking complete
 - **Auto-update via SessionStart hook** — harness-enforced, LLM-independent, runs in background
 - **Windows native support** — Python-based hook for Windows, bash for macOS/Linux
 
@@ -30,21 +33,23 @@ Key capabilities:
 | `gendoc` | `/gendoc <type>` | Generate any document type |
 | `reviewdoc` | `/reviewdoc <type>` | Review & iteratively fix any document |
 | `gendoc-auto` | `/gendoc-auto` | Full pipeline entry point: IDEA + BRD generation, then hands off to gendoc-flow |
-| `gendoc-flow` | `/gendoc-flow` | Template-driven orchestrator (D03–D17) with reliable breakpoint resume |
-| `gendoc-config` | `/gendoc-config` | Configure execution mode, review strategy & restart step interactively |
+| `gendoc-flow` | `/gendoc-flow` | Template-driven orchestrator (D03–D17) with reliable breakpoint resume, P-14/P-15 |
+| `gendoc-config` | `/gendoc-config` | Configure execution mode, review strategy, client_type & restart step interactively |
 | `gendoc-align-check` | `/gendoc-align-check` | Cross-document alignment scan (D16) |
 | `gendoc-align-fix` | `/gendoc-align-fix` | Auto-fix alignment issues |
 | `gendoc-gen-html` | `/gendoc-gen-html` | Generate HTML documentation site (D17) |
-| `gendoc-gen-prototype` | `/gendoc-gen-prototype` | Generate interactive HTML prototype from design docs (SaaS / game / HTML5) |
-| `gendoc-gen-diagrams` | `/gendoc-gen-diagrams` | Generate architecture diagrams |
-| `gendoc-gen-client-bdd` | `/gendoc-gen-client-bdd` | Client-facing BDD feature files |
+| `gendoc-gen-prototype` | `/gendoc-gen-prototype` | Interactive HTML prototype — UI flow (web/game) or API Explorer with mock engine (api-only) |
+| `gendoc-gen-diagrams` | `/gendoc-gen-diagrams` | Generate 9 UML diagrams + class-inventory.md (D07b) |
+| `gendoc-gen-client-bdd` | `/gendoc-gen-client-bdd` | Client-facing BDD feature files (web/game projects) |
 | `gendoc-rebuild-templates` | `/gendoc-rebuild-templates` | Rebuild all document templates from scratch |
 | `gendoc-update` | `/gendoc-update` | Manual skill upgrade |
 | `reviewtemplate` | `/reviewtemplate <TYPE>` | Review & iteratively fix a template three-file set (TYPE.md + .gen.md + .review.md) |
 
 ### Supported Document Types
 
-`idea` · `brd` · `prd` · `pdd` · `vdd` · `edd` · `arch` · `api` · `schema` · `frontend` · `test-plan` · `bdd` · `rtm` · `runbook` · `local-deploy` · `readme`
+`idea` · `brd` · `prd` · `pdd` · `vdd` · `edd` · `arch` · `api` · `schema` · `frontend` · `audio` · `anim` · `test-plan` · `bdd` · `rtm` · `runbook` · `local-deploy` · `readme`
+
+> `audio` and `anim` are only generated for `client_type=game` projects (games, HTML5 game engines).
 
 ---
 
@@ -150,7 +155,7 @@ flowchart TD
             D03["D03 PRD"] --> D04["D04 PDD ✦"] --> D05["D05 VDD ✦"]
         end
         subgraph DES["設計層"]
-            D06["D06 EDD"] --> D07["D07 ARCH"] --> D08["D08 API"] --> D09["D09 SCHEMA"] --> D10["D10 FRONTEND ✦"]
+            D06["D06 EDD"] --> D07["D07 ARCH"] --> D07b["D07b UML ★"] --> D08["D08 API"] --> D09["D09 SCHEMA"] --> D10["D10 FRONTEND ✦"] --> D10b["D10b AUDIO ✧"] --> D10c["D10c ANIM ✧"]
         end
         subgraph QA["品質層"]
             D11["D11 test-plan"] --> D12["D12 BDD-server"] --> D12b["D12b BDD-client ✦"] --> D13["D13 RTM"]
@@ -167,14 +172,16 @@ flowchart TD
     RESUME(["/gendoc-flow 斷點續行"]) -.->|"review_progress\ncompleted_steps"| FLOW
     CONFIG(["/gendoc-config 設定"]) -.-> FLOW
     classDef condNode fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
+    classDef gameNode fill:#fce7f3,stroke:#db2777,color:#831843
     classDef specNode fill:#fef3c7,stroke:#f59e0b,color:#78350f
     classDef ioNode fill:#d1fae5,stroke:#059669,color:#064e3b
     class D04,D05,D10,D12b condNode
-    class D16,D17 specNode
+    class D10b,D10c gameNode
+    class D07b,D16,D17 specNode
     class INPUT,DONE ioNode
 ```
 
-> **✦ 藍色節點**（PDD / VDD / FRONTEND / BDD-client）：`client_type ≠ none` 才啟用。**★ 黃色節點**：稽核層特殊步驟。
+> **✦ 藍色節點**（PDD / VDD / FRONTEND / BDD-client）：`client_type=web` 或 `game` 才啟用。**✧ 粉紅節點**（AUDIO / ANIM）：`client_type=game` 專屬。**★ 黃色節點**：特殊步驟（special_skill）。
 
 ### 文件上下層關係（Document Hierarchy）
 
@@ -242,7 +249,7 @@ gendoc/
 │   ├── BRD.md / BRD.gen.md
 │   └── ...
 └── docs/                          # gendoc's own project documentation
-    ├── PRD.md                     # Product Requirements Document (v1.5)
+    ├── PRD.md                     # Product Requirements Document (v1.9)
     ├── gendoc-redesign-decisions.md  # Architecture design decisions log
     └── pages/                     # Generated HTML site (GitHub Pages)
 ```

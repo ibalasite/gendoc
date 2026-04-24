@@ -41,10 +41,10 @@
 <tr><th>欄位</th><th>內容</th></tr>
 <tr><td><strong>DOC-ID</strong></td><td>PRD-GENDOC-20260422</td></tr>
 <tr><td><strong>產品名稱</strong></td><td>gendoc — AI-Driven Implementation Blueprint Generator</td></tr>
-<tr><td><strong>文件版本</strong></td><td>v1.8</td></tr>
+<tr><td><strong>文件版本</strong></td><td>v1.9</td></tr>
 <tr><td><strong>狀態</strong></td><td>ACTIVE</td></tr>
 <tr><td><strong>作者（PM）</strong></td><td>AI Product Manager Agent</td></tr>
-<tr><td><strong>日期</strong></td><td>2026-04-24</td></tr>
+<tr><td><strong>日期</strong></td><td>2026-04-25</td></tr>
 <tr><td><strong>上游來源</strong></td><td>gendoc 開源專案（github.com/ibalasite/gendoc）</td></tr>
 <tr><td><strong>審閱者</strong></td><td>技術架構師、QA Lead</td></tr>
 <tr><td><strong>核准者</strong></td><td>待定</td></tr>
@@ -53,6 +53,7 @@
 <h2>Change Log</h2>
 <table>
 <tr><th>版本</th><th>日期</th><th>作者</th><th>變更摘要</th></tr>
+<tr><td>v1.9</td><td>2026-04-25</td><td>PM Agent</td><td><strong>專案類型三值化</strong>：client_type 從二值（web/none）擴展為三值（<code>game</code>/<code>web</code>/<code>api-only</code>）；AUDIO/ANIM 條件從 <code>client_type != none</code> 改為 <code>client_type == game</code>（僅遊戲專案生成）；game 偵測關鍵字新增 20+ 詞（魚機/捕魚/博弈/canvas/webgl/phaser 等）。<strong>新增 gendoc-gen-prototype skill</strong>：偵測 client_type 自動選擇原型模式 — game/web 生成可點擊 UI 原型（HTML5 自包含，模擬動線）、api-only 生成 API Explorer（雙模式參數輸入：Chip 快選 + 自由輸入；預設值建議；Request Body Preset；localStorage auth；Copy as cURL；hash 深連結）。<strong>新增 reviewtemplate skill</strong>：TYPE.md + TYPE.gen.md + TYPE.review.md 三件套品質審查與修復 loop，支援 standard/exhaustive 策略。<strong>P-14</strong>：D03-PRD 完成後重新驗證 client_type（Step 0-C 執行時 PRD 尚未生成，可能漏判遊戲關鍵字）；<code>client_type_source: &quot;manual&quot;</code> 防止自動偵測覆寫手動設定。<strong>P-15</strong>：Total Summary 前 Pipeline 完整性掃描，驗證所有預期步驟均有記錄，防止誤標 <code>pipeline_complete</code>。<strong>gendoc-config</strong> 新增第 5 選項「手動設定 client_type」。</td></tr>
 <tr><td>v1.8</td><td>2026-04-24</td><td>PM Agent</td><td>新增音效與動畫特效設計文件：AUDIO.md（BGM/SFX/VO 清單、音效觸發狀態機、Cocos/Unity/HTML5 Howler.js 引擎設定、資產規格、效能預算）+ ANIM.md（骨骼/幀/Tween 動畫、粒子特效、Shader 特效、Cocos/Unity/HTML5 PixiJS 引擎設定、效能預算 + LOD 三級策略）；各含 gen.md（3 角色專家、引擎自動偵測、品質門）與 review.md（18~20 條審查項，含 CRITICAL/HIGH 覆蓋邏輯與效能閘）；pipeline.json 新增 D10b-AUDIO + D10c-ANIM（條件 client_type != none，位於 FRONTEND 之後、test-plan 之前）</td></tr>
 <tr><td>v1.7</td><td>2026-04-24</td><td>PM Agent</td><td>UML 9 大圖完整性強化（P1-P3）：新增 D07b-UML 流水線步驟（pipeline.json）；gendoc-gen-diagrams 完全重寫 → 輸出 9 種 UML + class-inventory.md（1:1:N class→test 追蹤）；EDD.gen.md §4.5 修正編號對齊、新增多圖原則強制規定；EDD.review.md 新增 CRITICAL 5b/5c UML 完整性與 class inventory 審查門；test-plan.gen.md 讀取 class-inventory 並依 TC-ID 格式（TC-UNIT-{MODULE}-{SEQ}-{S/E/B}）展開測試；RTM.md/RTM.gen.md 新增 §15.3 UML 圖追蹤矩陣與 §15.4 Class→Test 覆蓋追蹤（method 覆蓋率 &lt;80% 觸發 WARNING）；PRD.gen.md/PRD.md User Story 新增 Activity Diagram 關聯欄位；API.review.md 新增 Layer 8 Sequence Diagram 完整性檢查</td></tr>
 <tr><td>v1.6</td><td>2026-04-24</td><td>PM Agent</td><td>P-13 client_type 自動推斷修補：gendoc-flow Step 0-C 新增 IDEA/BRD/PRD 關鍵字掃描（50+ UI 關鍵字，含遊戲/魚機/觸控螢幕），空值或舊 &quot;none&quot; 自動修正為 &quot;web&quot; 或 &quot;api-only&quot;；gendoc-shared state schema 更新（&quot;&quot; 取代 &quot;none&quot; 為預設值，新增 &quot;api-only&quot; 顯式跳過語意）；修正漁機等嵌入式 UI 專案被錯誤跳過的問題</td></tr>
@@ -323,31 +324,34 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
     And 帳號的 failed_attempts 重置為 0</code></pre>
 <hr>
 <h2>5. Skill 架構與流程</h2>
-<h3>5.1 Skill 清單（22 個）</h3>
+<h3>5.1 Skill 清單（25 個）</h3>
 <table>
 <tr><th>分層</th><th>Skill 名稱</th><th>功能</th></tr>
 <tr><td><strong>入口層</strong></td><td><code>gendoc-auto</code></td><td>任意輸入→IDEA+BRD→移交 gendoc-flow</td></tr>
-<tr><td><strong>流水線層</strong></td><td><code>gendoc-flow</code></td><td>純文件生成流水線（PRD→BDD→HTML）</td></tr>
+<tr><td><strong>流水線層</strong></td><td><code>gendoc-flow</code></td><td>純文件生成流水線（PRD→BDD→HTML），含 P-14/P-15</td></tr>
+<tr><td><strong>設定層</strong></td><td><code>gendoc-config</code></td><td>互動設定執行模式、Review 策略、client_type、重跑起點</td></tr>
 <tr><td><strong>共用層</strong></td><td><code>gendoc-shared</code></td><td>共用邏輯參考（狀態管理、Review 策略）</td></tr>
 <tr><td><strong>更新層</strong></td><td><code>gendoc-update</code></td><td>版本自動更新</td></tr>
 <tr><td><strong>生成層</strong></td><td><code>gendoc-gen-idea</code></td><td>生成 IDEA.md</td></tr>
 <tr><td></td><td><code>gendoc-gen-brd</code></td><td>生成 BRD.md</td></tr>
 <tr><td></td><td><code>gendoc-gen-prd</code></td><td>生成 PRD.md</td></tr>
-<tr><td></td><td><code>gendoc-gen-pdd</code></td><td>生成 PDD.md</td></tr>
+<tr><td></td><td><code>gendoc-gen-pdd</code></td><td>生成 PDD.md（client_type≠api-only）</td></tr>
 <tr><td></td><td><code>gendoc-gen-edd</code></td><td>生成 EDD.md（含 class + method 細節）</td></tr>
 <tr><td></td><td><code>gendoc-gen-arch</code></td><td>生成 ARCH.md（含 sequence diagram）</td></tr>
 <tr><td></td><td><code>gendoc-gen-api</code></td><td>生成 API.md（含完整 request/response schema）</td></tr>
 <tr><td></td><td><code>gendoc-gen-schema</code></td><td>生成 SCHEMA.md（含完整 DDL + index 策略）</td></tr>
 <tr><td></td><td><code>gendoc-gen-test-plan</code></td><td>生成 test-plan.md（含 BVA + EP 具體值）+ RTM.md</td></tr>
 <tr><td></td><td><code>gendoc-gen-bdd</code></td><td>生成 BDD.md（含 edge case Scenario）</td></tr>
-<tr><td></td><td><code>gendoc-gen-diagrams</code></td><td>生成 UML / Mermaid 圖表</td></tr>
+<tr><td></td><td><code>gendoc-gen-diagrams</code></td><td>生成 9 大 UML 圖 + class-inventory.md（D07b-UML）</td></tr>
 <tr><td></td><td><code>gendoc-gen-readme</code></td><td>生成 README.md</td></tr>
-<tr><td></td><td><code>gendoc-gen-html</code></td><td>生成靜態 HTML 文件網站</td></tr>
-<tr><td></td><td><code>gendoc-gen-client-bdd</code></td><td>生成客戶端 BDD（可選）</td></tr>
-<tr><td><strong>Review 層</strong></td><td><code>gendoc-idea-review</code></td><td>IDEA.md Review Loop</td></tr>
-<tr><td></td><td><code>gendoc-brd-review</code></td><td>BRD.md Review Loop</td></tr>
-<tr><td></td><td><code>gendoc-align-check</code></td><td>跨文件對齊審查</td></tr>
+<tr><td></td><td><code>gendoc-gen-html</code></td><td>生成靜態 HTML 文件網站（D17）</td></tr>
+<tr><td></td><td><code>gendoc-gen-client-bdd</code></td><td>生成客戶端 BDD feature files（client_type≠api-only）</td></tr>
+<tr><td></td><td><code>gendoc-gen-prototype</code></td><td>生成可互動 HTML 原型：UI 原型（web/game）或 API Explorer（api-only，模擬 Postman）</td></tr>
+<tr><td><strong>Review 層</strong></td><td><code>gendoc-align-check</code></td><td>跨文件對齊審查（D16）</td></tr>
 <tr><td></td><td><code>gendoc-align-fix</code></td><td>自動修復對齊問題</td></tr>
+<tr><td></td><td><code>reviewdoc</code></td><td>單一文件審查 + Fix Loop（任意 TYPE）</td></tr>
+<tr><td></td><td><code>reviewtemplate</code></td><td>模板三件套品質審查與修復 loop（TYPE.md + .gen.md + .review.md）</td></tr>
+<tr><td><strong>維護層</strong></td><td><code>gendoc-rebuild-templates</code></td><td>從頭重建所有文件模板</td></tr>
 </table>
 <h3>5.2 完整流程圖（SOP）</h3>
 <p>每個標準步驟執行<strong>三專家子代理模式</strong>：Gen ⚙ → Review ↻ → Fix ✎ → Commit ↑，直至 finding = 0 或達 max_rounds。</p>
@@ -710,7 +714,9 @@ BDD-client：
 <tr><td><code>docs/ARCH.md</code></td><td><code>ARCH.md</code></td><td><code>ARCH.gen.md</code></td><td>Layer 5a</td><td>C4 Model、元件圖、sequence diagram、ADR</td></tr>
 <tr><td><code>docs/API.md</code></td><td><code>API.md</code></td><td><code>API.gen.md</code></td><td>Layer 5b</td><td><strong>完整 request/response/error schema</strong>、Rate Limit</td></tr>
 <tr><td><code>docs/SCHEMA.md</code></td><td><code>SCHEMA.md</code></td><td><code>SCHEMA.gen.md</code></td><td>Layer 5c</td><td><strong>DDL + index + constraint</strong>、ER 圖、Migration 策略</td></tr>
-<tr><td><code>docs/FRONTEND.md</code></td><td><code>FRONTEND.md</code></td><td><code>FRONTEND.gen.md</code></td><td>Layer 6</td><td>元件架構、State Management、<strong>實作 VDD Design Token</strong>（client_type≠none）</td></tr>
+<tr><td><code>docs/FRONTEND.md</code></td><td><code>FRONTEND.md</code></td><td><code>FRONTEND.gen.md</code></td><td>Layer 6</td><td>元件架構、State Management、<strong>實作 VDD Design Token</strong>（client_type=web/game）</td></tr>
+<tr><td><code>docs/AUDIO.md</code></td><td><code>AUDIO.md</code></td><td><code>AUDIO.gen.md</code></td><td>Layer 6.5</td><td>BGM/SFX/VO 清單、音效觸發狀態機、引擎設定（Cocos/Unity/HTML5 Howler.js）、資產規格、效能預算（<strong>client_type=game 才生成</strong>）</td></tr>
+<tr><td><code>docs/ANIM.md</code></td><td><code>ANIM.md</code></td><td><code>ANIM.gen.md</code></td><td>Layer 6.5</td><td>骨骼/幀/Tween 動畫、粒子特效、Shader 特效、引擎設定（Cocos/Unity/HTML5 PixiJS）、效能預算 + LOD 三級策略（<strong>client_type=game 才生成</strong>）</td></tr>
 <tr><td><code>docs/test-plan.md</code></td><td><code>test-plan.md</code></td><td><code>test-plan.gen.md</code></td><td>Layer 7</td><td><strong>EP + BVA + 並發</strong>、測試金字塔</td></tr>
 <tr><td><code>features/*.feature</code></td><td><code>BDD-server.md</code></td><td><code>BDD-server.gen.md</code></td><td>Layer 8a</td><td><strong>Gherkin Scenario + edge case + unhappy path</strong>（Server API BDD）</td></tr>
 <tr><td><code>features/client/*.feature</code></td><td><code>BDD-client.md</code></td><td><code>BDD-client.gen.md</code></td><td>Layer 8b</td><td>Client E2E Scenario（client_type≠none）</td></tr>

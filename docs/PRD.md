@@ -1,6 +1,6 @@
 # PRD — Product Requirements Document
 <!-- 對應學術標準：IEEE 830 (SRS)，對應業界：Google PRD / Amazon PRFAQ -->
-<!-- Version: v1.8 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 -->
+<!-- Version: v1.9 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 -->
 
 ---
 
@@ -10,10 +10,10 @@
 |------|------|
 | **DOC-ID** | PRD-GENDOC-20260422 |
 | **產品名稱** | gendoc — AI-Driven Implementation Blueprint Generator |
-| **文件版本** | v1.8 |
+| **文件版本** | v1.9 |
 | **狀態** | ACTIVE |
 | **作者（PM）** | AI Product Manager Agent |
-| **日期** | 2026-04-24 |
+| **日期** | 2026-04-25 |
 | **上游來源** | gendoc 開源專案（github.com/ibalasite/gendoc） |
 | **審閱者** | 技術架構師、QA Lead |
 | **核准者** | 待定 |
@@ -24,6 +24,7 @@
 
 | 版本 | 日期 | 作者 | 變更摘要 |
 |------|------|------|---------|
+| v1.9 | 2026-04-25 | PM Agent | **專案類型三值化**：client_type 從二值（web/none）擴展為三值（`game`/`web`/`api-only`）；AUDIO/ANIM 條件從 `client_type != none` 改為 `client_type == game`（僅遊戲專案生成）；game 偵測關鍵字新增 20+ 詞（魚機/捕魚/博弈/canvas/webgl/phaser 等）。**新增 gendoc-gen-prototype skill**：偵測 client_type 自動選擇原型模式 — game/web 生成可點擊 UI 原型（HTML5 自包含，模擬動線）、api-only 生成 API Explorer（雙模式參數輸入：Chip 快選 + 自由輸入；預設值建議；Request Body Preset；localStorage auth；Copy as cURL；hash 深連結）。**新增 reviewtemplate skill**：TYPE.md + TYPE.gen.md + TYPE.review.md 三件套品質審查與修復 loop，支援 standard/exhaustive 策略。**P-14**：D03-PRD 完成後重新驗證 client_type（Step 0-C 執行時 PRD 尚未生成，可能漏判遊戲關鍵字）；`client_type_source: "manual"` 防止自動偵測覆寫手動設定。**P-15**：Total Summary 前 Pipeline 完整性掃描，驗證所有預期步驟均有記錄，防止誤標 `pipeline_complete`。**gendoc-config** 新增第 5 選項「手動設定 client_type」。 |
 | v1.8 | 2026-04-24 | PM Agent | 新增音效與動畫特效設計文件：AUDIO.md（BGM/SFX/VO 清單、音效觸發狀態機、Cocos/Unity/HTML5 Howler.js 引擎設定、資產規格、效能預算）+ ANIM.md（骨骼/幀/Tween 動畫、粒子特效、Shader 特效、Cocos/Unity/HTML5 PixiJS 引擎設定、效能預算 + LOD 三級策略）；各含 gen.md（3 角色專家、引擎自動偵測、品質門）與 review.md（18~20 條審查項，含 CRITICAL/HIGH 覆蓋邏輯與效能閘）；pipeline.json 新增 D10b-AUDIO + D10c-ANIM（條件 client_type != none，位於 FRONTEND 之後、test-plan 之前）|
 | v1.7 | 2026-04-24 | PM Agent | UML 9 大圖完整性強化（P1-P3）：新增 D07b-UML 流水線步驟（pipeline.json）；gendoc-gen-diagrams 完全重寫 → 輸出 9 種 UML + class-inventory.md（1:1:N class→test 追蹤）；EDD.gen.md §4.5 修正編號對齊、新增多圖原則強制規定；EDD.review.md 新增 CRITICAL 5b/5c UML 完整性與 class inventory 審查門；test-plan.gen.md 讀取 class-inventory 並依 TC-ID 格式（TC-UNIT-{MODULE}-{SEQ}-{S/E/B}）展開測試；RTM.md/RTM.gen.md 新增 §15.3 UML 圖追蹤矩陣與 §15.4 Class→Test 覆蓋追蹤（method 覆蓋率 <80% 觸發 WARNING）；PRD.gen.md/PRD.md User Story 新增 Activity Diagram 關聯欄位；API.review.md 新增 Layer 8 Sequence Diagram 完整性檢查 |
 | v1.6 | 2026-04-24 | PM Agent | P-13 client_type 自動推斷修補：gendoc-flow Step 0-C 新增 IDEA/BRD/PRD 關鍵字掃描（50+ UI 關鍵字，含遊戲/魚機/觸控螢幕），空值或舊 "none" 自動修正為 "web" 或 "api-only"；gendoc-shared state schema 更新（"" 取代 "none" 為預設值，新增 "api-only" 顯式跳過語意）；修正漁機等嵌入式 UI 專案被錯誤跳過的問題 |
@@ -378,32 +379,35 @@ Feature: 使用者登入
 
 ## 5. Skill 架構與流程
 
-### 5.1 Skill 清單（22 個）
+### 5.1 Skill 清單（25 個）
 
 | 分層 | Skill 名稱 | 功能 |
 |------|-----------|------|
 | **入口層** | `gendoc-auto` | 任意輸入→IDEA+BRD→移交 gendoc-flow |
-| **流水線層** | `gendoc-flow` | 純文件生成流水線（PRD→BDD→HTML） |
+| **流水線層** | `gendoc-flow` | 純文件生成流水線（PRD→BDD→HTML），含 P-14/P-15 |
+| **設定層** | `gendoc-config` | 互動設定執行模式、Review 策略、client_type、重跑起點 |
 | **共用層** | `gendoc-shared` | 共用邏輯參考（狀態管理、Review 策略） |
 | **更新層** | `gendoc-update` | 版本自動更新 |
 | **生成層** | `gendoc-gen-idea` | 生成 IDEA.md |
 | | `gendoc-gen-brd` | 生成 BRD.md |
 | | `gendoc-gen-prd` | 生成 PRD.md |
-| | `gendoc-gen-pdd` | 生成 PDD.md |
+| | `gendoc-gen-pdd` | 生成 PDD.md（client_type≠api-only） |
 | | `gendoc-gen-edd` | 生成 EDD.md（含 class + method 細節） |
 | | `gendoc-gen-arch` | 生成 ARCH.md（含 sequence diagram） |
 | | `gendoc-gen-api` | 生成 API.md（含完整 request/response schema） |
 | | `gendoc-gen-schema` | 生成 SCHEMA.md（含完整 DDL + index 策略） |
 | | `gendoc-gen-test-plan` | 生成 test-plan.md（含 BVA + EP 具體值）+ RTM.md |
 | | `gendoc-gen-bdd` | 生成 BDD.md（含 edge case Scenario） |
-| | `gendoc-gen-diagrams` | 生成 UML / Mermaid 圖表 |
+| | `gendoc-gen-diagrams` | 生成 9 大 UML 圖 + class-inventory.md（D07b-UML） |
 | | `gendoc-gen-readme` | 生成 README.md |
-| | `gendoc-gen-html` | 生成靜態 HTML 文件網站 |
-| | `gendoc-gen-client-bdd` | 生成客戶端 BDD（可選） |
-| **Review 層** | `gendoc-idea-review` | IDEA.md Review Loop |
-| | `gendoc-brd-review` | BRD.md Review Loop |
-| | `gendoc-align-check` | 跨文件對齊審查 |
+| | `gendoc-gen-html` | 生成靜態 HTML 文件網站（D17） |
+| | `gendoc-gen-client-bdd` | 生成客戶端 BDD feature files（client_type≠api-only） |
+| | `gendoc-gen-prototype` | 生成可互動 HTML 原型：UI 原型（web/game）或 API Explorer（api-only，模擬 Postman） |
+| **Review 層** | `gendoc-align-check` | 跨文件對齊審查（D16） |
 | | `gendoc-align-fix` | 自動修復對齊問題 |
+| | `reviewdoc` | 單一文件審查 + Fix Loop（任意 TYPE） |
+| | `reviewtemplate` | 模板三件套品質審查與修復 loop（TYPE.md + .gen.md + .review.md） |
+| **維護層** | `gendoc-rebuild-templates` | 從頭重建所有文件模板 |
 
 ### 5.2 完整流程圖（SOP）
 
@@ -883,7 +887,9 @@ Review finding 的嚴重等級涵蓋：
 | `docs/ARCH.md` | `ARCH.md` | `ARCH.gen.md` | Layer 5a | C4 Model、元件圖、sequence diagram、ADR |
 | `docs/API.md` | `API.md` | `API.gen.md` | Layer 5b | **完整 request/response/error schema**、Rate Limit |
 | `docs/SCHEMA.md` | `SCHEMA.md` | `SCHEMA.gen.md` | Layer 5c | **DDL + index + constraint**、ER 圖、Migration 策略 |
-| `docs/FRONTEND.md` | `FRONTEND.md` | `FRONTEND.gen.md` | Layer 6 | 元件架構、State Management、**實作 VDD Design Token**（client_type≠none） |
+| `docs/FRONTEND.md` | `FRONTEND.md` | `FRONTEND.gen.md` | Layer 6 | 元件架構、State Management、**實作 VDD Design Token**（client_type=web/game） |
+| `docs/AUDIO.md` | `AUDIO.md` | `AUDIO.gen.md` | Layer 6.5 | BGM/SFX/VO 清單、音效觸發狀態機、引擎設定（Cocos/Unity/HTML5 Howler.js）、資產規格、效能預算（**client_type=game 才生成**） |
+| `docs/ANIM.md` | `ANIM.md` | `ANIM.gen.md` | Layer 6.5 | 骨骼/幀/Tween 動畫、粒子特效、Shader 特效、引擎設定（Cocos/Unity/HTML5 PixiJS）、效能預算 + LOD 三級策略（**client_type=game 才生成**） |
 | `docs/test-plan.md` | `test-plan.md` | `test-plan.gen.md` | Layer 7 | **EP + BVA + 並發**、測試金字塔 |
 | `features/*.feature` | `BDD-server.md` | `BDD-server.gen.md` | Layer 8a | **Gherkin Scenario + edge case + unhappy path**（Server API BDD） |
 | `features/client/*.feature` | `BDD-client.md` | `BDD-client.gen.md` | Layer 8b | Client E2E Scenario（client_type≠none） |
