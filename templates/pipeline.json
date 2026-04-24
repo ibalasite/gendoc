@@ -107,6 +107,26 @@
       "commit_prefix": "docs(gendoc)[D10-FRONTEND]"
     },
     {
+      "id": "D10b-AUDIO",
+      "type": "AUDIO",
+      "layer": "設計層",
+      "output": ["docs/AUDIO.md"],
+      "multi_file": false,
+      "condition": "client_type != none",
+      "commit_prefix": "docs(gendoc)[D10b-AUDIO]",
+      "note": "音效設計文件：BGM/SFX/VO 清單、音效觸發邏輯、引擎設定（Cocos/Unity/HTML5 Web Audio）、資產規格、效能預算"
+    },
+    {
+      "id": "D10c-ANIM",
+      "type": "ANIM",
+      "layer": "設計層",
+      "output": ["docs/ANIM.md"],
+      "multi_file": false,
+      "condition": "client_type != none",
+      "commit_prefix": "docs(gendoc)[D10c-ANIM]",
+      "note": "動畫特效設計文件：骨骼動畫/幀動畫/Tween/粒子/Shader、引擎設定（Cocos/Unity/HTML5 PixiJS）、效能預算與 LOD 策略"
+    },
+    {
       "id": "D11-test-plan",
       "type": "test-plan",
       "layer": "品質層",
