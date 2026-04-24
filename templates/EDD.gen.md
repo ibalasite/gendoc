@@ -160,58 +160,363 @@ Context Map 關係：
 
 ### §4.5 UML 9 大圖（強制，9 種每種至少一張，缺一不可）
 
-> **Iron Law**：EDD §4.5 是 UML 圖集的唯一放置位置（對應 EDD.md 骨架 § 4.5）。
+> **Iron Law**：EDD §4.5 是 UML 圖集的唯一放置位置（對應 EDD.md 骨架 §4.5）。
 > 不得留空、不得用文字替代、設計評審前必須完成。
 > gendoc-gen-diagrams 從 §4.5 提取所有圖。
+> **實作完整度原則**：每張圖必須讓開發者在沒有其他文件的情況下，能夠 1:1 實作出完整系統。
+> 禁止模糊標注（如「...」省略法、無型別的方法、無條件的決策點）。
 
 **⚠️ 注意**：§4.5 = UML 圖集，§4.6 = Domain Events。兩者不同，不得混淆。
 
-必須包含的 UML 圖種類（§4.5.1–§4.5.9）：
+---
 
-1. **§4.5.1 Use Case Diagram（使用案例圖）**：每個主要 Actor 角色的使用案例（Mermaid `flowchart TD`）
-2. **§4.5.2 Class Diagram（類別圖）⭐（最重要）**：含 Interface 定義，依架構層次分張（Domain/Application/Infrastructure/Presentation 各一）。
-   - 每個 class **必須**標注 stereotype（`<<Entity>>`/`<<AggregateRoot>>`/`<<ValueObject>>`/`<<UseCase>>`/`<<Repository>>`/`<<DomainEvent>>` 等）
-   - 所有 public method 含回傳型別和參數型別（禁止空方法列表）
-   - 最低要求：Domain Layer 至少包含 1 個 `<<AggregateRoot>>`、2 個 `<<Entity>>`、1 個 `<<Repository>>` Interface
-   - 所有關聯線必須標注 UML 關係類型（1:1 / 1:N / M:N）和方向箭頭
-   - **命名對齊**：本節所有 Entity / Aggregate 名稱必須與 ARCH.md §3 Domain 模型和 SCHEMA.md Table 名稱一致
-3. **§4.5.3 Object Diagram（物件圖）**：具體物件實例快照，欄位含真實範例值（非型別定義）。
-   - **觸發條件**：若 §4.5.2 有 `<<AggregateRoot>>`，則必須為每個 Aggregate Root 生成至少 1 張 Object Diagram，展示具體狀態下的欄位值
-4. **§4.5.4 Sequence Diagram（循序圖）**：展示**服務內部**協作視角（與 API.md 的 Client 視角互補，不得矛盾）。
-   - 最少張數 = PRD §7 P0 User Story 中涉及狀態變更的流程總數（≥ 3 張）
-   - 每張：Happy Path 和 Error Path 必須分開為獨立圖
-   - 參與者：Controller / Service / Repository / DB（+ MessageQueue / ExternalService 若有）
-   - 非同步操作使用 `par [async]` 塊；重試機制使用 `loop [retry N times]` 塊
-   - Error Path 必須包含：1 個業務規則違反 + 1 個系統故障 + 認證失敗（若有認證）
-   - **上下游一致性**：對同一業務操作，本節的服務內部流程必須與 API.md §1 的 Client 視角邏輯一致；若有差異，標記 `[UPSTREAM_CONFLICT]`
-5. **§4.5.5 Communication Diagram（通訊圖）**：元件間通訊訊息序列，訊息標注序號（Mermaid `flowchart LR`）。
-   - **觸發條件**：若系統含 Message Queue / Event Bus，必須生成；否則標記「N/A — 無事件驅動設計」
-6. **§4.5.6 State Machine Diagram（狀態機圖）**：每個有狀態 Entity（Order/User/Payment 等）各一張（Mermaid `stateDiagram-v2`）；**最少 1 張**
-7. **§4.5.7 Activity Diagram（活動圖）**：每個關鍵業務流程各一張，含決策點和平行路徑（Mermaid `flowchart TD`）；**最少 3 張**。
-   - 第 1 張：用戶主線操作（User-initiated，3-5 個步驟，2 個以上決策點）
-   - 第 2 張：系統內部處理流程（System-driven，7-10 個步驟，含 fork/join 平行路徑）
-   - 第 3 張：異常/補救流程（Exception/Compensation，如退款/回滾，4-6 個步驟）
-8. **§4.5.8 Component Diagram（元件圖）**：系統架構元件依賴（Mermaid `flowchart LR`）
-9. **§4.5.9 Deployment Diagram（部署圖）**：k8s / Cloud 部署拓撲（Mermaid `flowchart TD`）
+#### §4.5.1 Use Case Diagram（使用案例圖）
 
-**多圖原則（強制）：**
-- Sequence Diagram：每個主要業務流程（登入/建立資源/支付/退款等）各一張，Happy Path 和 Error Path 分開，不得合併
-- Class Diagram：依架構層次分張（Domain 一張、Application 一張、Infrastructure+Presentation 一張）
-- State Machine Diagram：每個有狀態 Entity 各一張
-- Activity Diagram：每個 PRD P0 User Story 各一張
+**格式**：Mermaid `flowchart TD`
 
-**Class Diagram Class Inventory 要求：**
-每個 classDiagram 生成後，必須在 §4.5.2 尾部加入 Class Inventory 表格：
+**強制完整度標準**：
+- 每個 Actor 用矩形節點 `[ActorName\n角色說明]`，Actor 命名來自 PRD §2 使用者角色定義，不得使用「用戶」等籠統稱呼
+- 每個 Use Case 用橢圓節點 `((UC-N: UseCaseName))`，UC 編號與 PRD AC 編號對應
+- 系統邊界使用 `subgraph SystemName [SystemName — BRD §1 系統名稱]`
+- 每條關聯線標注關係類型：`-- 直接使用 -->` / `-- <<extend>> -->` / `-- <<include>> -->`
+- 必須涵蓋 PRD 全部 P0 + P1 功能對應的 Use Case；每個 Actor 至少 2 個 Use Case
+- **禁止**：省略任何 Actor、用「etc.」代替具體 Use Case、無 UC 編號
+
+**最低張數**：1 張（涵蓋所有 Actor 和 Use Case）
+
+---
+
+#### §4.5.2 Class Diagram（類別圖）⭐
+
+**格式**：Mermaid `classDiagram`，依架構層次分 3 張
+
+**強制完整度標準（每個 class 必須全部達到）：**
+
+**屬性（attribute）完整格式**（三者缺一不可）：
+```
+visibility attributeName : Type
+```
+- `visibility`：`+`（public）/ `-`（private）/ `#`（protected）/ `~`（package）
+- 型別必須精確：`String`、`UUID`、`Integer`、`Decimal`、`Boolean`、`DateTime`、`OrderStatus`（Enum 類型直接引用 enum class 名稱）
+- **禁止**：無 visibility 的裸屬性、無型別的屬性、`id: any`、`data: Object`等模糊型別
+
+**方法（method）完整格式**（四者缺一不可）：
+```
+visibility methodName(param1: Type, param2: Type) ReturnType
+```
+- 每個參數必須有名稱和型別
+- 回傳型別必須精確（void / String / Order / List~Order~ / Optional~User~ 等）
+- **禁止**：無參數型別的方法、無回傳型別的方法、空方法列表、`create()` 無參數等省略法
+
+**Stereotype（每個 class 必有）**：
+`<<AggregateRoot>>`、`<<Entity>>`、`<<ValueObject>>`、`<<DomainEvent>>`、`<<Repository>>`（interface）、`<<UseCase>>`、`<<ApplicationService>>`、`<<DTO>>`、`<<Port>>`、`<<RepositoryImpl>>`、`<<Adapter>>`、`<<Controller>>`、`<<RequestDTO>>`、`<<ResponseDTO>>`、`<<enumeration>>`
+
+**Enum 類型必須獨立定義**：
+```mermaid
+class OrderStatus {
+    <<enumeration>>
+    PENDING
+    CONFIRMED
+    PROCESSING
+    SHIPPED
+    DELIVERED
+    CANCELLED
+    REFUNDED
+}
+```
+每個 Enum 值必須全部列出（禁止用「...」省略），來自 PRD AC 或 SCHEMA.md 欄位定義
+
+**關聯線必須精確標注**（格式：`ClassA "cardinality" relationSymbol "cardinality" ClassB : roleLabel`）：
+- 繼承：`ClassA <|-- ClassB`（ClassB extends ClassA）
+- 介面實作：`InterfaceA <|.. ClassB`（ClassB implements InterfaceA）
+- 組合：`ClassA *-- "1..*" ClassB : contains`（ClassA 生命週期包含 ClassB）
+- 聚合：`ClassA o-- "0..*" ClassB : has`（ClassA 包含 ClassB，獨立生命週期）
+- 關聯：`ClassA "1" --> "0..*" ClassB : roleLabel`（ClassA 使用/知道 ClassB）
+- 依賴：`ClassA ..> ClassB : uses`（ClassA 方法中使用 ClassB）
+- Cardinality 格式：`"1"`、`"0..1"`、`"1..*"`、`"0..*"`、`"N"`（兩端都要標）
+- **禁止**：無 cardinality 的關聯線、無 role label 的模糊關聯
+
+**分層張數（固定 3 張）**：
+- **class-domain**：`<<AggregateRoot>>`、`<<Entity>>`、`<<ValueObject>>`、`<<DomainEvent>>`、`<<Repository>>`（interface 定義）
+  - Domain Layer 最低規格：≥ 1 `<<AggregateRoot>>`、≥ 2 `<<Entity>>`、≥ 1 `<<Repository>>` interface
+- **class-application**：`<<UseCase>>`（每個 PRD AC 對應一個）、`<<ApplicationService>>`、`<<DTO>>`、`<<Port>>`
+- **class-infra-presentation**：`<<RepositoryImpl>>`、`<<Adapter>>`、`<<Controller>>`、`<<RequestDTO>>`、`<<ResponseDTO>>`
+
+**命名對齊**：class 名稱必須與 ARCH.md §3 Domain 模型和 SCHEMA.md Table 名稱一致（不得有任何差異）
+
+**Class Inventory 表格**（每張 classDiagram 尾部必填）：
 
 | Class | Stereotype | Layer | src 路徑 | test 路徑 |
 |-------|-----------|-------|---------|---------|
-（依實際 class 名稱和推斷的 lang_stack 填入路徑）
+| ClassName | <<stereotype>> | Domain/Application/Infra/Presentation | src/domain/... | tests/unit/... |
 
-生成前自我檢查（若有任一未通過，標記「（需手動驗證）」但不中止生成）：
-- [ ] 所有 class 均有 stereotype 標記（禁止裸 class 無標注）
-- [ ] lang_stack 已填入 `.gendoc-state.json`（非 unknown）
-- [ ] class 命名遵循各層慣例：Domain（User）/ Application（CreateUserUseCase）/ Infra（UserRepositoryImpl）
+---
+
+#### §4.5.3 Object Diagram（物件圖）
+
+**格式**：Mermaid `classDiagram`（instance 模式）
+
+**強制完整度標準**：
+- 每個 instance 用 `<<instance>>` stereotype + 具名格式：`class ordA_ord001 { <<instance>> ...}`
+- **所有屬性必須填入具體範例值**（非型別定義）：
+  - UUID：`"a3f8c1d2-..."`（完整或縮寫格式 `"a3f8c1d2"`）
+  - String：`"Alice Wang"`（真實範例，非 `"string"`）
+  - Enum：`PROCESSING`（直接寫枚舉值）
+  - Decimal：`1250.00`
+  - DateTime：`"2024-03-15T14:30:00Z"`
+- 關聯線標注 role label：`ordA_ord001 --> usrB_usr123 : placedBy`
+- **觸發條件**：§4.5.2 每個 `<<AggregateRoot>>` 必須對應至少 1 張 Object Diagram
+- 每張展示一個業務代表狀態（不同狀態的 Aggregate 至少各展示一張，如 Order PENDING 一張、Order PROCESSING 一張）
+- **禁止**：屬性值為型別名稱（如 `id: UUID`）、空值（如 `name: ""`）、佔位值（如 `"example"`）
+
+---
+
+#### §4.5.4 Sequence Diagram（循序圖）
+
+**格式**：Mermaid `sequenceDiagram`
+
+**強制完整度標準（每張圖每個箭頭都必須達到）：**
+
+**呼叫箭頭格式**（四者缺一不可）：
+```
+Caller->>Callee: methodName(param1: Type, param2: Type)
+```
+- 方法名稱：精確的函式名（`createOrder`、`findByUserId`、`publish`），**禁止**用 `create`、`call`、`request` 等模糊動詞
+- 參數：名稱 + 型別（`userId: UUID, items: OrderItem[]`），**禁止**空括號 `()` 或無型別 `(data)`
+- 第一個從 Client 發出的箭頭格式：`Client->>Controller: POST /orders {userId, items, paymentMethod}`
+
+**回傳箭頭格式**（二者缺一不可）：
+```
+Callee-->>Caller: ReturnType | HTTP StatusCode ResponseBody
+```
+- 服務層回傳：`return Order` / `return Optional<User>` / `throw OrderNotFoundException`
+- HTTP 回傳：`201 Created {orderId, status, createdAt}` / `409 Conflict {error, conflictField}`
+- **禁止**：無回傳的「成功」箭頭、`return result` 等模糊回傳
+
+**條件分支格式**（每個條件分支都必須有）：
+```
+alt 具體條件描述（如：庫存 >= 請求數量）
+    Caller->>Callee: methodName(params)
+    Callee-->>Caller: 201 Created {orderId}
+else 具體 else 條件（如：庫存不足）
+    Callee-->>Caller: 422 Unprocessable {error: "INSUFFICIENT_STOCK", available: Integer}
+end
+```
+- **禁止**：只有 Happy Path 無 alt 分支、`alt success`/`alt error` 等無具體條件描述
+
+**必含段落**：
+- 每個 Mutation 操作（POST/PATCH/PUT/DELETE）：Happy Path + 至少 3 個 Error Path（業務規則違反 + 系統故障 + 認證/授權失敗）
+- 非同步操作：`par [async: 說明非同步原因]` 包裹
+- 重試邏輯：`loop [retry: 最多 N 次，間隔 Xms]` 包裹
+- 資料庫操作：明確標注 `DB->>DB: BEGIN TRANSACTION` / `COMMIT` / `ROLLBACK`
+
+**參與者宣告**（每張圖頂部）：
+```
+participant Client as Client（前端/行動端）
+participant Controller as OrderController
+participant Service as OrderService
+participant Repo as OrderRepository（interface）
+participant DB as PostgreSQL
+participant Cache as Redis（若有）
+participant Queue as NATS（若有）
+```
+
+**最低張數**：≥ PRD §7 P0 User Story 中涉及狀態變更的流程數（且 ≥ 3 張），Happy Path 和 Error Path 各自獨立一張（不得合併）
+
+**上下游一致性**：本節服務內部視角必須與 API.md §1 Client 視角邏輯一致；有差異則標記 `> ⚠️ [UPSTREAM_CONFLICT]`
+
+---
+
+#### §4.5.5 Communication Diagram（通訊圖）
+
+**格式**：Mermaid `flowchart LR`
+
+**強制完整度標準**：
+- 每個節點標注元件名稱 + 技術：`OrderService\n(Node.js)`
+- 每條邊標注訊息序號 + 完整訊息名稱 + 通訊協定：`"1: POST /orders\n(HTTP/REST)"` / `"3: OrderCreated{orderId}\n(NATS)"`
+- 序號連續且完整反映完整的訊息交換流程（不得跳號或省略中間訊息）
+- 非同步訊息用虛線邊 `-.->` + 標注 `[async]`；同步用實線 `-->`
+- **觸發條件**：系統有 Message Queue / Event Bus → 必須生成（展示事件驅動的服務間訊息流）；純同步架構 → 展示主要 HTTP 呼叫協作並標注 `> 本系統為同步架構，所有通訊透過 HTTP/REST`
+- **禁止**：無序號的邊、無協定的邊、省略某些訊息導致序號不連續
+
+---
+
+#### §4.5.6 State Machine Diagram（狀態機圖）
+
+**格式**：Mermaid `stateDiagram-v2`
+
+**強制完整度標準（每個轉換箭頭都必須達到）：**
+
+**轉換格式**（三者缺一不可）：
+```
+StateA --> StateB : trigger [guard] / action
+```
+- `trigger`：精確的觸發事件名（`confirmOrder()`、`paymentCaptured`、`cancelRequested(reason)`），**禁止**用「點擊」「用戶操作」等模糊描述
+- `[guard]`：觸發條件（`[balance >= amount]`、`[retries <= 3]`、`[stock > 0]`），**必須有**；若無條件可填 `[always]`
+- `/ action`：狀態轉換的副作用（`/ emit OrderConfirmed`、`/ notifyUser(email)`、`/ decrementStock(quantity)`），**禁止**省略
+- **禁止**：只有 trigger 無 guard 和 action 的簡化轉換
+
+**進入/退出動作**（有業務邏輯的狀態必填）：
+```
+state PROCESSING {
+    entry: validateInventory(), lockStock()
+    exit: releaseStockLock()
+}
+```
+
+**必含元素**：
+- 明確的初始狀態：`[*] --> InitialState : create(params) [valid] / assignId()`
+- 明確的終止狀態：`TerminalState --> [*]`（所有業務終態都要連到 `[*]`）
+- 所有合法的狀態轉換路徑（正向 + 逆向，如 PROCESSING → CANCELLED）
+- 狀態旁附加說明：`state PENDING : 等待用戶確認，TTL 30 分鐘`
+
+**最低張數**：§4.5.2 Class Diagram 中含 `status: StatusEnum` 或 `state: StateEnum` 欄位的每個 Entity 各一張（≥ 1 張）
+
+---
+
+#### §4.5.7 Activity Diagram（活動圖）
+
+**格式**：Mermaid `flowchart TD`
+
+**強制完整度標準**：
+
+**泳道（Swimlane）強制使用**：
+```mermaid
+flowchart TD
+  subgraph Client ["Client（使用者）"]
+    ...
+  end
+  subgraph API ["API Server（OrderController + OrderService）"]
+    ...
+  end
+  subgraph DB ["Database（PostgreSQL）"]
+    ...
+  end
+```
+- 每個 Actor / 系統元件必須有獨立 subgraph 泳道
+- 泳道名稱標注 Actor 角色 + 負責的 class（`API Server（OrderController + OrderService）`）
+
+**決策點格式**（必須兩個分支都有標注）：
+```
+{具體條件描述？}
+具體條件描述？ -->|是（具體結果）| NextNode
+具體條件描述？ -->|否（具體結果）| AltNode
+```
+- **禁止**：只有一個分支的決策點、`Yes`/`No` 等無業務語意的標注、無條件描述的菱形節點
+
+**Fork/Join 並行路徑**（若有並行業務流程必須標注）：
+- Fork：`[[ 並行開始：說明哪些步驟並行執行 ]]`
+- 每個並行路徑在獨立泳道中展開
+- Join：`[[ 並行結束：等待所有並行步驟完成 ]]`
+
+**節點命名**：精確的動詞 + 受詞（`validateInventory(items)`、`chargePaymentGateway(amount, method)`），**禁止**模糊如「處理訂單」、「進行操作」
+
+**最少 3 張**：
+- 第 1 張：用戶主線操作（User-initiated，必含 ≥ 2 個決策點，覆蓋 PRD AC 正常流程）
+- 第 2 張：系統內部處理流程（System-driven，必含 fork/join 並行路徑，≥ 7 個步驟）
+- 第 3 張：異常/補救流程（Exception/Compensation，如退款/回滾，必含補償動作的逆向路徑）
+
+---
+
+#### §4.5.8 Component Diagram（元件圖）
+
+**格式**：Mermaid `flowchart LR`（或 `graph LR`）
+
+**強制完整度標準**：
+
+**元件節點格式**（三者缺一不可）：
+```
+OrderSvc["OrderService\nNode.js 20.x / Express 4.18\nPort: 3000"]
+```
+- 元件名稱（業務名稱）
+- 技術 + 精確版本號（`Node.js 20.x`、`Python 3.12`、`PostgreSQL 16`）
+- 通訊埠或協定（`Port: 3000`、`Port: 5432`、`gRPC: 50051`）
+
+**介面標注**（每條連線必須有）：
+```
+OrderSvc -->|"POST /payments\nHTTPS:443"| PaymentSvc
+OrderSvc -->|"TCP:5432\nPostgreSQL Wire Protocol"| DB
+OrderSvc -.->|"NATS Subject: order.created\nasync"| EventBus
+```
+- 同步呼叫：`-->` + 標注 `HTTP方法 /路徑\n協定:埠號`
+- 非同步訊息：`-.->` + 標注 `Queue/Topic名稱\nasync`
+- **禁止**：無協定標注的連線、無版本號的元件、無埠號的服務
+
+**系統邊界**：
+```
+subgraph Internal["Internal Network Zone"]
+  OrderSvc
+  UserSvc
+  DB
+end
+subgraph External["External Services (Third-party)"]
+  PaymentGW["Stripe\nPayment Gateway API v2"]
+end
+```
+
+**必含元件**：EDD §3.3 技術棧總覽中所有元件（不得遺漏），每個元件至少有 1 條連線
+
+---
+
+#### §4.5.9 Deployment Diagram（部署圖）
+
+**格式**：Mermaid `flowchart TD`
+
+**強制完整度標準**：
+
+**節點格式**（四者缺一不可）：
+```
+OrderSvc["OrderService\nImage: order-service:1.2.3\nCPU: 0.5 / Mem: 512Mi\nReplicas: 2-10 (HPA)"]
+```
+- 服務名稱
+- Docker Image + 精確版本 tag
+- CPU limit / Memory limit（來自 EDD §7 k8s 資源規格）
+- Replicas 配置（含 HPA 最小/最大值）
+
+**網路區域（subgraph 必填）**：
+```
+subgraph Internet["Internet"]...end
+subgraph DMZ["DMZ / Ingress Zone"]...end
+subgraph Internal["Internal / App Zone"]...end
+subgraph DataZone["Data Zone"]...end
+```
+- 每個 subgraph 只放屬於該網路區域的元件
+- 元件不得跨區域放置
+
+**連線格式**（每條連線必須標注）：
+```
+Ingress -->|"HTTPS:443\nTLS 1.3"| OrderSvc
+OrderSvc -->|"TCP:5432\nPostgreSQL Wire Protocol"| PostgreSQL
+OrderSvc -.->|"TCP:4222\nNATS Protocol\nasync"| NATS
+```
+- 協定名稱 + 埠號
+- TLS/加密說明（外部連線必填）
+- 同步/非同步標注
+
+**儲存卷**（有 PersistentVolume 必標）：
+```
+PostgreSQL -->|"PVC: db-data\n100Gi / SSD"| Storage[("PersistentVolume\nStorageClass: local-path")]
+```
+
+**必含元素**：Ingress Controller、所有 Microservice（含版本）、所有 DB/Cache/Queue、網路區域邊界、所有外部依賴（Third-party API endpoints）
+
+---
+
+**UML 9 大圖生成前自我檢查**（若有任一未通過，補齊後再寫入檔案）：
+
+- [ ] §4.5.1 Use Case：所有 PRD P0+P1 Actor 均有對應節點；所有 Use Case 有 UC 編號；關係類型已標注
+- [ ] §4.5.2 Class：所有 class 有 stereotype；所有屬性有 `visibility name: Type`；所有方法有完整簽名；所有 Enum 獨立列出全部枚舉值；所有關聯線有 cardinality + role label；分 3 張（Domain/Application/Infra+Presentation）
+- [ ] §4.5.3 Object：每個 `<<AggregateRoot>>` 有 ≥ 1 張 Object Diagram；所有欄位填具體業務範例值（非型別名稱）
+- [ ] §4.5.4 Sequence：每個 Mutation 有獨立 Happy Path 圖 + ≥ 3 個 Error Path；每個箭頭有精確方法名 + 參數型別；回傳箭頭有型別或 HTTP 狀態碼 + 回應體結構；alt 分支有具體條件
+- [ ] §4.5.5 Communication：每條邊有序號 + 訊息名 + 協定；序號連續；非同步用虛線
+- [ ] §4.5.6 State Machine：每個 transition 有 trigger [guard] / action 三段；有 entry/exit 動作（有業務邏輯者）；所有終態連到 `[*]`；每個有狀態 Entity 各一張
+- [ ] §4.5.7 Activity：每個決策點兩個分支都有具體標注；有泳道（subgraph）；fork/join 標注並行路徑；≥ 3 張
+- [ ] §4.5.8 Component：每個節點有技術 + 版本 + 埠號；每條連線有協定 + 埠號；系統邊界用 subgraph；EDD §3.3 所有元件均已包含
+- [ ] §4.5.9 Deployment：每個節點有 Image:tag + CPU/Mem limit + Replicas；有網路區域 subgraph；所有連線有協定 + 埠號；PVC 已標注
+- [ ] §4.5.2 Class Inventory 表格已在每張 classDiagram 尾部填入（含 src/test 路徑）
+- [ ] lang_stack 已從 `.gendoc-state.json` 讀取（非 unknown）
 - [ ] 每個 `<<DomainEvent>>` class 在 §4.6 Domain Events 表中有對應行（命名和 Payload 一致）
+- [ ] 所有 class 名稱與 ARCH.md §3 Domain 模型和 SCHEMA.md Table 名稱完全一致
 
 ---
 
