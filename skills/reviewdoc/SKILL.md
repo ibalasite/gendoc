@@ -66,17 +66,42 @@ _DOC_TYPE=""   # e.g., "local-deploy"
 ```bash
 # 與 /gendoc 相同的對照表
 # edd → EDD | brd → BRD | prd → PRD | pdd → PDD | arch → ARCH
-# api → API | schema → SCHEMA | bdd → BDD | rtm → RTM
+# api → API | schema → SCHEMA | rtm → RTM
 # test-plan → test-plan | runbook → runbook | local-deploy → LOCAL_DEPLOY
 # idea → IDEA | readme → README | uml-class → UML-CLASS-GUIDE
-# frontend → FRONTEND | client → FRONTEND（向後相容別名）
+# frontend → FRONTEND | vdd → VDD
+# bdd-server → BDD-server（multi-file, target=features/）
+# bdd-client → BDD-client（multi-file, target=features/client/）
+# bdd → BDD-server（向後相容別名，等同 bdd-server）
+# client → FRONTEND（向後相容別名）
+
+# 多文件 BDD 特殊處理：
+# 若 _TYPE_BASENAME == "BDD-server"：
+#   _REVIEW_RULES_FILE = templates/BDD-server.review.md
+#   _TARGET_FILE = features/（目錄），需以 Glob 掃描 features/*.feature
+# 若 _TYPE_BASENAME == "BDD-client"：
+#   _REVIEW_RULES_FILE = templates/BDD-client.review.md
+#   _TARGET_FILE = features/client/（目錄），需以 Glob 掃描 features/client/*.feature
+# 多文件模式下，Step 2 的 subagent prompt 應傳入所有 .feature 檔案內容的彙整
 
 _CWD="$(pwd)"
 _TEMPLATE_DIR="${_TEMPLATE_DIR:-$_CWD/templates}"
 _DOCS_DIR="${_DOCS_DIR:-$_CWD/docs}"
 
-_REVIEW_RULES_FILE="${_TEMPLATE_DIR}/${_TYPE_BASENAME}.review.md"
-_TARGET_FILE="${_DOCS_DIR}/${_TYPE_BASENAME}.md"
+# 多文件 BDD 路徑覆寫
+if [[ "$_TYPE_BASENAME" == "BDD-server" ]]; then
+  _REVIEW_RULES_FILE="${_TEMPLATE_DIR}/BDD-server.review.md"
+  _TARGET_FILE="${_CWD}/features"
+  _MULTI_FILE=true
+elif [[ "$_TYPE_BASENAME" == "BDD-client" ]]; then
+  _REVIEW_RULES_FILE="${_TEMPLATE_DIR}/BDD-client.review.md"
+  _TARGET_FILE="${_CWD}/features/client"
+  _MULTI_FILE=true
+else
+  _REVIEW_RULES_FILE="${_TEMPLATE_DIR}/${_TYPE_BASENAME}.review.md"
+  _TARGET_FILE="${_DOCS_DIR}/${_TYPE_BASENAME}.md"
+  _MULTI_FILE=false
+fi
 
 echo "[reviewdoc] type=${_DOC_TYPE} → review rules=${_REVIEW_RULES_FILE}"
 echo "[reviewdoc] target=${_TARGET_FILE}"
