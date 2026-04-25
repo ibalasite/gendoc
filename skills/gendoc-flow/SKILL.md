@@ -278,15 +278,27 @@ _IDEA_OK=false
 [[ -s "$_CWD/docs/BRD.md"  ]] && _BRD_OK=true
 [[ -s "$_CWD/docs/IDEA.md" ]] && _IDEA_OK=true
 
-echo "[Check] BRD：${_BRD_OK} ／ IDEA：${_IDEA_OK}"
-echo "[Check] Pipeline manifest：${_PIPELINE_FILE}"
+# ── 起點文件判斷 ──────────────────────────────────────────────────
+# gendoc-flow 支援兩種合法起點：
+#   Mode A（有 IDEA）：IDEA.md + BRD.md 俱全（gendoc-auto handoff 或使用者自備）
+#   Mode B（BRD only）：只有 BRD.md，使用者已有明確 BRD 直接進流水線
+# IDEA.md 不是強制必要文件，缺少時下游 Gen Agent 只讀 BRD.md 作為最高層需求來源。
+# 唯一必要文件：BRD.md（沒有 BRD 什麼都做不了）
 
-if [[ "$_BRD_OK" == "false" ]]; then
-  echo "[錯誤] docs/BRD.md 不存在或為空。"
-  echo "       若無 IDEA：手動建立 BRD.md 後呼叫 /gendoc-flow。"
-  echo "       若有 IDEA：先執行 /gendoc-auto 生成 IDEA+BRD。"
+if [[ "$_IDEA_OK" == "true" && "$_BRD_OK" == "true" ]]; then
+  echo "[Check] Mode A — IDEA.md + BRD.md 俱全，完整上游鏈可用"
+elif [[ "$_IDEA_OK" == "false" && "$_BRD_OK" == "true" ]]; then
+  echo "[Check] Mode B — 僅 BRD.md（無 IDEA.md），以 BRD 作為最高層需求來源繼續"
+  echo "        [注意] 下游 Gen Agent 讀取 BRD.md 替代 IDEA.md 作為核心背景，文件品質可能略低"
+  echo "        [提示] 若日後補充 IDEA.md，可從 D03-PRD 重跑以充分利用 IDEA 背景"
+else
+  echo "[錯誤] docs/BRD.md 不存在或為空——這是 gendoc-flow 唯一必要文件。"
+  echo "       情境 1：自備 BRD：手動建立 docs/BRD.md 後呼叫 /gendoc-flow"
+  echo "       情境 2：從頭開始：先執行 /gendoc-auto，它會自動生成 IDEA.md + BRD.md"
   exit 1
 fi
+
+echo "[Check] Pipeline manifest：${_PIPELINE_FILE}"
 
 if [[ ! -f "$_PIPELINE_FILE" ]]; then
   echo "[錯誤] templates/pipeline.json 不存在：$_PIPELINE_FILE"
@@ -294,19 +306,16 @@ if [[ ! -f "$_PIPELINE_FILE" ]]; then
   exit 1
 fi
 
-# P-03/P-08：IDEA.md + BRD.md 完整性確認
-if [[ ! -s "$_CWD/docs/IDEA.md" ]]; then
-  echo "[Warning] docs/IDEA.md 不存在，後續文件生成將缺少核心背景"
-  echo "          若尚未執行 gendoc-auto，建議先執行以確保生成品質"
-fi
-
+# P-08：handoff 來源記錄（僅供日誌，不影響流程）
 _HANDOFF=$(python3 -c "
 import json
 try: print(json.load(open('$_STATE_FILE')).get('handoff', False))
 except: print(False)
 " 2>/dev/null || echo "False")
-if [[ "$_HANDOFF" != "True" && -f "docs/BRD.md" ]]; then
-  echo "[P-08] 注意：未偵測到 gendoc-auto handoff 旗標，直接以 BRD.md 繼續。"
+if [[ "$_HANDOFF" == "True" ]]; then
+  echo "[P-08] gendoc-auto handoff 模式"
+else
+  echo "[P-08] 獨立呼叫模式（直接以 BRD.md 起點執行）"
 fi
 
 echo "✅ 前置確認通過，讀取 pipeline manifest"
@@ -634,9 +643,12 @@ for round in range(resume_from_round, max_rounds + 1):
 執行步驟（不得跳過）：
 1. 讀取 templates/{TYPE}.gen.md — 獲取生成規範、upstream-docs 清單、Self-Check Checklist
 2. 讀取 templates/{TYPE}.md — 獲取文件結構模板
-3. 讀取 upstream-docs 中所有上游文件（若不存在則靜默跳過）
-4. 若 docs/IDEA.md 存在，讀取其 Appendix C 所列 docs/req/* 所有檔案（Iron Rule）
-5. 依生成規範逐章節生成輸出文件
+3. 讀取上游文件（Iron Law — 以下優先序）：
+   a. 若 docs/IDEA.md 存在 → 讀取 IDEA.md，並讀取其 Appendix C 所列 docs/req/* 所有檔案
+   b. 若 docs/IDEA.md **不存在** → 以 docs/BRD.md 作為最高層需求來源（BRD-only Mode），
+      在生成文件的 §背景 / §目標 等章節中以 BRD 資訊填充
+   c. upstream-docs 中其他上游文件照常讀取（不存在則靜默跳過）
+4. 依生成規範逐章節生成輸出文件
 
 多文件模式（multi_file=true）：
 - 依 {TYPE}.gen.md 規範生成多個檔案（e.g., features/*.feature）
@@ -1067,7 +1079,7 @@ else:
   若專案為遊戲，執行 /gendoc-config 手動設定 client_type=game 後重跑
 
 已生成文件（依層次）：
-  需求層：docs/BRD.md（已有）docs/IDEA.md（已有）docs/PRD.md
+  需求層：docs/BRD.md（已有）{若存在 → docs/IDEA.md（已有）}docs/PRD.md
   設計層：docs/EDD.md docs/ARCH.md diagrams/（UML×9+class-inventory）docs/API.md docs/SCHEMA.md [docs/FRONTEND.md] [docs/AUDIO.md] [docs/ANIM.md]
   品質層：docs/test-plan.md features/（BDD-server）docs/RTM.md
   運維層：docs/runbook.md docs/LOCAL_DEPLOY.md
