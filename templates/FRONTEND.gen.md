@@ -174,6 +174,7 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 - 每條轉換箭頭必須標注觸發條件（點擊按鈕、登入成功、操作完成等）
 - 錯誤路徑（如登入失敗 → 停留在 Login Screen）
 - Auth Guard 路徑（未登入訪問受保護路由 → 重定向到 Login）
+- **禁止** 在 transition label 使用 `<br/>`（`stateDiagram-v2` 不支援，Safari/Firefox 破圖）；換行說明移到 `note right of STATE` 區塊
 
 ### §4.3 Deep Link / URL Scheme
 

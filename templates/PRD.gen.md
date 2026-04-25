@@ -170,7 +170,7 @@ Scenario：[典型使用場景一段描述]
 2. **Error Flow**（關鍵錯誤場景的處理流程）
 3. **State Machine**（系統關鍵狀態與轉換條件）
 
-每種圖各以 Mermaid flowchart 或 stateDiagram-v2 格式呈現。
+每種圖各以 Mermaid flowchart 或 stateDiagram-v2 格式呈現。若使用 `stateDiagram-v2`，**禁止** 在 transition label 使用 `<br/>`（Safari/Firefox 破圖）；換行說明移到 `note right of STATE` 區塊。
 
 ### §7 Non-Functional Requirements（NFR）
 

@@ -152,6 +152,7 @@ Document Control + Platform Scope Declaration 之後，依序包含：
 **§4.2 替代流程 + §4.3 錯誤流程**：
 - 錯誤狀態、Loading 狀態都要有
 - 每條 transition 都要標示觸發事件
+- **禁止** 在 transition label 使用 `<br/>`（`stateDiagram-v2` 不支援，Safari/Firefox 破圖）；換行說明移到 `note right of STATE` 區塊
 
 ### §5 Screen Specifications（UI Component / Screen 清單）
 
