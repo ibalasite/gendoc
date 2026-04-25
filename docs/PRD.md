@@ -607,7 +607,7 @@ graph TD
 每個節點顏色深度代表累積讀取的文件層數；箭頭方向為「讀取方向」（下游文件讀上游文件）。
 
 ```mermaid
-graph LR
+graph TD
     REQ(["docs/req/ ●"]):::l0
     ID["IDEA ●●"]:::l1
     BR["BRD ●●●"]:::l2

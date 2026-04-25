@@ -43,7 +43,7 @@
 <tr><th>欄位</th><th>內容</th></tr>
 <tr><td><strong>DOC-ID</strong></td><td>PRD-GENDOC-20260422</td></tr>
 <tr><td><strong>產品名稱</strong></td><td>gendoc — AI-Driven Implementation Blueprint Generator</td></tr>
-<tr><td><strong>文件版本</strong></td><td>v2.1</td></tr>
+<tr><td><strong>文件版本</strong></td><td>v2.2</td></tr>
 <tr><td><strong>狀態</strong></td><td>ACTIVE</td></tr>
 <tr><td><strong>作者（PM）</strong></td><td>AI Product Manager Agent</td></tr>
 <tr><td><strong>日期</strong></td><td>2026-04-25</td></tr>
@@ -55,6 +55,7 @@
 <h2>Change Log</h2>
 <table>
 <tr><th>版本</th><th>日期</th><th>作者</th><th>變更摘要</th></tr>
+<tr><td>v2.2</td><td>2026-04-25</td><td>PM Agent</td><td><strong>Frontend UML 全覆蓋 + HTML 文件站圖表頁面 + D16-ALIGN-F 自動修復步驟</strong>：gendoc-gen-diagrams 新增 Step 2B —— 條件觸發（<code>client_type != none</code> AND <code>FRONTEND.md</code> 存在），從 FRONTEND.md / PDD.md / VDD.md 生成 16 種前端 UML 圖（use-case / class×3 [元件層/場景控制器/Client 服務] / object / sequence×3 [WS 協議/場景切換/主遊戲交互] / state×2 [場景/UI 元件] / activity×3 [遊戲主流程/UI 互動/客戶端初始化] / component [引擎節點樹] / deployment [建構管線] / communication [WS 協議互動]），全部輸出至 <code>docs/diagrams/frontend-<em>.md</code>；強制規範：stateDiagram-v2 transition label 禁止使用 <code>&lt;br/&gt;</code> 語法（改用 <code>trigger [guard] / action</code> 格式 + <code>note</code> 區塊）。gendoc-gen-html 升級至 <strong>v3.0.0</strong> —— gen_html.py 新增 <code>scan_diagram_pages()</code> 掃描 <code>docs/diagrams/</em>.md</code>，每個圖表生成獨立 HTML 頁面（<code>diag-{stem}.html</code>）；側欄從單一「文件」區改為三區（文件 / Server UML / Frontend UML）；新增 <code>DIAGRAM_META</code> 對應 35+ 圖表類型。D16-ALIGN-F 新增至 pipeline.json（位於 D16-ALIGN 之後）—— special_skill: gendoc-align-fix，依 ALIGN_REPORT.md 逐條自動修復對齊問題，每條 fix 驗證後 commit，不走標準 gen→review 流程。</td></tr>
 <tr><td>v2.1</td><td>2026-04-25</td><td>PM Agent</td><td><strong>流水線 D17–D19 重組 + 實作藍圖目錄統一</strong>：新增 D17-CONTRACTS（gendoc-gen-contracts）—— 從所有設計文件提取機器可讀規格（OpenAPI 3.1 YAML / JSON Schema / Pact / Helm values.yaml / Seed Code），輸出集中至 <code>docs/blueprint/contracts/</code> + <code>docs/blueprint/infra/</code> + <code>docs/blueprint/scaffold/</code>；新增 D18-MOCK（gendoc-gen-mock）—— 生成 FastAPI mock server（含擬真假資料 JSON 檔、CORS、Swagger UI、Postman 支援、Windows/macOS 跨平台啟動手冊），輸出至 <code>docs/blueprint/mock/</code>（整個目錄可帶走使用）；D19-HTML（gendoc-gen-html）後移至最後，確保 HTML 文件站可收錄所有藍圖內容；pipeline.json 更新 step 語意編號（D16=ALIGN 稽核、D17=CONTRACTS 實作、D18=MOCK 實作、D19=HTML 發布）；gendoc-config 重跑選單同步更新；gendoc-shared §5 STEP_SEQUENCE 以 D-prefix dict 格式完整對應 pipeline.json 23 步驟。</td></tr>
 <tr><td>v2.0</td><td>2026-04-25</td><td>PM Agent</td><td><strong>UML 1:1 實作完整度升級</strong>：EDD.gen.md §4.5 和 gendoc-gen-diagrams/SKILL.md §2.1–§2.11 全面重寫——從「最少幾張、含哪些類型」升級為「開發者只有 UML 圖、沒有其他文件，也能 1:1 實作出完整系統」的精確規格。強制標準：Class Diagram 屬性 <code>visibility name: Type</code>、方法完整簽名、Enum 列全值、關聯線兩端 cardinality + role label；Sequence Diagram 每個箭頭精確方法名 + 型別 + 回傳型別、alt 分支有具體條件、每個 Mutation ≥ 3 個 Error Path；State Machine 每個 transition <code>trigger [guard] / action</code> 三段必填；Activity Diagram 泳道強制 + 決策點兩分支具體標注；Component / Deployment 技術版本 + 埠號 + 協定在每個節點和連線上都要有。驗證清單擴充為 30+ 條精確檢查項目。<strong>Template 生成規則章節對應修正</strong>：runbook.gen.md 補充 §8 Routine Maintenance（維護排程 / DB 維護 / Log 輪替 / 容量審查）；LOCAL_DEPLOY.gen.md 補充 §8 Test Data &amp; Fixtures / §11 Logs &amp; Debugging / §12 Port Reference / §13 Local HTTPS 生成規則；SCHEMA.gen.md Self-Check §3 → §2.4 Soft Delete 修正章節對應；RTM.gen.md 補充 §2 Status Code 靜態對照表生成規則。</td></tr>
 <tr><td>v1.9</td><td>2026-04-25</td><td>PM Agent</td><td><strong>專案類型三值化</strong>：client_type 從二值（web/none）擴展為三值（<code>game</code>/<code>web</code>/<code>api-only</code>）；AUDIO/ANIM 條件從 <code>client_type != none</code> 改為 <code>client_type == game</code>（僅遊戲專案生成）；game 偵測關鍵字新增 20+ 詞（魚機/捕魚/博弈/canvas/webgl/phaser 等）。<strong>新增 gendoc-gen-prototype skill</strong>：偵測 client_type 自動選擇原型模式 — game/web 生成可點擊 UI 原型（HTML5 自包含，模擬動線）、api-only 生成 API Explorer（雙模式參數輸入：Chip 快選 + 自由輸入；預設值建議；Request Body Preset；localStorage auth；Copy as cURL；hash 深連結）。<strong>新增 reviewtemplate skill</strong>：TYPE.md + TYPE.gen.md + TYPE.review.md 三件套品質審查與修復 loop，支援 standard/exhaustive 策略。<strong>P-14</strong>：D03-PRD 完成後重新驗證 client_type（Step 0-C 執行時 PRD 尚未生成，可能漏判遊戲關鍵字）；<code>client_type_source: &quot;manual&quot;</code> 防止自動偵測覆寫手動設定。<strong>P-15</strong>：Total Summary 前 Pipeline 完整性掃描，驗證所有預期步驟均有記錄，防止誤標 <code>pipeline_complete</code>。<strong>gendoc-config</strong> 新增第 5 選項「手動設定 client_type」。</td></tr>
@@ -91,7 +92,7 @@
 <tr><td><strong>人類開發者</strong></td><td>開箱即用的任務清單：每個 class 是一張卡片，每個 method 是一個 subtask，每個 test 情境是一個 checklist item</td></tr>
 </table>
 <h3>一句話定位</h3>
-<blockquote><p>gendoc 是一套 Claude Code Skill 系統，從任意形式的輸入（文字 / 圖片 / URL / Git repo），在 60 分鐘內生成一份「細到任何人都能直接開始寫程式碼」的完整技術藍圖，包含 IDEA → BRD → PRD → PDD → VDD → EDD → ARCH → API → SCHEMA → FRONTEND → Test Plan → BDD → RTM → Runbook → LOCAL_DEPLOY → <strong>Contracts（OpenAPI/Schema/Pact）→ Mock Server（FastAPI）</strong>，以及自動部署的 HTML 文件站。</p></blockquote>
+<blockquote><p>gendoc 是一套 Claude Code Skill 系統，從任意形式的輸入（文字 / 圖片 / URL / Git repo），在 60 分鐘內生成一份「細到任何人都能直接開始寫程式碼」的完整技術藍圖，包含 IDEA → BRD → PRD → PDD → VDD → EDD → ARCH → API → SCHEMA → FRONTEND → Test Plan → BDD → RTM → Runbook → LOCAL_DEPLOY → <strong>Contracts（OpenAPI/Schema/Pact）→ Mock Server（FastAPI）</strong>，以及自動部署的 HTML 文件站（含完整 UML 圖表頁：Server 端 9 大 UML + 前端 16 種 UML，側欄自動分三區）。</p></blockquote>
 <hr>
 <h2>2. Problem Statement</h2>
 <h3>2.1 現狀痛點</h3>
@@ -178,17 +179,31 @@
 <p>這是 gendoc 的核心品質定義。每份文件生成後，Review Loop 必須驗證這些標準。</p>
 <h3>4.1 EDD（Engineering Design Document）細粒度標準</h3>
 <p>每份 EDD 必須包含：</p>
-<p><strong>UML 1:1 實作完整度標準（§4.5 UML 9 大圖）</strong></p>
+<p><strong>UML 1:1 實作完整度標準（Server 端 9 大 UML + 前端 16 種 UML）</strong></p>
 <p>每張 UML 圖必須讓開發者在沒有其他文件的情況下，能夠 1:1 實作出完整系統：</p>
 <table>
 <tr><th>UML 圖類型</th><th>強制內容（精確到可直接實作）</th></tr>
 <tr><td>Class Diagram</td><td>屬性：<code>visibility name: Type</code>；方法：<code>visibility name(param: Type): ReturnType</code>；Enum 獨立定義且列全所有枚舉值；關聯線兩端都有 cardinality + role label</td></tr>
 <tr><td>Object Diagram</td><td>所有屬性填具體業務範例值（UUID 字串、枚舉值名、實際數字），禁止型別名稱作為值</td></tr>
 <tr><td>Sequence Diagram</td><td>每個箭頭精確方法名 + 參數名稱和型別；回傳箭頭有型別或 HTTP 狀態碼 + 回應體結構；alt 分支有具體條件描述；每個 Mutation ≥ 3 個 Error Path</td></tr>
-<tr><td>State Machine</td><td>每個 transition：<code>trigger [guard] / action</code> 三段必填；有業務邏輯的狀態有 entry/exit 動作；所有終態連到 <code>[*]</code></td></tr>
+<tr><td>State Machine</td><td>每個 transition：<code>trigger [guard] / action</code> 三段必填；<strong>禁止</strong> <code>&lt;br/&gt;</code> 語法（Mermaid stateDiagram-v2 不支援，改用 <code>note right of STATE</code> 區塊描述細節）；有業務邏輯的狀態有 entry/exit 動作；所有終態連到 <code>[*]</code></td></tr>
 <tr><td>Activity Diagram</td><td>泳道（每個 Actor / 系統元件一個 subgraph）；決策點兩分支都有具體條件；有並行路徑用 fork/join</td></tr>
 <tr><td>Component Diagram</td><td>每個節點：技術名稱 + 精確版本號 + 通訊埠；每條連線：協定 + 埠號（同步/非同步已區分）</td></tr>
 <tr><td>Deployment Diagram</td><td>每個節點：Image:tag + CPU/Mem limit + Replicas；網路區域 subgraph（DMZ/Internal/DataZone）；連線有協定 + 埠號</td></tr>
+</table>
+<p><strong>前端 UML 補充（Step 2B，條件觸發：<code>client_type != none</code> + <code>FRONTEND.md</code> 存在）</strong></p>
+<p>在 Server 端 9 大 UML 之外，gendoc-gen-diagrams 額外生成 16 種前端 UML，輸出至 <code>docs/diagrams/frontend-*.md</code>：</p>
+<table>
+<tr><th>分類</th><th>圖表（16 種）</th><th>引擎適配</th></tr>
+<tr><td>Use Case</td><td><code>frontend-use-case.md</code></td><td>前端 Actor + UC-F 編號</td></tr>
+<tr><td>Class × 3</td><td><code>frontend-class-component.md</code>（UI 元件層）、<code>frontend-class-scene.md</code>（場景控制器）、<code>frontend-class-services.md</code>（Client 服務）</td><td>Cocos/Unity/React 引擎 API</td></tr>
+<tr><td>Object</td><td><code>frontend-object-snapshot.md</code>（UI 執行時快照）</td><td>具體 instance 值</td></tr>
+<tr><td>Sequence × 3</td><td><code>frontend-sequence-ws.md</code>（WS 協議）、<code>frontend-sequence-scene.md</code>（場景切換）、<code>frontend-sequence-shoot.md</code>（主遊戲交互）</td><td>含 heartbeat/重連</td></tr>
+<tr><td>State × 2</td><td><code>frontend-state-scene.md</code>（場景狀態機）、<code>frontend-state-ui.md</code>（UI 元件狀態機）</td><td>無 <code>&lt;br/&gt;</code></td></tr>
+<tr><td>Activity × 3</td><td><code>frontend-activity-gameplay.md</code>（遊戲主流程）、<code>frontend-activity-ui.md</code>（UI 互動）、<code>frontend-activity-init.md</code>（客戶端初始化）</td><td>swimlane Player/Client/Server</td></tr>
+<tr><td>Component</td><td><code>frontend-component.md</code>（引擎節點樹）</td><td>Cocos Node Tree / Unity Hierarchy</td></tr>
+<tr><td>Deployment</td><td><code>frontend-deployment.md</code>（建構管線）</td><td>Web/iOS/Android/Desktop</td></tr>
+<tr><td>Communication</td><td><code>frontend-communication.md</code>（WS 協議互動）</td><td>雙向訊息完整覆蓋</td></tr>
 </table>
 <p><strong>Class-Level 設計</strong></p>
 <pre><code class="">ClassName
@@ -512,7 +527,7 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
 <blockquote><p><strong>IDEA Appendix C 特殊處理</strong>：讀取 IDEA.md 時，同步讀取其 Appendix C 列出的所有 <code>docs/req/</code> 素材。若上游文件不存在，靜默跳過，不降低覆蓋深度。</p></blockquote>
 <h4>累積上游關聯圖（Cumulative Reference Visualization）</h4>
 <p>每個節點顏色深度代表累積讀取的文件層數；箭頭方向為「讀取方向」（下游文件讀上游文件）。</p>
-<div class="diagram-container"><pre class="mermaid">graph LR
+<div class="diagram-container"><pre class="mermaid">graph TD
     REQ(["docs/req/ ●"]):::l0
     ID["IDEA ●●"]:::l1
     BR["BRD ●●●"]:::l2
