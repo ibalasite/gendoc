@@ -407,3 +407,19 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 - [ ] §13.1 Build 指令已填入，非 `{{CMD}}` placeholder
 - [ ] 所有 `[UPSTREAM_CONFLICT]` 標記均已處理或說明
 - [ ] 無未替換的 `{{PLACEHOLDER}}` 格式佔位符
+
+---
+
+## Quality Gate（生成後自檢，交 Review Agent 前必須全部通過）
+
+在將文件交給 Review Agent 之前，Gen Agent 必須驗證以下項目。**任何一項不合格，必須先修復再繼續**。
+
+| 檢查項 | 合格標準 | 不合格處理 |
+|--------|---------|-----------|
+| 所有 §章節齊全 | 對照 FRONTEND.md 章節清單，無缺失章節 | 補寫缺失章節 |
+| 無裸 placeholder | 每個 `{{...}}` 後有「: 說明」或具體範例值 | 補全說明或替換為具體值 |
+| 技術棧一致 | 前端框架、元件庫、狀態管理方案與 state.lang_stack 一致 | 修正至一致 |
+| 數值非 TBD/N/A | Bundle size budget、Lighthouse 目標分數、動畫時長填有實際數字 | 從 PRD 效能需求推算填入 |
+| 上游術語對齊 | 元件名稱、畫面名稱與 PDD.md 一致 | 以 PDD 為準修正 |
+| API 整合點完整 | 所有與 API.md 的整合點（endpoint、auth method）都有對應描述 | 從 API.md 提取補充 |
+| 狀態管理策略 | 說明哪些狀態用 global store、哪些用 local state、哪些用 URL params | 補充缺失的狀態分類說明 |

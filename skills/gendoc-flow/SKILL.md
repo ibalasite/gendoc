@@ -157,21 +157,36 @@ for f in ['docs/IDEA.md', 'docs/BRD.md', 'docs/PRD.md']:
     except: pass
 combined = ' '.join(texts)
 
-# 遊戲關鍵字（優先判斷）→ client_type=game，觸發 AUDIO/ANIM 生成
+# ⚠️ 關鍵字清單統一定義於 gendoc-shared §13-B（R-09），此處使用完整版本
+# GAME_KEYWORDS（優先判斷）→ client_type=game，觸發 AUDIO/ANIM 生成
 game_keywords = [
-    'game', 'arcade', 'unity', 'cocos', 'canvas', 'webgl', 'opengl', 'phaser', 'pixijs',
+    # 引擎/框架
+    'game', 'arcade', 'unity', 'cocos', 'phaser', 'pixijs', 'godot', 'unreal',
+    'canvas', 'webgl', 'opengl', 'directx', 'vulkan', 'metal',
+    # 中文遊戲術語
     '遊戲', '魚機', '博弈', '遊藝', '投幣', '玩家', '角色', '場景',
     '卡牌', '棋牌', '捕魚', '電子遊戲', '老虎機', '水果機',
+    '捕魚達人', '麻將', '鬥地主', '百家樂',
+    # 遊戲機制
+    'sprite', 'tilemap', 'collision', 'physics engine', 'particle system',
+    '音效', '動畫', 'fps', 'render loop',
 ]
-# 通用 UI 關鍵字 → client_type=web（SaaS/管理後台/行動 App，不觸發 AUDIO/ANIM）
+# UI_KEYWORDS → client_type=web（SaaS/管理後台/行動 App，不觸發 AUDIO/ANIM）
 ui_keywords = [
-    'ui', 'ux', 'interface', 'screen', 'display', 'frontend', 'front-end',
-    'dashboard', 'portal', 'panel', 'page', 'view', 'layout', 'widget',
-    '介面', '畫面', '螢幕', '顯示', '前端', '操作面板', '儀表板', '視覺',
-    '按鈕', '頁面', '視窗', '彈窗', '選單',
-    'web', 'html', 'css', 'react', 'vue', 'angular', 'svelte',
+    # 前端框架/技術
+    'ui', 'ux', 'frontend', 'front-end', 'web', 'html', 'css',
+    'react', 'vue', 'angular', 'svelte', 'nextjs', 'nuxt',
+    # 行動 App
     'app', 'mobile', 'native', 'ios', 'android', 'flutter', 'swift', 'kotlin',
+    'react native', 'expo',
+    # 介面元件
+    'interface', 'screen', 'display', 'dashboard', 'portal', 'panel',
+    'page', 'view', 'layout', 'widget', 'button', 'form',
+    '介面', '畫面', '螢幕', '顯示', '前端', '操作面板', '儀表板', '視覺',
+    '按鈕', '頁面', '視窗', '彈窗', '選單', '使用者介面',
+    # 嵌入式顯示
     'lcd', 'oled', 'touchscreen', '觸控', '嵌入式顯示',
+    # 客戶端
     'client', '客戶端', '用戶端',
 ]
 if any(kw in combined for kw in game_keywords):
@@ -450,12 +465,64 @@ def update_state_client_type(ct):
     open(tmp,'w').write(json.dumps(d, indent=2, ensure_ascii=False))
     os.replace(tmp, f)
     print(f"[P-14] client_type 已更新至 state：{ct}")
+
+# update_state_lang_stack 輔助函式（原子寫入，鎖定技術棧）
+def update_state_lang_stack(lang_stack):
+    import json, os, re
+    f = _STATE_FILE
+    try: d = json.load(open(f))
+    except: d = {}
+    d['lang_stack']        = lang_stack
+    d['lang_stack_locked'] = True   # 鎖定後 P-15 不再覆寫
+    tmp = f + '.tmp'
+    open(tmp,'w').write(json.dumps(d, indent=2, ensure_ascii=False))
+    os.replace(tmp, f)
+    print(f"[P-15] lang_stack 已寫入 state 並鎖定：{lang_stack}")
+
+# python3_extract_lang_stack 輔助函式（從 EDD.md 提取技術棧）
+def python3_extract_lang_stack():
+    import re
+    try:
+        content = open('docs/EDD.md', encoding='utf-8').read()
+        # 優先：找「語言/框架（lang_stack）：<值>」這行
+        m = re.search(r'(?:語言/框架|lang_stack)[（(]?[^）)]*[）)]?\s*[：:]\s*(.+)', content)
+        if m:
+            return m.group(1).strip().split('\n')[0].strip()
+        # 次選：找「主要語言：<值>」
+        m2 = re.search(r'主要語言\s*[：:]\s*(.+)', content)
+        if m2:
+            return m2.group(1).strip().split('\n')[0].strip()
+        # 再次：找「Backend：<值>」或「技術棧」
+        m3 = re.search(r'(?:Backend|技術棧|Tech Stack)\s*[：:]\s*(.+)', content)
+        if m3:
+            return m3.group(1).strip().split('\n')[0].strip()
+        return ""
+    except:
+        return ""
 ```
 
 **P-14 注意事項：**
 - 若使用者透過 `/gendoc-config` 手動設定或確認 `client_type`，則 `client_type_source = "confirmed"`（或 `"manual"`），P-14 不覆寫
 - 若 D03-PRD 是被 skip（P-02/P-05 resume），P-14 仍執行（PRD 已存在，可讀取）
 - 若重新偵測結果改變，條件步驟（D04/D05/D10/D12b/D10b/D10c）的 skip/execute 判斷會以新值為準
+
+    # ── P-15：D06-EDD 完成後提取並鎖定 lang_stack ──────────
+    # 理由：EDD §語言/框架 決定的技術棧必須寫入 state 並鎖定，
+    #       確保後續 test-plan、BDD、runbook、LOCAL_DEPLOY 使用相同技術棧，
+    #       不因不同 AI 自行推斷而產生不同結果。
+    if step["id"] == "D06-EDD":
+        _lang_stack_current = state.get("lang_stack", "")
+        _lang_stack_locked  = state.get("lang_stack_locked", False)
+        if not _lang_stack_locked:
+            # 從 EDD.md 提取技術棧（讀取 §語言/框架 或 lang_stack 行）
+            _lang_stack_new = python3_extract_lang_stack()
+            if _lang_stack_new and _lang_stack_new != "unknown":
+                update_state_lang_stack(_lang_stack_new)
+                print(f"[P-15] ✅ lang_stack 已從 EDD.md 提取並鎖定：{_lang_stack_new}")
+            else:
+                print(f"[P-15] ⚠️  無法從 EDD.md 提取 lang_stack，保留現有值：{_lang_stack_current or '(空)'}")
+        else:
+            print(f"[P-15] ⏭️  lang_stack 已鎖定（{_lang_stack_current}），跳過提取")
 
 ---
 

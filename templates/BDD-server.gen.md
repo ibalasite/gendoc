@@ -256,3 +256,18 @@ Feature: <功能名稱（與 PRD 一致）>
 - [ ] Test Data 使用 Factory 動態建立，禁止 hardcode 真實 PII
 - [ ] 所有 `[UPSTREAM_CONFLICT]` 標記均已處理或說明
 - [ ] 每個 .feature 檔案都輸出了 `GENERATED_FILE: features/{path}` 紀錄
+
+---
+
+## Quality Gate（生成後自檢，交 Review Agent 前必須全部通過）
+
+在將文件交給 Review Agent 之前，Gen Agent 必須驗證以下項目。**任何一項不合格，必須先修復再繼續**。
+
+| 檢查項 | 合格標準 | 不合格處理 |
+|--------|---------|-----------|
+| API 覆蓋率 | API.md 每個 endpoint 至少有一個對應 Scenario | 補充缺失 Scenario |
+| 無裸 placeholder | 每個 `{{...}}` 後有「: 說明」或具體範例值 | 補全說明或替換為具體值 |
+| 技術棧一致 | HTTP 方法、路徑、Content-Type 與 API.md 定義一致 | 以 API.md 為準修正 |
+| 數值非 TBD/N/A | 回應碼、Payload 欄位填有實際值 | 從 API.md 對應定義填入 |
+| 測試資料真實 | 請求體範例非 "string" / 1 / true，使用符合業務語義的真實格式 | 替換為業務語義資料 |
+| 錯誤路徑覆蓋 | 每個 endpoint 至少有 1 個錯誤 Scenario（4XX/5XX） | 補充錯誤 Scenario |

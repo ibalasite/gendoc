@@ -150,3 +150,18 @@ README.md 必須包含以下全部 20+ 節，**嚴格按順序**：
 - [ ] Code of Conduct 已引用 Contributor Covenant v2.1
 - [ ] 無殘留 `{{PLACEHOLDER}}` 或 `<_VARIABLE>` 格式
 - [ ] 輸出至 README.md（根目錄，非 docs/）
+
+---
+
+## Quality Gate（生成後自檢，交 Review Agent 前必須全部通過）
+
+在將文件交給 Review Agent 之前，Gen Agent 必須驗證以下項目。**任何一項不合格，必須先修復再繼續**。
+
+| 檢查項 | 合格標準 | 不合格處理 |
+|--------|---------|-----------|
+| 所有 §章節齊全 | 對照 README.md 章節清單，無缺失章節 | 補寫缺失章節 |
+| 無裸 placeholder | 每個 `{{...}}` 後有「: 說明」或具體範例值 | 補全說明或替換為具體值 |
+| 技術棧一致 | Quick Start 指令使用 state.lang_stack 對應的工具（pip / npm / cargo 等） | 修正至一致 |
+| 數值非 TBD/N/A | 所有徽章（badge）連結填有實際 URL（非佔位符） | 從 state.github_repo 構建正確 URL |
+| Quick Start 可執行 | 從 clone 到 run 的所有指令可直接 copy-paste 執行 | 改寫為具體可執行序列 |
+| 架構概覽存在 | 有至少一個架構圖（Mermaid 或說明段落，非「架構圖待補」） | 從 ARCH.md §架構概覽 提取 C4 圖 |

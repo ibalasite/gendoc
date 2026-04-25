@@ -320,3 +320,18 @@ Grafana：<GRAFANA_OVERVIEW_DASHBOARD>
 - [ ] §6 Incident Response P1/P2 回應時間來自 PRD；若 PRD 無此資訊，已使用格式佔位符並加 WARNING 注釋
 - [ ] §6.8 Post-Mortem 包含草稿截止日（2 business days）、分發對象、30 天 check-in 三要素
 - [ ] §12 Contacts 所有 Name/Contact 欄位為格式範例佔位符（無虛構姓名或電話號碼）
+
+---
+
+## Quality Gate（生成後自檢，交 Review Agent 前必須全部通過）
+
+在將文件交給 Review Agent 之前，Gen Agent 必須驗證以下項目。**任何一項不合格，必須先修復再繼續**。
+
+| 檢查項 | 合格標準 | 不合格處理 |
+|--------|---------|-----------|
+| 所有 §章節齊全 | 對照 runbook.md 章節清單，無缺失章節 | 補寫缺失章節 |
+| 無裸 placeholder | 每個 `{{...}}` 後有「: 說明」或具體範例值 | 補全說明或替換為具體值 |
+| 技術棧一致 | 所有 shell 指令、工具名稱與 state.lang_stack 和 LOCAL_DEPLOY.md 一致 | 修正至一致 |
+| 指令可直接執行 | 所有 shell 指令可直接 copy-paste 執行（非概念描述或虛構路徑） | 改寫為基於 LOCAL_DEPLOY 環境的具體指令 |
+| Rollback 步驟存在 | 每個部署/更新步驟都有對應的回滾指令 | 補充缺失的回滾步驟 |
+| 緊急聯絡非虛構 | 緊急聯絡人欄位（若有）有格式說明（非 "Alice" / "Bob" 等虛構名稱） | 替換為 `{{ONCALL_CONTACT}}: 填入值班聯絡人姓名/Email` 格式 |

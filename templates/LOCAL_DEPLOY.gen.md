@@ -349,3 +349,18 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 - [ ] 全文無裸 `{{PROJECT_NAME}}`、`{{PROJECT_SLUG}}`、`{{K8S_NAMESPACE}}` placeholder（應已全部替換）
 - [ ] 全文無裸 `{{API_PORT}}`、`{{WEB_PORT}}`、`{{DB_PORT}}`、`{{REDIS_PORT}}` placeholder（應已全部替換）
 - [ ] 允許保留的格式範例佔位符（Grafana URL、PagerDuty URL、外部 API Key）均已加上說明，不會被誤認為必填空白
+
+---
+
+## Quality Gate（生成後自檢，交 Review Agent 前必須全部通過）
+
+在將文件交給 Review Agent 之前，Gen Agent 必須驗證以下項目。**任何一項不合格，必須先修復再繼續**。
+
+| 檢查項 | 合格標準 | 不合格處理 |
+|--------|---------|-----------|
+| 所有 §章節齊全 | 對照 LOCAL_DEPLOY.md 章節清單，無缺失章節 | 補寫缺失章節 |
+| 無裸 placeholder | 每個 `{{...}}` 後有「: 說明」或具體範例值 | 補全說明或替換為具體值 |
+| 技術棧一致 | 所有工具、套件管理器、執行指令與 state.lang_stack 一致 | 修正至一致 |
+| 前置需求有版本號 | 每個前置工具（Node.js / Python / Docker 等）都指定具體版本號 | 從 EDD §環境規格 提取版本號 |
+| 指令可直接執行 | 所有 shell 指令可直接 copy-paste 執行（非概念描述） | 改寫為具體可執行指令 |
+| Smoke Test 存在 | 部署完成後有驗證步驟（至少一個 curl / HTTP 請求驗證服務正常） | 補充 smoke test 指令 |

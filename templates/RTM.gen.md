@@ -215,6 +215,23 @@ Pie Chart 使用計算後的真實數字，不保留 `{{...}}` 佔位符。
 - 若 EDD 已有測試描述，可填 `IN_PROGRESS`
 - 不得假設任何 Test 為 `PASS` 狀態（必須等實際執行後更新）
 
+**Status 自動升級規則（在 D13-RTM 生成時執行）：**
+
+生成 RTM 時，若以下條件同時成立，則將對應列的 Status 從 `DRAFT` 升級為 `IMPLEMENTED`：
+
+| 條件 | 驗證方式 |
+|------|---------|
+| Design ref 有值 | ARCH §N 或 API endpoint 路徑已填入（非「待填」） |
+| Code ref 有值 | EDD 對應模組/函式名稱已填入（非「待填」） |
+| Test ref 有值 | test-plan TC-XXX 編號已填入（非「待填」） |
+
+若三個條件都滿足 → `IMPLEMENTED`
+若只有 Design ref → `IN_DESIGN`
+若 Design + Code ref → `IN_REVIEW`
+若全部為空 → 保留 `DRAFT`
+
+**D13-RTM 生成步驟要求**：在有 ARCH/API/EDD/test-plan 的情況下，必須嘗試填入 Design/Code/Test ref，不可留「待填」或「N/A」。
+
 **Class/Method 佔位符處理：**
 - 若 EDD 無 Class Diagram，Class 欄填 `{{ClassName}}（待 EDD §6 補充）`，標記 `[UPSTREAM_CONFLICT]`
 - 若 PRD 有 AC 但 EDD 無對應 Method，填入推斷的 Method 名稱並加 `（推斷）` 說明
@@ -305,3 +322,18 @@ Pie Chart 使用計算後的真實數字，不保留 `{{...}}` 佔位符。
 - [ ] 無裸 `{{PROJECT_NAME}}`、`{{PROJECT_CODE}}`、`{{DATE}}` placeholder（應已替換）
 - [ ] 初次生成：所有 TC 狀態為 `TODO`（無預設 PASS 狀態）
 - [ ] 初次生成：§7 FAIL 缺陷表為空或僅含格式範例行
+
+---
+
+## Quality Gate（生成後自檢，交 Review Agent 前必須全部通過）
+
+在將文件交給 Review Agent 之前，Gen Agent 必須驗證以下項目。**任何一項不合格，必須先修復再繼續**。
+
+| 檢查項 | 合格標準 | 不合格處理 |
+|--------|---------|-----------|
+| 所有 §章節齊全 | 對照 RTM.md 章節清單，無缺失章節 | 補寫缺失章節 |
+| 無裸 placeholder | 每個 `{{...}}` 後有「: 說明」或具體範例值 | 補全說明或替換為具體值 |
+| PRD 覆蓋率 100% | PRD 每個 User Story (US-XXX-NNN) 都有對應的 RTM 列 | 對照 PRD 補充缺失的 RTM 列 |
+| 數值非 TBD/N/A | 有 ARCH/API/EDD 的情況下，Design ref 和 Code ref 欄位不可為「待填」 | 從對應文件提取並填入 |
+| Status 正確升級 | 若 Design ref + Code ref + Test ref 都有值，Status 必須是 IMPLEMENTED 而非 DRAFT | 按升級規則更新 Status 值 |
+| Test ref 格式 | 每個 Test ref 指向 test-plan 的 TC-XXX 編號（若 test-plan 已存在） | 從 test-plan 對應 TC 提取編號 |

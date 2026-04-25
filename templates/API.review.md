@@ -118,10 +118,16 @@ upstream-alignment:
 
 ### Layer 4: 錯誤處理（由 API Design Expert + Backend Engineer 聯合審查，共 4 項）
 
-#### [CRITICAL] 15 — 錯誤碼使用通用 500 或缺少業務錯誤碼
-**Check**: 是否有 Endpoint 只列 `500 Internal Server Error` 而無具體業務錯誤碼（`400` 格式錯誤、`401` 未認證、`403` 無權限、`404` 不存在、`409` 衝突、`422` 業務規則失敗）？每個 Endpoint 至少應有 `400`、`401`、`500`。列出僅有 `200` 和 `500` 的 Endpoint。
-**Risk**: 只有 `500` 的錯誤設計讓 QA 無法撰寫細粒度錯誤情境測試，前端無法依 Error Code 實作差異化 UX 反饋，Debug 時無法快速定位問題。
-**Fix**: 為每個 Endpoint 補充業務相關 HTTP 錯誤碼，說明每個錯誤碼的觸發條件和 Response Body 格式；業務規則失敗使用 `422` 配合業務 Error Code。
+#### [CRITICAL] 15 — 回應碼完整性（條件式驗證）
+**Check**: 回應碼完整性（條件式驗證）
+- 需要認證的 endpoint：必須定義 401（未認證）和 403（無權限）
+- 有速率限制的 endpoint：必須定義 429（Too Many Requests）
+- 所有 endpoint：必須定義 500（伺服器錯誤）和至少一個 2XX 成功碼
+- Public endpoint（無需認證）：無須定義 401/403，但需說明「此 endpoint 為公開存取，無需認證」
+
+**Risk**: 遺漏回應碼導致客戶端無法正確處理錯誤狀態，或對 public endpoint 誤加認證錯誤碼造成語義錯誤。
+
+**Fix**: 逐一檢查每個 endpoint 的認證要求，依條件補充或移除回應碼定義；public endpoint 須在描述欄位加入「公開存取」說明。
 
 #### [HIGH] 16 — Error Response 格式不一致
 **Check**: 所有 Endpoint 的 Error Response 是否使用統一的 Envelope 格式（`success: false`、`error.code`、`error.message`、`error.request_id`）？是否有部分 Endpoint 回傳 `{ "message": "..." }` 而其他回傳 `{ "error": { "code": "..." } }`？列出格式不一致的 Endpoint。

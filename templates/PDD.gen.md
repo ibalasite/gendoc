@@ -420,3 +420,18 @@ Match: 0（Match Width — 寬固定，高自動）
 - [ ] Engineering Handoff Checklist 已完成
 
 若有遺漏，自行補齊後再寫入檔案。
+
+---
+
+## Quality Gate（生成後自檢，交 Review Agent 前必須全部通過）
+
+在將文件交給 Review Agent 之前，Gen Agent 必須驗證以下項目。**任何一項不合格，必須先修復再繼續**。
+
+| 檢查項 | 合格標準 | 不合格處理 |
+|--------|---------|-----------|
+| 所有 §章節齊全 | 對照 PDD.md 章節清單，無缺失章節 | 補寫缺失章節 |
+| 無裸 placeholder | 每個 `{{...}}` 後有「: 說明」或具體範例值 | 補全說明或替換為具體值 |
+| 技術棧一致 | UI 框架/元件庫與 state.lang_stack 及 FRONTEND.md 一致 | 修正至一致 |
+| 數值非 TBD/N/A | 所有尺寸、間距、字型大小、動畫時長填有實際數字 | 從 VDD §Typography/Spacing 提取填入 |
+| 上游術語對齊 | 畫面名稱、流程步驟與 PRD §User Stories 一致 | 以 PRD 為準修正 |
+| 使用者流程完整 | 每個主要 User Story 有對應的畫面流程圖（Mermaid flowchart），無斷點 | 補充缺失的流程節點 |

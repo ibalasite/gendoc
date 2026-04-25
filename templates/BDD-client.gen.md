@@ -275,3 +275,18 @@ Feature: 購物結帳完整旅程
 - [ ] Background 設定 clean UI 初始狀態，確保 Scenario 獨立執行
 - [ ] 所有 `[UPSTREAM_CONFLICT]` 標記均已處理或說明
 - [ ] 每個 .feature 檔案都輸出了 `GENERATED_FILE: features/client/{path}` 紀錄
+
+---
+
+## Quality Gate（生成後自檢，交 Review Agent 前必須全部通過）
+
+在將文件交給 Review Agent 之前，Gen Agent 必須驗證以下項目。**任何一項不合格，必須先修復再繼續**。
+
+| 檢查項 | 合格標準 | 不合格處理 |
+|--------|---------|-----------|
+| 所有 Feature 齊全 | PRD §User Stories 每個 Story 至少有一個對應 Feature 檔案 | 補充缺失 Feature |
+| 無裸 placeholder | 每個 `{{...}}` 後有「: 說明」或具體範例值 | 補全說明或替換為具體值 |
+| 技術棧一致 | Given/When/Then 步驟使用符合 state.lang_stack 的 UI 框架術語 | 修正至一致 |
+| 數值非 TBD/N/A | 等待時間、元素 id/class 等填有實際值 | 從 PDD.md 對應畫面提取 |
+| UI 元素具體 | 步驟中的 UI 元素非「某按鈕」，而是具體的 id/class/label | 從 PDD §畫面設計 提取具體值 |
+| Happy Path + Error | 每個 Feature 至少有 1 個 happy path Scenario 和 1 個錯誤 Scenario | 補充缺失 Scenario |

@@ -397,3 +397,18 @@ Feature: 使用者登入
 - [ ] §15 Mutation Testing：高風險核心業務模組是否已配置 Stryker/mutmut，目標 Mutation Score ≥70%？
 - [ ] §15 弱測試模式：確認生成的測試避免「只驗證有呼叫」的弱斷言（使用具體 expect 值）？
 - [ ] 所有 `[UPSTREAM_CONFLICT]` 標記均已處理或說明
+
+---
+
+## Quality Gate（生成後自檢，交 Review Agent 前必須全部通過）
+
+在將文件交給 Review Agent 之前，Gen Agent 必須驗證以下項目。**任何一項不合格，必須先修復再繼續**。
+
+| 檢查項 | 合格標準 | 不合格處理 |
+|--------|---------|-----------|
+| 所有 Feature 齊全 | PRD §User Stories 每個 Story 至少有一個對應 Feature 檔案 | 補充缺失 Feature |
+| 無裸 placeholder | 每個 `{{...}}` 後有「: 說明」或具體範例值 | 補全說明或替換為具體值 |
+| 技術棧一致 | 使用符合 state.lang_stack 的 BDD 框架格式（Cucumber / Behave / Gherkin） | 修正至一致 |
+| 數值非 TBD/N/A | 所有 Scenario 的 And/Given/Then 條件含有具體數值 | 從 PRD/API 提取填入 |
+| 上游術語對齊 | 步驟中的術語與 PRD/API/SCHEMA 定義一致 | 修正術語 |
+| 測試資料規格 | 每個 Feature 的 Background 或 Examples 有具體測試資料（非通用假資料） | 補充業務語義測試資料 |

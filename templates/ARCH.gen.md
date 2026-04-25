@@ -413,3 +413,19 @@ Closed ──(錯誤率 > 閾值)──► Open ──(等待 Timeout)──► 
 - [ ] §16 月度 FinOps Review：成本預算警報規則（80%/100%/120% 閾值）是否已設定？
 
 若有遺漏，自行補齊後再寫入檔案。
+
+---
+
+## Quality Gate（生成後自檢，交 Review Agent 前必須全部通過）
+
+在將文件交給 Review Agent 之前，Gen Agent 必須驗證以下項目。**任何一項不合格，必須先修復再繼續**。
+
+| 檢查項 | 合格標準 | 不合格處理 |
+|--------|---------|-----------|
+| 所有 §章節齊全 | 對照 ARCH.md 章節清單，無缺失章節 | 補寫缺失章節 |
+| 無裸 placeholder | 每個 `{{...}}` 後有「: 說明」或具體範例值 | 補全說明或替換為具體值 |
+| 技術棧一致 | 所有元件/服務技術術語與 state.lang_stack 一致 | 修正至一致 |
+| 數值非 TBD/N/A | 效能預算、SLO 指標、容量規劃填有實際數字 | 從 PRD §Success Metrics 推算填入 |
+| 上游術語對齊 | 模組名稱、服務名稱與 EDD §模組拆解 一致 | 以 EDD 為權威來源修正 |
+| UML 圖完整 | §10 Engineering Diagrams 包含 Class/Sequence/State/ER/Component/Deployment 等至少 6 大圖 | 補充缺失的 Mermaid 圖表 |
+| FinOps 章節存在 | 有 §FinOps 或 §成本估算，且包含至少一個具體費用數字（非 TBD） | 根據 state.q4_scale 估算後填入 |

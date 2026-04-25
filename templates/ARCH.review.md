@@ -132,7 +132,7 @@ upstream-alignment:
 
 ---
 
-### Layer 5: 上游對齊（由 Solutions Architect 通盤審查，共 4 項）
+### Layer 5: 上游對齊（由 Solutions Architect 通盤審查，共 5 項）
 
 #### [CRITICAL] 18 — EDD SLO 無法被 ARCH 架構支撐
 **Check**: ARCH 的架構選擇（副本數、HA 方案、多 AZ / 多 Region 設計）是否能支撐 EDD 定義的 Availability SLO？若 EDD 定義 99.9% 可用性但 ARCH 是單副本部署，視為 CRITICAL。
@@ -154,16 +154,27 @@ upstream-alignment:
 **Risk**: 架構審查清單未完成，無法確認架構師是否自我驗證了關鍵架構決策，可能有已知問題未被記錄。
 **Fix**: 完善 §15 審查清單，逐一勾選並說明：可用性設計是否符合 SLO、安全設計是否通過內部審查、DR 策略是否已評估等。
 
+#### [MEDIUM] 22 — FinOps 成本估算完整性
+
+**Check**: ARCH.md 是否包含 §FinOps 或 §成本估算章節，且章節內容是否包含：
+- 主要雲端資源的月費估算（運算、存儲、網路、AI API 費用）
+- 不同規模下的成本預測（小規模 / 中規模 / 大規模）
+- 成本優化建議（如：自動縮放、Reserved Instance、Spot Instance 使用時機）
+
+**Risk**: 缺乏成本估算的架構文件導致工程團隊無法評估方案可行性，可能在實作後才發現成本超出預算。
+
+**Fix**: 在 ARCH.md 補充 §FinOps 章節，要求使用 state.q4_scale 對應的規模提供具體費用估算（數字非 TBD/N/A）。
+
 ---
 
 ### Layer 6: 文件完整性（由 DevOps Expert 通盤審查，共 2 項）
 
-#### [HIGH] 22 — Observability 架構埋點位置未標注
+#### [HIGH] 23 — Observability 架構埋點位置未標注
 **Check**: ARCH §12 Observability 架構是否說明 Metrics、Logging、Tracing 的工具選型，以及各類監控資料的採集位置（在哪個元件埋點）？是否有 Alert 閾值與 EDD SLO 的對應說明？
 **Risk**: Observability 埋點位置未說明，各工程師各自決定在哪裡記錄 Metrics 和 Log，造成監控覆蓋不一致，無法從 ARCH 層面保障 SLO 可觀測性。
 **Fix**: 補充 Observability 架構說明：工具選型（Prometheus / Grafana / Jaeger / ELK）+ 各元件的埋點類型（哪個 Service 暴露哪些 Metrics）+ Alert 規則與 EDD SLO 的對應。
 
-#### [LOW] 23 — 裸 Placeholder 殘留
+#### [LOW] 24 — 裸 Placeholder 殘留
 **Check**: 是否有 `{{PLACEHOLDER}}` 格式未替換的空白佔位符（元件名稱、域名、IP CIDR、SLA 數字等）？逐一列出位置（章節）。
 **Risk**: 裸 placeholder 使 ARCH 文件無法直接用於 Infrastructure 配置或架構溝通，DevOps 工程師需要人工詢問架構師填寫缺漏值，降低文件可信度。
 **Fix**: 替換所有裸 placeholder 為真實值（域名 / IP CIDR / 元件名稱）；若部署細節尚未確定，改為 `（待確認：描述說明）` 格式。

@@ -503,3 +503,18 @@ Flag 管理原則：
 - [ ] §18 WCAG 2.1 AA 目標：Level A（MVP）/ Level AA（3 個月）里程碑已設定
 - [ ] §18 A11y 需求清單：A11y-01 到 A11y-10 十項已列入
 - [ ] 全文無 "TBD"、"待補"、"[待填]" 等空白佔位
+
+---
+
+## Quality Gate（生成後自檢，交 Review Agent 前必須全部通過）
+
+在將文件交給 Review Agent 之前，Gen Agent 必須驗證以下項目。**任何一項不合格，必須先修復再繼續**。
+
+| 檢查項 | 合格標準 | 不合格處理 |
+|--------|---------|-----------|
+| 所有 §章節齊全 | 對照 PRD.md 章節清單，無缺失章節 | 補寫缺失章節 |
+| 無裸 placeholder | 每個 `{{...}}` 後有「: 說明」或具體範例值 | 補全說明或替換為具體值 |
+| 技術棧一致 | 技術約束、平台要求與 BRD §8.3 一致 | 以 BRD 技術約束為準修正 |
+| 數值非 TBD/N/A | 所有 Success Metrics 填有可量測的具體數字（如：< 2s 回應時間、99.9% uptime） | 從 BRD §Business Objectives 推算填入 |
+| AC 完整性 | 每個 User Story 至少有 3 條驗收標準（AC），且 AC 具體可驗證 | 為每個 Story 補充缺失 AC |
+| RTM 種子 | 每個 User Story 有對應的 RTM 編號（US-XXX-NNN 格式） | 按序補充 RTM 編號 |
