@@ -68,7 +68,7 @@
 <tr><th>欄位</th><th>內容</th></tr>
 <tr><td><strong>SKILL</strong></td><td>gendoc-flow</td></tr>
 <tr><td><strong>問題</strong></td><td>§STEP-MAPPING（約 37 行）將舊 autodev 31步 ID 轉換為新 ID，但此對照表的輸出變數 <code>_AUTODEV_STEP</code> 從未被 skip 條件使用</td></tr>
-<tr><td><strong>說明</strong></td><td>這段 mapping 是在舊版 autodev/devsop 架構下遺留的死碼，當時目的是讓外部系統設定 31 步編號後映射到 gendoc 內部步驟，現在整個架構已移除外部依賴，這段完全無效</td></tr>
+<tr><td><strong>說明</strong></td><td>這段 mapping 是在舊版外部 SDLC 架構下遺留的死碼，當時目的是讓外部系統設定 31 步編號後映射到 gendoc 內部步驟，現在整個架構已移除外部依賴，這段完全無效</td></tr>
 <tr><td><strong>建議</strong></td><td>直接刪除 §STEP-MAPPING 整段（lines 59-96），不留替代</td></tr>
 <tr><td><strong>改後影響</strong></td><td>gendoc-flow 少 37 行，無功能影響，skip 條件讀取 <code>start_step</code> 邏輯不變</td></tr>
 <tr><td><strong>決策</strong></td><td>同意</td></tr>
@@ -79,7 +79,7 @@
 <tr><th>欄位</th><th>內容</th></tr>
 <tr><td><strong>SKILL</strong></td><td>gendoc-flow</td></tr>
 <tr><td><strong>問題</strong></td><td>Step 0 說明文字和變數命名中仍有 &quot;autodev&quot; 字樣（如 <code>_AUTODEV_STEP</code>）</td></tr>
-<tr><td><strong>說明</strong></td><td>上次 devsop cleanup 清了大部分，但 gendoc-flow 內部的 autodev 引用沒有完整清除</td></tr>
+<tr><td><strong>說明</strong></td><td>上次重構清了大部分，但 gendoc-flow 內部的 autodev 引用沒有完整清除</td></tr>
 <tr><td><strong>建議</strong></td><td>一併在 #1 刪除 §STEP-MAPPING 時清除所有 autodev 字樣；Step 0 說明改為「gendoc-flow step 控制」</td></tr>
 <tr><td><strong>改後影響</strong></td><td>純文字清理，無功能影響</td></tr>
 <tr><td><strong>決策</strong></td><td>同意</td></tr>
@@ -107,11 +107,11 @@
 <tr><td><strong>決策</strong></td><td>同意</td></tr>
 </table>
 <hr>
-<h3>#5 gendoc-flow — commit 範例還有 devsop 字樣</h3>
+<h3>#5 gendoc-flow — commit 範例還有舊系統字樣</h3>
 <table>
 <tr><th>欄位</th><th>內容</th></tr>
 <tr><td><strong>SKILL</strong></td><td>gendoc-flow</td></tr>
-<tr><td><strong>問題</strong></td><td>gendoc-flow 的 commit 範例寫著 <code>docs(devsop)[DOC-03]: ...</code>，上次 devsop cleanup 漏掉了</td></tr>
+<tr><td><strong>問題</strong></td><td>gendoc-flow 的 commit 範例寫著舊格式 <code>docs(legacy)[DOC-03]: ...</code>，重構後漏掉了</td></tr>
 <tr><td><strong>說明</strong></td><td>只是 commit 範例文字，不影響實際執行，但不一致</td></tr>
 <tr><td><strong>建議</strong></td><td>改為 <code>docs(gendoc)[D03-PRD]: ...</code> 格式（配合 #4 新命名）</td></tr>
 <tr><td><strong>改後影響</strong></td><td>純文字，無功能影響</td></tr>

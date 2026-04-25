@@ -43,7 +43,7 @@
 |------|------|
 | **SKILL** | gendoc-flow |
 | **問題** | §STEP-MAPPING（約 37 行）將舊 autodev 31步 ID 轉換為新 ID，但此對照表的輸出變數 `_AUTODEV_STEP` 從未被 skip 條件使用 |
-| **說明** | 這段 mapping 是在舊版 autodev/devsop 架構下遺留的死碼，當時目的是讓外部系統設定 31 步編號後映射到 gendoc 內部步驟，現在整個架構已移除外部依賴，這段完全無效 |
+| **說明** | 這段 mapping 是在舊版外部 SDLC 架構下遺留的死碼，當時目的是讓外部系統設定 31 步編號後映射到 gendoc 內部步驟，現在整個架構已移除外部依賴，這段完全無效 |
 | **建議** | 直接刪除 §STEP-MAPPING 整段（lines 59-96），不留替代 |
 | **改後影響** | gendoc-flow 少 37 行，無功能影響，skip 條件讀取 `start_step` 邏輯不變 |
 | **決策** | 同意|
@@ -56,7 +56,7 @@
 |------|------|
 | **SKILL** | gendoc-flow |
 | **問題** | Step 0 說明文字和變數命名中仍有 "autodev" 字樣（如 `_AUTODEV_STEP`） |
-| **說明** | 上次 devsop cleanup 清了大部分，但 gendoc-flow 內部的 autodev 引用沒有完整清除 |
+| **說明** | 上次重構清了大部分，但 gendoc-flow 內部的 autodev 引用沒有完整清除 |
 | **建議** | 一併在 #1 刪除 §STEP-MAPPING 時清除所有 autodev 字樣；Step 0 說明改為「gendoc-flow step 控制」 |
 | **改後影響** | 純文字清理，無功能影響 |
 | **決策** | 同意 |
@@ -89,12 +89,12 @@
 
 ---
 
-### #5 gendoc-flow — commit 範例還有 devsop 字樣
+### #5 gendoc-flow — commit 範例還有舊系統字樣
 
 | 欄位 | 內容 |
 |------|------|
 | **SKILL** | gendoc-flow |
-| **問題** | gendoc-flow 的 commit 範例寫著 `docs(devsop)[DOC-03]: ...`，上次 devsop cleanup 漏掉了 |
+| **問題** | gendoc-flow 的 commit 範例寫著舊格式 `docs(legacy)[DOC-03]: ...`，重構後漏掉了 |
 | **說明** | 只是 commit 範例文字，不影響實際執行，但不一致 |
 | **建議** | 改為 `docs(gendoc)[D03-PRD]: ...` 格式（配合 #4 新命名） |
 | **改後影響** | 純文字，無功能影響 |
