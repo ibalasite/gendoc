@@ -224,6 +224,19 @@
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[D17-HTML]",
       "note": "特殊步驟：呼叫 gendoc-gen-html skill，不走標準 gen→review 流程"
+    },
+    {
+      "id": "D18-CONTRACTS",
+      "type": "CONTRACTS",
+      "layer": "實作層",
+      "output": ["docs/openapi.yaml", "docs/contracts/", "infra/", "scaffold/"],
+      "output_glob": "docs/contracts/**/*",
+      "multi_file": true,
+      "condition": "always",
+      "special_skill": "gendoc-gen-contracts",
+      "handled_by": "gendoc-flow",
+      "commit_prefix": "feat(gendoc)[D18-CONTRACTS]",
+      "note": "特殊步驟：從生成文件提取機器可讀規格（OpenAPI YAML, JSON Schema, Pact, IaC, Seed Code）。不走標準 gen→review 流程。兩相對照確保 1:1 實作完整性。"
     }
   ]
 }

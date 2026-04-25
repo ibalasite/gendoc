@@ -352,6 +352,47 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 
 ---
 
+### Service Startup / Shutdown Sequencing（強制）
+
+LOCAL_DEPLOY.md 必須包含服務啟動和關閉的依賴順序圖：
+
+**啟動順序（Dependency Graph）**：
+
+```
+[Infrastructure Layer]
+  PostgreSQL → Redis → NATS
+          ↓
+[Application Layer]
+  Wait: PostgreSQL ready (pg_isready / SELECT 1)
+  Wait: Redis ready (PING)
+  Wait: NATS ready (health check endpoint)
+          ↓
+  UserService → OrderService → PaymentService
+  (無依賴)    (依賴 UserSvc)  (依賴 OrderSvc)
+          ↓
+[Gateway Layer]
+  API Gateway (等所有 Application Layer 服務通過 /health)
+```
+
+**每個服務的就緒判斷（readiness gate）**：
+| 服務 | Readiness Check | 逾時 | 失敗行為 |
+|-----|----------------|------|---------|
+| PostgreSQL | `pg_isready -h localhost -p 5432` | 30s | 停止啟動，顯示錯誤 |
+| Redis | `redis-cli ping` → PONG | 10s | 停止啟動 |
+| OrderService | `GET /health` → 200 + `"status":"ready"` | 60s | 停止啟動 |
+| API Gateway | 所有 upstream /health 通過 | 90s | 停止啟動 |
+
+**優雅關閉（Graceful Shutdown）**：
+| 關閉順序 | 服務 | drain timeout | 強制 kill timeout |
+|---------|-----|--------------|-----------------|
+| 1 | API Gateway | 30s（等待進行中請求完成） | 60s |
+| 2 | Application Services | 15s | 30s |
+| 3 | Infrastructure | 不 drain | 10s |
+
+**禁止**：LOCAL_DEPLOY.md 無啟動順序說明；依賴服務啟動無就緒判斷（導致「先啟動者」連線失敗）
+
+---
+
 ## Quality Gate（生成後自檢，交 Review Agent 前必須全部通過）
 
 在將文件交給 Review Agent 之前，Gen Agent 必須驗證以下項目。**任何一項不合格，必須先修復再繼續**。

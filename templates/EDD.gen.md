@@ -536,6 +536,23 @@ state PROCESSING {
 ```
 **禁止**：entry/exit 只寫 action 名稱無失敗語意
 
+**Saga / 分散式補償規則（強制，若系統有跨服務事務）**：
+
+若任何 Sequence Diagram 中出現跨越 2 個以上服務的寫入操作，必須在對應章節附補償流程表：
+
+| 步驟 | 正向操作 | 服務 | 補償操作 | 補償觸發條件 |
+|------|---------|------|---------|------------|
+| 1 | lockStock(items) | InventorySvc | unlockStock(items) | 後續任一步驟失敗 |
+| 2 | createOrder(data) | OrderSvc | cancelOrder(orderId) | 步驟 3 或 4 失敗 |
+| 3 | chargePayment(amount) | PaymentSvc | refundPayment(chargeId) | 步驟 4 失敗 |
+| 4 | sendConfirmation(email) | NotifSvc | — | （不補償，可重試） |
+
+**補償執行語意**（必須聲明其一）：
+- `Choreography`：每個服務監聽 Domain Event，自行決定補償（事件驅動，鬆耦合）
+- `Orchestration`：Saga Orchestrator 負責呼叫每個補償操作（集中控制，順序保證）
+
+**禁止**：只有正向 Sequence Diagram，無補償流程表；跨服務事務無原子性說明
+
 ---
 
 #### §4.5.7 Activity Diagram（活動圖）
@@ -679,6 +696,32 @@ subgraph Internal ["Internal VPC（Private）"]
   OrderSvc["OrderService\nmTLS: REQUIRED\n內部 VPC only"]
 end
 ```
+
+**Messaging Contract Spec（強制，若系統使用 Message Queue / Event Bus）**：
+
+若 Component Diagram 有 `NATS`, `RabbitMQ`, `Kafka`, `SQS` 等非同步通訊，必須附 Messaging Contract：
+
+| Topic/Subject | Publisher | Subscriber | Payload Schema | Delivery Guarantee | Partition Key | Consumer Group |
+|--------------|---------|-----------|--------------|------------------|--------------|---------------|
+| `order.created` | OrderSvc | NotifSvc, AnalyticsSvc | `OrderCreatedEvent{orderId, userId, total, items[]}` | at-least-once | userId | notification-grp |
+| `payment.captured` | PaymentSvc | OrderSvc | `PaymentCapturedEvent{orderId, chargeId, amount}` | exactly-once | orderId | order-grp |
+
+**訊息保留策略**（必須聲明）：
+- Retention：`{N}` 天 / 永久 / 消費完刪除
+- Replay 策略：`from-beginning` / `from-offset:{N}` / `from-latest`
+- Dead Letter Queue：是/否；重試次數上限：`{N}`
+
+**Cache Contract（強制，若系統使用 Redis/Memcached）**：
+
+Component Diagram 中每個 Cache 連線，必須附 Cache Contract Table：
+
+| Cache Key Pattern | 資料來源 | TTL | 失效觸發 | 策略 | Stale-Read 容忍 |
+|-----------------|---------|-----|---------|------|--------------|
+| `user:{userId}` | UserSvc DB | 15min | `user.updated` 事件 / PUT /users/{id} | write-through | ≤ 15min（可接受） |
+| `rate_limit:{ip}:{endpoint}` | 計算值 | 1min | 不失效（sliding window） | write-on-read | 0（不容忍） |
+| `product_catalog` | ProductSvc DB | 1h | 管理後台更新時手動清除 | write-behind | ≤ 1h |
+
+**禁止**：系統有 Cache 但無 Cache Contract Table；TTL 欄位空白；失效觸發欄位為「視情況」
 
 ---
 
