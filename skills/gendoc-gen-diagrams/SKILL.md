@@ -358,6 +358,7 @@ StateA --> StateB : trigger [guard] / action
 - `trigger`：精確觸發事件名（`confirmOrder()`、`paymentCaptured`、`cancelRequested(reason: String)`）；**禁止**「點擊」「用戶操作」等模糊描述
 - `[guard]`：觸發條件（`[balance >= amount]`、`[retries <= 3]`、`[stock > 0]`）；**必須有**，無條件填 `[always]`
 - `/ action`：副作用（`/ emit OrderConfirmed`、`/ notifyUser(email: String)`、`/ decrementStock(qty: Integer)`）；**禁止省略**
+- **禁止** 在 transition label 使用 `<br/>`（`stateDiagram-v2` 不支援，Safari/Firefox 破圖）；需換行說明時改用 `note right of STATE` 區塊
 
 **進入/退出動作**（有業務邏輯的狀態必填）：
 ```

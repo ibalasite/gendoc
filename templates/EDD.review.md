@@ -68,12 +68,17 @@ upstream-alignment:
 (3) Object Diagram（§4.5.3 或等效段落）：是否有物件實例快照（欄位含真實範例值）？
 (4) Sequence Diagram（§4.5.4 或等效段落）：是否有每個主要業務流程的循序圖（含 Happy Path 和 Error Path）？**至少 3 張各自獨立**？
 (5) Communication Diagram（§4.5.5 或等效段落）：是否有物件協作關係圖（訊息標注序號）？
-(6) State Machine Diagram（§4.5.6 或等效段落）：是否有每個有狀態 Entity 的狀態機圖？
+(6) State Machine Diagram（§4.5.6 或等效段落）：是否有每個有狀態 Entity 的狀態機圖？每個 `stateDiagram-v2` 的 transition label 是否不含 `<br/>`（含則視為 CRITICAL，Safari/Firefox 破圖）？
 (7) Activity Diagram（§4.5.7 或等效段落）：是否有每個主要業務流程的活動圖（含決策點）？**至少 3 張**？
 (8) Component Diagram（§4.5.8 或等效段落）：是否有元件依賴圖？
 (9) Deployment Diagram（§4.5.9 或等效段落）：是否有部署拓撲圖？
 **Risk**: UML 圖缺失使工程師只能讀文字推斷系統結構，無法基於圖示進行精確實作，不同工程師對同一系統的理解會出現分歧，導致實作偏差。Class Diagram 缺失更直接導致無法推導 unit test skeleton，測試覆蓋率無從保證。
 **Fix**: 為每種缺失的 UML 圖補充對應的 Mermaid 程式碼塊至 §4.5（参考 `templates/UML-CLASS-GUIDE.md` 範例）。Class Diagram 必須嚴格遵循 Clean Architecture 分層，所有 class 必須標注 stereotype，方法必須含回傳型別。多圖原則：每個主要業務流程一張 Sequence Diagram（≥ 3 張），每個有狀態 Entity 一張 State Machine，每個 P0 User Story 一張 Activity Diagram（≥ 3 張）。
+
+#### [CRITICAL] 5b-sm — State Machine Diagram 使用 `<br/>` 語法
+**Check**: EDD §4.5.6 的所有 `stateDiagram-v2` 程式碼塊中，是否有任何 transition label 包含 `<br/>`？掃描方式：搜尋每個 `stateDiagram-v2` 區塊內的 `-->` 行，確認無 `<br/>` 出現。
+**Risk**: `stateDiagram-v2` 不支援 transition label 中的 `<br/>`，Safari 和 Firefox 會渲染空白或破圖，導致狀態機圖在非 Chrome 瀏覽器完全不可見，影響開發者理解系統狀態流程。
+**Fix**: 將 transition label 精簡為 `trigger [guard] / action` 單行格式（如 `shoot [coins >= cost] / deductCoins + createBullet`），多行說明移到對應狀態旁的 `note right of STATE` 區塊。
 
 #### [CRITICAL] 5c — Class Diagram class inventory 缺失
 **Check**: EDD §4.5.2 的 Class Diagram 段落之後是否提供 Class Inventory 表格（列出所有 class 名稱、stereotype、架構層次、推斷的 src 路徑、推斷的 test 路徑）？缺少 Class Inventory 表格視為 CRITICAL。

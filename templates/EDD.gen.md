@@ -481,6 +481,7 @@ StateA --> StateB : trigger [guard] / action
 - `[guard]`：觸發條件（`[balance >= amount]`、`[retries <= 3]`、`[stock > 0]`），**必須有**；若無條件可填 `[always]`
 - `/ action`：狀態轉換的副作用（`/ emit OrderConfirmed`、`/ notifyUser(email)`、`/ decrementStock(quantity)`），**禁止**省略
 - **禁止**：只有 trigger 無 guard 和 action 的簡化轉換
+- **禁止** 在 transition label 使用 `<br/>`（`stateDiagram-v2` 不支援，Safari/Firefox 破圖）；換行說明移到 `note right of STATE` 區塊
 
 **進入/退出動作**（有業務邏輯的狀態必填）：
 ```
