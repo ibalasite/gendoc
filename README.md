@@ -4,7 +4,7 @@
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](https://github.com/ibalasite/gendoc)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-skill-blueviolet)](https://claude.ai/code)
 
-**AI-driven engineering document generation system for Claude Code.** One command generates a complete implementation blueprint — IDEA, BRD, PRD, PDD, VDD, EDD, ARCH, API, Schema, FRONTEND, AUDIO, ANIM, test-plan, BDD, RTM, Runbook, LOCAL_DEPLOY, and an HTML documentation site — each document inheriting knowledge from all upstream docs automatically. For game projects (`client_type=game`), AUDIO and ANIM design documents are also generated.
+**AI-driven engineering document generation system for Claude Code.** One command generates a complete implementation blueprint — IDEA, BRD, PRD, PDD, VDD, EDD, ARCH, API, Schema, FRONTEND, AUDIO, ANIM, test-plan, BDD, RTM, Runbook, LOCAL_DEPLOY, CONTRACTS (OpenAPI/JSON Schema/Pact/IaC/Seed Code), and an HTML documentation site — all output consolidated under `docs/blueprint/` for portability — each document inheriting knowledge from all upstream docs automatically. For game projects (`client_type=game`), AUDIO and ANIM design documents are also generated.
 
 ---
 
@@ -34,11 +34,13 @@ Key capabilities:
 | `gendoc` | `/gendoc <type>` | Generate any document type |
 | `reviewdoc` | `/reviewdoc <type>` | Review & iteratively fix any document |
 | `gendoc-auto` | `/gendoc-auto` | Full pipeline entry point: IDEA + BRD generation, then hands off to gendoc-flow |
-| `gendoc-flow` | `/gendoc-flow` | Template-driven orchestrator (D03–D17) with reliable breakpoint resume, P-14/P-15 |
+| `gendoc-flow` | `/gendoc-flow` | Template-driven orchestrator (D03–D19) with reliable breakpoint resume, P-14/P-15 |
 | `gendoc-config` | `/gendoc-config` | Configure execution mode, review strategy, client_type & restart step interactively |
 | `gendoc-align-check` | `/gendoc-align-check` | Cross-document alignment scan (D16) |
 | `gendoc-align-fix` | `/gendoc-align-fix` | Auto-fix alignment issues |
-| `gendoc-gen-html` | `/gendoc-gen-html` | Generate HTML documentation site (D17) |
+| `gendoc-gen-html` | `/gendoc-gen-html` | Generate HTML documentation site (D19) |
+| `gendoc-gen-contracts` | `/gendoc-gen-contracts` | Generate machine-readable specs: OpenAPI 3.1, JSON Schema, Pact contracts, IaC (Helm/docker-compose), Seed Code skeleton (D17) |
+| `gendoc-gen-mock` | `/gendoc-gen-mock` | Generate FastAPI Mock Server from API.md — 1:1 endpoint mapping, realistic fake data, Windows/Mac ready, Postman-importable (D18; skipped for api-only) |
 | `gendoc-gen-prototype` | `/gendoc-gen-prototype` | Interactive HTML prototype — UI flow (web/game) or API Explorer with mock engine (api-only) |
 | `gendoc-gen-diagrams` | `/gendoc-gen-diagrams` | Generate all 9 UML diagram types (1:1 implementation-ready) + class-inventory.md (D07b); 30+ precision validation checks |
 | `gendoc-gen-client-bdd` | `/gendoc-gen-client-bdd` | Client-facing BDD feature files (web/game projects) |
@@ -48,7 +50,7 @@ Key capabilities:
 
 ### Supported Document Types
 
-`idea` · `brd` · `prd` · `pdd` · `vdd` · `edd` · `arch` · `api` · `schema` · `frontend` · `audio` · `anim` · `test-plan` · `bdd` · `rtm` · `runbook` · `local-deploy` · `readme`
+`idea` · `brd` · `prd` · `pdd` · `vdd` · `edd` · `arch` · `api` · `schema` · `frontend` · `audio` · `anim` · `test-plan` · `bdd` · `rtm` · `runbook` · `local-deploy` · `readme` · `contracts` · `mock`
 
 > `audio` and `anim` are only generated for `client_type=game` projects (games, HTML5 game engines).
 
@@ -107,6 +109,12 @@ cd ~/projects/gendoc
 /reviewdoc edd
 /reviewdoc runbook
 
+# Generate machine-readable specs (OpenAPI, JSON Schema, Pact, IaC, Seed Code)
+/gendoc-gen-contracts
+
+# Generate FastAPI mock server for frontend development
+/gendoc-gen-mock
+
 # Generate HTML docs site and deploy to GitHub Pages
 /gendoc-gen-html
 
@@ -139,7 +147,7 @@ templates/
 
 The **Iron Law**: no document is generated without reading both `TYPE.md` AND `TYPE.gen.md` first. Templates are the single source of truth — editing a template immediately changes behavior of all `/gendoc` and `/reviewdoc` calls.
 
-### Pipeline (D01–D17)
+### Pipeline (D01–D19)
 
 ```mermaid
 flowchart TD
@@ -165,11 +173,17 @@ flowchart TD
             D14["D14 runbook"] --> D15["D15 LOCAL_DEPLOY"]
         end
         subgraph AUDIT["稽核層"]
-            D16["D16 ALIGN ★"] --> D17["D17 HTML ★"]
+            D16["D16 ALIGN ★"]
         end
-        REQ --> DES --> QA --> OPS --> AUDIT
+        subgraph IMPL["實作層"]
+            D17["D17 CONTRACTS ★"] --> D18["D18 MOCK ★ ✦"]
+        end
+        subgraph PUB["發布層"]
+            D19["D19 HTML ★"]
+        end
+        REQ --> DES --> QA --> OPS --> AUDIT --> IMPL --> PUB
     end
-    FLOW --> DONE([GitHub Pages 文件站])
+    FLOW --> DONE([GitHub Pages 文件站\n+ docs/blueprint/ 可攜帶])
     RESUME(["/gendoc-flow 斷點續行"]) -.->|"review_progress\ncompleted_steps"| FLOW
     CONFIG(["/gendoc-config 設定"]) -.-> FLOW
     classDef condNode fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
@@ -178,11 +192,12 @@ flowchart TD
     classDef ioNode fill:#d1fae5,stroke:#059669,color:#064e3b
     class D04,D05,D10,D12b condNode
     class D10b,D10c gameNode
-    class D07b,D16,D17 specNode
+    class D07b,D16,D17,D18,D19 specNode
+    class D18 condNode
     class INPUT,DONE ioNode
 ```
 
-> **✦ 藍色節點**（PDD / VDD / FRONTEND / BDD-client）：`client_type=web` 或 `game` 才啟用。**✧ 粉紅節點**（AUDIO / ANIM）：`client_type=game` 專屬。**★ 黃色節點**：特殊步驟（special_skill）。
+> **✦ 藍色節點**（PDD / VDD / FRONTEND / BDD-client / MOCK）：`client_type=web` 或 `game` 才啟用（MOCK 同時跳過 `api-only`）。**✧ 粉紅節點**（AUDIO / ANIM）：`client_type=game` 專屬。**★ 黃色節點**：特殊步驟（special_skill）。
 
 ### 文件上下層關係（Document Hierarchy）
 
@@ -206,6 +221,7 @@ graph TD
     L9b["L9b RUNBOOK.md"]
     L9c["L9c LOCAL_DEPLOY.md"]
     L10["L10 README.md"]
+    IMPL["實作層 CONTRACTS + MOCK → docs/blueprint/"]:::impl
     AUDIT["稽核層 ALIGN → docs/pages/"]:::audit
 
     REQ --> L0 --> L1 --> L2
@@ -215,10 +231,11 @@ graph TD
     L7 --> L8a --> L9a
     L7 --> L8b --> L9a
     L5a --> L9b --> L9c
-    L9a & L9b & L9c --> L10 --> AUDIT
+    L9a & L9b & L9c --> L10 --> IMPL --> AUDIT
 
     classDef cond fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
     classDef audit fill:#fef3c7,stroke:#f59e0b,color:#78350f
+    classDef impl fill:#d1fae5,stroke:#059669,color:#064e3b
 ```
 
 Each document accumulates knowledge from **all** ancestors (skips silently if missing). Blue nodes only run when `client_type ≠ none`.

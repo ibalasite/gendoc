@@ -38,7 +38,7 @@
 <p><a href="LICENSE" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'badge-fallback\',textContent:this.alt}))"></a></p>
 <p><a href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey" alt="Platform" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'badge-fallback\',textContent:this.alt}))"></a></p>
 <p><a href="https://claude.ai/code" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/Claude%20Code-skill-blueviolet" alt="Claude Code" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'badge-fallback\',textContent:this.alt}))"></a></p>
-<p><strong>AI-driven engineering document generation system for Claude Code.</strong> One command generates a complete implementation blueprint — IDEA, BRD, PRD, PDD, VDD, EDD, ARCH, API, Schema, FRONTEND, AUDIO, ANIM, test-plan, BDD, RTM, Runbook, LOCAL_DEPLOY, and an HTML documentation site — each document inheriting knowledge from all upstream docs automatically. For game projects (<code>client_type=game</code>), AUDIO and ANIM design documents are also generated.</p>
+<p><strong>AI-driven engineering document generation system for Claude Code.</strong> One command generates a complete implementation blueprint — IDEA, BRD, PRD, PDD, VDD, EDD, ARCH, API, Schema, FRONTEND, AUDIO, ANIM, test-plan, BDD, RTM, Runbook, LOCAL_DEPLOY, CONTRACTS (OpenAPI/JSON Schema/Pact/IaC/Seed Code), and an HTML documentation site — all output consolidated under <code>docs/blueprint/</code> for portability — each document inheriting knowledge from all upstream docs automatically. For game projects (<code>client_type=game</code>), AUDIO and ANIM design documents are also generated.</p>
 <hr>
 <h2>Overview</h2>
 <p><code>gendoc</code> is a Claude Code skill suite that automates the full engineering documentation lifecycle. Using a three-layer template architecture (<code>TYPE.md</code> structure + <code>TYPE.gen.md</code> generation rules + <code>TYPE.review.md</code> review criteria), it generates and iteratively reviews production-quality engineering documents from an initial idea through deployment runbooks.</p>
@@ -51,11 +51,13 @@
 <tr><td><code>gendoc</code></td><td><code>/gendoc &lt;type&gt;</code></td><td>Generate any document type</td></tr>
 <tr><td><code>reviewdoc</code></td><td><code>/reviewdoc &lt;type&gt;</code></td><td>Review &amp; iteratively fix any document</td></tr>
 <tr><td><code>gendoc-auto</code></td><td><code>/gendoc-auto</code></td><td>Full pipeline entry point: IDEA + BRD generation, then hands off to gendoc-flow</td></tr>
-<tr><td><code>gendoc-flow</code></td><td><code>/gendoc-flow</code></td><td>Template-driven orchestrator (D03–D17) with reliable breakpoint resume, P-14/P-15</td></tr>
+<tr><td><code>gendoc-flow</code></td><td><code>/gendoc-flow</code></td><td>Template-driven orchestrator (D03–D19) with reliable breakpoint resume, P-14/P-15</td></tr>
 <tr><td><code>gendoc-config</code></td><td><code>/gendoc-config</code></td><td>Configure execution mode, review strategy, client_type &amp; restart step interactively</td></tr>
 <tr><td><code>gendoc-align-check</code></td><td><code>/gendoc-align-check</code></td><td>Cross-document alignment scan (D16)</td></tr>
 <tr><td><code>gendoc-align-fix</code></td><td><code>/gendoc-align-fix</code></td><td>Auto-fix alignment issues</td></tr>
-<tr><td><code>gendoc-gen-html</code></td><td><code>/gendoc-gen-html</code></td><td>Generate HTML documentation site (D17)</td></tr>
+<tr><td><code>gendoc-gen-html</code></td><td><code>/gendoc-gen-html</code></td><td>Generate HTML documentation site (D19)</td></tr>
+<tr><td><code>gendoc-gen-contracts</code></td><td><code>/gendoc-gen-contracts</code></td><td>Generate machine-readable specs: OpenAPI 3.1, JSON Schema, Pact contracts, IaC (Helm/docker-compose), Seed Code skeleton (D17)</td></tr>
+<tr><td><code>gendoc-gen-mock</code></td><td><code>/gendoc-gen-mock</code></td><td>Generate FastAPI Mock Server from API.md — 1:1 endpoint mapping, realistic fake data, Windows/Mac ready, Postman-importable (D18; skipped for api-only)</td></tr>
 <tr><td><code>gendoc-gen-prototype</code></td><td><code>/gendoc-gen-prototype</code></td><td>Interactive HTML prototype — UI flow (web/game) or API Explorer with mock engine (api-only)</td></tr>
 <tr><td><code>gendoc-gen-diagrams</code></td><td><code>/gendoc-gen-diagrams</code></td><td>Generate all 9 UML diagram types (1:1 implementation-ready) + class-inventory.md (D07b); 30+ precision validation checks</td></tr>
 <tr><td><code>gendoc-gen-client-bdd</code></td><td><code>/gendoc-gen-client-bdd</code></td><td>Client-facing BDD feature files (web/game projects)</td></tr>
@@ -64,7 +66,7 @@
 <tr><td><code>reviewtemplate</code></td><td><code>/reviewtemplate &lt;TYPE&gt;</code></td><td>Review &amp; iteratively fix a template three-file set (TYPE.md + .gen.md + .review.md)</td></tr>
 </table>
 <h3>Supported Document Types</h3>
-<p><code>idea</code> · <code>brd</code> · <code>prd</code> · <code>pdd</code> · <code>vdd</code> · <code>edd</code> · <code>arch</code> · <code>api</code> · <code>schema</code> · <code>frontend</code> · <code>audio</code> · <code>anim</code> · <code>test-plan</code> · <code>bdd</code> · <code>rtm</code> · <code>runbook</code> · <code>local-deploy</code> · <code>readme</code></p>
+<p><code>idea</code> · <code>brd</code> · <code>prd</code> · <code>pdd</code> · <code>vdd</code> · <code>edd</code> · <code>arch</code> · <code>api</code> · <code>schema</code> · <code>frontend</code> · <code>audio</code> · <code>anim</code> · <code>test-plan</code> · <code>bdd</code> · <code>rtm</code> · <code>runbook</code> · <code>local-deploy</code> · <code>readme</code> · <code>contracts</code> · <code>mock</code></p>
 <blockquote><p><code>audio</code> and <code>anim</code> are only generated for <code>client_type=game</code> projects (games, HTML5 game engines).</p></blockquote>
 <hr>
 <h2>Quick Start</h2>
@@ -104,6 +106,12 @@ cd ~/projects/gendoc
 /reviewdoc edd
 /reviewdoc runbook
 
+# Generate machine-readable specs (OpenAPI, JSON Schema, Pact, IaC, Seed Code)
+/gendoc-gen-contracts
+
+# Generate FastAPI mock server for frontend development
+/gendoc-gen-mock
+
 # Generate HTML docs site and deploy to GitHub Pages
 /gendoc-gen-html
 
@@ -121,7 +129,7 @@ cd ~/projects/gendoc
 ├── &lt;TYPE&gt;.gen.md      ← AI generation rules (Iron Law: must be read first)
 └── &lt;TYPE&gt;.review.md   ← review criteria &amp; quality gates</code></pre>
 <p>The <strong>Iron Law</strong>: no document is generated without reading both <code>TYPE.md</code> AND <code>TYPE.gen.md</code> first. Templates are the single source of truth — editing a template immediately changes behavior of all <code>/gendoc</code> and <code>/reviewdoc</code> calls.</p>
-<h3>Pipeline (D01–D17)</h3>
+<h3>Pipeline (D01–D19)</h3>
 <div class="diagram-container"><pre class="mermaid">flowchart TD
     INPUT([任意輸入\n文字 · URL · 圖片 · Repo]) --> AUTO
     subgraph AUTO["/gendoc-auto — 入口"]
@@ -145,11 +153,17 @@ cd ~/projects/gendoc
             D14["D14 runbook"] --> D15["D15 LOCAL_DEPLOY"]
         end
         subgraph AUDIT["稽核層"]
-            D16["D16 ALIGN ★"] --> D17["D17 HTML ★"]
+            D16["D16 ALIGN ★"]
         end
-        REQ --> DES --> QA --> OPS --> AUDIT
+        subgraph IMPL["實作層"]
+            D17["D17 CONTRACTS ★"] --> D18["D18 MOCK ★ ✦"]
+        end
+        subgraph PUB["發布層"]
+            D19["D19 HTML ★"]
+        end
+        REQ --> DES --> QA --> OPS --> AUDIT --> IMPL --> PUB
     end
-    FLOW --> DONE([GitHub Pages 文件站])
+    FLOW --> DONE([GitHub Pages 文件站\n+ docs/blueprint/ 可攜帶])
     RESUME(["/gendoc-flow 斷點續行"]) -.->|"review_progress\ncompleted_steps"| FLOW
     CONFIG(["/gendoc-config 設定"]) -.-> FLOW
     classDef condNode fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
@@ -158,9 +172,10 @@ cd ~/projects/gendoc
     classDef ioNode fill:#d1fae5,stroke:#059669,color:#064e3b
     class D04,D05,D10,D12b condNode
     class D10b,D10c gameNode
-    class D07b,D16,D17 specNode
+    class D07b,D16,D17,D18,D19 specNode
+    class D18 condNode
     class INPUT,DONE ioNode</pre></div>
-<blockquote><p><strong>✦ 藍色節點</strong>（PDD / VDD / FRONTEND / BDD-client）：<code>client_type=web</code> 或 <code>game</code> 才啟用。<strong>✧ 粉紅節點</strong>（AUDIO / ANIM）：<code>client_type=game</code> 專屬。<strong>★ 黃色節點</strong>：特殊步驟（special_skill）。</p></blockquote>
+<blockquote><p><strong>✦ 藍色節點</strong>（PDD / VDD / FRONTEND / BDD-client / MOCK）：<code>client_type=web</code> 或 <code>game</code> 才啟用（MOCK 同時跳過 <code>api-only</code>）。<strong>✧ 粉紅節點</strong>（AUDIO / ANIM）：<code>client_type=game</code> 專屬。<strong>★ 黃色節點</strong>：特殊步驟（special_skill）。</p></blockquote>
 <h3>文件上下層關係（Document Hierarchy）</h3>
 <div class="diagram-container"><pre class="mermaid">graph TD
     REQ([docs/req/ 原始素材])
@@ -181,6 +196,7 @@ cd ~/projects/gendoc
     L9b["L9b RUNBOOK.md"]
     L9c["L9c LOCAL_DEPLOY.md"]
     L10["L10 README.md"]
+    IMPL["實作層 CONTRACTS + MOCK → docs/blueprint/"]:::impl
     AUDIT["稽核層 ALIGN → docs/pages/"]:::audit
 
     REQ --> L0 --> L1 --> L2
@@ -190,10 +206,11 @@ cd ~/projects/gendoc
     L7 --> L8a --> L9a
     L7 --> L8b --> L9a
     L5a --> L9b --> L9c
-    L9a & L9b & L9c --> L10 --> AUDIT
+    L9a & L9b & L9c --> L10 --> IMPL --> AUDIT
 
     classDef cond fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
-    classDef audit fill:#fef3c7,stroke:#f59e0b,color:#78350f</pre></div>
+    classDef audit fill:#fef3c7,stroke:#f59e0b,color:#78350f
+    classDef impl fill:#d1fae5,stroke:#059669,color:#064e3b</pre></div>
 <p>Each document accumulates knowledge from <strong>all</strong> ancestors (skips silently if missing). Blue nodes only run when <code>client_type ≠ none</code>.</p>
 <hr>
 <h2>Repository Structure</h2>

@@ -36,14 +36,14 @@
     <div class="sidebar-resizer" id="sidebarResizer"></div>
     <main class="doc-content"><h1>PRD — Product Requirements Document</h1>
 <p>&lt;!-- 對應學術標準：IEEE 830 (SRS)，對應業界：Google PRD / Amazon PRFAQ --&gt;</p>
-<p>&lt;!-- Version: v2.0 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 --&gt;</p>
+<p>&lt;!-- Version: v2.1 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 --&gt;</p>
 <hr>
 <h2>Document Control</h2>
 <table>
 <tr><th>欄位</th><th>內容</th></tr>
 <tr><td><strong>DOC-ID</strong></td><td>PRD-GENDOC-20260422</td></tr>
 <tr><td><strong>產品名稱</strong></td><td>gendoc — AI-Driven Implementation Blueprint Generator</td></tr>
-<tr><td><strong>文件版本</strong></td><td>v2.0</td></tr>
+<tr><td><strong>文件版本</strong></td><td>v2.1</td></tr>
 <tr><td><strong>狀態</strong></td><td>ACTIVE</td></tr>
 <tr><td><strong>作者（PM）</strong></td><td>AI Product Manager Agent</td></tr>
 <tr><td><strong>日期</strong></td><td>2026-04-25</td></tr>
@@ -55,6 +55,7 @@
 <h2>Change Log</h2>
 <table>
 <tr><th>版本</th><th>日期</th><th>作者</th><th>變更摘要</th></tr>
+<tr><td>v2.1</td><td>2026-04-25</td><td>PM Agent</td><td><strong>流水線 D17–D19 重組 + 實作藍圖目錄統一</strong>：新增 D17-CONTRACTS（gendoc-gen-contracts）—— 從所有設計文件提取機器可讀規格（OpenAPI 3.1 YAML / JSON Schema / Pact / Helm values.yaml / Seed Code），輸出集中至 <code>docs/blueprint/contracts/</code> + <code>docs/blueprint/infra/</code> + <code>docs/blueprint/scaffold/</code>；新增 D18-MOCK（gendoc-gen-mock）—— 生成 FastAPI mock server（含擬真假資料 JSON 檔、CORS、Swagger UI、Postman 支援、Windows/macOS 跨平台啟動手冊），輸出至 <code>docs/blueprint/mock/</code>（整個目錄可帶走使用）；D19-HTML（gendoc-gen-html）後移至最後，確保 HTML 文件站可收錄所有藍圖內容；pipeline.json 更新 step 語意編號（D16=ALIGN 稽核、D17=CONTRACTS 實作、D18=MOCK 實作、D19=HTML 發布）；gendoc-config 重跑選單同步更新；gendoc-shared §5 STEP_SEQUENCE 以 D-prefix dict 格式完整對應 pipeline.json 23 步驟。</td></tr>
 <tr><td>v2.0</td><td>2026-04-25</td><td>PM Agent</td><td><strong>UML 1:1 實作完整度升級</strong>：EDD.gen.md §4.5 和 gendoc-gen-diagrams/SKILL.md §2.1–§2.11 全面重寫——從「最少幾張、含哪些類型」升級為「開發者只有 UML 圖、沒有其他文件，也能 1:1 實作出完整系統」的精確規格。強制標準：Class Diagram 屬性 <code>visibility name: Type</code>、方法完整簽名、Enum 列全值、關聯線兩端 cardinality + role label；Sequence Diagram 每個箭頭精確方法名 + 型別 + 回傳型別、alt 分支有具體條件、每個 Mutation ≥ 3 個 Error Path；State Machine 每個 transition <code>trigger [guard] / action</code> 三段必填；Activity Diagram 泳道強制 + 決策點兩分支具體標注；Component / Deployment 技術版本 + 埠號 + 協定在每個節點和連線上都要有。驗證清單擴充為 30+ 條精確檢查項目。<strong>Template 生成規則章節對應修正</strong>：runbook.gen.md 補充 §8 Routine Maintenance（維護排程 / DB 維護 / Log 輪替 / 容量審查）；LOCAL_DEPLOY.gen.md 補充 §8 Test Data &amp; Fixtures / §11 Logs &amp; Debugging / §12 Port Reference / §13 Local HTTPS 生成規則；SCHEMA.gen.md Self-Check §3 → §2.4 Soft Delete 修正章節對應；RTM.gen.md 補充 §2 Status Code 靜態對照表生成規則。</td></tr>
 <tr><td>v1.9</td><td>2026-04-25</td><td>PM Agent</td><td><strong>專案類型三值化</strong>：client_type 從二值（web/none）擴展為三值（<code>game</code>/<code>web</code>/<code>api-only</code>）；AUDIO/ANIM 條件從 <code>client_type != none</code> 改為 <code>client_type == game</code>（僅遊戲專案生成）；game 偵測關鍵字新增 20+ 詞（魚機/捕魚/博弈/canvas/webgl/phaser 等）。<strong>新增 gendoc-gen-prototype skill</strong>：偵測 client_type 自動選擇原型模式 — game/web 生成可點擊 UI 原型（HTML5 自包含，模擬動線）、api-only 生成 API Explorer（雙模式參數輸入：Chip 快選 + 自由輸入；預設值建議；Request Body Preset；localStorage auth；Copy as cURL；hash 深連結）。<strong>新增 reviewtemplate skill</strong>：TYPE.md + TYPE.gen.md + TYPE.review.md 三件套品質審查與修復 loop，支援 standard/exhaustive 策略。<strong>P-14</strong>：D03-PRD 完成後重新驗證 client_type（Step 0-C 執行時 PRD 尚未生成，可能漏判遊戲關鍵字）；<code>client_type_source: &quot;manual&quot;</code> 防止自動偵測覆寫手動設定。<strong>P-15</strong>：Total Summary 前 Pipeline 完整性掃描，驗證所有預期步驟均有記錄，防止誤標 <code>pipeline_complete</code>。<strong>gendoc-config</strong> 新增第 5 選項「手動設定 client_type」。</td></tr>
 <tr><td>v1.8</td><td>2026-04-24</td><td>PM Agent</td><td>新增音效與動畫特效設計文件：AUDIO.md（BGM/SFX/VO 清單、音效觸發狀態機、Cocos/Unity/HTML5 Howler.js 引擎設定、資產規格、效能預算）+ ANIM.md（骨骼/幀/Tween 動畫、粒子特效、Shader 特效、Cocos/Unity/HTML5 PixiJS 引擎設定、效能預算 + LOD 三級策略）；各含 gen.md（3 角色專家、引擎自動偵測、品質門）與 review.md（18~20 條審查項，含 CRITICAL/HIGH 覆蓋邏輯與效能閘）；pipeline.json 新增 D10b-AUDIO + D10c-ANIM（條件 client_type != none，位於 FRONTEND 之後、test-plan 之前）</td></tr>
@@ -63,7 +64,7 @@
 <tr><td>v1.5</td><td>2026-04-24</td><td>PM Agent</td><td>視覺化圖表：§5.2 SOP Mermaid 流程圖、§5.3 文件層次關係圖（graph TD）+ 累積上游關聯圖（graph LR，色彩深度反映知識密度）；4 個 skill 同步更新（reviewdoc、gendoc-gen-client-bdd、gendoc-align-check 文件樹、gendoc-config step ID）；新增 docs/gendoc-redesign-decisions.md 設計決策記錄；修正 Document Control 上游來源欄位</td></tr>
 <tr><td>v1.4</td><td>2026-04-24</td><td>PM Agent</td><td>12 項流水線可靠性修補（P-01～P-12）：斷點續行重寫（review_progress schema）、quality_status 三態分類、failed_steps 追蹤、special_completed 旗標、pipeline_hash 版本偵測、BDD 增量生成模式、commit trailer 完整記錄</td></tr>
 <tr><td>v1.3</td><td>2026-04-24</td><td>PM Agent</td><td>補入 §5.5 Gen/Review/Fix 三專家模式與 Expert Roles 完整表；修正 §7.5/§8 BDD 模板欄位（BDD.md → BDD-server.md + BDD-client.md）；State file 完整欄位說明</td></tr>
-<tr><td>v1.2</td><td>2026-04-24</td><td>PM Agent</td><td>重建文件流水線：加入 VDD（視覺設計）、FRONTEND 獨立步驟、RTM 移至 BDD 之後；修正累積上游鏈；D01-D17 完整編號</td></tr>
+<tr><td>v1.2</td><td>2026-04-24</td><td>PM Agent</td><td>重建文件流水線：加入 VDD（視覺設計）、FRONTEND 獨立步驟、RTM 移至 BDD 之後；修正累積上游鏈；D01-D17 完整編號（後於 v2.1 擴展至 D01-D19）</td></tr>
 <tr><td>v1.1</td><td>2026-04-22</td><td>PM Agent</td><td>重新定位核心使命：從文件生成工具 → 可直接實作的開發藍圖生成器；補充藍圖細粒度品質標準</td></tr>
 <tr><td>v1.0</td><td>2026-04-22</td><td>PM Agent</td><td>初版 PRD，從 MYDEVSOP 文件生成子系統萃取，建立獨立 gendoc skill 套件</td></tr>
 </table>
@@ -90,7 +91,7 @@
 <tr><td><strong>人類開發者</strong></td><td>開箱即用的任務清單：每個 class 是一張卡片，每個 method 是一個 subtask，每個 test 情境是一個 checklist item</td></tr>
 </table>
 <h3>一句話定位</h3>
-<blockquote><p>gendoc 是一套 Claude Code Skill 系統，從任意形式的輸入（文字 / 圖片 / URL / Git repo），在 60 分鐘內生成一份「細到任何人都能直接開始寫程式碼」的完整技術藍圖，包含 IDEA → BRD → PRD → PDD → VDD → EDD → ARCH → API → SCHEMA → FRONTEND → Test Plan → BDD → RTM → Runbook → LOCAL_DEPLOY，以及自動部署的 HTML 文件站。</p></blockquote>
+<blockquote><p>gendoc 是一套 Claude Code Skill 系統，從任意形式的輸入（文字 / 圖片 / URL / Git repo），在 60 分鐘內生成一份「細到任何人都能直接開始寫程式碼」的完整技術藍圖，包含 IDEA → BRD → PRD → PDD → VDD → EDD → ARCH → API → SCHEMA → FRONTEND → Test Plan → BDD → RTM → Runbook → LOCAL_DEPLOY → <strong>Contracts（OpenAPI/Schema/Pact）→ Mock Server（FastAPI）</strong>，以及自動部署的 HTML 文件站。</p></blockquote>
 <hr>
 <h2>2. Problem Statement</h2>
 <h3>2.1 現狀痛點</h3>
@@ -359,7 +360,9 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
 <tr><td></td><td><code>gendoc-gen-bdd</code></td><td>生成 BDD.md（含 edge case Scenario）</td></tr>
 <tr><td></td><td><code>gendoc-gen-diagrams</code></td><td>生成 9 大 UML 圖 + class-inventory.md（D07b-UML）</td></tr>
 <tr><td></td><td><code>gendoc-gen-readme</code></td><td>生成 README.md</td></tr>
-<tr><td></td><td><code>gendoc-gen-html</code></td><td>生成靜態 HTML 文件網站（D17）</td></tr>
+<tr><td></td><td><code>gendoc-gen-contracts</code></td><td>提取機器可讀規格到 docs/blueprint/（OpenAPI/Schema/Pact/IaC/Seed Code，D17）</td></tr>
+<tr><td></td><td><code>gendoc-gen-mock</code></td><td>生成 FastAPI mock server + 擬真假資料 + 使用手冊（docs/blueprint/mock/，D18）</td></tr>
+<tr><td></td><td><code>gendoc-gen-html</code></td><td>生成靜態 HTML 文件網站（D19）</td></tr>
 <tr><td></td><td><code>gendoc-gen-client-bdd</code></td><td>生成客戶端 BDD feature files（client_type≠api-only）</td></tr>
 <tr><td></td><td><code>gendoc-gen-prototype</code></td><td>生成可互動 HTML 原型：UI 原型（web/game）或 API Explorer（api-only，模擬 Postman）</td></tr>
 <tr><td><strong>Review 層</strong></td><td><code>gendoc-align-check</code></td><td>跨文件對齊審查（D16）</td></tr>
@@ -397,9 +400,15 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
             D14["D14 runbook"] --> D15["D15 LOCAL_DEPLOY"]
         end
         subgraph AUDIT["稽核層"]
-            D16["D16 ALIGN ★"] --> D17["D17 HTML ★"]
+            D16["D16 ALIGN ★"]
         end
-        REQ --> DES --> QA --> OPS --> AUDIT
+        subgraph IMPL["實作層（docs/blueprint/）"]
+            D17["D17 CONTRACTS ★"] --> D18["D18 MOCK ★ ✦"]
+        end
+        subgraph PUB["發布層"]
+            D19["D19 HTML ★"]
+        end
+        REQ --> DES --> QA --> OPS --> AUDIT --> IMPL --> PUB
     end
 
     FLOW --> DONE([GitHub Pages 文件站])
@@ -410,8 +419,8 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
     classDef condNode fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
     classDef specNode fill:#fef3c7,stroke:#f59e0b,color:#78350f
     classDef ioNode fill:#d1fae5,stroke:#059669,color:#064e3b
-    class D04,D05,D10,D12b condNode
-    class D16,D17 specNode
+    class D04,D05,D10,D12b,D18 condNode
+    class D16,D17,D18,D19 specNode
     class INPUT,DONE ioNode</pre></div>
 <h3>5.3 文件流水線依賴鏈（Pipeline Dependency Chain）</h3>
 <p>每份文件生成時<strong>必須讀取所有上游文件</strong>（累積鏈，非僅直接父文件）。以下為各文件類型的權威累積上游依賴，來源為各 <code>templates/*.gen.md</code> 的 <code>upstream-docs</code> 欄位。</p>
@@ -457,7 +466,9 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
     L9b["L9b RUNBOOK.md<br/><small>運維文件</small>"]
     L9c["L9c LOCAL_DEPLOY.md<br/><small>本地部署</small>"]
     L10["L10 README.md<br/><small>專案總覽</small>"]
-    AUDIT["稽核層<br/>ALIGN_REPORT → docs/pages/"]
+    AUDIT["稽核層<br/>D16 ALIGN_REPORT"]
+    IMPL["實作層<br/>D17 docs/blueprint/contracts/ infra/ scaffold/<br/>D18 docs/blueprint/mock/"]
+    PUB["發布層<br/>D19 docs/pages/"]
 
     REQ --> L0 --> L1 --> L2
     L2 --> L3a --> L35 --> L4
@@ -468,13 +479,15 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
     L8b --> L9a
     L5a --> L9b --> L9c
     L9a & L9b & L9c --> L10
-    L10 --> AUDIT
+    L10 --> AUDIT --> IMPL --> PUB
 
     classDef cond fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
     classDef audit fill:#fef3c7,stroke:#f59e0b,color:#78350f
+    classDef impl fill:#ede9fe,stroke:#8b5cf6,color:#2e1065
     classDef io fill:#d1fae5,stroke:#059669,color:#064e3b
     class L3a,L35,L6,L8b cond
     class AUDIT audit
+    class IMPL,PUB impl
     class REQ,L10 io</pre></div>
 <blockquote><p><strong>藍色節點</strong>（PDD / VDD / FRONTEND / BDD-client）：<code>client_type ≠ none</code> 時才啟用。<strong>黃色</strong>：稽核層特殊步驟。</p></blockquote>
 <h4>累積上游依賴表（Cumulative Upstream Table）</h4>
@@ -581,8 +594,8 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
   }</code></pre>
 <ul><li style="margin-left:1.0rem"><code>quality_status</code> 三態：<code>passed</code>（finding=0）/ <code>degraded</code>（僅 MEDIUM/LOW）/ <code>failed</code>（有 CRITICAL/HIGH）</li><li style="margin-left:1.0rem"><code>terminate_reason</code> 代碼：<code>zero_finding</code> / <code>tiered_clean</code> / <code>max_rounds</code> / <code>rapid_cap</code></li></ul>
 <p><strong>特殊步驟欄位</strong></p>
-<ul><li><code>special_completed</code>：D16-ALIGN / D17-HTML 完成旗標（比 file-exists 更可靠）</li></ul>
-<pre><code class="language-json">  { &quot;D16-ALIGN&quot;: true, &quot;D17-HTML&quot;: true }</code></pre>
+<ul><li><code>special_completed</code>：D16-ALIGN / D17-CONTRACTS / D18-MOCK / D19-HTML 完成旗標（比 file-exists 更可靠）</li></ul>
+<pre><code class="language-json">  { &quot;D16-ALIGN&quot;: true, &quot;D17-CONTRACTS&quot;: true, &quot;D18-MOCK&quot;: true, &quot;D19-HTML&quot;: true }</code></pre>
 <p><strong>版本與移交欄位</strong></p>
 <ul><li><code>pipeline_hash</code>：SHA256 of pipeline.json（P-11 版本漂移偵測）</li><li><code>handoff</code>：true（gendoc-auto → gendoc-flow 移交完成標記）</li><li><code>idea_review_passed</code> / <code>brd_review_passed</code>：IDEA/BRD Review Loop 通過旗標（P-01 skip guard）</li><li><code>skill_source</code>：<code>gendoc-auto</code>（防止跨套件誤用）</li></ul>
 <p><strong>專案配置欄位</strong></p>
@@ -642,7 +655,9 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
 <table>
 <tr><th>Step ID</th><th>special_skill</th><th>行為</th></tr>
 <tr><td>D16-ALIGN</td><td><code>gendoc-align-check</code></td><td>四維度跨文件對齊掃描，輸出 ALIGN_REPORT.md</td></tr>
-<tr><td>D17-HTML</td><td><code>gendoc-gen-html</code></td><td>MD→HTML 轉換，先呼叫 gendoc-gen-readme，再生成 docs/pages/</td></tr>
+<tr><td>D17-CONTRACTS</td><td><code>gendoc-gen-contracts</code></td><td>從設計文件提取機器可讀規格：OpenAPI 3.1 YAML、JSON Schema、Pact contracts、Helm values.yaml、docker-compose.yml、Seed Code skeleton → <code>docs/blueprint/</code></td></tr>
+<tr><td>D18-MOCK</td><td><code>gendoc-gen-mock</code></td><td>生成 FastAPI mock server + 擬真假資料 JSON + MOCK_SERVER_GUIDE.md → <code>docs/blueprint/mock/</code>（整個目錄可帶走；client_type=api-only 跳過）</td></tr>
+<tr><td>D19-HTML</td><td><code>gendoc-gen-html</code></td><td>MD→HTML 轉換，先呼叫 gendoc-gen-readme，再生成 docs/pages/</td></tr>
 </table>
 <h4>多文件步驟（multi_file=true）</h4>
 <p>BDD-server（D12）和 BDD-client（D12b）生成多個 <code>.feature</code> 檔案而非單一 md：</p>
@@ -740,6 +755,8 @@ BDD-client：
 <tr><td><code>docs/LOCAL_DEPLOY.md</code></td><td><code>LOCAL_DEPLOY.md</code></td><td><code>LOCAL_DEPLOY.gen.md</code></td><td>Layer 9</td><td>新進工程師 5 分鐘內完成本地環境</td></tr>
 <tr><td><code>docs/README.md</code></td><td><code>README.md</code></td><td><code>README.gen.md</code></td><td>Layer 10</td><td>安裝、快速開始、API 概覽</td></tr>
 <tr><td><code>docs/ALIGN_REPORT.md</code></td><td>—</td><td>align-check skill</td><td>稽核層</td><td>跨文件不一致清單</td></tr>
+<tr><td><code>docs/blueprint/contracts/</code> <code>docs/blueprint/infra/</code> <code>docs/blueprint/scaffold/</code></td><td>—</td><td>gendoc-gen-contracts</td><td>實作層（D17）</td><td>OpenAPI 3.1 / JSON Schema / Pact / Helm / docker-compose / Seed Code</td></tr>
+<tr><td><code>docs/blueprint/mock/</code></td><td>—</td><td>gendoc-gen-mock</td><td>實作層（D18）</td><td>FastAPI main.py / data/*.json / requirements.txt / MOCK_SERVER_GUIDE.md（client_type≠api-only）</td></tr>
 <tr><td>—</td><td><code>UML-CLASS-GUIDE.md</code></td><td>靜態參考</td><td>—</td><td>Class Diagram 規範（不生成）</td></tr>
 </table>
 <hr>
