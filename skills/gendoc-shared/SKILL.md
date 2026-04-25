@@ -1,17 +1,15 @@
 ---
 name: gendoc-shared
 description: |
-  gendoc 共用邏輯參考文件：_ask() 函式、_write_state() 原子寫入、狀態檔案命名規範、
-  retry 邏輯、進度顯示格式。所有 SKILL.md 透過引用此文件確保邏輯一致。
-  此為參考文件，不可直接執行。
+  gendoc 共用邏輯執行入口。被 Skill tool 呼叫時，直接執行 §-1 R-01（state file 守衛）：
+  檢查 state file 是否存在，不存在則呼叫 gendoc-config 完整執行所有步驟。
 allowed-tools:
-  - Read
+  - Bash
+  - Skill
 ---
 
-# gendoc-shared — gendoc 共用邏輯參考文件
+# gendoc-shared — 執行 §-1 R-01 State File Guard
 
-> **此文件是參考文件（Reference Document），不是可執行的 Skill。**
-> 所有 SKILL.md 應引用此文件中的邏輯，確保跨 Skill 行為一致。
 
 ---
 
@@ -27,14 +25,14 @@ allowed-tools:
 
 ```bash
 _INIT_STATE=$(ls .gendoc-state-*.json 2>/dev/null | head -1 || echo "")
+echo "STATE_FILE: ${_INIT_STATE:-（不存在）}"
 ```
 
-| 情境 | 行動 |
-|------|------|
-| `_INIT_STATE` 非空（已初始化） | 直接繼續本 skill 的 Step 0 |
-| `_INIT_STATE` 為空（未初始化） | 以 **Skill tool** 呼叫 `/gendoc-config`，等待使用者完成設定後，繼續本 skill 的 Step 0 |
+- **`_INIT_STATE` 非空（已存在）**：直接繼續本 skill 的 Step 0，不做任何其他動作。
+- **`_INIT_STATE` 為空（不存在）**：**立即用 Skill tool 呼叫 `gendoc-config`，讓其完整執行所有步驟（不得簡化任何選單）。gendoc-config 完全結束後，繼續呼叫方的 Step 0。**
 
 **關鍵限制**：
+- state file 由 **gendoc-config 建立**，其他所有 skill 不得自行建立 state file
 - gendoc-config 建立的 state file 中 `skill_source` 為空，各 skill 在 Step 0 設定自己的 `skill_source` 時，**空值視為全新初始化，允許繼續**
 
 ---
@@ -46,23 +44,19 @@ _INIT_STATE=$(ls .gendoc-state-*.json 2>/dev/null | head -1 || echo "")
 ### 讀取邏輯（每個 SKILL Step 0 必須執行）
 
 ```bash
-# 動態偵測 state file（不使用固定 .gendoc-state.json）
-_STATE_FILE=$(ls .gendoc-state-*.json 2>/dev/null | head -1 || echo ".gendoc-state.json")
+# 動態偵測 state file（不使用固定路徑，§-1 R-01 已保證 state file 存在）
+_STATE_FILE=$(ls .gendoc-state-*.json 2>/dev/null | head -1)
 
 # Session Config 讀取（每次 Bash 呼叫開頭，不假設變數延續）
 _EXEC_MODE=$(python3 -c "
-import json, sys
-try:
-  d=json.load(open('${_STATE_FILE}'))
-  print(d.get('execution_mode',''))
+import json
+try: print(json.load(open('${_STATE_FILE}')).get('execution_mode',''))
 except: print('')
 " 2>/dev/null || echo "")
 
 _REVIEW_STRATEGY=$(python3 -c "
-import json, sys
-try:
-  d=json.load(open('${_STATE_FILE}'))
-  print(d.get('review_strategy',''))
+import json
+try: print(json.load(open('${_STATE_FILE}')).get('review_strategy',''))
 except: print('')
 " 2>/dev/null || echo "")
 ```
@@ -75,43 +69,12 @@ echo "[Session Config] 沿用已設定 — 模式：${_EXEC_MODE} ／ Review 策
 ```
 → 直接繼續，不詢問任何問題。
 
-**無值**（全新 session 或 state file 不存在）：
-顯示模式選擇選單（AskUserQuestion，若有此工具）或 `_ask()`（若無）：
-
+**無值**（`_EXEC_MODE` 或 `_REVIEW_STRATEGY` 為空）：
 ```
-╔══════════════════════════════════════════════════════╗
-║       gendoc — 請選擇執行模式                        ║
-╠══════════════════════════════════════════════════════╣
-║  [1] Interactive — 互動引導模式                      ║
-║      關鍵決策點等待輸入（適合熟悉流程的開發者）        ║
-║  [2] Full-Auto   — 全自動模式（預設）                 ║
-║      全程不詢問，AI 自動選預設值並顯示選擇內容        ║
-╚══════════════════════════════════════════════════════╝
+echo "[Session Config] ⚠️  state file 存在但 execution_mode/review_strategy 為空。"
+echo "                 請執行 /gendoc-config 重新設定，或繼續（此 skill 將以空值執行）。"
 ```
-→ 此選擇控制 pipeline 執行時是否詢問確認
-→ 使用者選擇後寫入 `execution_mode`（"interactive" | "full-auto"）
-
-若選 Interactive，接著顯示 Review 策略選單：
-```
-╔══════════════════════════════════════════════════════╗
-║       gendoc — 請選擇 Review 策略                    ║
-╠══════════════════════════════════════════════════════╣
-║  [1] Rapid      — 最多 3 輪，finding=0 提前結束      ║
-║  [2] Standard   — 最多 5 輪，finding=0 提前結束（預設）║
-║  [3] Exhaustive — 無上限，持續至 finding=0           ║
-║  [4] Tiered     — 前 5 輪 finding=0；第 6 輪起       ║
-║                   CRITICAL+HIGH+MEDIUM=0 即停        ║
-║  [5] Custom     — 自訂終止條件                       ║
-╚══════════════════════════════════════════════════════╝
-```
-→ 寫入 `review_strategy`（"rapid"|"standard"|"exhaustive"|"tiered"|"custom"）
-→ 選 [5] 再詢問自訂條件，寫入 `review_strategy_custom`
-
-若選 Full-Auto，自動套用 standard，顯示：
-```
-[Full-Auto] Review 策略：Standard（自動套用預設）
-```
-→ 寫入 `review_strategy: "standard"`
+→ **不顯示選單、不詢問使用者**。state file 的欄位由 gendoc-config 寫入，其他 skill 不得接管此責任。
 
 ### 換算 max_rounds 與 stop_condition（唯一計算點）
 
@@ -191,9 +154,10 @@ echo "STATE_FILE: $_STATE_FILE"
 所有 Skill 動態偵測 state file（不依賴 symlink）：
 
 ```bash
-_STATE_FILE=$(ls .gendoc-state-*.json 2>/dev/null | head -1 || echo ".gendoc-state.json")
+# §-1 R-01 已保證 state file 存在，直接偵測即可（無 fallback）
+_STATE_FILE=$(ls .gendoc-state-*.json 2>/dev/null | head -1)
 if [[ -f "$_STATE_FILE" ]]; then
-  _CURRENT_STEP=$(python3 -c "import json; d=json.load(open('$_STATE_FILE')); print(d.get('current_step','0'))" 2>/dev/null || echo "0")
+  _CURRENT_STEP=$(python3 -c "import json; d=json.load(open('$_STATE_FILE')); print(d.get('current_step',''))" 2>/dev/null || echo "")
 fi
 ```
 
@@ -234,11 +198,11 @@ _write_state() {
   "client_type": "${_CLIENT_TYPE:-}",
   "auto_mode": "${_AUTO_MODE:-full}",
   "review_mode": "${_REVIEW_MODE:-MODE-C}",
-  "execution_mode": "${_EXEC_MODE:-interactive}",
-  "review_strategy": "${_REVIEW_STRATEGY:-standard}",
+  "execution_mode": "${_EXEC_MODE:-}",
+  "review_strategy": "${_REVIEW_STRATEGY:-}",
   "review_strategy_custom": "${_REVIEW_STRATEGY_CUSTOM:-}",
-  "max_rounds": ${_MAX_ROUNDS:-5},
-  "stop_condition": "${_STOP_CONDITION:-任一輪 finding=0 或第 5 輪 fix 完}",
+  "max_rounds": ${_MAX_ROUNDS:-0},
+  "stop_condition": "${_STOP_CONDITION:-}",
   "log_file": "${_LOG_FILE:-}",
   "github_repo": "${_GITHUB_REPO:-}",
   "last_updated": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -256,7 +220,7 @@ EOF
   }
 
   # 原子 rename（mv 在同一 filesystem 下是原子操作）
-  mv "$_TMP" "${_STATE_FILE:-.gendoc-state.json}"
+  mv "$_TMP" "$_STATE_FILE"
 
   echo "[state] current_step 更新至：$step"
 }
@@ -264,7 +228,7 @@ EOF
 # 降級函式（mktemp 不可用時使用）
 _write_state_direct() {
   local step="$1"
-  cat > "${_STATE_FILE:-.gendoc-state.json}" <<EOF
+  cat > "$_STATE_FILE" <<EOF
 {
   "version": "2.0",
   "project_dir": "$(pwd)",
@@ -274,11 +238,11 @@ _write_state_direct() {
   "client_type": "${_CLIENT_TYPE:-}",
   "auto_mode": "${_AUTO_MODE:-full}",
   "review_mode": "${_REVIEW_MODE:-MODE-C}",
-  "execution_mode": "${_EXEC_MODE:-interactive}",
-  "review_strategy": "${_REVIEW_STRATEGY:-standard}",
+  "execution_mode": "${_EXEC_MODE:-}",
+  "review_strategy": "${_REVIEW_STRATEGY:-}",
   "review_strategy_custom": "${_REVIEW_STRATEGY_CUSTOM:-}",
-  "max_rounds": ${_MAX_ROUNDS:-5},
-  "stop_condition": "${_STOP_CONDITION:-任一輪 finding=0 或第 5 輪 fix 完}",
+  "max_rounds": ${_MAX_ROUNDS:-0},
+  "stop_condition": "${_STOP_CONDITION:-}",
   "log_file": "${_LOG_FILE:-}",
   "github_repo": "${_GITHUB_REPO:-}",
   "last_updated": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"

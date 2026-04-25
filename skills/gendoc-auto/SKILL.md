@@ -53,6 +53,8 @@ echo "SPAWNED_SESSION: $_SPAWNED"
 [[ "$_SPAWNED" == "true" ]] && echo "[SPAWNED] 跳過互動提問，強制 full-auto 模式"
 ```
 
+**立即用 Skill tool 呼叫 `gendoc-shared`。等 Skill tool 回傳後才繼續 Step 0，在此之前不得執行任何後續步驟。**
+
 ---
 
 ## Step 0（§PRE-1）：輸入來源偵測（C-01/C-06）
@@ -233,13 +235,14 @@ _STATE_FILE=".gendoc-state-${_GIT_USER}-${_GIT_BRANCH}.json"
 echo "[Workspace] 工作空間：$(pwd)"
 echo "[Workspace] git user：${_GIT_USER}，branch：${_GIT_BRANCH}，state file：$_STATE_FILE"
 
-# 寫入 skill_source（防止跨 skill 誤用 state）
+# 寫入 skill_source（state file 由 gendoc-config 建立，此處僅 patch）
 python3 -c "
-import json; f='${_STATE_FILE}'
-try: d=json.load(open(f))
-except: d={}
+import json, os; f='${_STATE_FILE}'
+d=json.load(open(f))
 d['skill_source'] = 'gendoc-auto'
-json.dump(d, open(f,'w'), ensure_ascii=False, indent=2)
+tmp=f+'.tmp'
+open(tmp,'w').write(json.dumps(d, indent=2, ensure_ascii=False))
+os.replace(tmp, f)
 "
 
 # 寫入 spawned_session 旗標（供 gendoc-flow 跨 skill 讀取，避免再次詢問使用者）

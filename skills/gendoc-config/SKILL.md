@@ -46,10 +46,10 @@ fi
 
 ```bash
 if [[ -n "$_STATE" ]]; then
-  _STEP=$(python3 -c "import json; d=json.load(open('$_STATE')); print(d.get('start_step','0'))" 2>/dev/null || echo "0")
-  _STRATEGY=$(python3 -c "import json; d=json.load(open('$_STATE')); print(d.get('review_strategy','standard'))" 2>/dev/null || echo "standard")
-  _CT=$(python3 -c "import json; d=json.load(open('$_STATE')); print(d.get('client_type','web'))" 2>/dev/null || echo "web")
-  _CT_SOURCE=$(python3 -c "import json; d=json.load(open('$_STATE')); print(d.get('client_type_source','auto'))" 2>/dev/null || echo "auto")
+  _STEP=$(python3 -c "import json; d=json.load(open('$_STATE')); print(d.get('start_step'))" 2>/dev/null)
+  _STRATEGY=$(python3 -c "import json; d=json.load(open('$_STATE')); print(d.get('review_strategy'))" 2>/dev/null)
+  _CT=$(python3 -c "import json; d=json.load(open('$_STATE')); print(d.get('client_type'))" 2>/dev/null)
+  _CT_SOURCE=$(python3 -c "import json; d=json.load(open('$_STATE')); print(d.get('client_type_source'))" 2>/dev/null)
 
   echo ""
   echo "╔══════════════════════════════════════════════╗"
@@ -256,9 +256,8 @@ d = {
   'project_dir': '$_CWD',
   'start_step': '0',
   'execution_mode': 'full-auto',
-  'review_strategy': 'standard',
   'max_rounds': 5,
-  'client_type': '${_INIT_CLIENT_TYPE:-web}',
+  'client_type': '${_INIT_CLIENT_TYPE}',
   'client_type_source': 'confirmed',
   'last_updated': '$_NOW'
 }

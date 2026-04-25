@@ -78,12 +78,14 @@ echo "SPAWNED_SESSION: $_SPAWNED"
 [[ "$_SPAWNED" == "true" ]] && echo "[SPAWNED] 強制 full-auto，跳過互動提問"
 ```
 
+**立即用 Skill tool 呼叫 `gendoc-shared`。等 Skill tool 回傳後才繼續 Step 0，在此之前不得執行任何後續步驟。**
+
 ---
 
 ## Step 0：Session Config（遵循 gendoc-shared §0）
 
 ```bash
-_STATE_FILE=$(ls .gendoc-state-*.json 2>/dev/null | head -1 || echo ".gendoc-state.json")
+_STATE_FILE=$(ls .gendoc-state-*.json 2>/dev/null | head -1)
 
 _EXEC_MODE=$(python3 -c "
 import json
@@ -93,21 +95,21 @@ except: print('')
 
 _REVIEW_STRATEGY=$(python3 -c "
 import json
-try: print(json.load(open('${_STATE_FILE}')).get('review_strategy','standard'))
-except: print('standard')
-" 2>/dev/null || echo "standard")
+try: print(json.load(open('${_STATE_FILE}')).get('review_strategy',''))
+except: print('')
+" 2>/dev/null || echo "")
 
 _MAX_ROUNDS=$(python3 -c "
 import json
 try: print(int(json.load(open('${_STATE_FILE}')).get('max_rounds', 5)))
-except: print(5)
-" 2>/dev/null || echo "5")
+except: print('')
+" 2>/dev/null || echo "")
 
 _START_STEP=$(python3 -c "
 import json
-try: print(json.load(open('${_STATE_FILE}')).get('start_step', '0'))
-except: print('0')
-" 2>/dev/null || echo "0")
+try: print(json.load(open('${_STATE_FILE}')).get('start_step', ''))
+except: print('')
+" 2>/dev/null || echo "")
 
 _COMPLETED=$(python3 -c "
 import json
@@ -123,9 +125,9 @@ except: print('')
 
 _CLIENT_TYPE_SOURCE=$(python3 -c "
 import json
-try: print(json.load(open('${_STATE_FILE}')).get('client_type_source','auto'))
-except: print('auto')
-" 2>/dev/null || echo "auto")
+try: print(json.load(open('${_STATE_FILE}')).get('client_type_source',''))
+except: print('')
+" 2>/dev/null || echo "")
 
 echo "[Session] mode=${_EXEC_MODE} | strategy=${_REVIEW_STRATEGY} | max_rounds=${_MAX_ROUNDS}"
 echo "[Session] start_step=${_START_STEP} | completed=[${_COMPLETED}] | client_type=${_CLIENT_TYPE:-（未設定，待推斷）} | ct_source=${_CLIENT_TYPE_SOURCE}"
@@ -210,8 +212,7 @@ PYEOF
   python3 - <<PYEOF2
 import json, os
 f = '${_STATE_FILE}'
-try: d = json.load(open(f))
-except: d = {}
+d = json.load(open(f))
 d['client_type'] = '${_CLIENT_TYPE}'
 d['client_type_source'] = 'auto'   # P-14：標記為自動偵測，允許 D03-PRD 後重新驗證
 tmp = f + '.tmp'
@@ -254,8 +255,7 @@ fi
 python3 -c "
 import json, os
 f='$_STATE_FILE'
-try: d=json.load(open(f))
-except: d={}
+d=json.load(open(f))
 d['pipeline_hash'] = '$_PIPELINE_HASH_CURRENT'
 tmp=f+'.tmp'
 open(tmp,'w').write(json.dumps(d,indent=2,ensure_ascii=False))
@@ -462,8 +462,7 @@ for step in pipeline:
 def update_state_client_type(ct):
     import json, os
     f = _STATE_FILE
-    try: d = json.load(open(f))
-    except: d = {}
+    d = json.load(open(f))
     d['client_type'] = ct
     d['client_type_source'] = 'auto'
     tmp = f + '.tmp'
@@ -475,8 +474,7 @@ def update_state_client_type(ct):
 def update_state_lang_stack(lang_stack):
     import json, os, re
     f = _STATE_FILE
-    try: d = json.load(open(f))
-    except: d = {}
+    d = json.load(open(f))
     d['lang_stack']        = lang_stack
     d['lang_stack_locked'] = True   # 鎖定後 P-15 不再覆寫
     tmp = f + '.tmp'
