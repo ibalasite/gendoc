@@ -193,6 +193,30 @@ Context Map 關係：
 
 **覆蓋要求**：PRD 中每個主要 Actor 和每個 P0/P1 Use Case 必須出現在圖中（1:1 對應）；若 Actor 或 Use Case 數量過多，可拆為多張，但每張都必須明確標注覆蓋範圍，不得有遺漏。
 
+**UC → PRD AC Traceability Table（強制）**：
+
+每張 Use Case Diagram 下方必須附對應表：
+| UC ID | UC 名稱 | PRD 章節 | PRD AC 編號 | Precondition | Postcondition |
+|-------|---------|---------|------------|-------------|--------------|
+| UC1 | Login | §2.1 | AC-AUTH-001 | 用戶未登入 | JWT token 已發，session 已建立 |
+| UC3 | Register | §2.2 | AC-REG-001 | Email 不存在系統中 | 用戶建立，驗證 Email 已發送 |
+
+**禁止**：只有圖無對應表、Precondition/Postcondition 欄位空白
+
+**<<include>> / <<extend>> 語意聲明（強制）**：
+
+每條 <<include>> 或 <<extend>> 關係線下方必須附語意說明：
+- `<<include>>`：被包含的 Use Case 是**強制子步驟**（必定執行，不可跳過）
+- `<<extend>>`：擴展的 Use Case 是**可選條件步驟**（滿足特定條件才執行）
+
+**RBAC Matrix（強制，若系統有多個 Actor 角色）**：
+
+Use Case Diagram 旁必須附許可矩陣：
+| UC | User | Admin | GuestUser | 備注 |
+|----|------|-------|-----------|------|
+| UC1 Login | ✅ | ✅ | ✅ | — |
+| UC7 Manage Users | ❌ | ✅ | ❌ | 需 Admin role 驗證（API 層強制） |
+
 ---
 
 #### §4.5.2 Class Diagram（類別圖）⭐
@@ -252,6 +276,36 @@ class OrderStatus {
 - **class-infra-presentation**：`<<RepositoryImpl>>`、`<<Adapter>>`、`<<Controller>>`、`<<RequestDTO>>`、`<<ResponseDTO>>`
 
 **命名對齊**：class 名稱必須與 ARCH.md §3 Domain 模型和 SCHEMA.md Table 名稱一致（不得有任何差異）
+
+**Constructor / Factory Method 格式（強制，所有 Entity 和 ValueObject）**：
+
+每個 `<<Entity>>` 和 `<<ValueObject>>` 必須明確標注建構方式：
+```
+class UserId {
+    <<ValueObject>>
+    -value: String
+    +{static} of(raw: String): UserId   %% factory，含 UUID 格式驗證
+    +getValue(): String
+    +equals(other: UserId): Boolean
+}
+```
+若使用 private constructor + factory：標注 `+{static} create(...): ClassName`
+**禁止**：class 無任何構造方法、只有 property 無 factory/constructor
+
+**Accessor Convention（強制，所有私有欄位）**：
+
+- 若欄位為 `{readOnly}`（不可改），標注：`-email: Email {readOnly}` 且 expose public getter
+- 若欄位可改，標注 setter 方法：`+setStatus(s: OrderStatus): void`
+- 若欄位完全私有（無外部存取），在 Class Inventory 表格的「備注」欄說明
+
+**Invariant Table（強制，每個含業務約束欄位的 class）**：
+
+每個 `<<AggregateRoot>>` 下方必須附不變量表：
+| 欄位 | 型別 | 約束條件 | 執行位置 |
+|-----|------|---------|---------|
+| balance | Decimal | >= 0 | constructor + setBalance() |
+| email | Email | valid format, globally unique | ValueObject + DB unique constraint |
+| status | OrderStatus | 僅允許 State Machine 定義的合法轉換 | State Machine guard |
 
 **Class Inventory 表格**（每張 classDiagram 尾部必填）：
 
@@ -334,6 +388,69 @@ participant Queue as NATS（若有）
 
 **上下游一致性**：本節服務內部視角必須與 API.md §1 Client 視角邏輯一致；有差異則標記 `> ⚠️ [UPSTREAM_CONFLICT]`
 
+**Request/Response Payload JSON Schema（強制，每個外部呼叫）**：
+
+每個從 Client/HTTP 發出的箭頭，必須在 Note 中附完整 JSON 欄位定義（型別 + 是否必填 + 格式/限制）：
+```
+Client->>Controller: POST /orders
+Note over Client,Controller: RequestDTO 欄位：
+  userId: UUID (required)
+  items: Array<{productId: UUID, quantity: int ≥1, ≤1000}> (required, minItems: 1)
+  paymentMethod: "CARD" | "BANK_TRANSFER" (required, enum)
+  billingAddress: {street: string, city: string, zip: string(5-10)} (required)
+```
+
+每個回傳箭頭，必須在 Note 中附完整 ResponseDTO（含型別 + 格式）：
+```
+Controller-->>Client: 201 Created
+Note over Controller,Client: ResponseDTO 欄位：
+  orderId: UUID
+  status: "PENDING" | "CONFIRMED" | ... (enum)
+  total: Decimal (2 digits, ≥ 0)
+  createdAt: ISO8601 (UTC)
+```
+
+**Error Response Schema（強制，每個 alt error 分支）**：
+
+每個 alt error 分支的 Error 箭頭必須附 ErrorDTO：
+```
+alt 庫存不足
+    Service-->>Controller: 422 Unprocessable Entity
+    Note over Service,Controller: ErrorDTO：
+      code: "INSUFFICIENT_STOCK"
+      message: "只剩 {available} 件，要求 {requested} 件"
+      availableQuantity: int
+      requestedQuantity: int
+end
+```
+**禁止**：只寫 `422` 無 body、只寫 `error: string` 無結構、error code 自行定義無枚舉清單
+
+**Timeout/Retry 標注（強制，所有 I/O 操作）**：
+
+每個對外部系統（DB、Cache、第三方 API、Message Queue）的呼叫，必須在 Note 標注 timeout + retry：
+```
+Service->>Redis: GET rate_limit:{userId}
+Note right of Service: timeout: 500ms, retry: 1次, total: 1s
+```
+
+**Transaction Boundary（強制，所有包含多個寫入的操作）**：
+
+若一個 Sequence 中有多個 DB 寫入，必須明確標注事務邊界：
+```
+Service->>DB: BEGIN TRANSACTION
+DB-->>Service: OK
+Service->>DB: INSERT INTO orders (...)
+DB-->>Service: orderId
+Service->>DB: UPDATE inventory (...)
+alt 全部成功
+    Service->>DB: COMMIT
+else 任一失敗
+    Service->>DB: ROLLBACK
+end
+```
+
+**禁止**：多個寫入操作無 BEGIN/COMMIT/ROLLBACK 邊界
+
 ---
 
 #### §4.5.5 Communication Diagram（通訊圖）
@@ -381,6 +498,44 @@ state PROCESSING {
 
 **最低張數**：§4.5.2 Class Diagram 中含 `status: StatusEnum` 或 `state: StateEnum` 欄位的每個 Entity 各一張（≥ 1 張）
 
+**Invalid Transition Handling（強制）**：
+
+對每個「不可能的轉換」必須明確聲明，不可留空默認：
+```
+%%  ✅ 明確禁止轉換：
+%%  DELIVERED --> PENDING : attemptReopen [false] / logInvalidTransition()
+%%  或在狀態機旁附表：
+```
+| From State | To State | Behavior | Log |
+|-----------|---------|---------|-----|
+| DELIVERED | PENDING | 靜默拒絕 | WARN |
+| DELIVERED | PROCESSING | Exception | ERROR |
+
+**Timeout Transition（強制，若業務有 TTL 或逾時邏輯）**：
+
+```
+PENDING --> CANCELLED : timeout [30min_no_payment] / notifyUser(cancellationEmail)
+```
+**禁止**：只在狀態旁用文字說明「TTL 30 分鐘」而不寫明轉換箭頭
+
+**Idempotency Guarantee（強制，每個 trigger）**：
+
+每個狀態機下方必須附 Idempotency 表格：
+| Trigger | From State | Idempotent? | 重複觸發行為 |
+|---------|-----------|------------|------------|
+| confirmOrder() | PENDING | ✅ 是 | 已在 CONFIRMED，靜默忽略，不重發事件 |
+| cancelOrder() | DELIVERED | ❌ 不適用 | 拒絕，回傳 422 |
+
+**Entry/Exit Action Failure Semantics（強制，有 entry/exit 的狀態）**：
+
+```
+state PROCESSING {
+    entry: lockStock(items)   -- 失敗時 ROLLBACK 回 CONFIRMED，發 StockLockFailed 事件
+    exit: releaseStockLock()  -- 失敗時 LOG CRITICAL，觸發 runbook-inventory-lock
+}
+```
+**禁止**：entry/exit 只寫 action 名稱無失敗語意
+
 ---
 
 #### §4.5.7 Activity Diagram（活動圖）
@@ -426,6 +581,37 @@ flowchart TD
 - 異常/補救流程（Exception/Compensation，如退款/回滾，必含補償動作的逆向路徑）：每個補償場景各一張
 必須列出對應表：「User Story US-01 → Activity Diagram §4.5.7.1」，確認無遺漏後方可提交。
 
+**Exact Condition Logic（強制，每個決策點）**：
+
+決策條件必須精確到程式碼層級，不允許模糊判斷語意：
+```
+%%  ❌ 禁止：{庫存充足？}
+%%  ✅ 正確：{inventory_count >= requestedQuantity}
+%%  ✅ 正確：{inventory_count > 0 AND inventory_count >= requestedQuantity}
+```
+對每個決策點，標注精確的比較運算子（>= vs > vs == vs !=）和資料型別（int vs Decimal）。
+
+**Compensation/Rollback Flow（強制，所有含補償邏輯的流程）**：
+
+補償路徑必須明確標出逆向執行順序（不得只寫「回滾」）：
+```
+鎖定庫存 --> 扣款失敗
+    |
+    V
+補償：退款 --> 解鎖庫存 --> 通知用戶 --> 記錄補償審計日誌
+```
+**禁止**：只寫「失敗 → 回滾」無具體補償步驟和順序
+
+**Parallel Join Semantics（強制，所有 fork/join）**：
+
+每個 Join 節點必須標注等待語意：
+```
+[[ 並行結束：ALL-REQUIRED 等待 Path-A AND Path-B 均完成
+   若任一超過 30s → 整體逾時，觸發補償
+   若任一失敗 → ABORT，補償已完成路徑 ]]
+```
+可選語意：`ALL-REQUIRED`（等全部）/ `RACE-FIRST`（最快的即可，取消其餘）/ `PARTIAL-OK`（允許部分失敗）
+
 ---
 
 #### §4.5.8 Component Diagram（元件圖）
@@ -466,6 +652,34 @@ end
 
 **必含元件**：EDD §3.3 技術棧總覽中所有元件（不得遺漏），每個元件至少有 1 條連線
 
+**Inter-Service Communication Contract Table（強制）**：
+
+Component Diagram 下方必須附服務間通訊合約表：
+| From | To | Protocol | Version | Port | Timeout | Retry Policy | Auth Method |
+|------|-----|---------|---------|------|---------|-------------|------------|
+| OrderSvc | PaymentSvc | HTTP/REST | 1.1 | 443 | 5s | 3x exp backoff | mTLS + API Key |
+| OrderSvc | NotifSvc | NATS | 2.8.2 | 4222 | async, ack-required | at-least-once | none (internal) |
+**禁止**：只有圖無合約表、timeout 欄位空白、auth 欄位空白
+
+**Resilience Pattern Table（強制，所有服務連線）**：
+
+| Source → Dest | Timeout | Circuit Breaker | Fallback | Bulkhead | P99 SLA |
+|--------------|---------|-----------------|----------|----------|---------|
+| OrderSvc → PaymentSvc | 5s | fail-after: 5 errors / reset: 30s | queue to local DB | pool: 10 threads | < 1s |
+**禁止**：無此表（即使是簡單系統也必須聲明「無 Circuit Breaker，單點依賴」）
+
+**Public vs Internal Designation（強制）**：
+
+在 Component Diagram 的 subgraph 標注清楚哪些服務對外可達（Public），哪些僅內部（Internal）：
+```
+subgraph DMZ ["DMZ / Ingress（Public-facing）"]
+  Ingress["API Gateway\nmTLS: disabled（公網）"]
+end
+subgraph Internal ["Internal VPC（Private）"]
+  OrderSvc["OrderService\nmTLS: REQUIRED\n內部 VPC only"]
+end
+```
+
 ---
 
 #### §4.5.9 Deployment Diagram（部署圖）
@@ -474,14 +688,35 @@ end
 
 **強制完整度標準**：
 
-**節點格式**（四者缺一不可）：
+**節點格式**（六者缺一不可）：
 ```
-OrderSvc["OrderService\nImage: order-service:1.2.3\nCPU: 0.5 / Mem: 512Mi\nReplicas: 2-10 (HPA)"]
+OrderSvc["OrderService\nImage: order-service:1.2.3\nCPU req/limit: 100m/500m\nMem req/limit: 256Mi/512Mi\nReplicas: 2-10 (HPA: CPU>70%)"]
 ```
 - 服務名稱
-- Docker Image + 精確版本 tag
-- CPU limit / Memory limit（來自 EDD §7 k8s 資源規格）
-- Replicas 配置（含 HPA 最小/最大值）
+- Docker Image + 精確版本 tag + Registry（`registry.example.com/order-service:1.2.3`）
+- CPU **request**（保證量）/ **limit**（最大量）分開標注（禁止只寫一個數字）
+- Memory **request** / **limit** 分開標注
+- Replicas 配置（含 HPA min/max + 觸發指標，如 `HPA: CPU>70%`）
+- Pull Policy：`Always`（CI/CD）或 `IfNotPresent`（本地開發）
+
+**Deployment Diagram 下方必附配套表格**：
+
+**HPA Configuration Table（強制，每個有 HPA 的服務）**：
+| Service | minReplicas | maxReplicas | Scale-Up Metric | Target | Scale-Down Cooldown |
+|---------|------------|------------|----------------|--------|-------------------|
+| OrderSvc | 2 | 10 | CPU Utilization | 70% | 300s |
+
+**Storage Specification Table（強制，每個有 PVC 的服務）**：
+| Service | PVC Name | Size | StorageClass | IOPS | Backup Frequency | Retention |
+|---------|---------|------|------------|------|-----------------|----------|
+| PostgreSQL | db-data | 100Gi | gp3 | 3000 | hourly | 30 days |
+
+**Network Policy Table（強制）**：
+| Source Zone | Dest Zone | Allowed Ports | Protocol | Notes |
+|------------|---------|--------------|---------|-------|
+| DMZ | Internal | 3000 | TCP | API → OrderSvc |
+| Internal | DataZone | 5432 | PostgreSQL | App → DB，mTLS |
+| Internal | Internet | any | any | ❌ DENY（出站禁止） |
 
 **網路區域（subgraph 必填）**：
 ```
@@ -514,15 +749,15 @@ PostgreSQL -->|"PVC: db-data\n100Gi / SSD"| Storage[("PersistentVolume\nStorageC
 
 **UML 9 大圖生成前自我檢查**（若有任一未通過，補齊後再寫入檔案）：
 
-- [ ] §4.5.1 Use Case：所有 PRD P0+P1 Actor 均有對應節點；所有 Use Case 有 UC 編號；關係類型已標注
-- [ ] §4.5.2 Class：所有 class 有 stereotype；所有屬性有 `visibility name: Type`；所有方法有完整簽名；所有 Enum 獨立列出全部枚舉值；所有關聯線有 cardinality + role label；分 3 張（Domain/Application/Infra+Presentation）
+- [ ] §4.5.1 Use Case：所有 PRD P0+P1 Actor 均有對應節點；所有 Use Case 有 UC 編號；關係類型已標注；附 UC→PRD AC Traceability Table（含 Precondition/Postcondition）；<<include>>/<<extend>> 語意已聲明；附 RBAC Matrix（若多角色）
+- [ ] §4.5.2 Class：所有 class 有 stereotype；所有屬性有 `visibility name: Type`；所有方法有完整簽名；所有 Enum 獨立列出全部枚舉值；所有關聯線有 **兩端** cardinality + role label；分 3 張；每個 Entity/ValueObject 有 constructor/factory method；每個 AggregateRoot 附 Invariant Table
 - [ ] §4.5.3 Object：每個 `<<AggregateRoot>>` 有 ≥ 1 張 Object Diagram；所有欄位填具體業務範例值（非型別名稱）
-- [ ] §4.5.4 Sequence：每個 Mutation 有獨立 Happy Path 圖 + ≥ 3 個 Error Path；每個箭頭有精確方法名 + 參數型別；回傳箭頭有型別或 HTTP 狀態碼 + 回應體結構；alt 分支有具體條件
+- [ ] §4.5.4 Sequence：每個 Mutation 有獨立 Happy Path + ≥ 3 Error Path；每個外部呼叫有 Note 附完整 JSON 欄位定義（型別+格式+限制）；每個 error 分支有 ErrorDTO（code + message + 結構化欄位）；所有 I/O 操作有 timeout/retry 標注；多寫入操作有 BEGIN/COMMIT/ROLLBACK
 - [ ] §4.5.5 Communication：每條邊有序號 + 訊息名 + 協定；序號連續；非同步用虛線
-- [ ] §4.5.6 State Machine：每個 transition 有 trigger [guard] / action 三段；有 entry/exit 動作（有業務邏輯者）；所有終態連到 `[*]`；每個有狀態 Entity 各一張
-- [ ] §4.5.7 Activity：每個決策點兩個分支都有具體標注；有泳道（subgraph）；fork/join 標注並行路徑；≥ 3 張
-- [ ] §4.5.8 Component：每個節點有技術 + 版本 + 埠號；每條連線有協定 + 埠號；系統邊界用 subgraph；EDD §3.3 所有元件均已包含
-- [ ] §4.5.9 Deployment：每個節點有 Image:tag + CPU/Mem limit + Replicas；有網路區域 subgraph；所有連線有協定 + 埠號；PVC 已標注
+- [ ] §4.5.6 State Machine：每個 transition 有 trigger [guard] / action 三段；有 entry/exit 動作（有業務邏輯者）；所有終態連到 `[*]`；每個有狀態 Entity 各一張；附 Invalid Transition Table；附 Idempotency Table；timeout transition 已標注；entry/exit 失敗語意已聲明
+- [ ] §4.5.7 Activity：每個決策點有精確條件（>= vs > 明確）；有泳道（subgraph）；fork/join 標注並行語意（ALL-REQUIRED/RACE-FIRST/PARTIAL-OK）；補償路徑有逐步逆向流程
+- [ ] §4.5.8 Component：每個節點有技術 + 版本 + 埠號；每條連線有協定 + 埠號；系統邊界用 subgraph；EDD §3.3 所有元件均已包含；附 Inter-Service Contract Table；附 Resilience Pattern Table；Public/Internal 已標注
+- [ ] §4.5.9 Deployment：每個節點有 Image:tag + CPU/Mem request/limit（分開標注）+ HPA 觸發指標；有網路區域 subgraph；附 HPA Config Table；附 Storage Spec Table；附 Network Policy Table
 - [ ] §4.5.2 Class Inventory 表格已在每張 classDiagram 尾部填入（含 src/test 路徑）
 - [ ] lang_stack 已從 `.gendoc-state.json` 讀取（非 unknown）
 - [ ] 每個 `<<DomainEvent>>` class 在 §4.6 Domain Events 表中有對應行（命名和 Payload 一致）
