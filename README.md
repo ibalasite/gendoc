@@ -20,7 +20,7 @@ Key capabilities:
 - **Quality status tracking** — `passed` / `degraded` / `failed` per step; CRITICAL/HIGH findings block completion, MEDIUM/LOW log as degraded
 - **Three-value project type** — `game` (AUDIO+ANIM+UI prototype) / `web` (SaaS/App, UI prototype) / `api-only` (API Explorer prototype); auto-detected from IDEA/BRD/PRD keywords, re-verified after PRD generation (P-14)
 - **Interactive prototypes** — `/gendoc-gen-prototype` generates a clickable HTML prototype for any project type: UI flow prototype (web/game) or API Explorer with mock responses (api-only, like Postman)
-- **Implementation-ready UML (1:1 standard)** — `/gendoc-gen-diagrams` generates all 9 UML types with enough precision that a developer can implement the entire system from diagrams alone: exact attribute types, full method signatures, enum values fully listed, cardinality + role labels on every relation, exact method names + typed params on every sequence arrow, `trigger [guard] / action` on every state transition, swimlanes per actor in activity diagrams, technology + version + port on every component/deployment node
+- **Implementation-ready UML (1:1 standard)** — `/gendoc-gen-diagrams` generates all 9 Server UML types + 16 Frontend UML types (Step 2B, auto-triggered when `client_type ≠ none` and `FRONTEND.md` exists) with enough precision that a developer can implement the entire system from diagrams alone: exact attribute types, full method signatures, enum values fully listed, cardinality + role labels on every relation, exact method names + typed params on every sequence arrow, `trigger [guard] / action` on every state transition (no `<br/>` in stateDiagram-v2), swimlanes per actor in activity diagrams, technology + version + port on every component/deployment node
 - **Pipeline integrity check** — P-15 verifies all expected steps have a record before marking complete
 - **Auto-update via SessionStart hook** — harness-enforced, LLM-independent, runs in background
 - **Windows native support** — Python-based hook for Windows, bash for macOS/Linux
@@ -38,11 +38,11 @@ Key capabilities:
 | `gendoc-config` | `/gendoc-config` | Configure execution mode, review strategy, client_type & restart step interactively |
 | `gendoc-align-check` | `/gendoc-align-check` | Cross-document alignment scan (D16) |
 | `gendoc-align-fix` | `/gendoc-align-fix` | Auto-fix alignment issues |
-| `gendoc-gen-html` | `/gendoc-gen-html` | Generate HTML documentation site (D19) |
+| `gendoc-gen-html` | `/gendoc-gen-html` | Generate HTML documentation site v3.0 (D19) — converts all docs/*.md + docs/diagrams/*.md to HTML pages; 3-section sidebar (文件 / Server UML / Frontend UML) |
 | `gendoc-gen-contracts` | `/gendoc-gen-contracts` | Generate machine-readable specs: OpenAPI 3.1, JSON Schema, Pact contracts, IaC (Helm/docker-compose), Seed Code skeleton (D17) |
 | `gendoc-gen-mock` | `/gendoc-gen-mock` | Generate FastAPI Mock Server from API.md — 1:1 endpoint mapping, realistic fake data, Windows/Mac ready, Postman-importable (D18; skipped for api-only) |
 | `gendoc-gen-prototype` | `/gendoc-gen-prototype` | Interactive HTML prototype — UI flow (web/game) or API Explorer with mock engine (api-only) |
-| `gendoc-gen-diagrams` | `/gendoc-gen-diagrams` | Generate all 9 UML diagram types (1:1 implementation-ready) + class-inventory.md (D07b); 30+ precision validation checks |
+| `gendoc-gen-diagrams` | `/gendoc-gen-diagrams` | Generate Server 9 UML types + Frontend 16 UML types (Step 2B, when client_type≠none+FRONTEND.md exists) + class-inventory.md (D07b); 30+ precision validation checks; enforces no `<br/>` in stateDiagram-v2 |
 | `gendoc-gen-client-bdd` | `/gendoc-gen-client-bdd` | Client-facing BDD feature files (web/game projects) |
 | `gendoc-rebuild-templates` | `/gendoc-rebuild-templates` | Rebuild all document templates from scratch |
 | `gendoc-update` | `/gendoc-update` | Manual skill upgrade |
@@ -173,7 +173,7 @@ flowchart TD
             D14["D14 runbook"] --> D15["D15 LOCAL_DEPLOY"]
         end
         subgraph AUDIT["稽核層"]
-            D16["D16 ALIGN ★"]
+            D16["D16 ALIGN ★"] --> D16F["D16-F ALIGN-FIX ★"]
         end
         subgraph IMPL["實作層"]
             D17["D17 CONTRACTS ★"] --> D18["D18 MOCK ★ ✦"]
@@ -192,12 +192,12 @@ flowchart TD
     classDef ioNode fill:#d1fae5,stroke:#059669,color:#064e3b
     class D04,D05,D10,D12b condNode
     class D10b,D10c gameNode
-    class D07b,D16,D17,D18,D19 specNode
+    class D07b,D16,D16F,D17,D18,D19 specNode
     class D18 condNode
     class INPUT,DONE ioNode
 ```
 
-> **✦ 藍色節點**（PDD / VDD / FRONTEND / BDD-client / MOCK）：`client_type=web` 或 `game` 才啟用（MOCK 同時跳過 `api-only`）。**✧ 粉紅節點**（AUDIO / ANIM）：`client_type=game` 專屬。**★ 黃色節點**：特殊步驟（special_skill）。
+> **✦ 藍色節點**（PDD / VDD / FRONTEND / BDD-client / MOCK）：`client_type=web` 或 `game` 才啟用（MOCK 同時跳過 `api-only`）。**✧ 粉紅節點**（AUDIO / ANIM）：`client_type=game` 專屬。**★ 黃色節點**：特殊步驟（special_skill）— 含 D16-ALIGN-FIX（依 ALIGN_REPORT.md 自動修復對齊問題）、D07b-UML（gen-diagrams: 9 Server UML + 16 Frontend UML）。
 
 ### 文件上下層關係（Document Hierarchy）
 
