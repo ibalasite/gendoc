@@ -154,9 +154,10 @@ options:
   - "D15-LOCAL_DEPLOY-R：LOCAL_DEPLOY Review Loop"
   - "D16-ALIGN：跨文件對齊掃描（align-check）"
   - "D16-ALIGN-F：對齊問題自動修復（align-fix）"
-  - "D17-HTML：HTML 文件網站生成"
-  - "D17-HTML-P：GitHub Pages 部署驗證"
-  - "D18-CONTRACTS：機器可讀規格生成（OpenAPI YAML / JSON Schema / Pact / IaC / Seed Code）"
+  - "D17-CONTRACTS：機器可讀規格生成（OpenAPI YAML / JSON Schema / Pact / IaC / Seed Code）"
+  - "D18-MOCK：FastAPI Mock Server 生成（前端開發用）"
+  - "D19-HTML：HTML 文件網站生成"
+  - "D19-HTML-P：GitHub Pages 部署驗證"
 ```
 
 → 設 `_NEW_STEP = <使用者選擇的 STEP ID>`，繼續 Step 3 → Step 4

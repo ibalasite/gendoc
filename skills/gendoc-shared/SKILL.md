@@ -456,19 +456,21 @@ STEP_SEQUENCE = {
   "D15-LOCAL_DEPLOY": "LOCAL_DEPLOY 生成",
   # 稽核層
   "D16-ALIGN":        "跨文件對齊掃描（gendoc-align-check，特殊步驟）",
-  "D17-HTML":         "HTML 文件網站生成（gendoc-gen-html，特殊步驟）",
   # 實作層
-  "D18-CONTRACTS":    "機器可讀規格生成（gendoc-gen-contracts，特殊步驟）",
+  "D17-CONTRACTS":    "機器可讀規格生成（gendoc-gen-contracts，特殊步驟）",
+  "D18-MOCK":         "FastAPI Mock Server 生成（gendoc-gen-mock，特殊步驟，client_type != api-only）",
+  # 發布層
+  "D19-HTML":         "HTML 文件網站生成（gendoc-gen-html，特殊步驟）",
 }
 
-# 22 步驟完整順序（v4.0，D-prefix 格式，與 pipeline.json 對齊）
+# 23 步驟完整順序（v4.0，D-prefix 格式，與 pipeline.json 對齊）
 STEP_ORDER = [
     "D01-IDEA", "D02-BRD", "D03-PRD", "D04-PDD", "D05-VDD",
     "D06-EDD", "D07-ARCH", "D07b-UML", "D08-API", "D09-SCHEMA",
     "D10-FRONTEND", "D10b-AUDIO", "D10c-ANIM",
     "D11-test-plan", "D12-BDD-server", "D12b-BDD-client", "D13-RTM",
     "D14-runbook", "D15-LOCAL_DEPLOY",
-    "D16-ALIGN", "D17-HTML", "D18-CONTRACTS",
+    "D16-ALIGN", "D17-CONTRACTS", "D18-MOCK", "D19-HTML",
 ]
 ```
 
@@ -478,7 +480,7 @@ STEP_ORDER = [
 [gendoc 進度] ████████████░░░░░░░░  12/22 STEP
    ✅ D01-IDEA ～ D09-SCHEMA 完成
    🔄 D10-FRONTEND 執行中...
-   ⏳ D10b-AUDIO ～ D18-CONTRACTS 待執行
+   ⏳ D10b-AUDIO ～ D19-HTML 待執行
 ```
 
 ---

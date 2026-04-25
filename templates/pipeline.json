@@ -214,7 +214,33 @@
       "note": "特殊步驟：呼叫 gendoc-align-check skill，不走標準 gen→review 流程"
     },
     {
-      "id": "D17-HTML",
+      "id": "D17-CONTRACTS",
+      "type": "CONTRACTS",
+      "layer": "實作層",
+      "output": ["docs/blueprint/contracts/", "docs/blueprint/infra/", "docs/blueprint/scaffold/"],
+      "output_glob": "docs/blueprint/contracts/**/*",
+      "multi_file": true,
+      "condition": "always",
+      "special_skill": "gendoc-gen-contracts",
+      "handled_by": "gendoc-flow",
+      "commit_prefix": "feat(gendoc)[D17-CONTRACTS]",
+      "note": "特殊步驟：從生成文件提取機器可讀規格（OpenAPI YAML, JSON Schema, Pact, IaC, Seed Code）。輸出集中於 docs/blueprint/ 目錄。不走標準 gen→review 流程。"
+    },
+    {
+      "id": "D18-MOCK",
+      "type": "MOCK",
+      "layer": "實作層",
+      "output": ["docs/blueprint/mock/"],
+      "output_glob": "docs/blueprint/mock/**/*",
+      "multi_file": true,
+      "condition": "client_type != api-only",
+      "special_skill": "gendoc-gen-mock",
+      "handled_by": "gendoc-flow",
+      "commit_prefix": "feat(gendoc)[D18-MOCK]",
+      "note": "特殊步驟：呼叫 gendoc-gen-mock skill，生成 FastAPI mock server + 擬真假資料 + frontend 使用手冊。整個 docs/blueprint/mock/ 目錄可獨立帶走使用。不走標準 gen→review 流程。"
+    },
+    {
+      "id": "D19-HTML",
       "type": "HTML",
       "layer": "稽核層",
       "output": ["docs/pages/"],
@@ -222,21 +248,8 @@
       "condition": "always",
       "special_skill": "gendoc-gen-html",
       "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D17-HTML]",
+      "commit_prefix": "docs(gendoc)[D19-HTML]",
       "note": "特殊步驟：呼叫 gendoc-gen-html skill，不走標準 gen→review 流程"
-    },
-    {
-      "id": "D18-CONTRACTS",
-      "type": "CONTRACTS",
-      "layer": "實作層",
-      "output": ["docs/openapi.yaml", "docs/contracts/", "infra/", "scaffold/"],
-      "output_glob": "docs/contracts/**/*",
-      "multi_file": true,
-      "condition": "always",
-      "special_skill": "gendoc-gen-contracts",
-      "handled_by": "gendoc-flow",
-      "commit_prefix": "feat(gendoc)[D18-CONTRACTS]",
-      "note": "特殊步驟：從生成文件提取機器可讀規格（OpenAPI YAML, JSON Schema, Pact, IaC, Seed Code）。不走標準 gen→review 流程。兩相對照確保 1:1 實作完整性。"
     }
   ]
 }
