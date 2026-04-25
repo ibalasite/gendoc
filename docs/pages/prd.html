@@ -723,7 +723,23 @@ BDD-client：
 <tr><td>BDD-client（features/client/）</td><td>每個 P0 Screen 有 E2E Scenario；含 happy path、error flow、auth guard；無後端邏輯驗證</td></tr>
 </table>
 <hr>
-<h2>8. 模板清單</h2>
+<h2>8. 模板系統</h2>
+<h3>8.1 模板三件套設計</h3>
+<p>每種文件類型由三個檔案組成，放在 <code>templates/</code> 目錄：</p>
+<pre><code class="">templates/
+├── {TYPE}.md          ← 文件結構骨架（章節標題 + placeholder 說明）
+├── {TYPE}.gen.md      ← AI 生成規則（Iron Law、專家角色、逐章節生成步驟、Quality Gate）
+└── {TYPE}.review.md   ← 審查標準（CRITICAL/HIGH/MEDIUM/LOW 審查項、Fix 指引）</code></pre>
+<table>
+<tr><th>檔案</th><th>用途</th><th>讀取時機</th></tr>
+<tr><td><code>TYPE.md</code></td><td>定義輸出文件的章節結構與格式要求</td><td>Gen Subagent 生成前讀取</td></tr>
+<tr><td><code>TYPE.gen.md</code></td><td>Iron Law（必讀清單）、上游累積依賴、逐 §章節生成指令、Quality Gate 自我檢查</td><td>Gen Subagent 生成前讀取</td></tr>
+<tr><td><code>TYPE.review.md</code></td><td>審查角色定義、CRITICAL/HIGH/MEDIUM/LOW 分級審查項、每項含 Check + Risk + Fix</td><td>Review Subagent 審查前讀取</td></tr>
+</table>
+<p><strong>新增文件類型</strong>只需三步：</p>
+<ol><li>在 <code>templates/pipeline.json</code> 的 <code>steps</code> 加入新 step（id、type、layer、output、condition）</li><li>建立 <code>templates/{TYPE}.md</code>（結構骨架）</li><li>建立 <code>templates/{TYPE}.gen.md</code> + <code>templates/{TYPE}.review.md</code></li></ol>
+<p>不需修改任何 skill 程式碼。<code>gendoc-flow</code> 自動依 pipeline.json 讀取正確模板。</p>
+<h3>8.2 現有模板清單</h3>
 <table>
 <tr><th>文件</th><th>模板</th><th>對應 gen.md</th><th>層級</th><th>細粒度要求</th></tr>
 <tr><td><code>docs/IDEA.md</code></td><td><code>IDEA.md</code></td><td><code>IDEA.gen.md</code></td><td>Layer 0</td><td>問題定義、使用者、解法假設、Appendix C 素材索引</td></tr>
@@ -745,34 +761,117 @@ BDD-client：
 <tr><td><code>docs/RUNBOOK.md</code></td><td><code>runbook.md</code></td><td><code>runbook.gen.md</code></td><td>Layer 9</td><td>凌晨 3 點可直接執行，零前情提要</td></tr>
 <tr><td><code>docs/LOCAL_DEPLOY.md</code></td><td><code>LOCAL_DEPLOY.md</code></td><td><code>LOCAL_DEPLOY.gen.md</code></td><td>Layer 9</td><td>新進工程師 5 分鐘內完成本地環境</td></tr>
 <tr><td><code>docs/README.md</code></td><td><code>README.md</code></td><td><code>README.gen.md</code></td><td>Layer 10</td><td>安裝、快速開始、API 概覽</td></tr>
-<tr><td><code>docs/ALIGN_REPORT.md</code></td><td>—</td><td>align-check skill</td><td>稽核層</td><td>跨文件不一致清單</td></tr>
+<tr><td><code>docs/ALIGN_REPORT.md</code></td><td><code>ALIGN_REPORT.review.md</code></td><td>align-check skill</td><td>稽核層（D16）</td><td>跨文件不一致清單</td></tr>
 <tr><td><code>docs/blueprint/contracts/</code> <code>docs/blueprint/infra/</code> <code>docs/blueprint/scaffold/</code></td><td>—</td><td>gendoc-gen-contracts</td><td>實作層（D17）</td><td>OpenAPI 3.1 / JSON Schema / Pact / Helm / docker-compose / Seed Code</td></tr>
 <tr><td><code>docs/blueprint/mock/</code></td><td>—</td><td>gendoc-gen-mock</td><td>實作層（D18）</td><td>FastAPI main.py / data/*.json / requirements.txt / MOCK_SERVER_GUIDE.md（client_type≠api-only）</td></tr>
 <tr><td>—</td><td><code>UML-CLASS-GUIDE.md</code></td><td>靜態參考</td><td>—</td><td>Class Diagram 規範（不生成）</td></tr>
+<tr><td>—</td><td><code>pipeline.json</code></td><td>流水線定義</td><td>—</td><td>所有步驟順序、條件、輸出路徑的唯一來源</td></tr>
 </table>
 <hr>
-<h2>9. 安裝與使用</h2>
-<h3>9.1 安裝</h3>
-<pre><code class="language-bash"># Skills 安裝（22 個 skill 位於 ~/.claude/skills/gendoc-*/）
-# Templates 安裝（14 份模板位於 ~/projects/gendoc/templates/）
-# 無其他依賴，開箱即用</code></pre>
-<h3>9.2 基本使用</h3>
-<pre><code class="language-bash"># 純文字輸入
-/gendoc-auto 我想做一個 AI 驅動的客服機器人
+<h2>9. Skill 使用時機與範例</h2>
+<h3>9.1 Skill 使用時機速查</h3>
+<table>
+<tr><th>情境</th><th>建議 Skill</th><th>說明</th></tr>
+<tr><td>有新想法，從零開始</td><td><code>/gendoc</code> 或 <code>/gendoc-auto</code></td><td>自動從 IDEA 開始，生成完整藍圖</td></tr>
+<tr><td>已有 BRD，要繼續後續文件</td><td><code>/gendoc-flow</code></td><td>從 D03-PRD 開始，跑到 D19-HTML</td></tr>
+<tr><td>想重跑某一步 / 換審查強度</td><td><code>/gendoc-config</code></td><td>互動式設定 start_step、review_strategy、client_type</td></tr>
+<tr><td>某份文件品質不佳，想重新審查</td><td><code>/reviewdoc TYPE</code></td><td>例：<code>/reviewdoc API</code> → API.md Review + Fix Loop</td></tr>
+<tr><td>模板三件套設計有問題</td><td><code>/reviewtemplate TYPE</code></td><td>例：<code>/reviewtemplate EDD</code> → 審查 EDD.md + EDD.gen.md + EDD.review.md</td></tr>
+<tr><td>跨文件不一致（術語/API/欄位）</td><td><code>/gendoc-flow</code>（從 D16-ALIGN）</td><td>或直接呼叫 gendoc-align-check</td></tr>
+<tr><td>需要 FastAPI mock server</td><td><code>/gendoc-flow</code>（從 D18-MOCK）</td><td>輸出至 docs/blueprint/mock/，可獨立帶走</td></tr>
+<tr><td>需要 OpenAPI / Pact 規格</td><td><code>/gendoc-flow</code>（從 D17-CONTRACTS）</td><td>輸出至 docs/blueprint/contracts/</td></tr>
+<tr><td>更新 HTML 文件站</td><td><code>/gendoc-flow</code>（從 D19-HTML）</td><td>或 <code>/gendoc-gen-html</code></td></tr>
+<tr><td>想從某步重新開始而不清除文件</td><td><code>/gendoc-config</code> → 從某個 STEP 重新開始</td><td>保留已完成的其他文件</td></tr>
+<tr><td>安裝最新版 skill</td><td><code>/gendoc-update</code></td><td>從 GitHub 拉取最新版本</td></tr>
+</table>
+<h3>9.2 使用範例</h3>
+<h4>場景一：全新專案，從零到 HTML 文件站</h4>
+<pre><code class="language-bash"># 方法 A：最簡單，一行搞定
+/gendoc-auto 我想做一個訂餐系統，支援多店家、線上支付、即時訂單追蹤
 
-# URL 輸入
-/gendoc-auto https://github.com/some/repo
+# 方法 B：從本地需求文件開始
+/gendoc-auto ~/Downloads/requirement.pdf
 
-# 本地目錄輸入
-/gendoc-auto ~/projects/my-existing-app
+# 方法 C：從現有 GitHub repo 逆向生成文件
+/gendoc-auto https://github.com/yourteam/your-app</code></pre>
+<p>gendoc-auto 完成後，gendoc-flow 自動接手，跑完 D03–D19，最終產出 GitHub Pages 文件站。</p>
+<hr>
+<h4>場景二：設定 Review 強度與專案類型</h4>
+<pre><code class="language-bash">/gendoc-config</code></pre>
+<p>互動選單：</p>
+<ul><li>選「重新跑全部流程」→ 選 <code>exhaustive</code>（關鍵系統，無限輪次直到 finding=0）</li><li>選「只更換審查強度」→ 選 <code>rapid</code>（小型文件，快速驗收）</li><li>選「手動設定 client_type」→ 選 <code>game</code>（遊戲專案，啟用 AUDIO + ANIM 步驟）</li></ul>
+<hr>
+<h4>場景三：已有 API 設計，從 D08 插入流水線</h4>
+<pre><code class="language-bash">/gendoc-config
+# → 選「從某個 STEP 重新開始」
+# → 選「D08-API：API 設計文件生成」
 
-# 已有 BRD 直接進入流水線
 /gendoc-flow
+# 從 D08 開始，重新生成 API.md → SCHEMA.md → ... → D19-HTML</code></pre>
+<hr>
+<h4>場景四：單獨重新審查某份文件</h4>
+<pre><code class="language-bash"># 審查 EDD.md（含 Review + Fix Loop，直到 finding=0 或達 max_rounds）
+/reviewdoc EDD
 
-# 設定執行模式與 Review 策略
-/gendoc-config</code></pre>
-<h3>9.3 設定模式</h3>
-<ul><li><strong>gendoc-auto</strong>：直接執行，Full-Auto 模式，無任何問答</li><li><strong>gendoc-config</strong>：互動設定執行模式、Review 策略、從哪個 STEP 重跑</li></ul>
+# 審查 API.md
+/reviewdoc API
+
+# 審查 SCHEMA.md
+/reviewdoc SCHEMA</code></pre>
+<hr>
+<h4>場景五：只需要 Mock Server（前端開發用）</h4>
+<pre><code class="language-bash">/gendoc-config
+# → 選「從某個 STEP 重新開始」→「D18-MOCK」
+
+/gendoc-flow
+# 生成 docs/blueprint/mock/
+# 目錄結構：
+#   main.py           ← FastAPI app（含 CORS、Pydantic models、CRUD）
+#   requirements.txt  ← fastapi + uvicorn
+#   data/             ← 各資源的 JSON 假資料（normal + empty 情境）
+#   MOCK_SERVER_GUIDE.md ← Windows/macOS 安裝啟動手冊
+
+# 前端工程師拿到 mock/ 目錄後：
+pip install -r requirements.txt
+uvicorn main:app --reload
+# → http://localhost:8000/docs  （Swagger UI）</code></pre>
+<hr>
+<h4>場景六：審查並修復模板品質</h4>
+<pre><code class="language-bash"># 審查 AUDIO 模板三件套（適合新增模板後驗證品質）
+/reviewtemplate AUDIO
+
+# 審查 EDD 模板
+/reviewtemplate EDD</code></pre>
+<p>輸出：CRITICAL/HIGH/MEDIUM/LOW findings → 自動 Fix → 最多 max_rounds 輪 → Summary。</p>
+<hr>
+<h4>場景七：跨文件對齊掃描</h4>
+<pre><code class="language-bash">/gendoc-config
+# → 從 D16-ALIGN 重新開始
+
+/gendoc-flow
+# gendoc-align-check 掃描四維度：
+#   - 術語一致性（API 名稱、欄位名稱）
+#   - Schema 欄位與 API request/response 對齊
+#   - Test Plan 與 BDD Scenario 覆蓋對齊
+#   - RTM 追溯完整性
+# 輸出：docs/ALIGN_REPORT.md + 自動修復（D16-ALIGN-F）</code></pre>
+<h3>9.3 安裝</h3>
+<pre><code class="language-bash"># 克隆專案
+git clone https://github.com/ibalasite/gendoc.git ~/projects/gendoc
+
+# 安裝 skills 到 ~/.claude/skills/（共 17 個 skill）
+cd ~/projects/gendoc &amp;&amp; bash install.sh
+
+# 驗證安裝（Claude Code 中）
+/gendoc-auto 測試</code></pre>
+<p><strong>系統需求</strong>：Claude Code CLI、Python 3.x（gen_html.py）、<code>pip</code>（mock server 使用）</p>
+<h3>9.4 設定模式對照</h3>
+<table>
+<tr><th>模式</th><th>入口</th><th>特性</th></tr>
+<tr><td>Full-Auto</td><td><code>/gendoc-auto</code> 或 <code>/gendoc-flow</code></td><td>AI 自動選所有預設值，無問答，適合批量生成</td></tr>
+<tr><td>Interactive</td><td><code>/gendoc-config</code> 設定後執行</td><td>關鍵決策點等待確認，適合首次設定或調整策略</td></tr>
+<tr><td>斷點續行</td><td><code>/gendoc-flow</code>（有 state file）</td><td>自動從上次中斷點繼續，不重複已完成步驟</td></tr>
+</table>
 <hr>
 <h2>10. 未來規劃（Out of Scope v1.0）</h2>
 <ul><li>與外部完整 SDLC 流水線的雙向同步（已有 BRD 可直接銜接自動化開發流程）</li><li>多語言文件輸出（目前以中文為主，英文模板為輔）</li><li>文件版本差異比較（diff-based document review）</li><li>CI/CD 觸發自動文件更新（code change → doc refresh）</li><li>程式碼品質反推文件更新（如 test coverage &lt; 80% → 自動更新 test-plan 缺口）</li></ul>

@@ -896,7 +896,33 @@ Review finding 的嚴重等級涵蓋：
 
 ---
 
-## 8. 模板清單
+## 8. 模板系統
+
+### 8.1 模板三件套設計
+
+每種文件類型由三個檔案組成，放在 `templates/` 目錄：
+
+```
+templates/
+├── {TYPE}.md          ← 文件結構骨架（章節標題 + placeholder 說明）
+├── {TYPE}.gen.md      ← AI 生成規則（Iron Law、專家角色、逐章節生成步驟、Quality Gate）
+└── {TYPE}.review.md   ← 審查標準（CRITICAL/HIGH/MEDIUM/LOW 審查項、Fix 指引）
+```
+
+| 檔案 | 用途 | 讀取時機 |
+|------|------|---------|
+| `TYPE.md` | 定義輸出文件的章節結構與格式要求 | Gen Subagent 生成前讀取 |
+| `TYPE.gen.md` | Iron Law（必讀清單）、上游累積依賴、逐 §章節生成指令、Quality Gate 自我檢查 | Gen Subagent 生成前讀取 |
+| `TYPE.review.md` | 審查角色定義、CRITICAL/HIGH/MEDIUM/LOW 分級審查項、每項含 Check + Risk + Fix | Review Subagent 審查前讀取 |
+
+**新增文件類型**只需三步：
+1. 在 `templates/pipeline.json` 的 `steps` 加入新 step（id、type、layer、output、condition）
+2. 建立 `templates/{TYPE}.md`（結構骨架）
+3. 建立 `templates/{TYPE}.gen.md` + `templates/{TYPE}.review.md`
+
+不需修改任何 skill 程式碼。`gendoc-flow` 自動依 pipeline.json 讀取正確模板。
+
+### 8.2 現有模板清單
 
 | 文件 | 模板 | 對應 gen.md | 層級 | 細粒度要求 |
 |------|------|------------|------|-----------|
@@ -919,46 +945,165 @@ Review finding 的嚴重等級涵蓋：
 | `docs/RUNBOOK.md` | `runbook.md` | `runbook.gen.md` | Layer 9 | 凌晨 3 點可直接執行，零前情提要 |
 | `docs/LOCAL_DEPLOY.md` | `LOCAL_DEPLOY.md` | `LOCAL_DEPLOY.gen.md` | Layer 9 | 新進工程師 5 分鐘內完成本地環境 |
 | `docs/README.md` | `README.md` | `README.gen.md` | Layer 10 | 安裝、快速開始、API 概覽 |
-| `docs/ALIGN_REPORT.md` | — | align-check skill | 稽核層 | 跨文件不一致清單 |
+| `docs/ALIGN_REPORT.md` | `ALIGN_REPORT.review.md` | align-check skill | 稽核層（D16） | 跨文件不一致清單 |
 | `docs/blueprint/contracts/` `docs/blueprint/infra/` `docs/blueprint/scaffold/` | — | gendoc-gen-contracts | 實作層（D17） | OpenAPI 3.1 / JSON Schema / Pact / Helm / docker-compose / Seed Code |
 | `docs/blueprint/mock/` | — | gendoc-gen-mock | 實作層（D18） | FastAPI main.py / data/*.json / requirements.txt / MOCK_SERVER_GUIDE.md（client_type≠api-only） |
 | — | `UML-CLASS-GUIDE.md` | 靜態參考 | — | Class Diagram 規範（不生成） |
+| — | `pipeline.json` | 流水線定義 | — | 所有步驟順序、條件、輸出路徑的唯一來源 |
 
 ---
 
-## 9. 安裝與使用
+## 9. Skill 使用時機與範例
 
-### 9.1 安裝
+### 9.1 Skill 使用時機速查
+
+| 情境 | 建議 Skill | 說明 |
+|------|-----------|------|
+| 有新想法，從零開始 | `/gendoc` 或 `/gendoc-auto` | 自動從 IDEA 開始，生成完整藍圖 |
+| 已有 BRD，要繼續後續文件 | `/gendoc-flow` | 從 D03-PRD 開始，跑到 D19-HTML |
+| 想重跑某一步 / 換審查強度 | `/gendoc-config` | 互動式設定 start_step、review_strategy、client_type |
+| 某份文件品質不佳，想重新審查 | `/reviewdoc TYPE` | 例：`/reviewdoc API` → API.md Review + Fix Loop |
+| 模板三件套設計有問題 | `/reviewtemplate TYPE` | 例：`/reviewtemplate EDD` → 審查 EDD.md + EDD.gen.md + EDD.review.md |
+| 跨文件不一致（術語/API/欄位） | `/gendoc-flow`（從 D16-ALIGN） | 或直接呼叫 gendoc-align-check |
+| 需要 FastAPI mock server | `/gendoc-flow`（從 D18-MOCK） | 輸出至 docs/blueprint/mock/，可獨立帶走 |
+| 需要 OpenAPI / Pact 規格 | `/gendoc-flow`（從 D17-CONTRACTS） | 輸出至 docs/blueprint/contracts/ |
+| 更新 HTML 文件站 | `/gendoc-flow`（從 D19-HTML） | 或 `/gendoc-gen-html` |
+| 想從某步重新開始而不清除文件 | `/gendoc-config` → 從某個 STEP 重新開始 | 保留已完成的其他文件 |
+| 安裝最新版 skill | `/gendoc-update` | 從 GitHub 拉取最新版本 |
+
+### 9.2 使用範例
+
+#### 場景一：全新專案，從零到 HTML 文件站
 
 ```bash
-# Skills 安裝（22 個 skill 位於 ~/.claude/skills/gendoc-*/）
-# Templates 安裝（14 份模板位於 ~/projects/gendoc/templates/）
-# 無其他依賴，開箱即用
+# 方法 A：最簡單，一行搞定
+/gendoc-auto 我想做一個訂餐系統，支援多店家、線上支付、即時訂單追蹤
+
+# 方法 B：從本地需求文件開始
+/gendoc-auto ~/Downloads/requirement.pdf
+
+# 方法 C：從現有 GitHub repo 逆向生成文件
+/gendoc-auto https://github.com/yourteam/your-app
 ```
 
-### 9.2 基本使用
+gendoc-auto 完成後，gendoc-flow 自動接手，跑完 D03–D19，最終產出 GitHub Pages 文件站。
+
+---
+
+#### 場景二：設定 Review 強度與專案類型
 
 ```bash
-# 純文字輸入
-/gendoc-auto 我想做一個 AI 驅動的客服機器人
-
-# URL 輸入
-/gendoc-auto https://github.com/some/repo
-
-# 本地目錄輸入
-/gendoc-auto ~/projects/my-existing-app
-
-# 已有 BRD 直接進入流水線
-/gendoc-flow
-
-# 設定執行模式與 Review 策略
 /gendoc-config
 ```
 
-### 9.3 設定模式
+互動選單：
+- 選「重新跑全部流程」→ 選 `exhaustive`（關鍵系統，無限輪次直到 finding=0）
+- 選「只更換審查強度」→ 選 `rapid`（小型文件，快速驗收）
+- 選「手動設定 client_type」→ 選 `game`（遊戲專案，啟用 AUDIO + ANIM 步驟）
 
-- **gendoc-auto**：直接執行，Full-Auto 模式，無任何問答
-- **gendoc-config**：互動設定執行模式、Review 策略、從哪個 STEP 重跑
+---
+
+#### 場景三：已有 API 設計，從 D08 插入流水線
+
+```bash
+/gendoc-config
+# → 選「從某個 STEP 重新開始」
+# → 選「D08-API：API 設計文件生成」
+
+/gendoc-flow
+# 從 D08 開始，重新生成 API.md → SCHEMA.md → ... → D19-HTML
+```
+
+---
+
+#### 場景四：單獨重新審查某份文件
+
+```bash
+# 審查 EDD.md（含 Review + Fix Loop，直到 finding=0 或達 max_rounds）
+/reviewdoc EDD
+
+# 審查 API.md
+/reviewdoc API
+
+# 審查 SCHEMA.md
+/reviewdoc SCHEMA
+```
+
+---
+
+#### 場景五：只需要 Mock Server（前端開發用）
+
+```bash
+/gendoc-config
+# → 選「從某個 STEP 重新開始」→「D18-MOCK」
+
+/gendoc-flow
+# 生成 docs/blueprint/mock/
+# 目錄結構：
+#   main.py           ← FastAPI app（含 CORS、Pydantic models、CRUD）
+#   requirements.txt  ← fastapi + uvicorn
+#   data/             ← 各資源的 JSON 假資料（normal + empty 情境）
+#   MOCK_SERVER_GUIDE.md ← Windows/macOS 安裝啟動手冊
+
+# 前端工程師拿到 mock/ 目錄後：
+pip install -r requirements.txt
+uvicorn main:app --reload
+# → http://localhost:8000/docs  （Swagger UI）
+```
+
+---
+
+#### 場景六：審查並修復模板品質
+
+```bash
+# 審查 AUDIO 模板三件套（適合新增模板後驗證品質）
+/reviewtemplate AUDIO
+
+# 審查 EDD 模板
+/reviewtemplate EDD
+```
+
+輸出：CRITICAL/HIGH/MEDIUM/LOW findings → 自動 Fix → 最多 max_rounds 輪 → Summary。
+
+---
+
+#### 場景七：跨文件對齊掃描
+
+```bash
+/gendoc-config
+# → 從 D16-ALIGN 重新開始
+
+/gendoc-flow
+# gendoc-align-check 掃描四維度：
+#   - 術語一致性（API 名稱、欄位名稱）
+#   - Schema 欄位與 API request/response 對齊
+#   - Test Plan 與 BDD Scenario 覆蓋對齊
+#   - RTM 追溯完整性
+# 輸出：docs/ALIGN_REPORT.md + 自動修復（D16-ALIGN-F）
+```
+
+### 9.3 安裝
+
+```bash
+# 克隆專案
+git clone https://github.com/ibalasite/gendoc.git ~/projects/gendoc
+
+# 安裝 skills 到 ~/.claude/skills/（共 17 個 skill）
+cd ~/projects/gendoc && bash install.sh
+
+# 驗證安裝（Claude Code 中）
+/gendoc-auto 測試
+```
+
+**系統需求**：Claude Code CLI、Python 3.x（gen_html.py）、`pip`（mock server 使用）
+
+### 9.4 設定模式對照
+
+| 模式 | 入口 | 特性 |
+|------|------|------|
+| Full-Auto | `/gendoc-auto` 或 `/gendoc-flow` | AI 自動選所有預設值，無問答，適合批量生成 |
+| Interactive | `/gendoc-config` 設定後執行 | 關鍵決策點等待確認，適合首次設定或調整策略 |
+| 斷點續行 | `/gendoc-flow`（有 state file） | 自動從上次中斷點繼續，不重複已完成步驟 |
 
 ---
 
