@@ -395,37 +395,29 @@ Feature: 使用者登入
 
 ## 5. Skill 架構與流程
 
-### 5.1 Skill 清單（25 個）
+### 5.1 Skill 清單（17 個）
+
+> 標準文件生成（IDEA/BRD/PRD/EDD/API/SCHEMA…）由 `gendoc-flow` 透過 `templates/*.gen.md` 派送 subagent 執行，不以獨立 skill 存在。
 
 | 分層 | Skill 名稱 | 功能 |
 |------|-----------|------|
-| **入口層** | `gendoc-auto` | 任意輸入→IDEA+BRD→移交 gendoc-flow |
-| **流水線層** | `gendoc-flow` | 純文件生成流水線（PRD→BDD→HTML），含 P-14/P-15 |
+| **入口層** | `gendoc` | 快捷入口，自動判斷從 gendoc-auto 或 gendoc-flow 進入 |
+| | `gendoc-auto` | 任意輸入→IDEA+BRD→移交 gendoc-flow |
+| **流水線層** | `gendoc-flow` | 完整文件生成流水線（D03–D19），含 P-14/P-15 |
 | **設定層** | `gendoc-config` | 互動設定執行模式、Review 策略、client_type、重跑起點 |
-| **共用層** | `gendoc-shared` | 共用邏輯參考（狀態管理、Review 策略） |
-| **更新層** | `gendoc-update` | 版本自動更新 |
-| **生成層** | `gendoc-gen-idea` | 生成 IDEA.md |
-| | `gendoc-gen-brd` | 生成 BRD.md |
-| | `gendoc-gen-prd` | 生成 PRD.md |
-| | `gendoc-gen-pdd` | 生成 PDD.md（client_type≠api-only） |
-| | `gendoc-gen-edd` | 生成 EDD.md（含 class + method 細節） |
-| | `gendoc-gen-arch` | 生成 ARCH.md（含 sequence diagram） |
-| | `gendoc-gen-api` | 生成 API.md（含完整 request/response schema） |
-| | `gendoc-gen-schema` | 生成 SCHEMA.md（含完整 DDL + index 策略） |
-| | `gendoc-gen-test-plan` | 生成 test-plan.md（含 BVA + EP 具體值）+ RTM.md |
-| | `gendoc-gen-bdd` | 生成 BDD.md（含 edge case Scenario） |
-| | `gendoc-gen-diagrams` | 生成 9 大 UML 圖 + class-inventory.md（D07b-UML） |
-| | `gendoc-gen-readme` | 生成 README.md |
-| | `gendoc-gen-contracts` | 提取機器可讀規格到 docs/blueprint/（OpenAPI/Schema/Pact/IaC/Seed Code，D17） |
+| **共用層** | `gendoc-shared` | 共用邏輯參考（狀態管理、Review 策略、STEP_SEQUENCE） |
+| **更新層** | `gendoc-update` | 版本自動更新（從 GitHub 拉取最新 skill） |
+| **特殊生成層** | `gendoc-gen-diagrams` | 生成 9 大 UML 圖 + class-inventory.md（D07b-UML） |
+| | `gendoc-gen-client-bdd` | 生成客戶端 BDD feature files（D12b，client_type≠api-only） |
+| | `gendoc-gen-prototype` | 生成可互動 HTML 原型：UI 原型（web/game）或 API Explorer（api-only） |
+| | `gendoc-gen-contracts` | 提取機器可讀規格至 docs/blueprint/（OpenAPI/Schema/Pact/IaC/Seed Code，D17） |
 | | `gendoc-gen-mock` | 生成 FastAPI mock server + 擬真假資料 + 使用手冊（docs/blueprint/mock/，D18） |
-| | `gendoc-gen-html` | 生成靜態 HTML 文件網站（D19） |
-| | `gendoc-gen-client-bdd` | 生成客戶端 BDD feature files（client_type≠api-only） |
-| | `gendoc-gen-prototype` | 生成可互動 HTML 原型：UI 原型（web/game）或 API Explorer（api-only，模擬 Postman） |
-| **Review 層** | `gendoc-align-check` | 跨文件對齊審查（D16） |
-| | `gendoc-align-fix` | 自動修復對齊問題 |
-| | `reviewdoc` | 單一文件審查 + Fix Loop（任意 TYPE） |
+| | `gendoc-gen-html` | 生成靜態 HTML 文件網站（先呼叫 gen-readme，再轉換 MD→HTML，D19） |
+| **Review 層** | `gendoc-align-check` | 四維度跨文件對齊審查（D16），輸出 ALIGN_REPORT.md |
+| | `gendoc-align-fix` | 自動修復對齊問題（D16-ALIGN-F） |
+| | `reviewdoc` | 單一文件 Review + Fix Loop（任意 TYPE） |
 | | `reviewtemplate` | 模板三件套品質審查與修復 loop（TYPE.md + .gen.md + .review.md） |
-| **維護層** | `gendoc-rebuild-templates` | 從頭重建所有文件模板 |
+| **維護層** | `gendoc-rebuild-templates` | 從頭重建所有文件模板（緊急修復用） |
 
 ### 5.2 完整流程圖（SOP）
 

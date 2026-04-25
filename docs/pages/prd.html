@@ -340,36 +340,27 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
     And 帳號的 failed_attempts 重置為 0</code></pre>
 <hr>
 <h2>5. Skill 架構與流程</h2>
-<h3>5.1 Skill 清單（25 個）</h3>
+<h3>5.1 Skill 清單（17 個）</h3>
+<blockquote><p>標準文件生成（IDEA/BRD/PRD/EDD/API/SCHEMA…）由 <code>gendoc-flow</code> 透過 <code>templates/*.gen.md</code> 派送 subagent 執行，不以獨立 skill 存在。</p></blockquote>
 <table>
 <tr><th>分層</th><th>Skill 名稱</th><th>功能</th></tr>
-<tr><td><strong>入口層</strong></td><td><code>gendoc-auto</code></td><td>任意輸入→IDEA+BRD→移交 gendoc-flow</td></tr>
-<tr><td><strong>流水線層</strong></td><td><code>gendoc-flow</code></td><td>純文件生成流水線（PRD→BDD→HTML），含 P-14/P-15</td></tr>
+<tr><td><strong>入口層</strong></td><td><code>gendoc</code></td><td>快捷入口，自動判斷從 gendoc-auto 或 gendoc-flow 進入</td></tr>
+<tr><td></td><td><code>gendoc-auto</code></td><td>任意輸入→IDEA+BRD→移交 gendoc-flow</td></tr>
+<tr><td><strong>流水線層</strong></td><td><code>gendoc-flow</code></td><td>完整文件生成流水線（D03–D19），含 P-14/P-15</td></tr>
 <tr><td><strong>設定層</strong></td><td><code>gendoc-config</code></td><td>互動設定執行模式、Review 策略、client_type、重跑起點</td></tr>
-<tr><td><strong>共用層</strong></td><td><code>gendoc-shared</code></td><td>共用邏輯參考（狀態管理、Review 策略）</td></tr>
-<tr><td><strong>更新層</strong></td><td><code>gendoc-update</code></td><td>版本自動更新</td></tr>
-<tr><td><strong>生成層</strong></td><td><code>gendoc-gen-idea</code></td><td>生成 IDEA.md</td></tr>
-<tr><td></td><td><code>gendoc-gen-brd</code></td><td>生成 BRD.md</td></tr>
-<tr><td></td><td><code>gendoc-gen-prd</code></td><td>生成 PRD.md</td></tr>
-<tr><td></td><td><code>gendoc-gen-pdd</code></td><td>生成 PDD.md（client_type≠api-only）</td></tr>
-<tr><td></td><td><code>gendoc-gen-edd</code></td><td>生成 EDD.md（含 class + method 細節）</td></tr>
-<tr><td></td><td><code>gendoc-gen-arch</code></td><td>生成 ARCH.md（含 sequence diagram）</td></tr>
-<tr><td></td><td><code>gendoc-gen-api</code></td><td>生成 API.md（含完整 request/response schema）</td></tr>
-<tr><td></td><td><code>gendoc-gen-schema</code></td><td>生成 SCHEMA.md（含完整 DDL + index 策略）</td></tr>
-<tr><td></td><td><code>gendoc-gen-test-plan</code></td><td>生成 test-plan.md（含 BVA + EP 具體值）+ RTM.md</td></tr>
-<tr><td></td><td><code>gendoc-gen-bdd</code></td><td>生成 BDD.md（含 edge case Scenario）</td></tr>
-<tr><td></td><td><code>gendoc-gen-diagrams</code></td><td>生成 9 大 UML 圖 + class-inventory.md（D07b-UML）</td></tr>
-<tr><td></td><td><code>gendoc-gen-readme</code></td><td>生成 README.md</td></tr>
-<tr><td></td><td><code>gendoc-gen-contracts</code></td><td>提取機器可讀規格到 docs/blueprint/（OpenAPI/Schema/Pact/IaC/Seed Code，D17）</td></tr>
+<tr><td><strong>共用層</strong></td><td><code>gendoc-shared</code></td><td>共用邏輯參考（狀態管理、Review 策略、STEP_SEQUENCE）</td></tr>
+<tr><td><strong>更新層</strong></td><td><code>gendoc-update</code></td><td>版本自動更新（從 GitHub 拉取最新 skill）</td></tr>
+<tr><td><strong>特殊生成層</strong></td><td><code>gendoc-gen-diagrams</code></td><td>生成 9 大 UML 圖 + class-inventory.md（D07b-UML）</td></tr>
+<tr><td></td><td><code>gendoc-gen-client-bdd</code></td><td>生成客戶端 BDD feature files（D12b，client_type≠api-only）</td></tr>
+<tr><td></td><td><code>gendoc-gen-prototype</code></td><td>生成可互動 HTML 原型：UI 原型（web/game）或 API Explorer（api-only）</td></tr>
+<tr><td></td><td><code>gendoc-gen-contracts</code></td><td>提取機器可讀規格至 docs/blueprint/（OpenAPI/Schema/Pact/IaC/Seed Code，D17）</td></tr>
 <tr><td></td><td><code>gendoc-gen-mock</code></td><td>生成 FastAPI mock server + 擬真假資料 + 使用手冊（docs/blueprint/mock/，D18）</td></tr>
-<tr><td></td><td><code>gendoc-gen-html</code></td><td>生成靜態 HTML 文件網站（D19）</td></tr>
-<tr><td></td><td><code>gendoc-gen-client-bdd</code></td><td>生成客戶端 BDD feature files（client_type≠api-only）</td></tr>
-<tr><td></td><td><code>gendoc-gen-prototype</code></td><td>生成可互動 HTML 原型：UI 原型（web/game）或 API Explorer（api-only，模擬 Postman）</td></tr>
-<tr><td><strong>Review 層</strong></td><td><code>gendoc-align-check</code></td><td>跨文件對齊審查（D16）</td></tr>
-<tr><td></td><td><code>gendoc-align-fix</code></td><td>自動修復對齊問題</td></tr>
-<tr><td></td><td><code>reviewdoc</code></td><td>單一文件審查 + Fix Loop（任意 TYPE）</td></tr>
+<tr><td></td><td><code>gendoc-gen-html</code></td><td>生成靜態 HTML 文件網站（先呼叫 gen-readme，再轉換 MD→HTML，D19）</td></tr>
+<tr><td><strong>Review 層</strong></td><td><code>gendoc-align-check</code></td><td>四維度跨文件對齊審查（D16），輸出 ALIGN_REPORT.md</td></tr>
+<tr><td></td><td><code>gendoc-align-fix</code></td><td>自動修復對齊問題（D16-ALIGN-F）</td></tr>
+<tr><td></td><td><code>reviewdoc</code></td><td>單一文件 Review + Fix Loop（任意 TYPE）</td></tr>
 <tr><td></td><td><code>reviewtemplate</code></td><td>模板三件套品質審查與修復 loop（TYPE.md + .gen.md + .review.md）</td></tr>
-<tr><td><strong>維護層</strong></td><td><code>gendoc-rebuild-templates</code></td><td>從頭重建所有文件模板</td></tr>
+<tr><td><strong>維護層</strong></td><td><code>gendoc-rebuild-templates</code></td><td>從頭重建所有文件模板（緊急修復用）</td></tr>
 </table>
 <h3>5.2 完整流程圖（SOP）</h3>
 <p>每個標準步驟執行<strong>三專家子代理模式</strong>：Gen ⚙ → Review ↻ → Fix ✎ → Commit ↑，直至 finding = 0 或達 max_rounds。</p>
