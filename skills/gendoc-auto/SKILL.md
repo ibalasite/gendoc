@@ -549,15 +549,21 @@ try: d=json.load(open('${_STATE_FILE}'))
 except: d={}
 text=' '.join([d.get('key_features',''),d.get('target_users',''),
                d.get('project_type',''),d.get('input_summary','')]).lower()
-game_kw=['game','arcade','unity','cocos','webgl','opengl','phaser','pixijs',
+game_kw=['game','arcade','unity','cocos','phaser','pixijs','godot','unreal',
+         'canvas','webgl','opengl','directx','vulkan','metal',
          '遊戲','魚機','博弈','遊藝','投幣','玩家','角色','場景',
-         '卡牌','棋牌','捕魚','電子遊戲','老虎機','水果機']
-ui_kw  =['ui','ux','interface','screen','display','frontend','front-end',
-         'dashboard','portal','panel','page','view','layout','widget',
-         '介面','畫面','螢幕','顯示','前端','操作面板','儀表板','視覺',
-         '按鈕','頁面','視窗','彈窗','選單',
-         'web','html','css','react','vue','angular','svelte',
+         '卡牌','棋牌','捕魚','電子遊戲','老虎機','水果機',
+         '捕魚達人','麻將','鬥地主','百家樂',
+         'sprite','tilemap','collision','physics engine','particle system',
+         '音效','fps','render loop']
+ui_kw  =['ui','ux','frontend','front-end','web','html','css',
+         'react','vue','angular','svelte','nextjs','nuxt',
          'app','mobile','native','ios','android','flutter','swift','kotlin',
+         'react native','expo',
+         'interface','screen','display','dashboard','portal','panel',
+         'page','view','layout','widget','button','form',
+         '介面','畫面','螢幕','顯示','前端','操作面板','儀表板','視覺',
+         '按鈕','頁面','視窗','彈窗','選單','使用者介面',
          'client','客戶端','用戶端']
 if any(k in text for k in game_kw): print('game')
 elif any(k in text for k in ui_kw): print('web')

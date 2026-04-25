@@ -675,6 +675,8 @@ SLO / SLI 矩陣（P50/P95/P99 均必須有具體數字）：
 
 在將文件交給 Review Agent 之前，Gen Agent 必須驗證以下項目。**任何一項不合格，必須先修復再繼續**。
 
+> **讀取 lang_stack 方式**：`python3 -c "import json; print(json.load(open('.gendoc-state.json')).get('lang_stack','unknown'))"`
+
 | 檢查項 | 合格標準 | 不合格處理 |
 |--------|---------|-----------|
 | 所有 §章節齊全 | 對照 test-plan.md 章節清單，無缺失章節 | 補寫缺失章節 |

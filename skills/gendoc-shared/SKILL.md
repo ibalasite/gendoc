@@ -693,6 +693,8 @@ test-plan > RTM
 print("[UPSTREAM_CONFLICT] 發現衝突：<文件A> §N vs <文件B> §M，內容：<摘要>")
 print("[UPSTREAM_CONFLICT] 解決方式：依優先級選用 <文件X> 版本：<具體值>")
 # 寫入 state conflict_resolutions 陣列
+if 'conflict_resolutions' not in d:
+    d['conflict_resolutions'] = []
 d['conflict_resolutions'].append({
     "step": step_id,
     "conflict": "<摘要>",

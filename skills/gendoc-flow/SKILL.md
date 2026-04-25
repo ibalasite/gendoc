@@ -520,7 +520,12 @@ def python3_extract_lang_stack():
                 update_state_lang_stack(_lang_stack_new)
                 print(f"[P-15] ✅ lang_stack 已從 EDD.md 提取並鎖定：{_lang_stack_new}")
             else:
-                print(f"[P-15] ⚠️  無法從 EDD.md 提取 lang_stack，保留現有值：{_lang_stack_current or '(空)'}")
+                # N-06 Fallback：正規表達式失敗時，指示 Gen Agent 手動讀取
+                print(f"[P-15] ⚠️  正規表達式均未能自動提取 lang_stack（現有值：{_lang_stack_current or '(空)'}）")
+                print(f"[P-15] [FALLBACK — 必須執行] 請直接讀取 docs/EDD.md 的 §語言/框架 章節，")
+                print(f"[P-15]   找出技術棧選型（例如 'Python/FastAPI + React/TypeScript'），")
+                print(f"[P-15]   然後呼叫 update_state_lang_stack('<語言棧>') 寫入 state 並鎖定。")
+                print(f"[P-15]   若 EDD.md 中也無明確聲明，以 EDD Gen Agent 在 §語言/框架 所選定的值填入，不得留空。")
         else:
             print(f"[P-15] ⏭️  lang_stack 已鎖定（{_lang_stack_current}），跳過提取")
 
@@ -562,6 +567,9 @@ if step.get("special_skill"):
 用 Skill 工具呼叫 step["special_skill"]，不帶額外 args。
 等待完成後：
   git add {step.output}
+  # §8-B Pre-Commit Scan
+  _BARE=$(python3 -c "import re,sys; from pathlib import Path; p=re.compile(r'(?<!\w)\{\{([A-Z][A-Z0-9_]*)\}\}(?!\s*[：:\-—])'); a=re.compile(r'\{\{.+?\}\}.*[：:\-—]'); total=sum(1 for f in Path('docs').glob('*.md') for l in f.read_text('utf-8').splitlines() if p.search(l) and not a.search(l)); print(total)" 2>/dev/null || echo "0")
+  [[ "$_BARE" -gt "0" ]] && echo "[PRE-COMMIT BLOCKED] ${_BARE} 個裸 placeholder — 修復後重試" && exit 1
   git commit -m "{step.commit_prefix}: {special_skill} 完成"
 ```
 
@@ -666,6 +674,21 @@ Gen subagent 完成後，主 Claude：
 # 依 step.output 和 step.output_glob（多文件）git add
 _OUTPUT_GLOB="${step.output_glob:-${step.output[0]}}"
 git add $_OUTPUT_GLOB 2>/dev/null || git add ${step.output} 2>/dev/null
+# §8-B Pre-Commit Scan：掃描裸 placeholder，有則阻止 commit
+_BARE=$(python3 -c "
+import re,sys
+from pathlib import Path
+p=re.compile(r'(?<!\w)\{\{([A-Z][A-Z0-9_]*)\}\}(?!\s*[：:\-—])')
+a=re.compile(r'\{\{.+?\}\}.*[：:\-—]')
+total=0
+for f in Path('docs').glob('*.md'):
+    for l in f.read_text('utf-8').splitlines():
+        if p.search(l) and not a.search(l):
+            total+=1
+            print(f'  [{f.name}] {l.strip()[:80]}',file=sys.stderr)
+print(total)
+" 2>/dev/null || echo "0")
+[[ "$_BARE" -gt "0" ]] && echo "[PRE-COMMIT BLOCKED] ${_BARE} 個裸 placeholder — Gen Agent 先修復再 commit" && exit 1
 git commit -m "${step.commit_prefix}: gen — {TYPE} 初稿生成"
 ```
 
@@ -757,6 +780,21 @@ for round in range(1, max_rounds + 1):
     else:
         commit_msg = f"{step.commit_prefix}: review-r{round} — fix {fixed_count}/{finding_total} findings\n\nFinding-Total: {finding_total}\nFinding-CHM: {critical}/{high}/{medium}\nTerminate-Reason: {terminate_reason_code}\nQuality-Status: {quality_status}"
     
+    # §8-B Pre-Commit Scan（只掃 Fix 輪，PASS 輪也掃確保 review 未引入新 placeholder）
+    _BARE=$(python3 -c "
+import re,sys
+from pathlib import Path
+p=re.compile(r'(?<!\w)\{\{([A-Z][A-Z0-9_]*)\}\}(?!\s*[：:\-—])')
+a=re.compile(r'\{\{.+?\}\}.*[：:\-—]')
+total=0
+for f in Path('docs').glob('*.md'):
+    for l in f.read_text('utf-8').splitlines():
+        if p.search(l) and not a.search(l):
+            total+=1
+            print(f'  [{f.name}] {l.strip()[:80]}',file=sys.stderr)
+print(total)
+" 2>/dev/null || echo "0")
+    [[ "$_BARE" -gt "0" ]] && echo "[PRE-COMMIT BLOCKED] ${_BARE} 個裸 placeholder — Fix Agent 先修復再 commit" && exit 1
     git commit -m "{commit_msg}"
     
     # P-02/P-07：每輪 commit 後立即寫入 review_progress（原子寫入）
@@ -1109,6 +1147,22 @@ BDD-server 和 BDD-client 是 multi_file=true 的步驟。處理差異：
 
 **git commit：**
 ```bash
+# §8-B Pre-Commit Scan — BDD
+_BARE=$(python3 -c "
+import re,sys
+from pathlib import Path
+p=re.compile(r'(?<!\w)\{\{([A-Z][A-Z0-9_]*)\}\}(?!\s*[：:\-—])')
+a=re.compile(r'\{\{.+?\}\}.*[：:\-—]')
+total=0
+for f in list(Path('features').glob('*.feature'))+list(Path('features/client').glob('*.feature') if Path('features/client').exists() else []):
+    for l in f.read_text('utf-8').splitlines():
+        if p.search(l) and not a.search(l):
+            total+=1
+            print(f'  [{f.name}] {l.strip()[:80]}',file=sys.stderr)
+print(total)
+" 2>/dev/null || echo "0")
+[[ "$_BARE" -gt "0" ]] && echo "[PRE-COMMIT BLOCKED] ${_BARE} 個裸 placeholder — Gen Agent 先修復再 commit" && exit 1
+
 # BDD-server
 _BDD_COUNT=$(ls features/*.feature 2>/dev/null | wc -l | tr -d ' ')
 git add features/

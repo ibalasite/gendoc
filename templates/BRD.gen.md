@@ -385,3 +385,21 @@ timeline
 - [ ] §19 OCM 已填寫（含 Change Champion + 採用成功指標）
 - [ ] §20 Approval Sign-off：5 個角色（Executive Sponsor / Product Lead / Engineering Lead / Finance / Legal）簽核表已建立
 - [ ] 全文無 "TBD"、"待補"、"[待填]" 等空白佔位
+
+---
+
+## Quality Gate（生成後自檢，交 Review Agent 前必須全部通過）
+
+在將文件交給 Review Agent 之前，Gen Agent 必須驗證以下項目。**任何一項不合格，必須先修復再繼續**。
+
+> **讀取 lang_stack 方式**：`python3 -c "import json; print(json.load(open('.gendoc-state.json')).get('lang_stack','unknown'))"`
+
+| 檢查項 | 合格標準 | 不合格處理 |
+|--------|---------|-----------|
+| 所有 §章節齊全 | 對照 BRD.md 章節清單，§0~§20 無缺失章節 | 補寫缺失章節 |
+| 無裸 placeholder | 每個 `{{...}}` 後有「: 說明」或具體範例值 | 補全說明或替換為具體值 |
+| PR-FAQ 完整 | §1.1 假設新聞稿 + §1.2 FAQ ≥ 5 題（含最困難問題）已填寫 | 補寫缺失段落 |
+| 財務數字完整 | TAM/SAM/SOM、ROI 三情境、Payback Period 均有具體數字（非 TBD） | 從 IDEA.md §3/§7 推算後填入 |
+| 上游術語對齊 | 產品名稱、使用者族群用語與 IDEA.md §1/§2 一致 | 以 IDEA.md 為準修正 |
+| 競品分析完整 | §6 競品比較表 ≥ 2 個競品，含資料來源 | 補充競品資料 |
+| 風險矩陣完整 | §10 風險矩陣 ≥ 5 個風險（市場/執行/技術/法規/競爭）| 補充缺失風險類別 |

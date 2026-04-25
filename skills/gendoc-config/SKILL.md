@@ -129,6 +129,7 @@ options:
   - "D06-EDD-R：EDD Review Loop"
   - "D07-ARCH：ARCH 架構文件生成"
   - "D07-ARCH-R：ARCH Review Loop"
+  - "D07b-UML：UML 圖表生成（gendoc-gen-diagrams）"
   - "D08-API：API 設計文件生成"
   - "D08-API-R：API Review Loop"
   - "D09-SCHEMA：Schema 設計文件生成"
