@@ -66,7 +66,7 @@
 <tr><td>v1.3</td><td>2026-04-24</td><td>PM Agent</td><td>補入 §5.5 Gen/Review/Fix 三專家模式與 Expert Roles 完整表；修正 §7.5/§8 BDD 模板欄位（BDD.md → BDD-server.md + BDD-client.md）；State file 完整欄位說明</td></tr>
 <tr><td>v1.2</td><td>2026-04-24</td><td>PM Agent</td><td>重建文件流水線：加入 VDD（視覺設計）、FRONTEND 獨立步驟、RTM 移至 BDD 之後；修正累積上游鏈；D01-D17 完整編號（後於 v2.1 擴展至 D01-D19）</td></tr>
 <tr><td>v1.1</td><td>2026-04-22</td><td>PM Agent</td><td>重新定位核心使命：從文件生成工具 → 可直接實作的開發藍圖生成器；補充藍圖細粒度品質標準</td></tr>
-<tr><td>v1.0</td><td>2026-04-22</td><td>PM Agent</td><td>初版 PRD，從 MYDEVSOP 文件生成子系統萃取，建立獨立 gendoc skill 套件</td></tr>
+<tr><td>v1.0</td><td>2026-04-22</td><td>PM Agent</td><td>初版 PRD，從 devsop SDLC 自動化工具萃取文件生成子系統，建立獨立 gendoc skill 套件</td></tr>
 </table>
 <hr>
 <h2>1. Executive Summary</h2>
@@ -100,15 +100,15 @@
 <ul><li>EDD 只說「需要一個 UserService 處理使用者邏輯」，但沒有列出 <code>UserService</code> 裡有哪些 method</li><li>API 文件列出端點路徑，但 request 欄位的 validation rule、error code 的 HTTP status mapping 都缺失</li><li>測試文件只說「測試登入功能」，但沒有給出：密碼長度邊界（7 / 8 / 129 / 130 字元）、特殊字元處理、並發登入、token 過期邊界等具體場景</li></ul>
 <p>結果：開發者或 AI 拿到文件後，仍需大量「填空」，等同於沒有藍圖。</p>
 <h4>問題二：AI 開發者的需求更嚴苛</h4>
-<p>當「開發者」是 AI（如 Claude Code + MYDEVSOP）時，模糊的文件直接導致錯誤實作：</p>
+<p>當「開發者」是 AI（如 Claude Code + devsop）時，模糊的文件直接導致錯誤實作：</p>
 <ul><li>class 邊界不清 → AI 可能把不同職責混在同一 class</li><li>method 簽名未定義 → AI 可能自創不相容的介面</li><li>測試情境未列 → AI 生成的 test 只覆蓋 happy path，缺少 edge case</li><li>邊界值未定義 → AI 無從判斷 <code>0 ≤ quantity ≤ 999</code> 還是 <code>1 ≤ quantity ≤ 9999</code></li></ul>
 <p><strong>gendoc 的核心假設</strong>：如果文件細到 AI 能直接實作，人類一定也能。但反過來不成立。</p>
 <h4>問題三：技術文件生成需要完整 SDLC 工具</h4>
-<p>MYDEVSOP 是一套完整的 31-STEP SDLC 自動化工具。許多場景只需文件生成能力，安裝整套是過度設計。</p>
+<p>devsop 是一套完整的 SDLC 自動化工具。許多場景只需文件生成能力，安裝整套是過度設計。</p>
 <h4>問題四：模板系統缺乏細粒度品質標準</h4>
 <p>現有模板描述「這份文件應包含哪些章節」，但沒有定義每個章節的「細粒度完成標準」。</p>
 <h3>2.2 根本原因分析</h3>
-<ul><li><strong>根本原因一</strong>：文件生成的品質目標設定錯了——目標應是「可實作」，而非「可閱讀」</li><li><strong>根本原因二</strong>：現有 AI 生成文件缺乏細粒度驗證機制，無從判斷文件是否達到「可直接實作」的標準</li><li><strong>根本原因三</strong>：MYDEVSOP 文件生成子系統與 SDLC 完整工具緊耦合，無法單獨萃取</li></ul>
+<ul><li><strong>根本原因一</strong>：文件生成的品質目標設定錯了——目標應是「可實作」，而非「可閱讀」</li><li><strong>根本原因二</strong>：現有 AI 生成文件缺乏細粒度驗證機制，無從判斷文件是否達到「可直接實作」的標準</li><li><strong>根本原因三</strong>：原有文件生成子系統與 SDLC 完整工具緊耦合，無法單獨萃取</li></ul>
 <h3>2.3 機會假設</h3>
 <table>
 <tr><th>ID</th><th>假設</th><th>驗證指標</th></tr>
@@ -784,7 +784,7 @@ BDD-client：
 <ul><li><strong>gendoc-auto</strong>：直接執行，Full-Auto 模式，無任何問答</li><li><strong>gendoc-config</strong>：互動設定執行模式、Review 策略、從哪個 STEP 重跑</li></ul>
 <hr>
 <h2>10. 未來規劃（Out of Scope v1.0）</h2>
-<ul><li>與 MYDEVSOP 完整 SDLC 流水線的雙向同步（已有 BRD 直接接 devsop-autodev）</li><li>多語言文件輸出（目前以中文為主，英文模板為輔）</li><li>文件版本差異比較（diff-based document review）</li><li>CI/CD 觸發自動文件更新（code change → doc refresh）</li><li>程式碼品質反推文件更新（如 test coverage &lt; 80% → 自動更新 test-plan 缺口）</li></ul>
+<ul><li>與 devsop 完整 SDLC 流水線的雙向同步（已有 BRD 直接接 devsop-autodev）</li><li>多語言文件輸出（目前以中文為主，英文模板為輔）</li><li>文件版本差異比較（diff-based document review）</li><li>CI/CD 觸發自動文件更新（code change → doc refresh）</li><li>程式碼品質反推文件更新（如 test coverage &lt; 80% → 自動更新 test-plan 缺口）</li></ul>
 <hr>
 <h2>11. 成功指標</h2>
 <table>
