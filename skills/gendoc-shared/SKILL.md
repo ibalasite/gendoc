@@ -456,6 +456,7 @@ STEP_SEQUENCE = {
   "D15-LOCAL_DEPLOY": "LOCAL_DEPLOY 生成",
   # 稽核層
   "D16-ALIGN":        "跨文件對齊掃描（gendoc-align-check，特殊步驟）",
+  "D16-ALIGN-F":      "對齊問題自動修復（gendoc-align-fix，特殊步驟，緊接 D16-ALIGN）",
   # 實作層
   "D17-CONTRACTS":    "機器可讀規格生成（gendoc-gen-contracts，特殊步驟）",
   "D18-MOCK":         "FastAPI Mock Server 生成（gendoc-gen-mock，特殊步驟，client_type != api-only）",
@@ -463,14 +464,14 @@ STEP_SEQUENCE = {
   "D19-HTML":         "HTML 文件網站生成（gendoc-gen-html，特殊步驟）",
 }
 
-# 23 步驟完整順序（v4.0，D-prefix 格式，與 pipeline.json 對齊）
+# 24 步驟完整順序（v4.1，D-prefix 格式，與 pipeline.json 對齊）
 STEP_ORDER = [
     "D01-IDEA", "D02-BRD", "D03-PRD", "D04-PDD", "D05-VDD",
     "D06-EDD", "D07-ARCH", "D07b-UML", "D08-API", "D09-SCHEMA",
     "D10-FRONTEND", "D10b-AUDIO", "D10c-ANIM",
     "D11-test-plan", "D12-BDD-server", "D12b-BDD-client", "D13-RTM",
     "D14-runbook", "D15-LOCAL_DEPLOY",
-    "D16-ALIGN", "D17-CONTRACTS", "D18-MOCK", "D19-HTML",
+    "D16-ALIGN", "D16-ALIGN-F", "D17-CONTRACTS", "D18-MOCK", "D19-HTML",
 ]
 ```
 
@@ -662,7 +663,7 @@ def parse_agent_result(agent_output, expected_step):
 
 - 必須在 Agent 回傳文字的**最後 5 行**內
 - 格式嚴格：`STEP_COMPLETE: {step_id}`（冒號後一個空格，然後 STEP ID）
-- STEP ID 與 `templates/pipeline.json` 中定義的 `id` 欄位一致（D-prefix 格式，如 `"D01-IDEA"`、`"D07b-UML"`、`"D18-CONTRACTS"`）
+- STEP ID 與 `templates/pipeline.json` 中定義的 `id` 欄位一致（D-prefix 格式，如 `"D01-IDEA"`、`"D07b-UML"`、`"D17-CONTRACTS"`）
 
 ---
 
@@ -846,7 +847,7 @@ docs(gendoc)[D03-PRD]: generate — PRD 含 8 US / 32 AC（Review 通過）
 docs(gendoc)[D06-EDD]: review — EDD 3 輪，0 CRITICAL 剩餘
 test(gendoc)[D12-BDD-server]: generate — Server BDD 12 feature files
 docs(gendoc)[D16-ALIGN]: align — 跨文件對齊掃描通過，0 CRITICAL
-feat(gendoc)[D18-CONTRACTS]: generate — OpenAPI 3.1 + JSON Schema + Pact + IaC + Seed Code
+feat(gendoc)[D17-CONTRACTS]: generate — OpenAPI 3.1 + JSON Schema + Pact + IaC + Seed Code
 ```
 
 ---
@@ -924,7 +925,7 @@ json.dump(d,open(f,'w'),ensure_ascii=False,indent=2)
 
 ## §13 shared-start-step【已棄用】
 
-> ⚠️ **DEPRECATED**：`gendoc_start_step` 已廢棄，請改用 state file 的 `start_step`（格式 D01-IDEA 至 D18-CONTRACTS）。
+> ⚠️ **DEPRECATED**：`gendoc_start_step` 已廢棄，請改用 state file 的 `start_step`（格式 D01-IDEA 至 D19-HTML）。
 
 ---
 
@@ -1017,7 +1018,7 @@ def detect_client_type(combined_text: str) -> str:
 | `brd_review_passed` | bool | BRD Review Loop 已通過 |
 | `handoff` | bool | 已移交下游 skill |
 | `handoff_source` | string | `gendoc-auto` |
-| `start_step` | string | gendoc-flow step ID，格式 D01-IDEA 至 D18-CONTRACTS，或 "0" 表示從頭開始 |
+| `start_step` | string | gendoc-flow step ID，格式 D01-IDEA 至 D19-HTML，或 "0" 表示從頭開始 |
 | `q1_users` | string | Q1 主要使用者澄清結果 |
 | `q2_painpoint` | string | Q2 核心痛點澄清結果 |
 | `q3_constraints` | string | Q3 技術限制澄清結果 |

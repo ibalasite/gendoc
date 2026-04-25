@@ -214,6 +214,18 @@
       "note": "特殊步驟：呼叫 gendoc-align-check skill，不走標準 gen→review 流程"
     },
     {
+      "id": "D16-ALIGN-F",
+      "type": "ALIGN-F",
+      "layer": "稽核層",
+      "output": ["docs/ALIGN_REPORT.md"],
+      "multi_file": false,
+      "condition": "always",
+      "special_skill": "gendoc-align-fix",
+      "handled_by": "gendoc-flow",
+      "commit_prefix": "docs(gendoc)[D16-ALIGN-F]",
+      "note": "特殊步驟：依 ALIGN_REPORT.md 自動修復對齊問題（all layers），每條 fix verify 後 commit。緊接 D16-ALIGN 執行。"
+    },
+    {
       "id": "D17-CONTRACTS",
       "type": "CONTRACTS",
       "layer": "實作層",

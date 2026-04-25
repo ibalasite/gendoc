@@ -396,7 +396,7 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
             D14["D14 runbook"] --> D15["D15 LOCAL_DEPLOY"]
         end
         subgraph AUDIT["稽核層"]
-            D16["D16 ALIGN ★"]
+            D16["D16 ALIGN ★"] --> D16F["D16-F ALIGN-FIX ★"]
         end
         subgraph IMPL["實作層（docs/blueprint/）"]
             direction LR
@@ -417,7 +417,7 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
     classDef specNode fill:#fef3c7,stroke:#f59e0b,color:#78350f
     classDef ioNode fill:#d1fae5,stroke:#059669,color:#064e3b
     class D04,D05,D10,D12b,D18 condNode
-    class D16,D17,D18,D19 specNode
+    class D16,D16F,D17,D18,D19 specNode
     class INPUT,DONE ioNode</pre></div>
 <h3>5.3 文件流水線依賴鏈（Pipeline Dependency Chain）</h3>
 <p>每份文件生成時<strong>必須讀取所有上游文件</strong>（累積鏈，非僅直接父文件）。以下為各文件類型的權威累積上游依賴，來源為各 <code>templates/*.gen.md</code> 的 <code>upstream-docs</code> 欄位。</p>
@@ -591,8 +591,8 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
   }</code></pre>
 <ul><li style="margin-left:1.0rem"><code>quality_status</code> 三態：<code>passed</code>（finding=0）/ <code>degraded</code>（僅 MEDIUM/LOW）/ <code>failed</code>（有 CRITICAL/HIGH）</li><li style="margin-left:1.0rem"><code>terminate_reason</code> 代碼：<code>zero_finding</code> / <code>tiered_clean</code> / <code>max_rounds</code> / <code>rapid_cap</code></li></ul>
 <p><strong>特殊步驟欄位</strong></p>
-<ul><li><code>special_completed</code>：D16-ALIGN / D17-CONTRACTS / D18-MOCK / D19-HTML 完成旗標（比 file-exists 更可靠）</li></ul>
-<pre><code class="language-json">  { &quot;D16-ALIGN&quot;: true, &quot;D17-CONTRACTS&quot;: true, &quot;D18-MOCK&quot;: true, &quot;D19-HTML&quot;: true }</code></pre>
+<ul><li><code>special_completed</code>：D16-ALIGN / D16-ALIGN-F / D17-CONTRACTS / D18-MOCK / D19-HTML 完成旗標（比 file-exists 更可靠）</li></ul>
+<pre><code class="language-json">  { &quot;D16-ALIGN&quot;: true, &quot;D16-ALIGN-F&quot;: true, &quot;D17-CONTRACTS&quot;: true, &quot;D18-MOCK&quot;: true, &quot;D19-HTML&quot;: true }</code></pre>
 <p><strong>版本與移交欄位</strong></p>
 <ul><li><code>pipeline_hash</code>：SHA256 of pipeline.json（P-11 版本漂移偵測）</li><li><code>handoff</code>：true（gendoc-auto → gendoc-flow 移交完成標記）</li><li><code>idea_review_passed</code> / <code>brd_review_passed</code>：IDEA/BRD Review Loop 通過旗標（P-01 skip guard）</li><li><code>skill_source</code>：<code>gendoc-auto</code>（防止跨套件誤用）</li></ul>
 <p><strong>專案配置欄位</strong></p>
@@ -652,6 +652,7 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
 <table>
 <tr><th>Step ID</th><th>special_skill</th><th>行為</th></tr>
 <tr><td>D16-ALIGN</td><td><code>gendoc-align-check</code></td><td>四維度跨文件對齊掃描，輸出 ALIGN_REPORT.md</td></tr>
+<tr><td>D16-ALIGN-F</td><td><code>gendoc-align-fix</code></td><td>依 ALIGN_REPORT.md 自動修復所有對齊問題（all layers），每條 fix verify 後 commit</td></tr>
 <tr><td>D17-CONTRACTS</td><td><code>gendoc-gen-contracts</code></td><td>從設計文件提取機器可讀規格：OpenAPI 3.1 YAML、JSON Schema、Pact contracts、Helm values.yaml、docker-compose.yml、Seed Code skeleton → <code>docs/blueprint/</code></td></tr>
 <tr><td>D18-MOCK</td><td><code>gendoc-gen-mock</code></td><td>生成 FastAPI mock server + 擬真假資料 JSON + MOCK_SERVER_GUIDE.md → <code>docs/blueprint/mock/</code>（整個目錄可帶走；client_type=api-only 跳過）</td></tr>
 <tr><td>D19-HTML</td><td><code>gendoc-gen-html</code></td><td>MD→HTML 轉換，先呼叫 gendoc-gen-readme，再生成 docs/pages/</td></tr>

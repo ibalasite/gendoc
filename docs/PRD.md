@@ -456,7 +456,7 @@ flowchart TD
             D14["D14 runbook"] --> D15["D15 LOCAL_DEPLOY"]
         end
         subgraph AUDIT["稽核層"]
-            D16["D16 ALIGN ★"]
+            D16["D16 ALIGN ★"] --> D16F["D16-F ALIGN-FIX ★"]
         end
         subgraph IMPL["實作層（docs/blueprint/）"]
             direction LR
@@ -477,7 +477,7 @@ flowchart TD
     classDef specNode fill:#fef3c7,stroke:#f59e0b,color:#78350f
     classDef ioNode fill:#d1fae5,stroke:#059669,color:#064e3b
     class D04,D05,D10,D12b,D18 condNode
-    class D16,D17,D18,D19 specNode
+    class D16,D16F,D17,D18,D19 specNode
     class INPUT,DONE ioNode
 ```
 
@@ -690,9 +690,9 @@ State file 記錄：
   - `terminate_reason` 代碼：`zero_finding` / `tiered_clean` / `max_rounds` / `rapid_cap`
 
 **特殊步驟欄位**
-- `special_completed`：D16-ALIGN / D17-CONTRACTS / D18-MOCK / D19-HTML 完成旗標（比 file-exists 更可靠）
+- `special_completed`：D16-ALIGN / D16-ALIGN-F / D17-CONTRACTS / D18-MOCK / D19-HTML 完成旗標（比 file-exists 更可靠）
   ```json
-  { "D16-ALIGN": true, "D17-CONTRACTS": true, "D18-MOCK": true, "D19-HTML": true }
+  { "D16-ALIGN": true, "D16-ALIGN-F": true, "D17-CONTRACTS": true, "D18-MOCK": true, "D19-HTML": true }
   ```
 
 **版本與移交欄位**
@@ -777,6 +777,7 @@ Gen Subagent 被呼叫時：
 | Step ID | special_skill | 行為 |
 |---------|--------------|------|
 | D16-ALIGN | `gendoc-align-check` | 四維度跨文件對齊掃描，輸出 ALIGN_REPORT.md |
+| D16-ALIGN-F | `gendoc-align-fix` | 依 ALIGN_REPORT.md 自動修復所有對齊問題（all layers），每條 fix verify 後 commit |
 | D17-CONTRACTS | `gendoc-gen-contracts` | 從設計文件提取機器可讀規格：OpenAPI 3.1 YAML、JSON Schema、Pact contracts、Helm values.yaml、docker-compose.yml、Seed Code skeleton → `docs/blueprint/` |
 | D18-MOCK | `gendoc-gen-mock` | 生成 FastAPI mock server + 擬真假資料 JSON + MOCK_SERVER_GUIDE.md → `docs/blueprint/mock/`（整個目錄可帶走；client_type=api-only 跳過） |
 | D19-HTML | `gendoc-gen-html` | MD→HTML 轉換，先呼叫 gendoc-gen-readme，再生成 docs/pages/ |
