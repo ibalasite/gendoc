@@ -378,22 +378,28 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
     R2 -->|"finding = 0\nhandoff = true 寫入 state"| FLOW
 
     subgraph FLOW["/gendoc-flow — 每步驟 Gen ⚙ Review ↻ Fix ✎ Commit ↑"]
+        direction TD
         subgraph REQ["需求層"]
+            direction LR
             D03["D03 PRD"] --> D04["D04 PDD ✦"] --> D05["D05 VDD ✦"]
         end
         subgraph DES["設計層"]
+            direction LR
             D06["D06 EDD"] --> D07["D07 ARCH"] --> D08["D08 API"] --> D09["D09 SCHEMA"] --> D10["D10 FRONTEND ✦"]
         end
         subgraph QA["品質層"]
+            direction LR
             D11["D11 test-plan"] --> D12["D12 BDD-server"] --> D12b["D12b BDD-client ✦"] --> D13["D13 RTM"]
         end
         subgraph OPS["運維層"]
+            direction LR
             D14["D14 runbook"] --> D15["D15 LOCAL_DEPLOY"]
         end
         subgraph AUDIT["稽核層"]
             D16["D16 ALIGN ★"]
         end
         subgraph IMPL["實作層（docs/blueprint/）"]
+            direction LR
             D17["D17 CONTRACTS ★"] --> D18["D18 MOCK ★ ✦"]
         end
         subgraph PUB["發布層"]
