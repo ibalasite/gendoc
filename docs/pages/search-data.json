@@ -7,7 +7,7 @@
   "prd.html": {
     "url": "prd.html",
     "title": "產品需求文件 (PRD)",
-    "excerpt": "PRD — Product Requirements Document\n&lt;!-- 對應學術標準：IEEE 830 (SRS)，對應業界：Google PRD / Amazon PRFAQ --&gt;\n&lt;!-- Version: v2.1 | Status: ACTIVE | DOC-I"
+    "excerpt": "PRD — Product Requirements Document\n&lt;!-- 對應學術標準：IEEE 830 (SRS)，對應業界：Google PRD / Amazon PRFAQ --&gt;\n&lt;!-- Version: v2.3 | Status: ACTIVE | DOC-I"
   },
   "client.html": {
     "url": "client.html",

@@ -1,6 +1,6 @@
 # PRD — Product Requirements Document
 <!-- 對應學術標準：IEEE 830 (SRS)，對應業界：Google PRD / Amazon PRFAQ -->
-<!-- Version: v2.1 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 -->
+<!-- Version: v2.3 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 -->
 
 ---
 
@@ -10,7 +10,7 @@
 |------|------|
 | **DOC-ID** | PRD-GENDOC-20260422 |
 | **產品名稱** | gendoc — AI-Driven Implementation Blueprint Generator |
-| **文件版本** | v2.2 |
+| **文件版本** | v2.3 |
 | **狀態** | ACTIVE |
 | **作者（PM）** | AI Product Manager Agent |
 | **日期** | 2026-04-25 |
@@ -24,6 +24,7 @@
 
 | 版本 | 日期 | 作者 | 變更摘要 |
 |------|------|------|---------|
+| v2.3 | 2026-04-25 | PM Agent | **Mermaid 跨瀏覽器相容性強化（全模板套用）**：將 `stateDiagram-v2` transition label 禁止 `<br/>` 的規則從 Frontend-only 擴展至所有會生成 stateDiagram 的 template —— `FRONTEND.gen.md` §4.2、`PDD.gen.md` §4、`PRD.gen.md` §6 均補入明確禁止聲明；`gendoc-gen-diagrams/SKILL.md` §2.8 Server State Machine 同步補齊（之前只有 Frontend 段落有此規則）。新增 `sequenceDiagram` participant 名稱禁止 `<br/>` 規則（改用 `participant alias as 簡短名稱` 格式）至 `gendoc-gen-diagrams/SKILL.md` 參與者宣告段落。新增禁止使用 Mermaid 實驗性圖表（`pie` / `xychart-beta` / `bar`）的規則至 `gendoc-gen-diagrams/SKILL.md` Step 4 注意清單 —— 跨瀏覽器相容性差，資料分佈改用 `graph TD` 或 HTML 表格替代。新增 EDD.review.md CRITICAL 審查門 `5b-sm`：stateDiagram-v2 transition label `<br/>` 檢查（Safari/Firefox 破圖風險）。根本原因：fishgame 專案 HTML 文件站出現多個 Mermaid 破圖，追溯至 `<br/>` 語法不相容問題，本版修補所有生成規則源頭。 |
 | v2.2 | 2026-04-25 | PM Agent | **Frontend UML 全覆蓋 + HTML 文件站圖表頁面 + D16-ALIGN-F 自動修復步驟**：gendoc-gen-diagrams 新增 Step 2B —— 條件觸發（`client_type != none` AND `FRONTEND.md` 存在），從 FRONTEND.md / PDD.md / VDD.md 生成 16 種前端 UML 圖（use-case / class×3 [元件層/場景控制器/Client 服務] / object / sequence×3 [WS 協議/場景切換/主遊戲交互] / state×2 [場景/UI 元件] / activity×3 [遊戲主流程/UI 互動/客戶端初始化] / component [引擎節點樹] / deployment [建構管線] / communication [WS 協議互動]），全部輸出至 `docs/diagrams/frontend-*.md`；強制規範：stateDiagram-v2 transition label 禁止使用 `<br/>` 語法（改用 `trigger [guard] / action` 格式 + `note` 區塊）。gendoc-gen-html 升級至 **v3.0.0** —— gen_html.py 新增 `scan_diagram_pages()` 掃描 `docs/diagrams/*.md`，每個圖表生成獨立 HTML 頁面（`diag-{stem}.html`）；側欄從單一「文件」區改為三區（文件 / Server UML / Frontend UML）；新增 `DIAGRAM_META` 對應 35+ 圖表類型。D16-ALIGN-F 新增至 pipeline.json（位於 D16-ALIGN 之後）—— special_skill: gendoc-align-fix，依 ALIGN_REPORT.md 逐條自動修復對齊問題，每條 fix 驗證後 commit，不走標準 gen→review 流程。 |
 | v2.1 | 2026-04-25 | PM Agent | **流水線 D17–D19 重組 + 實作藍圖目錄統一**：新增 D17-CONTRACTS（gendoc-gen-contracts）—— 從所有設計文件提取機器可讀規格（OpenAPI 3.1 YAML / JSON Schema / Pact / Helm values.yaml / Seed Code），輸出集中至 `docs/blueprint/contracts/` + `docs/blueprint/infra/` + `docs/blueprint/scaffold/`；新增 D18-MOCK（gendoc-gen-mock）—— 生成 FastAPI mock server（含擬真假資料 JSON 檔、CORS、Swagger UI、Postman 支援、Windows/macOS 跨平台啟動手冊），輸出至 `docs/blueprint/mock/`（整個目錄可帶走使用）；D19-HTML（gendoc-gen-html）後移至最後，確保 HTML 文件站可收錄所有藍圖內容；pipeline.json 更新 step 語意編號（D16=ALIGN 稽核、D17=CONTRACTS 實作、D18=MOCK 實作、D19=HTML 發布）；gendoc-config 重跑選單同步更新；gendoc-shared §5 STEP_SEQUENCE 以 D-prefix dict 格式完整對應 pipeline.json 23 步驟。 |
 | v2.0 | 2026-04-25 | PM Agent | **UML 1:1 實作完整度升級**：EDD.gen.md §4.5 和 gendoc-gen-diagrams/SKILL.md §2.1–§2.11 全面重寫——從「最少幾張、含哪些類型」升級為「開發者只有 UML 圖、沒有其他文件，也能 1:1 實作出完整系統」的精確規格。強制標準：Class Diagram 屬性 `visibility name: Type`、方法完整簽名、Enum 列全值、關聯線兩端 cardinality + role label；Sequence Diagram 每個箭頭精確方法名 + 型別 + 回傳型別、alt 分支有具體條件、每個 Mutation ≥ 3 個 Error Path；State Machine 每個 transition `trigger [guard] / action` 三段必填；Activity Diagram 泳道強制 + 決策點兩分支具體標注；Component / Deployment 技術版本 + 埠號 + 協定在每個節點和連線上都要有。驗證清單擴充為 30+ 條精確檢查項目。**Template 生成規則章節對應修正**：runbook.gen.md 補充 §8 Routine Maintenance（維護排程 / DB 維護 / Log 輪替 / 容量審查）；LOCAL_DEPLOY.gen.md 補充 §8 Test Data & Fixtures / §11 Logs & Debugging / §12 Port Reference / §13 Local HTTPS 生成規則；SCHEMA.gen.md Self-Check §3 → §2.4 Soft Delete 修正章節對應；RTM.gen.md 補充 §2 Status Code 靜態對照表生成規則。 |
