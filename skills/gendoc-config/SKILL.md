@@ -48,6 +48,8 @@ fi
 if [[ -n "$_STATE" ]]; then
   _STEP=$(python3 -c "import json; d=json.load(open('$_STATE')); print(d.get('start_step','0'))" 2>/dev/null || echo "0")
   _STRATEGY=$(python3 -c "import json; d=json.load(open('$_STATE')); print(d.get('review_strategy','standard'))" 2>/dev/null || echo "standard")
+  _CT=$(python3 -c "import json; d=json.load(open('$_STATE')); print(d.get('client_type','web'))" 2>/dev/null || echo "web")
+  _CT_SOURCE=$(python3 -c "import json; d=json.load(open('$_STATE')); print(d.get('client_type_source','auto'))" 2>/dev/null || echo "auto")
 
   echo ""
   echo "╔══════════════════════════════════════════════╗"
@@ -55,13 +57,28 @@ if [[ -n "$_STATE" ]]; then
   echo "╠══════════════════════════════════════════════╣"
   printf "║  %-10s %-32s ║\n" "已完成至" "STEP ${_STEP}"
   printf "║  %-10s %-32s ║\n" "審查強度" "${_STRATEGY}"
+  printf "║  %-10s %-32s ║\n" "client_type" "${_CT}（來源：${_CT_SOURCE}）"
   echo "╚══════════════════════════════════════════════╝"
 fi
 ```
 
 ### 情境 B：找不到 state file
 
-輸出：`尚未在此目錄執行過 /gendoc-auto，將建立全新設定。`，繼續進入 Step 1。
+輸出：`尚未在此目錄執行過 /gendoc-auto，將建立全新設定。`
+
+用 `AskUserQuestion` 詢問（此問題取代 gendoc-auto Step 1.8 的 client_type 偵測，確保首次設定正確）：
+
+```
+question: "請先確認專案類型（此為全流水線的關鍵設定，後續可用 /gendoc-config 修改）"
+options:
+  - "web（建議）— SaaS / 管理後台 / 行動 App（執行 PDD/FRONTEND/BDD-client，跳過 AUDIO/ANIM）"
+  - "game — 遊戲專案（執行全部，含 AUDIO/ANIM）"
+  - "api-only — 純後端 API 服務（跳過所有 client 側文件）"
+```
+
+取得 `_INIT_CLIENT_TYPE`（解析選項為 "web" / "game" / "api-only"）。
+
+繼續進入 Step 1。
 
 ---
 
@@ -238,6 +255,8 @@ d = {
   'execution_mode': 'full-auto',
   'review_strategy': 'standard',
   'max_rounds': 5,
+  'client_type': '${_INIT_CLIENT_TYPE:-web}',
+  'client_type_source': 'confirmed',
   'last_updated': '$_NOW'
 }
 with open('$_STATE', 'w') as f: json.dump(d, f, indent=2)
@@ -259,10 +278,11 @@ d['review_strategy_custom'] = '${_NEW_STRATEGY_CUSTOM:-}'
 d['max_rounds']             = ${_NEW_MAX_ROUNDS}
 d['stop_condition']         = '${_NEW_STOP_CONDITION}'
 d['last_updated']           = '$_NOW'
-# 若使用者手動設定了 client_type，覆寫自動偵測值
+# 若使用者在 Step 2 手動設定了 client_type，覆寫自動偵測值
 if '${_NEW_CLIENT_TYPE:-}':
     d['client_type'] = '${_NEW_CLIENT_TYPE}'
-    d['client_type_source'] = 'manual'  # P-14：標記為手動設定，防止 D03-PRD 後被自動偵測覆寫
+    d['client_type_source'] = 'confirmed'  # P-13/P-14 不再覆寫此值
+# 若是情境 B 首次建立（_INIT_CLIENT_TYPE 已寫入初始 JSON，此處不再重複寫入）
 with open('$_TMP', 'w') as f:
     json.dump(d, f, indent=2)
 os.replace('$_TMP', '$_STATE')

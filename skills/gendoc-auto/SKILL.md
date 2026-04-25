@@ -515,6 +515,174 @@ fi
 
 ---
 
+## Step 1.8：client_type 確認 + 規模確認（全流水線唯一互動點）
+
+> **此步驟是整條流水線中唯一與使用者互動的決策點。**
+> 確認後，從 IDEA → BRD → PRD → … → HTML 全程自動執行，不再詢問任何問題。
+> **SPAWNED 模式**或 **`client_type_source = "confirmed"`** 時：自動採建議值，跳過互動。
+
+```bash
+_CT_EXISTING=$(python3 -c "import json; d=json.load(open('${_STATE_FILE}')); print(d.get('client_type',''))" 2>/dev/null || echo "")
+_CT_SOURCE=$(python3 -c "import json; d=json.load(open('${_STATE_FILE}')); print(d.get('client_type_source',''))" 2>/dev/null || echo "")
+```
+
+### 跳過條件判斷
+
+```bash
+_SKIP_1_8=false
+if [[ "$_SPAWNED" == "true" ]]; then
+  echo "[Step 1.8] SPAWNED 模式，跳過互動，採自動推斷值"
+  _SKIP_1_8=true
+fi
+if [[ "$_CT_SOURCE" == "confirmed" ]] && [[ -n "$_CT_EXISTING" ]]; then
+  echo "[Step 1.8] client_type 已由使用者確認（source=confirmed：${_CT_EXISTING}），跳過"
+  _SKIP_1_8=true
+fi
+```
+
+### 推斷建議值（SPAWNED 和互動模式共用）
+
+```bash
+_SUGGEST_CT=$(python3 - <<'PYEOF'
+import json
+try: d=json.load(open('${_STATE_FILE}'))
+except: d={}
+text=' '.join([d.get('key_features',''),d.get('target_users',''),
+               d.get('project_type',''),d.get('input_summary','')]).lower()
+game_kw=['game','arcade','unity','cocos','webgl','opengl','phaser','pixijs',
+         '遊戲','魚機','博弈','遊藝','投幣','玩家','角色','場景',
+         '卡牌','棋牌','捕魚','電子遊戲','老虎機','水果機']
+ui_kw  =['ui','ux','interface','screen','display','frontend','front-end',
+         'dashboard','portal','panel','page','view','layout','widget',
+         '介面','畫面','螢幕','顯示','前端','操作面板','儀表板','視覺',
+         '按鈕','頁面','視窗','彈窗','選單',
+         'web','html','css','react','vue','angular','svelte',
+         'app','mobile','native','ios','android','flutter','swift','kotlin',
+         'client','客戶端','用戶端']
+if any(k in text for k in game_kw): print('game')
+elif any(k in text for k in ui_kw): print('web')
+else: print('api-only')
+PYEOF
+)
+
+_SUGGEST_SCALE=$(python3 - <<'PYEOF'
+import json,re
+try: d=json.load(open('${_STATE_FILE}'))
+except: d={}
+text=' '.join([d.get('target_users',''),d.get('key_features',''),d.get('input_summary','')]).lower()
+nums=re.findall(r'[\d,]+',text)
+max_n=max((int(n.replace(',','')) for n in nums if n.replace(',','').isdigit()),default=0)
+if max_n>=10000000 or any(k in text for k in ['million','百萬','千萬','億']):
+    print('大規模（百萬用戶級，需分散式架構）')
+elif max_n>=100000 or any(k in text for k in ['十萬','enterprise','global','企業級']):
+    print('中規模（萬~十萬用戶，微服務為主）')
+elif any(k in text for k in ['pilot','poc','mvp','prototype','試行','原型','概念驗證']):
+    print('MVP/Pilot（快速驗證，可接受技術債）')
+else:
+    print('小規模（千級用戶，優先交付速度）')
+PYEOF
+)
+
+echo "[Step 1.8] 建議 client_type：${_SUGGEST_CT} / 建議規模：${_SUGGEST_SCALE}"
+```
+
+### SPAWNED / 已確認：直接採用建議值
+
+```bash
+if [[ "$_SKIP_1_8" == "true" ]]; then
+  # 若 state 中 client_type 已確認，不覆寫；否則寫入建議值
+  python3 - <<PYEOF
+import json,os
+f='${_STATE_FILE}'
+try: d=json.load(open(f))
+except: d={}
+if not d.get('client_type') or d.get('client_type_source','') not in ('confirmed',):
+    d['client_type']='${_SUGGEST_CT}'
+    d['client_type_source']='auto-confirmed'
+if not d.get('q4_scale'):
+    d['q4_scale']='${_SUGGEST_SCALE}'
+tmp=f+'.tmp'; open(tmp,'w').write(json.dumps(d,indent=2,ensure_ascii=False)); os.replace(tmp,f)
+print('[Step 1.8] auto: client_type='+d['client_type']+' / scale='+d['q4_scale'])
+PYEOF
+fi
+```
+
+### 互動模式：顯示建議並詢問確認（2 問）
+
+**若 `_SKIP_1_8=false`**，用 `AskUserQuestion` 執行以下 2 個問題：
+
+**問題 1 — client_type 確認**：
+
+```
+question: |
+  📋 請確認專案類型（確認後整條流水線全自動執行，不再詢問）
+
+  gendoc 分析您的需求，建議：client_type = {_SUGGEST_CT}
+
+  各選項說明：
+  • web     — SaaS / App / 管理後台（含 PDD / FRONTEND / BDD-client，無 AUDIO/ANIM）
+  • game    — 遊戲專案（含 AUDIO / ANIM / PDD / FRONTEND / BDD-client）
+  • api-only — 純後端 API 服務（跳過所有 client 側文件）
+
+options:
+  - "✅ 採用建議：{_SUGGEST_CT}（推薦）"
+  - "web     — SaaS / App / 管理後台"
+  - "game    — 遊戲專案（含 AUDIO/ANIM）"
+  - "api-only — 純後端 API 服務"
+```
+
+取得 `_CONFIRMED_CT`：
+- 選項 1 → `_CONFIRMED_CT="$_SUGGEST_CT"`
+- 選項 2 → `_CONFIRMED_CT="web"`
+- 選項 3 → `_CONFIRMED_CT="game"`
+- 選項 4 → `_CONFIRMED_CT="api-only"`
+
+**問題 2 — 規模確認**：
+
+```
+question: |
+  📐 請確認系統規模預期（影響 EDD 效能設計、k8s 資源規格、容量規劃）
+
+  建議：{_SUGGEST_SCALE}
+
+options:
+  - "✅ 採用建議：{_SUGGEST_SCALE}（推薦）"
+  - "MVP/Pilot — 快速驗證，可接受技術債"
+  - "小規模 — 千級用戶，優先交付速度"
+  - "中規模 — 萬~十萬用戶，微服務為主"
+  - "大規模 — 百萬用戶級，需分散式架構"
+```
+
+取得 `_CONFIRMED_SCALE`（選項 1 → `$_SUGGEST_SCALE`；其他 → 對應文字）。
+
+**確認並寫入 state**：
+
+```bash
+python3 - <<PYEOF
+import json,os
+f='${_STATE_FILE}'
+try: d=json.load(open(f))
+except: d={}
+d['client_type']        = '${_CONFIRMED_CT}'
+d['client_type_source'] = 'confirmed'   # P-13/P-14 不再覆寫
+d['q4_scale']           = '${_CONFIRMED_SCALE}'
+tmp=f+'.tmp'; open(tmp,'w').write(json.dumps(d,indent=2,ensure_ascii=False)); os.replace(tmp,f)
+print('[Step 1.8] ✅ client_type='+d['client_type']+' / scale='+d['q4_scale']+' 已確認並鎖定')
+PYEOF
+
+echo ""
+echo "╔══════════════════════════════════════════════════════════╗"
+echo "║  ✅ 設定已確認 — 接下來全程自動執行，無需再次確認         ║"
+echo "╠══════════════════════════════════════════════════════════╣"
+printf "║  client_type : %-42s ║\n" "${_CONFIRMED_CT}"
+printf "║  系統規模    : %-42s ║\n" "${_CONFIRMED_SCALE}"
+echo "║                                                          ║"
+echo "║  請放心等待，所有文件將依序自動生成完成。               ║"
+echo "╚══════════════════════════════════════════════════════════╝"
+```
+
+---
+
 ## Step 2：AI 自動推斷需求欄位（C-07）
 
 ```bash
@@ -528,7 +696,7 @@ PM Expert Agent（Step 1.7）已分析輸入並寫入 state，此處直接讀取
 _Q1_USERS=$(python3 -c "import json; d=json.load(open('${_STATE_FILE}')); print(d.get('target_users','一般開發者'))" 2>/dev/null || echo "一般開發者")
 _Q2_PAINPOINT=$(python3 -c "import json; d=json.load(open('${_STATE_FILE}')); print(d.get('key_features',''))" 2>/dev/null || echo "")
 _Q3_TECH=$(python3 -c "import json; d=json.load(open('${_STATE_FILE}')); print(d.get('tech_stack_hints','無特殊限制'))" 2>/dev/null || echo "無特殊限制")
-_Q4_SCALE="小規模（AI 自動推斷）"
+_Q4_SCALE=$(python3 -c "import json; d=json.load(open('${_STATE_FILE}')); print(d.get('q4_scale','小規模（千級用戶，優先交付速度）'))" 2>/dev/null || echo "小規模（千級用戶，優先交付速度）")
 _Q5_EXTRA=""
 echo "[Step 2] users=${_Q1_USERS} / tech=${_Q3_TECH}"
 ```

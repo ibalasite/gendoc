@@ -121,8 +121,14 @@ try: print(json.load(open('${_STATE_FILE}')).get('client_type',''))
 except: print('')
 " 2>/dev/null || echo "")
 
+_CLIENT_TYPE_SOURCE=$(python3 -c "
+import json
+try: print(json.load(open('${_STATE_FILE}')).get('client_type_source','auto'))
+except: print('auto')
+" 2>/dev/null || echo "auto")
+
 echo "[Session] mode=${_EXEC_MODE} | strategy=${_REVIEW_STRATEGY} | max_rounds=${_MAX_ROUNDS}"
-echo "[Session] start_step=${_START_STEP} | completed=[${_COMPLETED}] | client_type=${_CLIENT_TYPE:-（未設定，待推斷）}"
+echo "[Session] start_step=${_START_STEP} | completed=[${_COMPLETED}] | client_type=${_CLIENT_TYPE:-（未設定，待推斷）} | ct_source=${_CLIENT_TYPE_SOURCE}"
 ```
 
 **已有值**：沿用已設定，直接繼續。
@@ -132,13 +138,16 @@ echo "[Session] start_step=${_START_STEP} | completed=[${_COMPLETED}] | client_t
 
 ### Step 0-C：client_type 自動推斷（P-13）
 
-**若 `_CLIENT_TYPE` 為空或仍為舊格式 `none`，從 IDEA/BRD/PRD 掃描關鍵字自動決定。**
+**若 `_CLIENT_TYPE` 為空或仍為舊格式 `none`，且來源非 `confirmed`/`manual`，才從 IDEA/BRD/PRD 掃描關鍵字自動決定。**
+**若 `_CLIENT_TYPE_SOURCE` 為 `confirmed` 或 `manual`，直接跳過此步驟（使用者已明確確認，不允許被關鍵字覆寫）。**
 
 > **設計原則**：有 UI 的專案比純後端多；預設應傾向「有 client」而非「無 client」。
 > 只有在文件中完全找不到任何 UI 跡象時，才輸出 `api-only`。
 
 ```bash
-if [[ -z "$_CLIENT_TYPE" || "$_CLIENT_TYPE" == "none" ]]; then
+if [[ "$_CLIENT_TYPE_SOURCE" == "confirmed" || "$_CLIENT_TYPE_SOURCE" == "manual" ]]; then
+  echo "[P-13] ⏭️  client_type_source=${_CLIENT_TYPE_SOURCE}，跳過自動推斷（使用者已確認：${_CLIENT_TYPE}）"
+elif [[ -z "$_CLIENT_TYPE" || "$_CLIENT_TYPE" == "none" ]]; then
   echo "[P-13] client_type 未設定或為舊格式，從 IDEA/BRD/PRD 自動推斷..."
   _CLIENT_TYPE=$(python3 - <<'PYEOF'
 import os
@@ -414,7 +423,7 @@ for step in pipeline:
     #       PRD 生成並審查完成後立即重新偵測，確保後續步驟條件正確。
     if step["id"] == "D03-PRD":
         _client_type_source = state.get("client_type_source", "auto")
-        if _client_type_source != "manual":
+        if _client_type_source not in ("manual", "confirmed"):  # P-13/P-14 不覆寫已確認值
             _CLIENT_TYPE_NEW = python3_detect_client_type()  # 重跑 P-13 偵測腳本
             if _CLIENT_TYPE_NEW != _CLIENT_TYPE:
                 print(f"[P-14] ⚠️  client_type 重新偵測結果不同：{_CLIENT_TYPE} → {_CLIENT_TYPE_NEW}")
@@ -444,7 +453,7 @@ def update_state_client_type(ct):
 ```
 
 **P-14 注意事項：**
-- 若使用者透過 `/gendoc-config` 手動設定 `client_type`，則 `client_type_source = "manual"`，P-14 不覆寫
+- 若使用者透過 `/gendoc-config` 手動設定或確認 `client_type`，則 `client_type_source = "confirmed"`（或 `"manual"`），P-14 不覆寫
 - 若 D03-PRD 是被 skip（P-02/P-05 resume），P-14 仍執行（PRD 已存在，可讀取）
 - 若重新偵測結果改變，條件步驟（D04/D05/D10/D12b/D10b/D10c）的 skip/execute 判斷會以新值為準
 
