@@ -1,6 +1,6 @@
 # PRD — Product Requirements Document
 <!-- 對應學術標準：IEEE 830 (SRS)，對應業界：Google PRD / Amazon PRFAQ -->
-<!-- Version: v1.9 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 -->
+<!-- Version: v2.0 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 -->
 
 ---
 
@@ -10,7 +10,7 @@
 |------|------|
 | **DOC-ID** | PRD-GENDOC-20260422 |
 | **產品名稱** | gendoc — AI-Driven Implementation Blueprint Generator |
-| **文件版本** | v1.9 |
+| **文件版本** | v2.0 |
 | **狀態** | ACTIVE |
 | **作者（PM）** | AI Product Manager Agent |
 | **日期** | 2026-04-25 |
@@ -24,6 +24,7 @@
 
 | 版本 | 日期 | 作者 | 變更摘要 |
 |------|------|------|---------|
+| v2.0 | 2026-04-25 | PM Agent | **UML 1:1 實作完整度升級**：EDD.gen.md §4.5 和 gendoc-gen-diagrams/SKILL.md §2.1–§2.11 全面重寫——從「最少幾張、含哪些類型」升級為「開發者只有 UML 圖、沒有其他文件，也能 1:1 實作出完整系統」的精確規格。強制標準：Class Diagram 屬性 `visibility name: Type`、方法完整簽名、Enum 列全值、關聯線兩端 cardinality + role label；Sequence Diagram 每個箭頭精確方法名 + 型別 + 回傳型別、alt 分支有具體條件、每個 Mutation ≥ 3 個 Error Path；State Machine 每個 transition `trigger [guard] / action` 三段必填；Activity Diagram 泳道強制 + 決策點兩分支具體標注；Component / Deployment 技術版本 + 埠號 + 協定在每個節點和連線上都要有。驗證清單擴充為 30+ 條精確檢查項目。**Template 生成規則章節對應修正**：runbook.gen.md 補充 §8 Routine Maintenance（維護排程 / DB 維護 / Log 輪替 / 容量審查）；LOCAL_DEPLOY.gen.md 補充 §8 Test Data & Fixtures / §11 Logs & Debugging / §12 Port Reference / §13 Local HTTPS 生成規則；SCHEMA.gen.md Self-Check §3 → §2.4 Soft Delete 修正章節對應；RTM.gen.md 補充 §2 Status Code 靜態對照表生成規則。 |
 | v1.9 | 2026-04-25 | PM Agent | **專案類型三值化**：client_type 從二值（web/none）擴展為三值（`game`/`web`/`api-only`）；AUDIO/ANIM 條件從 `client_type != none` 改為 `client_type == game`（僅遊戲專案生成）；game 偵測關鍵字新增 20+ 詞（魚機/捕魚/博弈/canvas/webgl/phaser 等）。**新增 gendoc-gen-prototype skill**：偵測 client_type 自動選擇原型模式 — game/web 生成可點擊 UI 原型（HTML5 自包含，模擬動線）、api-only 生成 API Explorer（雙模式參數輸入：Chip 快選 + 自由輸入；預設值建議；Request Body Preset；localStorage auth；Copy as cURL；hash 深連結）。**新增 reviewtemplate skill**：TYPE.md + TYPE.gen.md + TYPE.review.md 三件套品質審查與修復 loop，支援 standard/exhaustive 策略。**P-14**：D03-PRD 完成後重新驗證 client_type（Step 0-C 執行時 PRD 尚未生成，可能漏判遊戲關鍵字）；`client_type_source: "manual"` 防止自動偵測覆寫手動設定。**P-15**：Total Summary 前 Pipeline 完整性掃描，驗證所有預期步驟均有記錄，防止誤標 `pipeline_complete`。**gendoc-config** 新增第 5 選項「手動設定 client_type」。 |
 | v1.8 | 2026-04-24 | PM Agent | 新增音效與動畫特效設計文件：AUDIO.md（BGM/SFX/VO 清單、音效觸發狀態機、Cocos/Unity/HTML5 Howler.js 引擎設定、資產規格、效能預算）+ ANIM.md（骨骼/幀/Tween 動畫、粒子特效、Shader 特效、Cocos/Unity/HTML5 PixiJS 引擎設定、效能預算 + LOD 三級策略）；各含 gen.md（3 角色專家、引擎自動偵測、品質門）與 review.md（18~20 條審查項，含 CRITICAL/HIGH 覆蓋邏輯與效能閘）；pipeline.json 新增 D10b-AUDIO + D10c-ANIM（條件 client_type != none，位於 FRONTEND 之後、test-plan 之前）|
 | v1.7 | 2026-04-24 | PM Agent | UML 9 大圖完整性強化（P1-P3）：新增 D07b-UML 流水線步驟（pipeline.json）；gendoc-gen-diagrams 完全重寫 → 輸出 9 種 UML + class-inventory.md（1:1:N class→test 追蹤）；EDD.gen.md §4.5 修正編號對齊、新增多圖原則強制規定；EDD.review.md 新增 CRITICAL 5b/5c UML 完整性與 class inventory 審查門；test-plan.gen.md 讀取 class-inventory 並依 TC-ID 格式（TC-UNIT-{MODULE}-{SEQ}-{S/E/B}）展開測試；RTM.md/RTM.gen.md 新增 §15.3 UML 圖追蹤矩陣與 §15.4 Class→Test 覆蓋追蹤（method 覆蓋率 <80% 觸發 WARNING）；PRD.gen.md/PRD.md User Story 新增 Activity Diagram 關聯欄位；API.review.md 新增 Layer 8 Sequence Diagram 完整性檢查 |
@@ -200,6 +201,20 @@ C4Context
 ### 4.1 EDD（Engineering Design Document）細粒度標準
 
 每份 EDD 必須包含：
+
+**UML 1:1 實作完整度標準（§4.5 UML 9 大圖）**
+
+每張 UML 圖必須讓開發者在沒有其他文件的情況下，能夠 1:1 實作出完整系統：
+
+| UML 圖類型 | 強制內容（精確到可直接實作） |
+|-----------|--------------------------|
+| Class Diagram | 屬性：`visibility name: Type`；方法：`visibility name(param: Type): ReturnType`；Enum 獨立定義且列全所有枚舉值；關聯線兩端都有 cardinality + role label |
+| Object Diagram | 所有屬性填具體業務範例值（UUID 字串、枚舉值名、實際數字），禁止型別名稱作為值 |
+| Sequence Diagram | 每個箭頭精確方法名 + 參數名稱和型別；回傳箭頭有型別或 HTTP 狀態碼 + 回應體結構；alt 分支有具體條件描述；每個 Mutation ≥ 3 個 Error Path |
+| State Machine | 每個 transition：`trigger [guard] / action` 三段必填；有業務邏輯的狀態有 entry/exit 動作；所有終態連到 `[*]` |
+| Activity Diagram | 泳道（每個 Actor / 系統元件一個 subgraph）；決策點兩分支都有具體條件；有並行路徑用 fork/join |
+| Component Diagram | 每個節點：技術名稱 + 精確版本號 + 通訊埠；每條連線：協定 + 埠號（同步/非同步已區分） |
+| Deployment Diagram | 每個節點：Image:tag + CPU/Mem limit + Replicas；網路區域 subgraph（DMZ/Internal/DataZone）；連線有協定 + 埠號 |
 
 **Class-Level 設計**
 ```

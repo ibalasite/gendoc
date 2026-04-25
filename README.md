@@ -20,6 +20,7 @@ Key capabilities:
 - **Quality status tracking** — `passed` / `degraded` / `failed` per step; CRITICAL/HIGH findings block completion, MEDIUM/LOW log as degraded
 - **Three-value project type** — `game` (AUDIO+ANIM+UI prototype) / `web` (SaaS/App, UI prototype) / `api-only` (API Explorer prototype); auto-detected from IDEA/BRD/PRD keywords, re-verified after PRD generation (P-14)
 - **Interactive prototypes** — `/gendoc-gen-prototype` generates a clickable HTML prototype for any project type: UI flow prototype (web/game) or API Explorer with mock responses (api-only, like Postman)
+- **Implementation-ready UML (1:1 standard)** — `/gendoc-gen-diagrams` generates all 9 UML types with enough precision that a developer can implement the entire system from diagrams alone: exact attribute types, full method signatures, enum values fully listed, cardinality + role labels on every relation, exact method names + typed params on every sequence arrow, `trigger [guard] / action` on every state transition, swimlanes per actor in activity diagrams, technology + version + port on every component/deployment node
 - **Pipeline integrity check** — P-15 verifies all expected steps have a record before marking complete
 - **Auto-update via SessionStart hook** — harness-enforced, LLM-independent, runs in background
 - **Windows native support** — Python-based hook for Windows, bash for macOS/Linux
@@ -39,7 +40,7 @@ Key capabilities:
 | `gendoc-align-fix` | `/gendoc-align-fix` | Auto-fix alignment issues |
 | `gendoc-gen-html` | `/gendoc-gen-html` | Generate HTML documentation site (D17) |
 | `gendoc-gen-prototype` | `/gendoc-gen-prototype` | Interactive HTML prototype — UI flow (web/game) or API Explorer with mock engine (api-only) |
-| `gendoc-gen-diagrams` | `/gendoc-gen-diagrams` | Generate 9 UML diagrams + class-inventory.md (D07b) |
+| `gendoc-gen-diagrams` | `/gendoc-gen-diagrams` | Generate all 9 UML diagram types (1:1 implementation-ready) + class-inventory.md (D07b); 30+ precision validation checks |
 | `gendoc-gen-client-bdd` | `/gendoc-gen-client-bdd` | Client-facing BDD feature files (web/game projects) |
 | `gendoc-rebuild-templates` | `/gendoc-rebuild-templates` | Rebuild all document templates from scratch |
 | `gendoc-update` | `/gendoc-update` | Manual skill upgrade |
