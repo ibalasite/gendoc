@@ -242,6 +242,17 @@ d['skill_source'] = 'gendoc-auto'
 json.dump(d, open(f,'w'), ensure_ascii=False, indent=2)
 "
 
+# 寫入 spawned_session 旗標（供 gendoc-flow 跨 skill 讀取，避免再次詢問使用者）
+python3 -c "
+import json
+try: d=json.load(open('${_STATE_FILE}'))
+except: d={}
+d['spawned_session'] = ('${_SPAWNED}' == 'true')
+import os; tmp='${_STATE_FILE}.tmp'
+open(tmp,'w').write(json.dumps(d, indent=2, ensure_ascii=False))
+os.replace(tmp, '${_STATE_FILE}')
+" 2>/dev/null || true
+
 git add docs/.gitkeep docs/req/.gitkeep CLAUDE.md .gitignore 2>/dev/null || true
 git add $(git ls-files --others --exclude-standard docs/ 2>/dev/null | head -20) 2>/dev/null || true
 git commit -m "chore(gendoc-auto): init workspace" 2>/dev/null || true
@@ -484,6 +495,37 @@ json.dump(d, open(f,'w'), ensure_ascii=False, indent=2)
 print('[PM Expert] project_name={}, project_type={}'.format(d['project_name'], d['project_type']))
 "
 ```
+
+# PM Expert 輸出驗證（只警告，不中止流水線）
+_PM_VALID=$(python3 -c "
+import json, re
+try:
+    d = json.load(open('${_STATE_FILE}'))
+    warns = []
+    pn = d.get('project_name','')
+    if not pn:
+        warns.append('project_name 為空，將使用目錄名稱作為備援')
+        d['project_name'] = '$(basename $(pwd))'
+    elif not re.match(r'^[a-z0-9][a-z0-9-]{0,29}$', pn):
+        warns.append(f'project_name \"{pn}\" 含非法字元或過長，已截斷並替換特殊字元')
+        d['project_name'] = re.sub(r'[^a-z0-9-]','-', pn.lower())[:30].strip('-')
+    pt = d.get('project_type','')
+    valid_types = ['web-app','mobile-app','cli-tool','api-service','data-platform','game','other']
+    if pt not in valid_types:
+        warns.append(f'project_type \"{pt}\" 不在已知清單，已設為 other')
+        d['project_type'] = 'other'
+    if warns:
+        import os; tmp='${_STATE_FILE}.tmp'
+        open(tmp,'w').write(json.dumps(d, indent=2, ensure_ascii=False))
+        os.replace(tmp, '${_STATE_FILE}')
+    for w in warns:
+        print(f'[PM-WARN] {w}')
+    print(f'[PM-OK] 驗證完成（{\"通過\" if not warns else str(len(warns))+\" 個警告，已自動修正\"}）')
+except Exception as e:
+    print(f'[PM-WARN] 驗證例外：{e}（流水線繼續，使用現有值）')
+" 2>/dev/null || echo "[PM-WARN] 驗證腳本執行失敗（流水線繼續）")
+echo "$_PM_VALID"
+# 注意：驗證失敗只輸出警告，不 exit 1——流水線自動化不能因驗證警告而中止
 
 **專案名稱衝突檢查**（寫入 state 後立即執行）：
 

@@ -29,6 +29,7 @@
       "output": ["docs/PRD.md"],
       "multi_file": false,
       "condition": "always",
+      "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[D03-PRD]"
     },
     {
@@ -38,6 +39,7 @@
       "output": ["docs/PDD.md"],
       "multi_file": false,
       "condition": "client_type != none",
+      "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[D04-PDD]"
     },
     {
@@ -47,6 +49,7 @@
       "output": ["docs/VDD.md"],
       "multi_file": false,
       "condition": "client_type != none",
+      "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[D05-VDD]"
     },
     {
@@ -56,6 +59,7 @@
       "output": ["docs/EDD.md"],
       "multi_file": false,
       "condition": "always",
+      "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[D06-EDD]"
     },
     {
@@ -65,6 +69,7 @@
       "output": ["docs/ARCH.md"],
       "multi_file": false,
       "condition": "always",
+      "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[D07-ARCH]"
     },
     {
@@ -76,6 +81,7 @@
       "multi_file": true,
       "condition": "always",
       "special_skill": "gendoc-gen-diagrams",
+      "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[D07b-UML]",
       "note": "特殊步驟：呼叫 gendoc-gen-diagrams skill，生成 9 大 UML 圖 + class-inventory.md。不走標準 gen→review 流程。class-inventory.md 供 D11-test-plan 和 D13-RTM 讀取。"
     },
@@ -86,6 +92,7 @@
       "output": ["docs/API.md"],
       "multi_file": false,
       "condition": "always",
+      "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[D08-API]"
     },
     {
@@ -95,6 +102,7 @@
       "output": ["docs/SCHEMA.md"],
       "multi_file": false,
       "condition": "always",
+      "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[D09-SCHEMA]"
     },
     {
@@ -104,6 +112,7 @@
       "output": ["docs/FRONTEND.md"],
       "multi_file": false,
       "condition": "client_type != none",
+      "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[D10-FRONTEND]"
     },
     {
@@ -113,6 +122,7 @@
       "output": ["docs/AUDIO.md"],
       "multi_file": false,
       "condition": "client_type == game",
+      "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[D10b-AUDIO]",
       "note": "音效設計文件：BGM/SFX/VO 清單、音效觸發邏輯、引擎設定（Cocos/Unity/HTML5 Web Audio）、資產規格、效能預算"
     },
@@ -123,6 +133,7 @@
       "output": ["docs/ANIM.md"],
       "multi_file": false,
       "condition": "client_type == game",
+      "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[D10c-ANIM]",
       "note": "動畫特效設計文件：骨骼動畫/幀動畫/Tween/粒子/Shader、引擎設定（Cocos/Unity/HTML5 PixiJS）、效能預算與 LOD 策略"
     },
@@ -133,6 +144,7 @@
       "output": ["docs/test-plan.md"],
       "multi_file": false,
       "condition": "always",
+      "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[D11-test-plan]"
     },
     {
@@ -143,6 +155,7 @@
       "output_glob": "features/*.feature",
       "multi_file": true,
       "condition": "always",
+      "handled_by": "gendoc-flow",
       "commit_prefix": "test(gendoc)[D12-BDD-server]",
       "note": "BDD-server.gen.md 指示生成多個 .feature 檔案；BDD-server.review.md 審查所有 features/*.feature"
     },
@@ -154,6 +167,7 @@
       "output_glob": "features/client/*.feature",
       "multi_file": true,
       "condition": "client_type != none",
+      "handled_by": "gendoc-flow",
       "commit_prefix": "test(gendoc)[D12b-BDD-client]",
       "note": "BDD-client.gen.md 指示生成多個 .feature 檔案；BDD-client.review.md 審查所有 features/client/*.feature"
     },
@@ -164,6 +178,7 @@
       "output": ["docs/RTM.md"],
       "multi_file": false,
       "condition": "always",
+      "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[D13-RTM]"
     },
     {
@@ -173,6 +188,7 @@
       "output": ["docs/runbook.md"],
       "multi_file": false,
       "condition": "always",
+      "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[D14-runbook]"
     },
     {
@@ -182,6 +198,7 @@
       "output": ["docs/LOCAL_DEPLOY.md"],
       "multi_file": false,
       "condition": "always",
+      "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[D15-LOCAL_DEPLOY]"
     },
     {
@@ -192,6 +209,7 @@
       "multi_file": false,
       "condition": "always",
       "special_skill": "gendoc-align-check",
+      "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[D16-ALIGN]",
       "note": "特殊步驟：呼叫 gendoc-align-check skill，不走標準 gen→review 流程"
     },
@@ -203,6 +221,7 @@
       "multi_file": false,
       "condition": "always",
       "special_skill": "gendoc-gen-html",
+      "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[D17-HTML]",
       "note": "特殊步驟：呼叫 gendoc-gen-html skill，不走標準 gen→review 流程"
     }

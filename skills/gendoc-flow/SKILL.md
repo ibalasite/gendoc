@@ -157,7 +157,6 @@ for f in ['docs/IDEA.md', 'docs/BRD.md', 'docs/PRD.md']:
     except: pass
 combined = ' '.join(texts)
 
-# ⚠️ 關鍵字清單統一定義於 gendoc-shared §13-B（R-09），此處使用完整版本
 # GAME_KEYWORDS（優先判斷）→ client_type=game，觸發 AUDIO/ANIM 生成
 game_keywords = [
     # 引擎/框架
@@ -441,22 +440,19 @@ for step in pipeline:
     execute_step(step, skip_gen=_skip_gen_only, resume_from_round=_resume_from_round)
     update_state_completed(step["id"])
 
-    # ── P-14：D03-PRD 完成後重新驗證 client_type ──────────
-    # 理由：Step 0-C 執行時 PRD 尚未生成（由 gendoc-flow 負責），
-    #       若關鍵遊戲/UI 關鍵字僅出現在 PRD，初次偵測可能錯判。
-    #       PRD 生成並審查完成後立即重新偵測，確保後續步驟條件正確。
+    # ── P-14：D03-PRD 完成後「只驗證」client_type，不覆寫 ──────────
+    # 設計原則：client_type 一旦在 Step 0-C 偵測並進入流水線，就不再變更。
+    # 理由：mid-pipeline 變更 client_type 會導致流水線非冪等（同一輸入第一次跑 api-only，
+    #       第二次跑 game），違反自動化可靠性。
+    # 若真的需要改 client_type，用 /gendoc-config 手動設定後重跑。
     if step["id"] == "D03-PRD":
-        _client_type_source = state.get("client_type_source", "auto")
-        if _client_type_source not in ("manual", "confirmed"):  # P-13/P-14 不覆寫已確認值
-            _CLIENT_TYPE_NEW = python3_detect_client_type()  # 重跑 P-13 偵測腳本
-            if _CLIENT_TYPE_NEW != _CLIENT_TYPE:
-                print(f"[P-14] ⚠️  client_type 重新偵測結果不同：{_CLIENT_TYPE} → {_CLIENT_TYPE_NEW}")
-                print(f"[P-14]     PRD 內容提供了更明確的專案類型線索，已更新。")
-                _CLIENT_TYPE = _CLIENT_TYPE_NEW
-                # 原子寫入更新後的 client_type
-                update_state_client_type(_CLIENT_TYPE)
-            else:
-                print(f"[P-14] ✅ client_type 確認一致（PRD 驗證後）：{_CLIENT_TYPE}")
+        _CLIENT_TYPE_CHECK = python3_detect_client_type()  # 重跑偵測腳本（只用於驗證）
+        if _CLIENT_TYPE_CHECK != _CLIENT_TYPE:
+            print(f"[P-14] ⚠️  PRD 偵測到不同 client_type 線索：{_CLIENT_TYPE_CHECK}（當前鎖定：{_CLIENT_TYPE}）")
+            print(f"[P-14]     維持當前值 {_CLIENT_TYPE}（不覆寫）。")
+            print(f"[P-14]     若需變更，請執行 /gendoc-config 手動設定 client_type 後重跑。")
+        else:
+            print(f"[P-14] ✅ client_type 驗證一致（PRD 確認）：{_CLIENT_TYPE}")
 ```
 
 **P-14 偵測腳本（與 Step 0-C 完全相同的 python3 block）：**
@@ -511,9 +507,10 @@ def python3_extract_lang_stack():
 ```
 
 **P-14 注意事項：**
-- 若使用者透過 `/gendoc-config` 手動設定或確認 `client_type`，則 `client_type_source = "confirmed"`（或 `"manual"`），P-14 不覆寫
+- P-14 設計為**只驗證，不更新**：無論 client_type_source 為何，P-14 不覆寫 client_type
+- 若 PRD 偵測到不同線索，只輸出警告，流水線繼續以原 client_type 執行
+- 若使用者希望根據 PRD 內容更新 client_type，請執行 /gendoc-config 手動設定後重跑
 - 若 D03-PRD 是被 skip（P-02/P-05 resume），P-14 仍執行（PRD 已存在，可讀取）
-- 若重新偵測結果改變，條件步驟（D04/D05/D10/D12b/D10b/D10c）的 skip/execute 判斷會以新值為準
 
     # ── P-15：D06-EDD 完成後提取並鎖定 lang_stack ──────────
     # 理由：EDD §語言/框架 決定的技術棧必須寫入 state 並鎖定，
@@ -554,22 +551,16 @@ if step.get("special_skill"):
         continue  # 繼續到下一步
     
     # P-09：執行前清除可能的半生成檔
+    # 設計原則：不靠檔案內容猜測完整性（脆弱），只靠兩個可靠訊號：
+    #   1. special_completed[step_id] = true（special skill 成功時寫入）→ 已在上方 skip
+    #   2. 進到這裡 = special_completed 未設定 → 視為未完成，重新執行
+    # 若輸出檔案存在但 special_completed 未設定，可能是上次執行中途中斷，清除後重跑
     for out_path in step.get("output", []):
+        if os.path.isdir(out_path):
+            continue  # 目錄型輸出（如 docs/pages/）不清除，由 special skill 自行處理
         if file_exists_and_nonempty(out_path):
-            content = open(out_path).read()
-            is_complete = False
-            if step["id"] == "D17-HTML":
-                is_complete = "</html>" in content and len(content) > 5000
-            elif step["id"] == "D16-ALIGN":
-                is_complete = ("## Summary" in content or "## 摘要" in content) and ("## Findings" in content or "## 發現" in content)
-            else:
-                is_complete = len(content) > 500  # 一般 fallback
-            
-            if is_complete:
-                print(f"[P-09] {out_path} 結構完整（pre-check），若 special_completed 未設定可能是上次未寫入，繼續執行 special_skill 重新確認")
-            else:
-                print(f"[P-09] {out_path} 結構不完整（可能為半生成），清除後重新執行")
-                os.remove(out_path)
+            print(f"[P-09] {out_path} 存在但 special_completed 未設定（可能中途中斷），清除後重新執行")
+            os.remove(out_path)
 ```
 
 ```
@@ -729,21 +720,26 @@ for round in range(1, max_rounds + 1):
     findings      = review_result["findings"]
     
     # ── Step B: 判斷是否終止（先判斷，不跳過 Fix） ────────
+    # 優先序（明確短路）：
+    #   1. finding=0 → 文件完美，最高優先，永遠停止
+    #   2. rapid cap → rapid 策略上限 3 輪（rapid max_rounds=3，需在通用 max_rounds 前判斷）
+    #   3. tiered clean → tiered 進階清潔條件
+    #   4. max_rounds → 一般上限
     terminate = False
     terminate_reason = ""
     
     if finding_total == 0:
         terminate = True
         terminate_reason = "PASSED — finding=0"
+    elif review_strategy == "rapid" and round >= 3:
+        terminate = True
+        terminate_reason = "MAX_ROUNDS — rapid=3 已達"
     elif review_strategy == "tiered" and round >= 6 and (critical + high + medium) == 0:
         terminate = True
         terminate_reason = "PASSED — tiered: CRITICAL+HIGH+MEDIUM=0"
     elif round >= max_rounds:
         terminate = True
         terminate_reason = f"MAX_ROUNDS={max_rounds} 已達"
-    elif review_strategy == "rapid" and round >= 3:
-        terminate = True
-        terminate_reason = "MAX_ROUNDS — rapid=3 已達"
     
     # ── Step C: Fix Subagent（finding>0 時必須執行，不跳過）──
     fix_result = None
@@ -773,11 +769,16 @@ for round in range(1, max_rounds + 1):
     git add _OUTPUT_GLOB
     
     # P-06/P-12：依終止原因決定品質狀態
-    quality_status = (
-        "passed"   if finding_total == 0
-        else "degraded" if (critical == 0 and high == 0)
-        else "failed"
-    )
+    # STUBBORN = 連修 5 輪仍無法解決的 finding（fix_result["stubborn"] 清單）
+    _stubborn_count = len(fix_result.get("stubborn", [])) if fix_result else 0
+    _has_stubborn = _stubborn_count > 0
+    
+    if finding_total == 0:
+        quality_status = "passed"
+    elif critical == 0 and high == 0:
+        quality_status = "degraded_with_stubborn" if _has_stubborn else "degraded"
+    else:
+        quality_status = "failed_with_stubborn" if _has_stubborn else "failed"
     terminate_reason_code = (
         "zero_finding"  if finding_total == 0
         else "tiered_clean" if (review_strategy == "tiered" and round >= 6 and critical+high+medium == 0)
