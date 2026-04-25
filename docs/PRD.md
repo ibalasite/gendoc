@@ -1,6 +1,6 @@
 # PRD — Product Requirements Document
 <!-- 對應學術標準：IEEE 830 (SRS)，對應業界：Google PRD / Amazon PRFAQ -->
-<!-- Version: v2.3 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 -->
+<!-- Version: v2.4 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 -->
 
 ---
 
@@ -10,10 +10,10 @@
 |------|------|
 | **DOC-ID** | PRD-GENDOC-20260422 |
 | **產品名稱** | gendoc — AI-Driven Implementation Blueprint Generator |
-| **文件版本** | v2.3 |
+| **文件版本** | v2.4 |
 | **狀態** | ACTIVE |
 | **作者（PM）** | AI Product Manager Agent |
-| **日期** | 2026-04-25 |
+| **日期** | 2026-04-26 |
 | **上游來源** | gendoc 開源專案（github.com/ibalasite/gendoc） |
 | **審閱者** | 技術架構師、QA Lead |
 | **核准者** | 待定 |
@@ -24,6 +24,7 @@
 
 | 版本 | 日期 | 作者 | 變更摘要 |
 |------|------|------|---------|
+| v2.4 | 2026-04-26 | PM Agent | **gendoc-shared 集中守衛 + Phase D-2 Review Loop**：`gendoc-shared` 從純參考文件改為可執行 Skill 入口（`allowed-tools: [Bash, Skill]`），負責執行 R-01 State File Guard（檢查 state file 是否存在，不存在則完整呼叫 `gendoc-config`）；`gendoc-auto` / `gendoc-flow` Step -1 移除 inline guard 邏輯，改為一行 Skill tool 呼叫 `gendoc-shared`，等其完全回傳後才繼續（禁止在 Skill tool 回傳前讀取任何檔案或執行任何準備動作），達成 **單一維護點**原則。`gendoc-config` 確立為 state file 唯一建立者，其他所有 skill 禁止自行建立 state file。`gendoc-auto` Step 5.5（IDEA Review Loop）與 Step 5.7（BRD Review Loop）從 Agent→subagent→reviewdoc 雙重委派架構改為 **Phase D-2** 模式：主 Claude 直接驅動 Review subagent → Fix subagent → Round Summary → Commit per round，與 `gendoc-flow` 統一，解決雙重委派導致 review 輸出不可見、每輪 Summary 消失的問題。 |
 | v2.3 | 2026-04-25 | PM Agent | **Mermaid 跨瀏覽器相容性強化（全模板套用）**：將 `stateDiagram-v2` transition label 禁止 `<br/>` 的規則從 Frontend-only 擴展至所有會生成 stateDiagram 的 template —— `FRONTEND.gen.md` §4.2、`PDD.gen.md` §4、`PRD.gen.md` §6 均補入明確禁止聲明；`gendoc-gen-diagrams/SKILL.md` §2.8 Server State Machine 同步補齊（之前只有 Frontend 段落有此規則）。新增 `sequenceDiagram` participant 名稱禁止 `<br/>` 規則（改用 `participant alias as 簡短名稱` 格式）至 `gendoc-gen-diagrams/SKILL.md` 參與者宣告段落。新增禁止使用 Mermaid 實驗性圖表（`pie` / `xychart-beta` / `bar`）的規則至 `gendoc-gen-diagrams/SKILL.md` Step 4 注意清單 —— 跨瀏覽器相容性差，資料分佈改用 `graph TD` 或 HTML 表格替代。新增 EDD.review.md CRITICAL 審查門 `5b-sm`：stateDiagram-v2 transition label `<br/>` 檢查（Safari/Firefox 破圖風險）。根本原因：fishgame 專案 HTML 文件站出現多個 Mermaid 破圖，追溯至 `<br/>` 語法不相容問題，本版修補所有生成規則源頭。 |
 | v2.2 | 2026-04-25 | PM Agent | **Frontend UML 全覆蓋 + HTML 文件站圖表頁面 + D16-ALIGN-F 自動修復步驟**：gendoc-gen-diagrams 新增 Step 2B —— 條件觸發（`client_type != none` AND `FRONTEND.md` 存在），從 FRONTEND.md / PDD.md / VDD.md 生成 16 種前端 UML 圖（use-case / class×3 [元件層/場景控制器/Client 服務] / object / sequence×3 [WS 協議/場景切換/主遊戲交互] / state×2 [場景/UI 元件] / activity×3 [遊戲主流程/UI 互動/客戶端初始化] / component [引擎節點樹] / deployment [建構管線] / communication [WS 協議互動]），全部輸出至 `docs/diagrams/frontend-*.md`；強制規範：stateDiagram-v2 transition label 禁止使用 `<br/>` 語法（改用 `trigger [guard] / action` 格式 + `note` 區塊）。gendoc-gen-html 升級至 **v3.0.0** —— gen_html.py 新增 `scan_diagram_pages()` 掃描 `docs/diagrams/*.md`，每個圖表生成獨立 HTML 頁面（`diag-{stem}.html`）；側欄從單一「文件」區改為三區（文件 / Server UML / Frontend UML）；新增 `DIAGRAM_META` 對應 35+ 圖表類型。D16-ALIGN-F 新增至 pipeline.json（位於 D16-ALIGN 之後）—— special_skill: gendoc-align-fix，依 ALIGN_REPORT.md 逐條自動修復對齊問題，每條 fix 驗證後 commit，不走標準 gen→review 流程。 |
 | v2.1 | 2026-04-25 | PM Agent | **流水線 D17–D19 重組 + 實作藍圖目錄統一**：新增 D17-CONTRACTS（gendoc-gen-contracts）—— 從所有設計文件提取機器可讀規格（OpenAPI 3.1 YAML / JSON Schema / Pact / Helm values.yaml / Seed Code），輸出集中至 `docs/blueprint/contracts/` + `docs/blueprint/infra/` + `docs/blueprint/scaffold/`；新增 D18-MOCK（gendoc-gen-mock）—— 生成 FastAPI mock server（含擬真假資料 JSON 檔、CORS、Swagger UI、Postman 支援、Windows/macOS 跨平台啟動手冊），輸出至 `docs/blueprint/mock/`（整個目錄可帶走使用）；D19-HTML（gendoc-gen-html）後移至最後，確保 HTML 文件站可收錄所有藍圖內容；pipeline.json 更新 step 語意編號（D16=ALIGN 稽核、D17=CONTRACTS 實作、D18=MOCK 實作、D19=HTML 發布）；gendoc-config 重跑選單同步更新；gendoc-shared §5 STEP_SEQUENCE 以 D-prefix dict 格式完整對應 pipeline.json 23 步驟。 |

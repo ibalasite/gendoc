@@ -23,6 +23,8 @@ Key capabilities:
 - **Implementation-ready UML (1:1 standard)** — `/gendoc-gen-diagrams` generates all 9 Server UML types + 16 Frontend UML types (Step 2B, auto-triggered when `client_type ≠ none` and `FRONTEND.md` exists) with enough precision that a developer can implement the entire system from diagrams alone: exact attribute types, full method signatures, enum values fully listed, cardinality + role labels on every relation, exact method names + typed params on every sequence arrow, `trigger [guard] / action` on every state transition (no `<br/>` in stateDiagram-v2), swimlanes per actor in activity diagrams, technology + version + port on every component/deployment node
 - **Cross-browser Mermaid enforcement** — all diagram-generating templates prohibit `<br/>` in `stateDiagram-v2` transition labels (Safari/Firefox break) and `sequenceDiagram` participant aliases; experimental charts (`pie` / `xychart-beta` / `bar`) are banned in favour of `graph TD` or HTML tables
 - **Pipeline integrity check** — P-15 verifies all expected steps have a record before marking complete
+- **Centralized state file guard** — `gendoc-shared` is the single executable entry point for R-01 guard logic; `gendoc-config` is the sole creator of state files; `gendoc-auto` and `gendoc-flow` delegate via one-line Skill call
+- **Uniform review loops** — IDEA and BRD review loops in `gendoc-auto` use the same Phase D-2 pattern as `gendoc-flow`: main Claude directly drives Review→Fix→Round Summary→Commit per round with full output visibility
 - **Auto-update via SessionStart hook** — harness-enforced, LLM-independent, runs in background
 - **Windows native support** — Python-based hook for Windows, bash for macOS/Linux
 
