@@ -18,7 +18,7 @@ allowed-tools:
 MD → HTML 一對一映射，Write 工具直接寫入，不依賴外部腳本。
 
 **模式說明（由 `_EXEC_MODE` 直接決定，不存中間變數）：**
-- `full-auto` 或 interactive 選 full（預設）：先呼叫 `/gendoc-gen-readme`，再轉換所有頁面為 HTML
+- `full-auto` 或 interactive 選 full（預設）：先呼叫 `/gendoc readme`，再轉換所有頁面為 HTML
 - interactive 選 html-only：跳過 README，直接轉換 md 檔為 HTML
 
 ---
@@ -93,11 +93,11 @@ gendoc-gen-html 預設執行 full 模式（README + HTML）。
 
 ---
 
-## Step 1-A：Mode full — 呼叫 gendoc-gen-readme 生成 README.md
+## Step 1-A：Mode full — 呼叫 gendoc readme 生成 README.md
 
 **`_EXEC_MODE=full-auto` 或 interactive 選 full 時執行。**
 
-用 Skill 工具呼叫 `/gendoc-gen-readme`：
+用 Skill 工具呼叫 `/gendoc`，args=`"readme"`：
 - 該 skill 會自動收集 BRD/PRD/PDD/EDD 資料並寫入 README.md
 - 完成後繼續 Step 1-B
 
@@ -1398,4 +1398,4 @@ STEP_COMPLETE: 19
 | HTML 未產出 | Python 腳本執行失敗 | 看 python3 的錯誤訊息，修復後重跑 |
 | Mermaid 不渲染 | mermaid 語法被 HTML 轉義 | gen_html.py 的 md_to_html() 不轉義 mermaid 區塊 |
 | 路徑錯誤 | BASE 路徑計算錯誤 | 確認 gen_html.py 在 docs/pages/ 目錄下 |
-| README 未生成 | Mode full 但未呼叫 gen-readme | 確認 Step 1-A 執行了 Skill("gendoc-gen-readme") |
+| README 未生成 | Mode full 但未呼叫 gendoc readme | 確認 Step 1-A 執行了 Skill("gendoc", args="readme") |
