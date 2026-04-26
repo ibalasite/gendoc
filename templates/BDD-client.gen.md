@@ -275,6 +275,49 @@ Feature: 購物結帳完整旅程
 - [ ] Background 設定 clean UI 初始狀態，確保 Scenario 獨立執行
 - [ ] 所有 `[UPSTREAM_CONFLICT]` 標記均已處理或說明
 - [ ] 每個 .feature 檔案都輸出了 `GENERATED_FILE: features/client/{path}` 紀錄
+- [ ] Step Definitions skeleton 已生成（`features/client/step_definitions/client_steps.{ext}`）
+
+---
+
+## F-03：Step Definitions Skeleton 生成要求
+
+所有 Client `.feature` 檔案生成完成後，必須額外生成 Step Definitions skeleton：
+
+**輸出路徑**：依 lang_stack 偵測決定副檔名
+- TypeScript/JavaScript（Playwright/Cypress）→ `features/client/step_definitions/client_steps.ts`
+- Python（Playwright）→ `features/client/step_definitions/client_steps.py`
+
+**Skeleton 格式要求**：
+1. 列出所有在 client .feature 中出現的 Step Pattern（Given/When/Then）
+2. 每個 Step 有空實作（`// TODO: implement` + Page Object 引用提示）
+3. 包含必要的 import（Playwright/Cypress + Cucumber）
+4. 不得實作業務邏輯（只提供 skeleton，供開發者填入）
+5. 標注哪些 Step 需要對應的 Page Object（例如 `// → LoginPage.login()`）
+6. 使用 `GENERATED_FILE: features/client/step_definitions/client_steps.{ext}` 紀錄
+
+**Skeleton 範例（TypeScript/Playwright + Cucumber）**：
+```typescript
+import { Given, When, Then } from '@cucumber/cucumber';
+import { Page } from '@playwright/test';
+
+// Auto-generated skeleton from BDD-client.gen.md — DO NOT EDIT (structure)
+// Fill in Playwright page object calls for each step
+
+Given('I am on the login page', async function () {
+  // → LoginPage.navigate()
+  // TODO: implement
+});
+
+When('I enter username {string} and password {string}', async function (username, password) {
+  // → LoginPage.fillCredentials(username, password)
+  // TODO: implement
+});
+
+Then('I should see the dashboard', async function () {
+  // → DashboardPage.assertVisible()
+  // TODO: implement
+});
+```
 
 ---
 

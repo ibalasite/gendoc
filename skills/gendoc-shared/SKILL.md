@@ -28,8 +28,39 @@ _INIT_STATE=$(ls .gendoc-state-*.json 2>/dev/null | head -1 || echo "")
 echo "STATE_FILE: ${_INIT_STATE:-（不存在）}"
 ```
 
-- **`_INIT_STATE` 非空（已存在）**：直接繼續本 skill 的 Step 0，不做任何其他動作。
+- **`_INIT_STATE` 非空（已存在）**：執行 C-02 舊版 schema 偵測（見下方），通過後繼續本 skill 的 Step 0。
 - **`_INIT_STATE` 為空（不存在）**：**立即用 Skill tool 呼叫 `gendoc-config`，讓其完整執行所有步驟（不得簡化任何選單）。gendoc-config 完全結束後，繼續呼叫方的 Step 0。**
+
+### C-02：舊版 State Schema 偵測（僅 `_INIT_STATE` 非空時執行）
+
+```bash
+# C-02：偵測舊版 state file schema（有 current_step 但無 completed_steps 視為舊版）
+_HAS_OLD_SCHEMA=$(python3 -c "
+import json
+try:
+    d = json.load(open('${_INIT_STATE}'))
+    old = 'current_step' in d and 'completed_steps' not in d
+    print('yes' if old else 'no')
+except:
+    print('no')
+" 2>/dev/null || echo "no")
+
+if [[ "$_HAS_OLD_SCHEMA" == "yes" ]]; then
+  echo ""
+  echo "╔══════════════════════════════════════════════════════════════╗"
+  echo "║  ⛔  C-02：偵測到舊版 State File Schema                      ║"
+  echo "╠══════════════════════════════════════════════════════════════╣"
+  echo "║  State file 使用舊版欄位（current_step，缺 completed_steps）  ║"
+  echo "║  舊版 schema 與目前 gendoc 不相容，無法安全續行。             ║"
+  echo "║                                                              ║"
+  echo "║  請執行以下步驟：                                             ║"
+  echo "║  1. 刪除所有 .gendoc-state*.json                             ║"
+  echo "║     rm -f .gendoc-state*.json                                ║"
+  echo "║  2. 重新設定：執行 /gendoc-config                             ║"
+  echo "╚══════════════════════════════════════════════════════════════╝"
+  exit 1
+fi
+```
 
 **關鍵限制**：
 - state file 由 **gendoc-config 建立**，其他所有 skill 不得自行建立 state file

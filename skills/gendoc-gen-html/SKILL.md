@@ -1046,7 +1046,7 @@ def scan_diagram_pages():
             server.append(entry)
     return server, frontend
 
-def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, current):
+def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, current, has_req=False):
     def link(slug, label, icon):
         cls = ' active' if slug == current else ''
         return f'<a class="sidebar__link{cls}" href="{slug}.html">{icon} {label}</a>'
@@ -1076,9 +1076,16 @@ def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, current):
             sections.append(link(f'diag-{slug}', label, icon))
         sections.append('</div>')
 
+    # 原始素材 (req/) 區
+    if has_req:
+        sections.append('<div class="sidebar__section">')
+        sections.append('<div class="sidebar__label">原始素材</div>')
+        sections.append(link('req', 'req/ 素材清單', '📎'))
+        sections.append('</div>')
+
     return '\n'.join(sections)
 
-def render_page(content, title, banner, doc_pages, server_diagrams, frontend_diagrams, current, is_index=False):
+def render_page(content, title, banner, doc_pages, server_diagrams, frontend_diagrams, current, is_index=False, has_req=False):
     gh = (f'<a class="nav-gh-link" href="{GITHUB_REPO}" target="_blank" rel="noopener">⌥ GitHub</a>'
           if GITHUB_REPO else '')
     if is_index:
@@ -1089,7 +1096,7 @@ def render_page(content, title, banner, doc_pages, server_diagrams, frontend_dia
                    f'</span>')
     else:
         bc = f'<a href="index.html">{APP_NAME}</a> › {banner}'
-    sidebar_html = make_sidebar(doc_pages, server_diagrams, frontend_diagrams, current)
+    sidebar_html = make_sidebar(doc_pages, server_diagrams, frontend_diagrams, current, has_req=has_req)
     return (HTML_TEMPLATE
             .replace('__TITLE__', title)
             .replace('__APP__', APP_NAME)
@@ -1181,9 +1188,22 @@ def main():
         doc_pages.append((s, label_str, icon_str))
         extra_doc_entries.append((s, label_str, p))
 
-    has_bdd = FEATURES_DIR.exists() and list(FEATURES_DIR.rglob("*.feature"))
-    if has_bdd:
-        doc_pages.append(('bdd', 'BDD Scenarios', '🧪'))
+    # B-04: Split BDD into server (features/*.feature) and client (features/client/**/*.feature)
+    client_bdd_dir = FEATURES_DIR / "client"
+    server_bdd_features = (sorted(FEATURES_DIR.glob("*.feature"))
+                           if FEATURES_DIR.exists() else [])
+    client_bdd_features = (sorted(client_bdd_dir.rglob("*.feature"))
+                           if client_bdd_dir.exists() else [])
+    has_server_bdd = bool(server_bdd_features)
+    has_client_bdd = bool(client_bdd_features)
+    if has_server_bdd:
+        doc_pages.append(('bdd-server', 'Server BDD', '🧪'))
+    if has_client_bdd:
+        doc_pages.append(('bdd-client', 'Client BDD', '🧪'))
+
+    # B-03: Detect req/ files for sidebar section
+    has_req = (REQ_DIR.exists() and
+               any(f for f in REQ_DIR.iterdir() if f.is_file() and not f.name.startswith('.')))
 
     # Discover diagram pages (sidebar sections 2 + 3)
     server_diagrams, frontend_diagrams = scan_diagram_pages()
@@ -1193,7 +1213,7 @@ def main():
     def write_page(filename, content, title, banner, current, is_index=False):
         html = render_page(content, title, banner,
                            doc_pages, server_diagrams, frontend_diagrams,
-                           current, is_index)
+                           current, is_index, has_req=has_req)
         (PAGES_DIR / filename).write_text(html)
         exc = re.sub(r'<[^>]+>', '', content)[:150]
         search_data[filename] = {"url": filename, "title": title, "excerpt": exc}
@@ -1220,12 +1240,26 @@ def main():
         c = md_to_html(p.read_text())
         write_page(f"{s}.html", c, label, label, s)
 
-    # BDD page
-    if has_bdd:
-        parts = [f"## {f.relative_to(FEATURES_DIR)}\n\n```gherkin\n{f.read_text()}\n```"
-                 for f in sorted(FEATURES_DIR.rglob("*.feature"))]
+    # B-04: Server BDD page (features/*.feature — root level only)
+    if has_server_bdd:
+        parts = [f"## {f.name}\n\n```gherkin\n{f.read_text()}\n```"
+                 for f in server_bdd_features]
         c = md_to_html('\n\n'.join(parts))
-        write_page("bdd.html", c, "BDD Scenarios", "BDD Scenarios", 'bdd')
+        write_page("bdd-server.html", c, "Server BDD", "Server BDD Scenarios", 'bdd-server')
+
+    # B-04: Client BDD page (features/client/**/*.feature)
+    if has_client_bdd:
+        parts = [f"## {f.relative_to(client_bdd_dir)}\n\n```gherkin\n{f.read_text()}\n```"
+                 for f in client_bdd_features]
+        c = md_to_html('\n\n'.join(parts))
+        write_page("bdd-client.html", c, "Client BDD", "Client BDD Scenarios", 'bdd-client')
+
+    # B-03: req/ materials page
+    if has_req:
+        req_body = (f'<h1>📎 原始素材 (req/)</h1>'
+                    f'<p style="color:var(--text-muted)">專案原始素材與需求附件，點擊下載。</p>'
+                    + req_section())
+        write_page("req.html", req_body, "原始素材 (req/)", "原始素材 (req/)", 'req')
 
     # Server UML diagram pages
     for stem, label, icon, p in server_diagrams:
@@ -1242,7 +1276,9 @@ def main():
         json.dumps(search_data, ensure_ascii=False, indent=2))
     print("✓ search-data.json")
     total_diag = len(server_diagrams) + len(frontend_diagrams)
-    print(f"\n✅ 完成：{len(search_data)} 頁（文件 + BDD + {total_diag} UML 圖表）→ {PAGES_DIR}")
+    bdd_count = int(has_server_bdd) + int(has_client_bdd)
+    req_count = int(has_req)
+    print(f"\n✅ 完成：{len(search_data)} 頁（文件 + BDD×{bdd_count} + {total_diag} UML 圖表 + req×{req_count}）→ {PAGES_DIR}")
 
 if __name__ == "__main__":
     main()

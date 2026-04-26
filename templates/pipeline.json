@@ -1,5 +1,5 @@
 {
-  "version": "2.0",
+  "version": "2.1",
   "description": "gendoc 文件流水線定義 — 此檔案是流水線的唯一順序來源。新增文件類型：(1) 加入本檔案的 steps；(2) 建立 templates/{TYPE}.md + TYPE.gen.md + TYPE.review.md。不需修改任何 skill 檔案。",
   "steps": [
     {
@@ -33,6 +33,17 @@
       "commit_prefix": "docs(gendoc)[D03-PRD]"
     },
     {
+      "id": "D03.5-CONSTANTS",
+      "type": "CONSTANTS",
+      "layer": "需求層",
+      "output": ["docs/CONSTANTS.md"],
+      "multi_file": false,
+      "condition": "always",
+      "handled_by": "gendoc-flow",
+      "commit_prefix": "docs(gendoc)[D03.5-CONSTANTS]",
+      "note": "從 PRD 提取所有關鍵業務數值（倍率、閾值、SLO、RTP、rate-limit 等）到 docs/CONSTANTS.md（並同步輸出 docs/constants.json）。下游所有文件（EDD/BDD/test-plan/runbook）生成時必須讀取此文件並引用，確保跨文件數值一致性。這是 AI 可實作性的核心機制。"
+    },
+    {
       "id": "D04-PDD",
       "type": "PDD",
       "layer": "需求層",
@@ -60,7 +71,8 @@
       "multi_file": false,
       "condition": "always",
       "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D06-EDD]"
+      "commit_prefix": "docs(gendoc)[D06-EDD]",
+      "note": "EDD 生成採用三 subagent 多 pass 架構（見 EDD.gen.md）：Pass-A 生成 §1-§8，Pass-B 生成 §4.5 UML，Pass-C 生成 §9-§21。三個 pass 均輸出到同一個 docs/EDD.md，review loop 在全部完成後執行。"
     },
     {
       "id": "D07-ARCH",
@@ -157,7 +169,7 @@
       "condition": "always",
       "handled_by": "gendoc-flow",
       "commit_prefix": "test(gendoc)[D12-BDD-server]",
-      "note": "BDD-server.gen.md 指示生成多個 .feature 檔案；BDD-server.review.md 審查所有 features/*.feature"
+      "note": "BDD-server.gen.md 指示生成多個 .feature 檔案 + step definitions skeleton；BDD-server.review.md 審查所有 features/*.feature（含上游 PRD/CONSTANTS 數值對照）"
     },
     {
       "id": "D12b-BDD-client",
@@ -169,7 +181,7 @@
       "condition": "client_type != none",
       "handled_by": "gendoc-flow",
       "commit_prefix": "test(gendoc)[D12b-BDD-client]",
-      "note": "BDD-client.gen.md 指示生成多個 .feature 檔案；BDD-client.review.md 審查所有 features/client/*.feature"
+      "note": "BDD-client.gen.md 指示生成多個 .feature 檔案 + step definitions skeleton；BDD-client.review.md 審查所有 features/client/*.feature（含上游 PRD/CONSTANTS 數值對照）"
     },
     {
       "id": "D13-RTM",
@@ -199,7 +211,8 @@
       "multi_file": false,
       "condition": "always",
       "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D15-LOCAL_DEPLOY]"
+      "commit_prefix": "docs(gendoc)[D15-LOCAL_DEPLOY]",
+      "note": "LOCAL_DEPLOY.gen.md 要求生成後自動執行 docker/sandbox 驗證，確認所有命令可成功執行"
     },
     {
       "id": "D16-ALIGN",
@@ -223,7 +236,19 @@
       "special_skill": "gendoc-align-fix",
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[D16-ALIGN-F]",
-      "note": "特殊步驟：依 ALIGN_REPORT.md 自動修復對齊問題（all layers），每條 fix verify 後 commit。緊接 D16-ALIGN 執行。"
+      "note": "特殊步驟：依 ALIGN_REPORT.md 自動修復對齊問題（all layers），每條 fix verify 後 commit。緊接 D16-ALIGN 執行。完成後必須觸發 D16b-ALIGN-VERIFY 重新驗證。"
+    },
+    {
+      "id": "D16b-ALIGN-VERIFY",
+      "type": "ALIGN-VERIFY",
+      "layer": "稽核層",
+      "output": ["docs/ALIGN_REPORT.md"],
+      "multi_file": false,
+      "condition": "always",
+      "special_skill": "gendoc-align-check",
+      "handled_by": "gendoc-flow",
+      "commit_prefix": "docs(gendoc)[D16b-ALIGN-VERIFY]",
+      "note": "特殊步驟：D16-ALIGN-F 修復完成後重新執行 gendoc-align-check，更新 ALIGN_REPORT.md 為修復後狀態，確認修復效果。若仍有 CRITICAL/HIGH 問題，繼續修復直到清零。"
     },
     {
       "id": "D17-CONTRACTS",
@@ -236,7 +261,7 @@
       "special_skill": "gendoc-gen-contracts",
       "handled_by": "gendoc-flow",
       "commit_prefix": "feat(gendoc)[D17-CONTRACTS]",
-      "note": "特殊步驟：從生成文件提取機器可讀規格（OpenAPI YAML, JSON Schema, Pact, IaC, Seed Code）。輸出集中於 docs/blueprint/ 目錄。不走標準 gen→review 流程。"
+      "note": "特殊步驟：從生成文件提取機器可讀規格（OpenAPI YAML, JSON Schema, Pact, IaC, Seed Code）。輸出集中於 docs/blueprint/ 目錄。生成後自動執行 openapi-spec-validator 驗證及 path 數量對齊檢查。"
     },
     {
       "id": "D18-MOCK",
@@ -249,7 +274,19 @@
       "special_skill": "gendoc-gen-mock",
       "handled_by": "gendoc-flow",
       "commit_prefix": "feat(gendoc)[D18-MOCK]",
-      "note": "特殊步驟：呼叫 gendoc-gen-mock skill，生成 FastAPI mock server + 擬真假資料 + frontend 使用手冊。整個 docs/blueprint/mock/ 目錄可獨立帶走使用。不走標準 gen→review 流程。"
+      "note": "特殊步驟：呼叫 gendoc-gen-mock skill，生成 FastAPI mock server + 擬真假資料 + frontend 使用手冊。生成後自動執行 python main.py --check 確認可啟動。整個 docs/blueprint/mock/ 目錄可獨立帶走使用。"
+    },
+    {
+      "id": "D20-PROTOTYPE",
+      "type": "PROTOTYPE",
+      "layer": "實作層",
+      "output": ["docs/pages/prototype/"],
+      "multi_file": true,
+      "condition": "client_type != api-only",
+      "special_skill": "gendoc-gen-prototype",
+      "handled_by": "gendoc-flow",
+      "commit_prefix": "feat(gendoc)[D20-PROTOTYPE]",
+      "note": "特殊步驟：呼叫 gendoc-gen-prototype skill，依 PDD/FRONTEND/API.md 生成可點擊的 HTML prototype（UI 流程展示）+ API explorer（交互式 API 文件）。輸出至 docs/pages/prototype/，由 D19-HTML 的 gen_html.py 自動連結到 sidebar。"
     },
     {
       "id": "D19-HTML",
@@ -261,7 +298,7 @@
       "special_skill": "gendoc-gen-html",
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[D19-HTML]",
-      "note": "特殊步驟：呼叫 gendoc-gen-html skill，不走標準 gen→review 流程"
+      "note": "特殊步驟：呼叫 gendoc-gen-html skill，不走標準 gen→review 流程。Step 1-B 開頭偵測並刪除舊版 generate_site.py（若存在），強制使用 gen_html.py。"
     }
   ]
 }

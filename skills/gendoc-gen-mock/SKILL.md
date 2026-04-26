@@ -70,6 +70,17 @@ fi
 # 確認上游文件存在
 [[ ! -f "docs/API.md" ]] && echo "[ERROR] docs/API.md 不存在，請先完成 D08-API 步驟" && exit 1
 
+# B-02：偵測並遷移根目錄舊版 mock/ → docs/blueprint/mock/
+if [[ -d "mock" && ! -L "mock" ]]; then
+  echo "[B-02] 偵測到根目錄 mock/，遷移至 docs/blueprint/mock/"
+  mkdir -p docs/blueprint/mock
+  cp -rn mock/. docs/blueprint/mock/ 2>/dev/null || true
+  mv mock mock._migrated_$(date +%Y%m%d%H%M%S)
+  echo "[B-02] 遷移完成，原目錄已重命名為 mock._migrated_*"
+else
+  echo "[B-02] 無根目錄 mock/，略過遷移"
+fi
+
 # 建立輸出目錄
 mkdir -p docs/blueprint/mock/data
 

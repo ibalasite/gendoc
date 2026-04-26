@@ -256,6 +256,46 @@ Feature: <功能名稱（與 PRD 一致）>
 - [ ] Test Data 使用 Factory 動態建立，禁止 hardcode 真實 PII
 - [ ] 所有 `[UPSTREAM_CONFLICT]` 標記均已處理或說明
 - [ ] 每個 .feature 檔案都輸出了 `GENERATED_FILE: features/{path}` 紀錄
+- [ ] Step Definitions skeleton 已生成（`features/step_definitions/server_steps.ts` 或對應語言副檔名）
+
+---
+
+## F-03：Step Definitions Skeleton 生成要求
+
+所有 `.feature` 檔案生成完成後，必須額外生成 Step Definitions skeleton：
+
+**輸出路徑**：依 lang_stack 偵測決定副檔名
+- TypeScript/JavaScript → `features/step_definitions/server_steps.ts`
+- Python → `features/step_definitions/server_steps.py`
+- Go → `features/step_definitions/server_steps_test.go`
+- Java → `src/test/java/stepdefs/ServerSteps.java`
+
+**Skeleton 格式要求**：
+1. 列出所有在 .feature 中出現的 Step Pattern（Given/When/Then）
+2. 每個 Step 有空實作（`// TODO: implement`）
+3. 包含必要的 import/require（依語言）
+4. 不得實作業務邏輯（只提供 skeleton，供開發者填入）
+5. 使用 `GENERATED_FILE: features/step_definitions/server_steps.{ext}` 紀錄
+
+**Skeleton 範例（TypeScript/Cucumber）**：
+```typescript
+import { Given, When, Then } from '@cucumber/cucumber';
+
+// Auto-generated skeleton from BDD-server.gen.md — DO NOT EDIT (structure)
+// Fill in implementation for each step
+
+Given('a valid user with credentials {string} and {string}', async (username, password) => {
+  // TODO: implement
+});
+
+When('I POST to {string} with body {string}', async (endpoint, body) => {
+  // TODO: implement
+});
+
+Then('I receive HTTP status {int}', async (statusCode) => {
+  // TODO: implement
+});
+```
 
 ---
 

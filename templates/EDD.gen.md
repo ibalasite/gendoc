@@ -21,6 +21,40 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 
 ---
 
+## 三 Pass 生成架構（Multi-Pass Subagent）
+
+EDD 因章節多（21 個主章）且上游文件量大，採三個順序 subagent 分段生成，
+所有 pass 均輸出到同一份 `docs/EDD.md`。Review Loop 在三個 pass 全部完成後執行。
+
+**執行指令（gendoc-flow D06-EDD 生成階段）：**
+
+```
+Pass-A（主 Claude 直接執行）：
+  目的：生成 §0–§8 核心架構
+  讀取：docs/IDEA.md, docs/BRD.md, docs/PRD.md, docs/PDD.md, docs/VDD.md,
+         docs/CONSTANTS.md（若存在）, docs/req/*
+  輸出：docs/EDD.md（§0 至 §8，不含 §4.5 UML）
+
+Pass-B（派送 subagent）：
+  目的：生成 §4.5 UML 9 大圖
+  讀取：docs/EDD.md（Pass-A 已生成的 §0–§8，提取 API 路由清單 + DB 資料表清單 + PRD AC 清單）
+         + docs/PRD.md §AC 清單
+  輸出：**追加寫入** docs/EDD.md §4.5（9 個 Mermaid 圖）
+  注意：Pass-A 生成的 §4.5 佔位符（若有）需被替換，其他章節不得修改
+
+Pass-C（派送 subagent）：
+  目的：生成 §9–§21 安全/可觀測性/效能/運維設計
+  讀取：docs/EDD.md（Pass-A + Pass-B 已完成部分）
+         + docs/PRD.md §安全需求 / 非功能需求
+         + docs/CONSTANTS.md（若存在，用於 SLO/SLI 數值）
+  輸出：**追加寫入** docs/EDD.md §9 至 §21
+  注意：不得修改 §0–§8 已生成的內容
+```
+
+**三 Pass 完成後**：對完整 docs/EDD.md 執行 Quality Gate 自我檢查（見下方），通過後交付 Review Loop。
+
+---
+
 ## 上游讀取規則
 
 - `docs/IDEA.md`（若存在）：了解產品核心概念、解決問題、目標市場——EDD 技術選型必須服務 IDEA 的業務目標

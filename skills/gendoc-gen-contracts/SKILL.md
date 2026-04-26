@@ -46,6 +46,17 @@ done
 [[ ! -f "docs/EDD.md" ]] && echo "[ERROR] docs/EDD.md 不存在，無法提取 UML 結構" && exit 1
 [[ ! -f "docs/API.md" ]] && echo "[WARN] docs/API.md 不存在，跳過 OpenAPI 生成"
 
+# B-02：偵測並遷移根目錄舊版 contracts/ → docs/blueprint/contracts/
+if [[ -d "contracts" && ! -L "contracts" ]]; then
+  echo "[B-02] 偵測到根目錄 contracts/，遷移至 docs/blueprint/contracts/"
+  mkdir -p docs/blueprint/contracts
+  cp -rn contracts/. docs/blueprint/contracts/ 2>/dev/null || true
+  mv contracts contracts._migrated_$(date +%Y%m%d%H%M%S)
+  echo "[B-02] 遷移完成，原目錄已重命名為 contracts._migrated_*"
+else
+  echo "[B-02] 無根目錄 contracts/，略過遷移"
+fi
+
 # Setup output directories
 mkdir -p docs/blueprint/contracts/schemas docs/blueprint/contracts/pact docs/blueprint/infra/k8s docs/blueprint/scaffold/src
 ```

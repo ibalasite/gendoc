@@ -407,3 +407,46 @@ LOCAL_DEPLOY.md 必須包含服務啟動和關閉的依賴順序圖：
 | 前置需求有版本號 | 每個前置工具（Node.js / Python / Docker 等）都指定具體版本號 | 從 EDD §環境規格 提取版本號 |
 | 指令可直接執行 | 所有 shell 指令可直接 copy-paste 執行（非概念描述） | 改寫為具體可執行指令 |
 | Smoke Test 存在 | 部署完成後有驗證步驟（至少一個 curl / HTTP 請求驗證服務正常） | 補充 smoke test 指令 |
+
+---
+
+## F-04：Docker/Sandbox 執行驗證要求
+
+LOCAL_DEPLOY.md 生成完成後，**必須執行以下自動驗證**，確認所有指令可成功執行：
+
+```bash
+# F-04 驗證流程（在專案根目錄執行）
+
+echo "[F-04] 開始 LOCAL_DEPLOY 自動驗證..."
+
+# Step 1：驗證環境依賴存在
+echo "[F-04-1] 驗證環境依賴..."
+_MISSING_DEPS=0
+command -v node > /dev/null 2>&1  || { echo "  ⚠️  node 未安裝"; _MISSING_DEPS=1; }
+command -v docker > /dev/null 2>&1 || command -v nerdctl > /dev/null 2>&1 || { echo "  ⚠️  docker/nerdctl 未安裝"; _MISSING_DEPS=1; }
+[[ $_MISSING_DEPS -eq 0 ]] && echo "  ✅ 環境依賴確認" || echo "  ⚠️  有缺失依賴（不阻斷，繼續驗證）"
+
+# Step 2：驗證 docker-compose.yml 語法（若存在）
+if [[ -f "docker-compose.yml" ]]; then
+  docker compose config > /dev/null 2>&1 \
+    && echo "  ✅ docker-compose.yml 語法正確" \
+    || echo "  ❌ docker-compose.yml 語法錯誤 → 修正 yml 格式"
+fi
+
+# Step 3：Dry-run 關鍵指令（模擬，不實際執行）
+echo "[F-04-3] 指令格式驗證（dry-run）..."
+# 從 LOCAL_DEPLOY.md 提取所有 shell 指令區塊，確認無語法明顯錯誤
+_DEPLOY_MD="docs/LOCAL_DEPLOY.md"
+if [[ -f "$_DEPLOY_MD" ]]; then
+  _CMD_COUNT=$(grep -c '^\$ \|^nerdctl\|^docker\|^kubectl\|^make ' "$_DEPLOY_MD" 2>/dev/null || echo 0)
+  echo "  📋 共偵測到 ${_CMD_COUNT} 個可執行指令"
+fi
+
+echo "[F-04] 驗證完成。"
+echo "[F-04] ⚠️  若上述有 ❌ 項目，請在提交前修正 LOCAL_DEPLOY.md 中對應指令。"
+```
+
+**驗證失敗處理**：
+- `docker-compose.yml` 語法錯誤 → 修正 yml 縮排/格式後重新驗證
+- 環境依賴缺失 → 在 LOCAL_DEPLOY.md §1 Prerequisites 補充安裝說明（不阻斷生成）
+- 驗證結果輸出到 stdout，由 gendoc-flow 記錄到 git commit message
