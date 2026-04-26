@@ -899,6 +899,84 @@ for round in range(1, max_rounds + 1):
 
 ---
 
+## Step 3.5：Playwright 實際執行驗證
+
+Review Loop 通過後，用真實瀏覽器驗證 prototype 可運行。**此步驟發現的問題必須修復後才能進入 Step 4。**
+
+### Step 3.5-A：啟動 HTTP Server + 截圖驗證
+
+```bash
+_PROTO_PORT=18765
+_PROTO_DIR="$(pwd)/docs/pages/prototype"
+_SCREENSHOT_DIR="$(pwd)/docs/pages/prototype/assets/screenshots"
+mkdir -p "$_SCREENSHOT_DIR"
+
+# 啟動 local HTTP server
+python3 -m http.server $_PROTO_PORT --directory "$(pwd)/docs/pages" &
+_HTTP_PID=$!
+sleep 1
+
+echo "[Playwright] Server started on port $_PROTO_PORT (PID: $_HTTP_PID)"
+echo "[Playwright] 開始瀏覽器驗證..."
+```
+
+用 **mcp__playwright** 工具執行以下驗證序列：
+
+**1. 開啟首頁，收集 Console Errors**
+```
+navigate → http://localhost:18765/prototype/index.html
+wait 2s（等待 JS 初始化）
+取得 console messages → 過濾 type=error 的項目
+截圖 → docs/pages/prototype/assets/screenshots/01-home.png
+```
+
+**2. 驗證主要導覽（點擊每個 nav 連結）**
+```
+取得 .nav-item 或 .sidebar__link 或等效導覽元素清單
+對每個可見連結：
+  click → 等待 500ms → 截圖（02-nav-{n}.png）
+  記錄：URL hash 是否改變 + 頁面是否空白
+```
+
+**3. 若有 API Explorer（_PROTO_MODE = api-explorer / full）**
+```
+navigate → http://localhost:18765/prototype/api-explorer/index.html
+wait 1s → 截圖（03-api-explorer.png）
+點擊第一個 endpoint → wait 500ms → 點擊 Try It 按鈕
+wait 1500ms（mock delay）→ 截圖（04-api-try-it.png）
+驗證 response panel 是否出現 JSON
+```
+
+**4. 關閉 server**
+```bash
+kill $_HTTP_PID 2>/dev/null || true
+```
+
+### Step 3.5-B：判定與修復
+
+收集所有驗證結果，輸出：
+
+```
+PLAYWRIGHT_VERIFY_RESULT:
+  home_loaded: true|false
+  console_errors: N 個（列出每個 error 訊息）
+  nav_tested: N 個連結
+  nav_broken: N 個（列出哪些 hash 點擊後頁面空白）
+  api_explorer_ok: true|false|skipped
+  screenshots: [01-home.png, 02-nav-*.png, ...]
+  verdict: PASS|FAIL
+  issues:
+    - severity: CRITICAL|HIGH
+      description: "具體問題（如：JS error 'TypeError: router is not defined'）"
+      fix_guide: "如何修復"
+```
+
+**若 `verdict=FAIL`**：立即派送 Fix subagent 修復所有 CRITICAL/HIGH issue，修復後重跑 Step 3.5-A 驗證，直到 `verdict=PASS` 或修復 3 輪仍失敗（輸出 BLOCKED 並說明殘留問題）。
+
+**若 `verdict=PASS`**：繼續 Step 4。
+
+---
+
 ## Step 4：整合 — 更新 README 和 pages/index.html
 
 生成完成後，更新以下兩個檔案：
