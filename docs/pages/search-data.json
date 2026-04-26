@@ -1,7 +1,7 @@
 {
   "index.html": {
     "url": "index.html",
-    "title": "首頁",
+    "title": "gendoc 文件中心",
     "excerpt": "gendoc\n\n\n\nAI-driven engineering document generation system for Claude Code. One command generates a complete implementation blueprint — IDEA, BRD, PRD"
   },
   "prd.html": {
