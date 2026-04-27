@@ -109,11 +109,80 @@ fi
 
 ## Step 1：文件掃描 — 畫面清單 & 設計規格提取
 
+### Step 1-0：Codebase 實作掃描（優先執行）
+
+**在讀設計文件之前，先掃描 `docs/req/` 中的實作參考資料。若找到，其內容優先於文件推算值。**
+
+```bash
+_REQ_DIR="$(pwd)/docs/req"
+_HAS_CODEBASE_REF="no"
+
+if [[ -d "$_REQ_DIR" ]]; then
+  # 偵測實作參考檔案
+  _CODEBASE_FILES=$(find "$_REQ_DIR" -maxdepth 1 -type f \( \
+    -name "codebase-*.md" -o \
+    -name "codebase-*.txt" -o \
+    -name "*-EDD.md" -o \
+    -name "engine_config.json" -o \
+    -name "*.feature" \
+  \) 2>/dev/null)
+
+  if [[ -n "$_CODEBASE_FILES" ]]; then
+    _HAS_CODEBASE_REF="yes"
+    echo "[Step 1-0] ✅ 偵測到 codebase 實作參考："
+    echo "$_CODEBASE_FILES" | sed 's/^/  /'
+  else
+    echo "[Step 1-0] ℹ️  docs/req/ 無 codebase 參考檔案，使用文件推算模式"
+  fi
+fi
+```
+
+**若 `_HAS_CODEBASE_REF=yes`**，先用 Agent subagent 讀取這些檔案，提取：
+
+```
+你是 Codebase Implementation Analyst。
+任務：從 docs/req/ 的實作參考資料中提取真實 UI 規格，這些資料比設計文件更精確。
+
+讀取所有 docs/req/codebase-*.md、docs/req/*-EDD.md、docs/req/engine_config.json（若存在）。
+
+提取以下資訊（找到什麼提取什麼，找不到填 null）：
+
+CODEBASE_SNAPSHOT:
+  screens:
+    # 從 codebase 中找到的真實畫面/場景清單（非文件推算）
+    - id: "實際 ID 或 scene name"
+      name: "真實名稱"
+      entry_point: true|false
+      components: ["實際元件/prefab 名稱"]
+  design_tokens:
+    # 從 codebase 找到的真實 CSS 變數 / 色彩值
+    primary_color: null | "#實際色碼"
+    background: null | "#實際色碼"
+    font_family: null | "實際字型"
+  render_mode: null | "dom | canvas | webgl"
+    # 從 engine_config 或 codebase 結構推斷
+  audio_events:
+    # 真實 SFX 事件名稱（從 codebase 找到的）
+    - id: "實際事件 ID"
+      trigger: "實際觸發條件"
+  anim_classes:
+    # 真實動畫 CSS class 或函式名稱
+    - name: "實際名稱"
+      type: "css | js | spine | tween"
+  notes: "其他從 codebase 觀察到的重要 UI 實作細節"
+```
+
+輸出的 `CODEBASE_SNAPSHOT` 會在 Step 1 文件掃描後合併：**codebase 的值覆蓋文件推算值**，null 表示讓文件值保留。
+
+---
+
 用 **Agent tool** 派送「文件掃描 Subagent」：
 
 ```
 你是 UI/UX Specification Analyst（資深產品設計分析師）。
 任務：從工程文件中提取所有畫面、導覽流程、設計規格，輸出結構化清單供後續 Prototype 生成使用。
+
+**若主 Claude 已提供 CODEBASE_SNAPSHOT，必須將其中的非 null 值直接採用，不得用文件推算值覆蓋。**
 
 **讀取步驟（不得跳過）：**
 1. 若存在，讀取 docs/PRD.md → 提取：User Stories、功能模組、使用者角色
@@ -124,6 +193,7 @@ fi
 6. 若存在，讀取 docs/ANIM.md → 提取：P0/P1 動畫清單（進場/轉場/強調）、粒子特效規格
 7. 若存在，讀取 docs/SCHEMA.md → 提取：主要資料結構（用於生成 mock data）
 8. 若存在，讀取 docs/EDD.md → 提取：引擎/技術棧（用於判斷 Canvas/WebGL/HTML5 渲染模式）
+9. 若存在，讀取 docs/req/GDD_*.md → 提取：遊戲設計規格（畫面、流程、數值）
 
 **輸出格式（必須輸出此結構）：**
 
@@ -179,7 +249,19 @@ PROTOTYPE_SPEC:
       sample: {"id": 1, "name": "示範使用者", ...}
 ```
 
-Agent 執行完成後，主 Claude 解析輸出的 `PROTOTYPE_SPEC` 供後續步驟使用。
+Agent 執行完成後，主 Claude 解析輸出的 `PROTOTYPE_SPEC`，並執行合併：
+
+```
+若 CODEBASE_SNAPSHOT 存在：
+  - screens：codebase 的 screen id/name/components 覆蓋文件推算值
+  - design_tokens：codebase 的非 null 色碼/字型覆蓋文件推算值
+  - render_mode：codebase 的非 null 值覆蓋文件推算值
+  - audio.sfx：以 codebase audio_events 為準（追加文件清單中文件有但 codebase 沒有的）
+  - animations：以 codebase anim_classes 補充文件清單
+  保留原則：codebase 有的用 codebase，codebase 無的（null）才用文件推算
+```
+
+合併後的 `PROTOTYPE_SPEC` 供後續步驟使用。
 
 > **若 `_PROTO_MODE=api-explorer`**：跳過本 Step，直接執行 Step 1-B。
 > **若 `_PROTO_MODE=full`**：執行本 Step + Step 1-B，兩份規格並行使用。
