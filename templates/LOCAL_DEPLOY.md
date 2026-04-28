@@ -209,12 +209,12 @@ echo "127.0.0.1   {{PROJECT_SLUG}}.local api.{{PROJECT_SLUG}}.local" | sudo tee 
 
 ### 4.3 建立 K8s Secret
 
-Secret 不走 configmap，不提交到 git。首次設定需手動建立：
+Secret 不走 configmap，不提交到 git。Local 環境全為開發假值，直接從範例複製即可，**無需人工填寫**：
 
 ```bash
-# 複製 secret 範本
-cp k8s/overlays/local/secrets.example.env k8s/overlays/local/secrets.env
-# 編輯 secrets.env，填入本地開發用的假憑證（不要用真實 API key）
+# 從範例複製（local 假值，不需修改）
+[[ ! -f k8s/overlays/local/secrets.env ]] && \
+  cp k8s/overlays/local/secrets.example.env k8s/overlays/local/secrets.env
 
 # 建立 K8s Secret（從 secrets.env 讀取）
 make k8s-init
@@ -894,7 +894,7 @@ open "${_TUNNEL_URL}"
 
 ## 18. AI Agent Quick Start
 
-AI 代理可執行以下完整腳本，從零啟動完整本地環境並驗證前端可存取，**無需人工介入**（首次設定除外，需手動建立 `k8s/overlays/local/secrets.env`）。
+AI 代理可執行以下完整腳本，從零啟動完整本地環境並驗證前端可存取，**無需任何人工介入**。
 
 ```bash
 #!/usr/bin/env bash
@@ -905,7 +905,10 @@ echo "=== [1/6] 確認 kubectl context ==="
 kubectl config use-context rancher-desktop
 kubectl cluster-info
 
-echo "=== [2/6] 初始化 namespace + Secret ==="
+echo "=== [2/6] 初始化 namespace + Secret（自動從 example 建立 local 假值）==="
+# local 環境全為開發假值，直接從範例複製，無需人工填寫
+[[ ! -f k8s/overlays/local/secrets.env ]] && \
+  cp k8s/overlays/local/secrets.example.env k8s/overlays/local/secrets.env
 make k8s-init
 
 echo "=== [3/6] 建置所有 Image ==="

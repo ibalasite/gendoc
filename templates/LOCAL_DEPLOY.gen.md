@@ -352,7 +352,7 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 - 末尾輸出：`前端 UI → http://{{PROJECT_SLUG}}.local` + tunnel 啟動提示
 - AI 測試完整流程說明：`ai-quickstart.sh` → ngrok tunnel → Playwright 開啟 `_TUNNEL_URL` → 驗證 `features/client/*.feature` 所描述的功能
 
-**質量要求**：此腳本必須可以被 AI 直接 copy-paste 執行，不得含任何需要人工決策的互動式步驟（secret 設定除外，須在說明中標記「首次需人工建立 secrets.env」）。
+**質量要求**：此腳本必須可以被 AI 直接 copy-paste 執行，不得含任何需要人工決策的步驟。Local 環境 secrets.env 全為假值，使用 `cp secrets.example.env secrets.env`（冪等，已存在則跳過）自動生成，不需人工介入。
 
 ---
 
@@ -363,6 +363,8 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 - `kubectl exec` 連線字串中不得包含硬編碼真實密碼
 - nerdctl 命令禁止替換為 docker（Rancher Desktop 使用 containerd runtime）
 - ConfigMap 中 DATABASE_URL、REDIS_URL 禁止使用 `localhost`
+- **禁止要求人工建立 secrets.env**：local 環境全為假值，`cp secrets.example.env secrets.env` 即可，文件不得寫「請手動填入憑證」
+- **禁止要求多個對外 port**：ai-quickstart.sh 末尾只能有一個 tunnel URL（Ingress 80）
 
 ---
 
