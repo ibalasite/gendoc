@@ -20,7 +20,7 @@
 | **輸入模式** | {{多輪訪談 \| Quick Start \| AI 自動填入}} |
 | **建立方式** | /gendoc-auto 自動捕捉；請執行 /reviewdoc brd 審查後方可升版 |
 | **下游文件** | docs/BRD.md（由本文件產生） |
-| **client_type** | {{web \| mobile \| both \| game \| api-only}}（由 gendoc-auto Step 1.8 確認填入） |
+| **client_type** | 由 gendoc-auto Step 1.8 確認填入 |
 
 ---
 
