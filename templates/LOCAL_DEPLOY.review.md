@@ -144,8 +144,27 @@ upstream-alignment:
 **Impact**: 新進工程師第一天最可能遇到這 5 類問題；若 §10 缺少對應診斷步驟，等於需要詢問他人。
 **Fix**: 補充缺少的問題類型，每類問題需有具體診斷命令和修復步驟。
 
-#### [MEDIUM] 18 — 裸 Placeholder 掃描
-**Check**: 文件中是否有裸的 `{{PLACEHOLDER}}` 格式（雙大括號包裹文字）且**既無格式範例說明也無 TODO 注釋**的空白佔位符？注意：帶有格式範例的佔位符（如 `{{PROJECT_SLUG}}-local`）允許保留；只有完全無資訊的孤立 placeholder 才是 finding。列出所有違規的裸 placeholder 及其位置。
+#### [CRITICAL] 18 — 指令區塊中裸 Placeholder
+**Check**: 所有在 shell code block（``` ``` ``` 包裹）內出現的 `{{PLACEHOLDER}}` 是否已全部替換為真實值？特別檢查：`{{PROJECT_SLUG}}`、`{{K8S_NAMESPACE}}`、`{{API_PORT}}`、`{{WEB_PORT}}`、`{{DB_PORT}}`、`{{REDIS_PORT}}`、`{{MIGRATE_CMD}}`、`{{SEED_CMD}}`、`{{TEST_UNIT_CMD}}`、`{{TEST_INTEGRATION_CMD}}`。帶有格式範例說明的（如 `{{PROJECT_SLUG}}-local` 出現在注釋行）允許保留；shell 指令行中的裸 placeholder 一律視為 CRITICAL finding。
+**Impact**: 工程師直接 copy-paste 含裸 placeholder 的指令會立即報錯，無法執行任何操作。等同文件失效。
+**Fix**: 從 EDD §3.5 / test-plan.md 提取對應真實值並填入所有 shell code block 中的 placeholder。
+
+#### [HIGH] 18b — 測試指令可執行性
+**Check**: §6（Testing & Verification）中的測試指令是否完整且可執行？具體檢查：
+- Unit test 指令是否具體（`npm test`/`pytest`/`go test ./...` 等，非裸 `{{TEST_UNIT_CMD}}`）？
+- Integration test 指令是否包含正確的容器執行方式（`kubectl exec`）？
+- E2E test 指令的 `--base-url` 是否使用真實 domain（`http://{{PROJECT_SLUG}}.local`，其中 slug 已填入）？
+- 每個測試指令後是否有 Expected 輸出說明？
+**Impact**: 測試指令不具體或含裸 placeholder，工程師完成部署後無法驗證系統，缺乏品質閘門。
+**Fix**: 從 test-plan.md 提取具體測試指令；將每個指令補充 Expected 輸出（如 `# Expected: X tests passed`）。
+
+#### [MEDIUM] 19 — §8 Default User Accounts 完整性
+**Check**: §8（Test Data & Fixtures）Default User Accounts 表格是否包含至少 3 種角色（Admin、Regular User、Read-only 或類似角色）？且每個帳號的 email 格式是否使用 `{{PROJECT_SLUG}}.local` domain（與 Ingress domain 一致）？
+**Impact**: 測試帳號不完整，新進工程師無法驗證所有權限等級的功能。
+**Fix**: 補充缺少的角色，並統一使用 `xxx@{{PROJECT_SLUG}}.local` 格式的 email。
+
+#### [MEDIUM] 19b — 裸 Placeholder 掃描（非指令區塊）
+**Check**: 文件正文（非 code block）是否有裸的 `{{PLACEHOLDER}}` 格式且**既無格式範例說明也無 TODO 注釋**的空白佔位符？列出所有違規的裸 placeholder 及其位置。（Code block 內的裸 placeholder 已由 [CRITICAL] 18 覆蓋）
 **Impact**: 裸 placeholder 讓新進工程師不知道需要填什麼，導致操作失敗。
 **Fix**: 對每個裸 placeholder，填入真實值或加上格式範例說明。
 
