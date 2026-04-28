@@ -23,9 +23,9 @@ for skill_dir in "$SKILLS_SRC"/*/; do
   log "  ✓ $skill_name"
 done
 
-# Templates 安裝到固定位置 — skill 從此讀，不依賴目標專案的 templates/ 副本
+# Templates 安裝到 ~/.claude/gendoc/templates/ — 與 gencode 同層級，不依賴開發 repo
 TEMPLATES_SRC="$GENDOC_DIR/templates"
-TEMPLATES_DST="$SKILLS_DST/gendoc/templates"
+TEMPLATES_DST="$HOME/.claude/gendoc/templates"
 if [[ -d "$TEMPLATES_SRC" ]]; then
   mkdir -p "$TEMPLATES_DST"
   cp -r "$TEMPLATES_SRC/." "$TEMPLATES_DST/"

@@ -99,7 +99,7 @@ options:
 # client        → FRONTEND  （向後相容別名）
 
 _CWD="$(pwd)"
-_TEMPLATE_DIR="${_TEMPLATE_DIR:-$HOME/.claude/skills/gendoc/templates}"
+_TEMPLATE_DIR="${_TEMPLATE_DIR:-$HOME/.claude/gendoc/templates}"
 _DOCS_DIR="${_DOCS_DIR:-$_CWD/docs}"
 
 # 查找對應的模板基名（TYPE_BASENAME）
