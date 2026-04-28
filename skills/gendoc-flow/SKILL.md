@@ -747,16 +747,142 @@ git commit -m "${step.commit_prefix}: gen — {TYPE} 初稿生成"
 
 ---
 
-### Phase D-2：Review → Fix → Round Summary → Commit Loop
+### Phase D-2：Review → Fix → Round Summary → Commit Loop（Agent subagent 驅動）
 
 **正確執行序：review → fix（若有 findings）→ round summary → commit → 判斷終止**
 
 > 鐵律：每輪結束必有一次 commit（無論 PASS 或 FIX），round summary 在 commit 之前輸出。
 > Fix 不因是最後一輪而跳過——只要有 findings，就先修，再 commit，再終止。
 
-**主 Claude 執行以下 loop（max_rounds 次）：**
+> ⚠️ **絕對禁止** 主 Claude 在此直接跑 review/fix loop（inline 執行）。
+> 每份文件的 review loop 必須用 **Agent tool** 委派給 subagent 執行。
+> 原因：整條 pipeline 有 12+ 份文件，每份最多 5 輪，若主 Claude 直接執行，context 將在第 2–3 份文件後爆滿，導致後續文件和最終 HTML 生成全部停止。
+
+**[AI 指令]** 用 **Agent tool** 派送以下 subagent（將所有 `{...}` 替換為實際值後發送）：
+
+Agent prompt：
+
+```
+你是 [{step.id}] 的 Review Loop 執行者。
+
+任務：對以下文件執行完整的 Review → Fix → Commit loop，直到達終止條件為止。
+
+關鍵路徑（絕對路徑，不得自行修改）：
+  project_dir    = {_PROJECT_DIR}
+  template_dir   = {_TEMPLATE_DIR}
+  state_file     = {_STATE_FILE}
+  output_file    = {step.output}（多文件：{step.output_glob}）
+  step_id        = {step.id}
+  TYPE           = {TYPE}
+  commit_prefix  = {step.commit_prefix}
+
+Loop 設定：
+  max_rounds      = {_MAX_ROUNDS}
+  review_strategy = {_REVIEW_STRATEGY}
+
+執行步驟（不得跳過任何步驟）：
+
+for round in 1..max_rounds:
+
+  [Step A — Review]
+  1. 讀取 {_TEMPLATE_DIR}/{TYPE}.review.md — 獲取所有 review items
+  2. 讀取被審查的文件（{step.output} 或 {step.output_glob} 的所有檔案）
+  3. 逐項執行每個 review item 的 Check，引用文件中的具體§章節
+  4. 統計 CRITICAL / HIGH / MEDIUM / LOW 各級 findings 數量
+
+  [Step B — 判斷終止條件]（先判斷，但不跳過 Fix）：
+  - finding_total == 0 → terminate=True，reason="PASSED — finding=0"
+  - review_strategy=="rapid" and round>=3 → terminate=True，reason="MAX_ROUNDS — rapid=3 已達"
+  - review_strategy=="tiered" and round>=6 and (critical+high+medium)==0 → terminate=True，reason="PASSED — tiered: CRITICAL+HIGH+MEDIUM=0"
+  - round >= max_rounds → terminate=True，reason="MAX_ROUNDS={max_rounds} 已達"
+
+  [Step C — Fix]（finding_total > 0 時必須執行，不得跳過）：
+  5. 讀取 {_TEMPLATE_DIR}/{TYPE}.review.md 對應 item 的 Fix 指引
+  6. 精準修復：只改 finding 指出的章節，不改未提及的部分（最小修改原則）
+     CRITICAL/HIGH 必修；MEDIUM/LOW 盡力修
+  7. 修復後重讀修復段落確認問題已解決
+
+  [Step D — Round Summary]（commit 之前輸出，每輪必須）：
+  ┌─── {step.id} Review Round {round}/{max_rounds} ─────────────────────────────┐
+  │  Review：CRITICAL=N HIGH=N MEDIUM=N LOW=N  Total=N
+  │  Fix：   修復 N 個 / 殘留 N 個（本輪未解）
+  │  本輪狀態：[✅ PASS | ⚠️  MAX | 🔄 CONT]  {terminate_reason if terminate else '繼續下一輪'}
+  │  Fix summary：（一句話，或 N/A 若 finding=0）
+  └─────────────────────────────────────────────────────────────────────┘
+
+  [Step E — Commit（每輪必執行）]：
+  Pre-Commit 裸 placeholder 掃描（bash）：
+    _BARE=$(python3 -c "
+    import re,sys
+    from pathlib import Path
+    p=re.compile(r'(?<!\w)\{\{([A-Z][A-Z0-9_]*)\}\}(?!\s*[：:\-—])')
+    a=re.compile(r'\{\{.+?\}\}.*[：:\-—]')
+    total=0
+    for f in Path('docs').glob('*.md'):
+        for l in f.read_text('utf-8').splitlines():
+            if p.search(l) and not a.search(l):
+                total+=1
+                print(f'  [{f.name}] {l.strip()[:80]}',file=sys.stderr)
+    print(total)
+    " 2>/dev/null || echo "0")
+    [[ "$_BARE" -gt "0" ]] && echo "[PRE-COMMIT BLOCKED] 先修復裸 placeholder 再 commit" && exit 1
+
+  quality_status 判斷：finding=0→"passed"；critical=0且high=0→"degraded"；否則→"failed"
+  terminate_reason_code：finding=0→"zero_finding"；tiered→"tiered_clean"；rapid→"rapid_cap"；max→"max_rounds"
+
+  若 finding=0：
+    git add {step.output_glob}
+    git commit -m "{step.commit_prefix}: review-r{round} — PASS (0 findings)
+
+Finding-Total: 0
+Terminate-Reason: zero_finding
+Quality-Status: passed"
+
+  若 finding>0：
+    git add {step.output_glob}
+    git commit -m "{step.commit_prefix}: review-r{round} — fix {fixed}/{total} findings
+
+Finding-Total: {total}
+Finding-CHM: {c}/{h}/{m}
+Terminate-Reason: {reason_code}
+Quality-Status: {quality_status}"
+
+  review_progress 原子更新（commit 後立即執行）：
+    python3 -c "
+    import json,os
+    f='{_STATE_FILE}'
+    d=json.load(open(f))
+    prog=d.setdefault('review_progress',{})
+    prog['{step.id}']={'rounds_done':{round},'max_rounds':{max_rounds},'strategy':'{review_strategy}','last_finding_total':{finding_total},'last_CHM':[{c},{h},{m}],'terminated':{terminate},'terminate_reason':'{reason_code}','quality_status':'{quality_status}'}
+    tmp=f+'.tmp'
+    json.dump(d,open(tmp,'w',encoding='utf-8'),indent=2,ensure_ascii=False)
+    os.replace(tmp,f)
+    print('[P-02] review_progress 已更新')
+    "
+
+  [Step F — 終止判斷（commit 之後才 break）]：
+  if terminate: break
+
+完成後必須輸出（格式嚴格，主 Claude 將解析此區塊）：
+REVIEW_LOOP_RESULT:
+  step_id: {step.id}
+  rounds_completed: N
+  final_finding_total: N
+  final_CHM: "C/H/M"
+  passed: true|false
+  terminate_reason: "..."
+  quality_status: "passed|degraded|failed"
+  summary: "一句話：{step.id} 審查完成，共 N 輪，最終 finding=N"
+```
+
+等 Agent 回傳 REVIEW_LOOP_RESULT 後，主 Claude 從中提取：
+- `rounds_completed` / `final_finding_total` / `final_CHM` → 用於 Phase D-3 summary
+- `passed` / `terminate_reason` / `quality_status` → 用於 Phase D-3 state 更新判斷
+
+**（以下為已移至 Agent 內部的舊版 inline loop 與 Review/Fix subagent prompts，僅供參考，不得在主 Claude 執行）**
 
 ```python
+# ARCHIVED — do not execute inline; kept for reference only
 for round in range(1, max_rounds + 1):
     
     # ── Step A: Review Subagent ───────────────────────
@@ -964,6 +1090,7 @@ FIX_RESULT:
       reason: "無法修復的原因（若有）"
   summary: "一句話：本輪共修復 N 個 findings，主要修復了 ..."
 ```
+**（ARCHIVED END — 上方 inline loop 僅供參考，主 Claude 不執行，由 Agent subagent 驅動）**
 
 ---
 
