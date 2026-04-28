@@ -2,7 +2,7 @@
 name: gendoc-gen-client-bdd
 description: |
   Client 端 BDD Feature Files 生成 — 智能路由：
-  Web/HTML5 → 讀取 templates/BDD-client.gen.md + BDD-client.review.md
+  Web/HTML5 → 讀取 {_TEMPLATE_DIR}/BDD-client.gen.md + BDD-client.review.md
   執行 Gen → Review → Fix 三專家迴圈（與 gendoc-flow D12b 行為完全一致）。
   Unity → Unity Test Framework BDD scenarios（C# NUnit）。
   Cocos → Jest TypeScript BDD（features/client/ + tests/cocos/）。
@@ -20,7 +20,7 @@ allowed-tools:
 # gendoc-gen-client-bdd — Client 端 BDD Feature 生成（智能路由）
 
 依 `client_type` 路由到對應的生成策略：
-- **Web / HTML5**：委派給 `templates/BDD-client.gen.md` 規則（3-expert pattern，與 pipeline D12b 行為一致）
+- **Web / HTML5**：委派給 `{_TEMPLATE_DIR}/BDD-client.gen.md` 規則（3-expert pattern，與 pipeline D12b 行為一致）
 - **Unity / Cocos**：使用平台專屬生成邏輯
 
 ---

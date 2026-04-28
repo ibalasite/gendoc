@@ -77,10 +77,10 @@ _DOC_TYPE=""   # e.g., "local-deploy"
 
 # 多文件 BDD 特殊處理：
 # 若 _TYPE_BASENAME == "BDD-server"：
-#   _REVIEW_RULES_FILE = templates/BDD-server.review.md
+#   _REVIEW_RULES_FILE = {_TEMPLATE_DIR}/BDD-server.review.md
 #   _TARGET_FILE = features/（目錄），需以 Glob 掃描 features/*.feature
 # 若 _TYPE_BASENAME == "BDD-client"：
-#   _REVIEW_RULES_FILE = templates/BDD-client.review.md
+#   _REVIEW_RULES_FILE = {_TEMPLATE_DIR}/BDD-client.review.md
 #   _TARGET_FILE = features/client/（目錄），需以 Glob 掃描 features/client/*.feature
 # 多文件模式下，Step 2 的 subagent prompt 應傳入所有 .feature 檔案內容的彙整
 
