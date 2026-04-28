@@ -36,17 +36,17 @@
     <div class="sidebar-resizer" id="sidebarResizer"></div>
     <main class="doc-content"><h1>PRD — Product Requirements Document</h1>
 <p>&lt;!-- 對應學術標準：IEEE 830 (SRS)，對應業界：Google PRD / Amazon PRFAQ --&gt;</p>
-<p>&lt;!-- Version: v2.4 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 --&gt;</p>
+<p>&lt;!-- Version: v2.6 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 --&gt;</p>
 <hr>
 <h2>Document Control</h2>
 <table>
 <tr><th>欄位</th><th>內容</th></tr>
 <tr><td><strong>DOC-ID</strong></td><td>PRD-GENDOC-20260422</td></tr>
 <tr><td><strong>產品名稱</strong></td><td>gendoc — AI-Driven Implementation Blueprint Generator</td></tr>
-<tr><td><strong>文件版本</strong></td><td>v2.4</td></tr>
+<tr><td><strong>文件版本</strong></td><td>v2.6</td></tr>
 <tr><td><strong>狀態</strong></td><td>ACTIVE</td></tr>
 <tr><td><strong>作者（PM）</strong></td><td>AI Product Manager Agent</td></tr>
-<tr><td><strong>日期</strong></td><td>2026-04-26</td></tr>
+<tr><td><strong>日期</strong></td><td>2026-04-28</td></tr>
 <tr><td><strong>上游來源</strong></td><td>gendoc 開源專案（github.com/ibalasite/gendoc）</td></tr>
 <tr><td><strong>審閱者</strong></td><td>技術架構師、QA Lead</td></tr>
 <tr><td><strong>核准者</strong></td><td>待定</td></tr>
@@ -55,6 +55,8 @@
 <h2>Change Log</h2>
 <table>
 <tr><th>版本</th><th>日期</th><th>作者</th><th>變更摘要</th></tr>
+<tr><td>v2.6</td><td>2026-04-28</td><td>PM Agent</td><td><strong>CLIENT_IMPL 客戶端實作規格書 + pipeline.json 成為唯一維護入口 + Phase D-2 Agent 包裝</strong>：(1) 新增 D10d-CLIENT_IMPL 步驟（條件 <code>client_type != none</code>，位於 D10c-ANIM 之後），三件套模板（CLIENT_IMPL.md + CLIENT_IMPL.gen.md + CLIENT_IMPL.review.md），5-way 引擎路由 —— 依 EDD §3.3 自動偵測 CLIENT_ENGINE，分別為 Cocos Creator（cc.Node 樹、cc.assetManager.loadBundle、cc.EventTarget 事件驅動、cc.AudioSource pool、Prefab Object Pool）/ Unity WebGL（Hierarchy GameObject 樹、Addressables、Animator.SetTrigger、AudioMixer）/ React（JSX 組件樹、React.lazy + Suspense、Framer Motion / GSAP、pages/components/store 三層）/ Vue（SFC 組件樹、defineAsyncComponent、Pinia stores / composables）/ HTML5（DOM 結構、Web Audio API / Howler.js、Preload Manager、requestAnimationFrame）展開對應場景結構、資源載入策略、動畫觸發、AudioManager 架構、VFX 整合規格；<code>gendoc/SKILL.md</code> 新增 client-impl / client_impl / cocos / unity / react-impl / vue-impl 等 6 個型別別名。(2) <strong>pipeline.json 成為唯一維護入口</strong>：<code>gendoc-config</code> step picker 和 <code>gendoc-shared</code> STEP_SEQUENCE / STEP_ORDER / Review Loop 適用清單全部改為執行時動態讀取 pipeline.json（python3 解析），消除 skill 間硬編碼同步問題；新增步驟只需修改 pipeline.json 一個檔案，其他所有 skill 自動跟上。(3) <strong>gendoc-flow Phase D-2 → Agent subagent 包裝</strong>：每份文件的 review→fix loop 改由 Agent tool 委派給獨立 subagent 執行，主 Claude context 不再累積 12+ 文件 × 5 輪的 review/fix 輸出，pipeline 可持續運行至 D19 不被 context window 撐爆，回傳格式統一為 REVIEW_LOOP_RESULT 緊湊結構。</td></tr>
+<tr><td>v2.5</td><td>2026-04-28</td><td>PM Agent</td><td><strong>具體建置成功標準明確化</strong>：在「什麼是可實作的藍圖」新增 LOCAL_DEPLOY / Runbook / 跨文件一致性三條標準，明確定義 gendoc 產出必須能讓 AI 或人類 step-by-step 在 local 建置完整 k8s 環境（Rancher Desktop）、client 封進 k8s pod、對外僅一個 port、docker-compose 為輔助工具、所有 Unit / Integration / E2E 測試可完整執行、跨文件品質如各自聲明的標準且上下文對齊無缺漏。</td></tr>
 <tr><td>v2.4</td><td>2026-04-26</td><td>PM Agent</td><td><strong>gendoc-shared 集中守衛 + Phase D-2 Review Loop</strong>：<code>gendoc-shared</code> 從純參考文件改為可執行 Skill 入口（<code>allowed-tools: [Bash, Skill]</code>），負責執行 R-01 State File Guard（檢查 state file 是否存在，不存在則完整呼叫 <code>gendoc-config</code>）；<code>gendoc-auto</code> / <code>gendoc-flow</code> Step -1 移除 inline guard 邏輯，改為一行 Skill tool 呼叫 <code>gendoc-shared</code>，等其完全回傳後才繼續（禁止在 Skill tool 回傳前讀取任何檔案或執行任何準備動作），達成 <strong>單一維護點</strong>原則。<code>gendoc-config</code> 確立為 state file 唯一建立者，其他所有 skill 禁止自行建立 state file。<code>gendoc-auto</code> Step 5.5（IDEA Review Loop）與 Step 5.7（BRD Review Loop）從 Agent→subagent→reviewdoc 雙重委派架構改為 <strong>Phase D-2</strong> 模式：主 Claude 直接驅動 Review subagent → Fix subagent → Round Summary → Commit per round，與 <code>gendoc-flow</code> 統一，解決雙重委派導致 review 輸出不可見、每輪 Summary 消失的問題。</td></tr>
 <tr><td>v2.3</td><td>2026-04-25</td><td>PM Agent</td><td><strong>Mermaid 跨瀏覽器相容性強化（全模板套用）</strong>：將 <code>stateDiagram-v2</code> transition label 禁止 <code>&lt;br/&gt;</code> 的規則從 Frontend-only 擴展至所有會生成 stateDiagram 的 template —— <code>FRONTEND.gen.md</code> §4.2、<code>PDD.gen.md</code> §4、<code>PRD.gen.md</code> §6 均補入明確禁止聲明；<code>gendoc-gen-diagrams/SKILL.md</code> §2.8 Server State Machine 同步補齊（之前只有 Frontend 段落有此規則）。新增 <code>sequenceDiagram</code> participant 名稱禁止 <code>&lt;br/&gt;</code> 規則（改用 <code>participant alias as 簡短名稱</code> 格式）至 <code>gendoc-gen-diagrams/SKILL.md</code> 參與者宣告段落。新增禁止使用 Mermaid 實驗性圖表（<code>pie</code> / <code>xychart-beta</code> / <code>bar</code>）的規則至 <code>gendoc-gen-diagrams/SKILL.md</code> Step 4 注意清單 —— 跨瀏覽器相容性差，資料分佈改用 <code>graph TD</code> 或 HTML 表格替代。新增 EDD.review.md CRITICAL 審查門 <code>5b-sm</code>：stateDiagram-v2 transition label <code>&lt;br/&gt;</code> 檢查（Safari/Firefox 破圖風險）。根本原因：fishgame 專案 HTML 文件站出現多個 Mermaid 破圖，追溯至 <code>&lt;br/&gt;</code> 語法不相容問題，本版修補所有生成規則源頭。</td></tr>
 <tr><td>v2.2</td><td>2026-04-25</td><td>PM Agent</td><td><strong>Frontend UML 全覆蓋 + HTML 文件站圖表頁面 + D16-ALIGN-F 自動修復步驟</strong>：gendoc-gen-diagrams 新增 Step 2B —— 條件觸發（<code>client_type != none</code> AND <code>FRONTEND.md</code> 存在），從 FRONTEND.md / PDD.md / VDD.md 生成 16 種前端 UML 圖（use-case / class×3 [元件層/場景控制器/Client 服務] / object / sequence×3 [WS 協議/場景切換/主遊戲交互] / state×2 [場景/UI 元件] / activity×3 [遊戲主流程/UI 互動/客戶端初始化] / component [引擎節點樹] / deployment [建構管線] / communication [WS 協議互動]），全部輸出至 <code>docs/diagrams/frontend-<em>.md</code>；強制規範：stateDiagram-v2 transition label 禁止使用 <code>&lt;br/&gt;</code> 語法（改用 <code>trigger [guard] / action</code> 格式 + <code>note</code> 區塊）。gendoc-gen-html 升級至 <strong>v3.0.0</strong> —— gen_html.py 新增 <code>scan_diagram_pages()</code> 掃描 <code>docs/diagrams/</em>.md</code>，每個圖表生成獨立 HTML 頁面（<code>diag-{stem}.html</code>）；側欄從單一「文件」區改為三區（文件 / Server UML / Frontend UML）；新增 <code>DIAGRAM_META</code> 對應 35+ 圖表類型。D16-ALIGN-F 新增至 pipeline.json（位於 D16-ALIGN 之後）—— special_skill: gendoc-align-fix，依 ALIGN_REPORT.md 逐條自動修復對齊問題，每條 fix 驗證後 commit，不走標準 gen→review 流程。</td></tr>
@@ -86,7 +88,7 @@
 </table>
 <h3>什麼是「可實作的藍圖」</h3>
 <p>gendoc 生成的每份文件都必須達到以下標準，才視為合格輸出：</p>
-<ol><li><strong>EDD（Engineering Design Doc）</strong>：每個 module 的 class 清單；每個 class 的 method 簽名、參數名稱、型別、回傳值、例外行為；跨 class 的呼叫關係圖</li><li><strong>API.md</strong>：每個端點的 URL、HTTP method、request body schema（含欄位、型別、是否必填、驗證規則）、response schema、error code 列舉、Rate Limit</li><li><strong>SCHEMA.md</strong>：完整 DDL；每個欄位的型別、nullable、default、constraint；全部 index（含 composite）；外鍵關係；migration 策略</li><li><strong>test-plan.md</strong>：每個功能點的正向測試、負向測試、邊界值分析（BVA）；等價類劃分（EP）；具體輸入值與預期輸出值的對照表</li><li><strong>BDD.md</strong>：每個 Scenario 的 Given/When/Then 完整定義；edge case Scenario；unhappy path Scenario</li></ol>
+<ol><li><strong>EDD（Engineering Design Doc）</strong>：每個 module 的 class 清單；每個 class 的 method 簽名、參數名稱、型別、回傳值、例外行為；跨 class 的呼叫關係圖</li><li><strong>API.md</strong>：每個端點的 URL、HTTP method、request body schema（含欄位、型別、是否必填、驗證規則）、response schema、error code 列舉、Rate Limit</li><li><strong>SCHEMA.md</strong>：完整 DDL；每個欄位的型別、nullable、default、constraint；全部 index（含 composite）；外鍵關係；migration 策略</li><li><strong>test-plan.md</strong>：每個功能點的正向測試、負向測試、邊界值分析（BVA）；等價類劃分（EP）；具體輸入值與預期輸出值的對照表</li><li><strong>BDD.md</strong>：每個 Scenario 的 Given/When/Then 完整定義；edge case Scenario；unhappy path Scenario</li><li><strong>LOCAL_DEPLOY.md</strong>：依文件 step-by-step 指令，AI 或人類可在 local 完整建置 k8s 環境（以 Rancher Desktop 實現）；<strong>client 也封進 k8s pod</strong>，所有服務均在 k8s 內；<strong>對外只有一個 port</strong>，測試入口單一；同時提供 docker-compose 版本作為輔助（兩種方式均可無礙建置，不能有缺漏步驟或 TBD）</li><li><strong>Runbook.md</strong>：所有操作步驟具體到指令層級（含 namespace、context、port-forward 指令）；不含模糊描述；含驗證指令讓執行者確認每步成功</li><li><strong>跨文件上下文一致性</strong>：所有文件（BRD → PRD → PDD → EDD → ARCH → API → SCHEMA → test-plan → BDD → Runbook → LOCAL_DEPLOY）的內容必須互相對齊，上游定義的規格下游必須遵守，不得有衝突或沉默遺漏；任何一份文件聲明的品質標準，其產出必須如實達到，不能打折</li></ol>
 <h3>雙受眾設計</h3>
 <table>
 <tr><th>受眾</th><th>如何使用 gendoc 產出</th></tr>
@@ -110,8 +112,10 @@
 <p>市面上的 SDLC 自動化工具通常功能繁多。許多場景只需文件生成能力，安裝整套是過度設計。</p>
 <h4>問題四：模板系統缺乏細粒度品質標準</h4>
 <p>現有模板描述「這份文件應包含哪些章節」，但沒有定義每個章節的「細粒度完成標準」。</p>
+<h4>問題五：Local 建置文件無法閉環驗證</h4>
+<p>現有文件常見問題：LOCAL_DEPLOY / Runbook 只說「執行 kubectl apply」但沒有給出完整的 namespace、context、port-forward 指令；client 未封進 k8s pod 導致需要額外手動步驟；docker-compose 與 k8s 設定不同步；無法用文件中的指令跑完所有 Unit / Integration / E2E 測試而不需額外猜測或補充步驟。</p>
 <h3>2.2 根本原因分析</h3>
-<ul><li><strong>根本原因一</strong>：文件生成的品質目標設定錯了——目標應是「可實作」，而非「可閱讀」</li><li><strong>根本原因二</strong>：現有 AI 生成文件缺乏細粒度驗證機制，無從判斷文件是否達到「可直接實作」的標準</li><li><strong>根本原因三</strong>：原有文件生成子系統與 SDLC 完整工具緊耦合，無法單獨萃取</li></ul>
+<ul><li><strong>根本原因一</strong>：文件生成的品質目標設定錯了——目標應是「可實作且可閉環驗證」，而非「可閱讀」</li><li><strong>根本原因二</strong>：現有 AI 生成文件缺乏細粒度驗證機制，無從判斷文件是否達到「可直接實作」的標準</li><li><strong>根本原因三</strong>：原有文件生成子系統與 SDLC 完整工具緊耦合，無法單獨萃取</li><li><strong>根本原因四</strong>：LOCAL_DEPLOY / Runbook 缺乏「建置閉環」概念——文件視為說明書而非可執行的 SOP，導致 k8s 建置、client 封裝、port 管理步驟散落且缺漏</li></ul>
 <h3>2.3 機會假設</h3>
 <table>
 <tr><th>ID</th><th>假設</th><th>驗證指標</th></tr>
