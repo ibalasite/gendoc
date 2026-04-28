@@ -825,3 +825,111 @@ nerdctl images | grep {{PROJECT_SLUG}}
 # 若需清除 local image：
 nerdctl rmi {{PROJECT_SLUG}}/api:local {{PROJECT_SLUG}}/web:local
 ```
+
+---
+
+## 17. Tunnel Access（單一對外 Port，AI 可測試模式）
+
+所有服務均透過同一個 Ingress（port 80）路由，tunnel 只需暴露一個 port。
+
+### ngrok（推薦）
+
+```bash
+# 安裝（一次性）
+brew install ngrok
+
+# 啟動 tunnel → Ingress port 80
+ngrok http 80 --host-header={{PROJECT_SLUG}}.local
+
+# 輸出範例：
+# Forwarding  https://a1b2c3d4.ngrok-free.app -> http://localhost:80
+# 記錄此 URL，後續測試步驟使用 _TUNNEL_URL
+_TUNNEL_URL="https://a1b2c3d4.ngrok-free.app"
+```
+
+### Cloudflare Tunnel（無公開 URL 限制）
+
+```bash
+# 安裝 cloudflared（一次性）
+brew install cloudflared
+
+# 快速 tunnel（dev mode，無需帳號）
+cloudflared tunnel --url http://localhost:80
+
+# 輸出範例：
+# https://random-name.trycloudflare.com
+_TUNNEL_URL="https://random-name.trycloudflare.com"
+```
+
+### 設定 Ingress Host header（ngrok / tunnel 需）
+
+Ingress 預設只接受 `{{PROJECT_SLUG}}.local`，tunnel 需額外設定：
+
+```bash
+# 方法 1：啟動 ngrok 時加 --host-header（推薦）
+ngrok http 80 --host-header={{PROJECT_SLUG}}.local
+
+# 方法 2：Ingress 加 wildcard host（更彈性）
+# 編輯 k8s/overlays/local/patches/ingress-tunnel.yaml：
+# spec.rules[0].host: ""  # 空字串 = 接受所有 host
+kubectl apply -k k8s/overlays/local/
+```
+
+### 驗證 Tunnel 可存取
+
+```bash
+# 前端 UI 可存取（HTTP 200）
+curl -s -o /dev/null -w "%{http_code}" "${_TUNNEL_URL}/"
+# Expected: 200
+
+# API health 可存取
+curl -s "${_TUNNEL_URL}/api/health" | jq .
+# Expected: {"status":"ok","version":"{{VERSION}}"}
+
+# 開啟瀏覽器測試前端
+open "${_TUNNEL_URL}"
+```
+
+---
+
+## 18. AI Agent Quick Start
+
+AI 代理可執行以下完整腳本，從零啟動完整本地環境並驗證前端可存取，**無需人工介入**（首次設定除外，需手動建立 `k8s/overlays/local/secrets.env`）。
+
+```bash
+#!/usr/bin/env bash
+# ai-quickstart.sh — AI 一鍵啟動 {{PROJECT_NAME}} 本地 K8s 環境
+set -e
+
+echo "=== [1/6] 確認 kubectl context ==="
+kubectl config use-context rancher-desktop
+kubectl cluster-info
+
+echo "=== [2/6] 初始化 namespace + Secret ==="
+make k8s-init
+
+echo "=== [3/6] 建置所有 Image ==="
+make image-build-all
+
+echo "=== [4/6] 部署所有 K8s 資源 ==="
+make k8s-apply
+kubectl wait --for=condition=Ready pods --all \
+  -n {{K8S_NAMESPACE}}-local --timeout=300s
+
+echo "=== [5/6] 初始化資料庫 ==="
+make db-migrate
+make db-seed
+
+echo "=== [6/6] 驗證環境健康 ==="
+make health-check
+
+echo ""
+echo "✅ {{PROJECT_NAME}} 本地環境已就緒"
+echo "   前端 UI  → http://{{PROJECT_SLUG}}.local"
+echo "   API      → http://{{PROJECT_SLUG}}.local/api/health"
+echo ""
+echo "如需 Tunnel 存取（AI 測試 / ngrok）："
+echo "  ngrok http 80 --host-header={{PROJECT_SLUG}}.local"
+```
+
+> **AI 測試前端的完整流程**：執行 `ai-quickstart.sh` → 啟動 ngrok tunnel → 使用 Playwright 開啟 `_TUNNEL_URL` 驗證前端頁面可見、主要功能可操作（見 `features/client/*.feature`）。
