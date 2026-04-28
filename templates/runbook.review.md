@@ -67,7 +67,24 @@ upstream-alignment:
 **Risk**: 在 replication lag 過大時觸發 failover，會造成資料丟失，且 SRE 無法提前評估影響。
 **Fix**: 補充 replication lag 量化檢查命令（e.g., `SELECT ... FROM pg_stat_replication`）和可接受閾值說明。
 
-#### [MEDIUM] 6 — §4/§7 bash/kubectl 命令語法
+#### [CRITICAL] 6 — §4/§6/§9 逐步驗證命令缺失
+**Check**: §4（Deployment）、§6（Incident Response）、§9（Rollback）每個「主要步驟」（涉及狀態變更的 `kubectl apply`/`rollout`/`exec`/`delete` 等）之後，是否都有對應的驗證命令？檢查標準：每個狀態變更步驟後若無任何驗證指引，視為 finding。逐一列出缺少驗證命令的步驟。
+**Risk**: SRE 在凌晨 3 點執行 rollout 後無法判斷成功或靜默失敗，等業務反映才發現，延長 MTTR。
+**Fix**: 在每個 `kubectl apply`/`rollout restart`/`exec` 等步驟後補充驗證指令（含 Expected 輸出），例如：
+- deploy 後 → `kubectl rollout status deployment/<name> -n <ns>` `# Expected: "successfully rolled out"`
+- DB migrate 後 → `kubectl exec ... -- <migrate_status_cmd>` `# Expected: "No pending migrations"`
+- rollback 後 → `kubectl get pods -n <ns>` `# Expected: 所有 pod STATUS = Running`
+
+#### [HIGH] 6b — §9 Rollback 後缺少全套測試驗證
+**Check**: §9 Rollback 程序最後是否要求執行完整測試驗證（Unit test + Integration test + E2E smoke test）？僅靠 pod running 狀態不足以確認功能正常（可能 DB schema 不兼容前版 code）。
+**Risk**: Rollback 後 pod 啟動正常但邏輯回歸，缺少測試閉環等同 Runbook 沒有完成標準。
+**Fix**: 在 §9 末尾補充「Rollback 後全套驗證」步驟：
+- Unit test：`{{TEST_UNIT_CMD}}`（填入真實指令）
+- Integration test：`kubectl exec ... -- {{TEST_INTEGRATION_CMD}}`（填入真實指令）
+- E2E smoke test：`npx playwright test --grep @smoke --base-url http://{{PROJECT_SLUG}}.local`（填入真實 slug）
+- 全部通過 → 視為 Rollback 完成，可觸發 On-Call Handoff
+
+#### [MEDIUM] 6c — §4/§7 bash/kubectl 命令語法
 **Check**: §4 和 §7 中所有 bash/kubectl 命令的語法是否正確？常見錯誤：不存在的 flag、錯誤的 resource 類型、watch 命令使用雙引號導致 subshell 展開問題。
 **Risk**: 語法錯誤的命令在緊急事件中浪費寶貴診斷時間。
 **Fix**: 逐一修正語法錯誤，確保每個命令可以 copy-paste 執行。
