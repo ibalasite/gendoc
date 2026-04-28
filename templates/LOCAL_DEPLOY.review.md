@@ -158,3 +158,22 @@ upstream-alignment:
 **Check**: §12（Port Reference）的 Ingress 路徑表和 port-forward 表是否完整涵蓋所有在 §2、§5 中出現的服務？若有遺漏服務（如 minio console 路徑），視為 LOW finding。
 **Impact**: Port Reference 不完整，新進工程師在設定 port-forward 時需要自己查找正確 port，增加配置錯誤風險。
 **Fix**: 補充遺漏的服務條目至 §12 Port Reference。
+
+---
+
+### Layer 5: Docker Compose 輔助方案（由 DevOps 工程師主審，共 3 項）
+
+#### [CRITICAL] 21 — §19 Docker Compose 章節存在且可執行
+**Check**: §19（Docker Compose 輔助方案）是否存在？服務對照表中是否有裸 `{{SERVICE_NAME}}`、`{{IMAGE_NAME}}` placeholder？啟動步驟的 port（`{{API_PORT}}`、`{{WEB_PORT}}`）是否已填入真實值？
+**Impact**: 缺少 docker-compose 章節或 port 仍為 placeholder，表示輔助方案無法使用，違背「雙路徑可建置」設計目標。新進工程師在不熟悉 k8s 時無替代方案。
+**Fix**: 確保 §19 存在；將所有裸 port placeholder 替換為從 EDD §3.5 提取的真實值；服務名稱使用 EDD 定義的短名稱。
+
+#### [HIGH] 22 — §19 測試指令完整性
+**Check**: §19 測試區塊是否包含 Unit test、Integration test、E2E test 三類指令？`{{TEST_UNIT_CMD}}`、`{{TEST_INTEGRATION_CMD}}` 是否已替換為真實指令（不得為裸 placeholder）？
+**Impact**: 測試指令保留裸 placeholder，工程師在 docker-compose 模式下無法執行任何測試，等同缺少驗證手段。
+**Fix**: 從 test-plan.md 或 EDD §6 提取真實測試指令並填入。若純後端專案無前端 E2E，移除前端 E2E 行而非保留 placeholder。
+
+#### [MEDIUM] 23 — §19 架構差異說明
+**Check**: §19 對外 Port 表格下方是否有注意事項，說明「docker-compose 模式無 Ingress，各服務各自對外暴露 port，與 K8s 單一 port 80 的差異」？
+**Impact**: 缺少差異說明，工程師會誤以為 docker-compose 和 k8s 的 port 行為相同，在 E2E 測試設定時使用錯誤的 base URL。
+**Fix**: 在對外 Port 表格後加注意事項，明確說明兩種模式的架構差異。

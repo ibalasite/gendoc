@@ -356,6 +356,37 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 
 ---
 
+### §19 Docker Compose（輔助方案）生成規則
+
+**目標**：生成可完整執行的 docker-compose 輔助章節，讓使用者在不依賴 k8s 的情況下也能啟動完整 local 環境。此章節是 k8s 方案的補充，**不替代** k8s 主流程。
+
+**服務對照表生成規則**：
+- 從 EDD §3.3（Component Diagram）和 §3.5（Service Ports）提取所有服務名稱
+- K8s Deployment 名稱直接對應 `metadata.name`（來自 EDD §3.5 Local 欄）
+- Docker Compose Service 名稱使用短名稱（如 `api`、`web`、`db`）
+- Image 欄使用 `{{PROJECT_SLUG}}/服務名:local`，DB/Cache 使用官方 image + 版本號（來自 EDD §3.5）
+- **禁止保留裸 `{{SERVICE_NAME}}`、`{{IMAGE_NAME}}` placeholder**；服務名稱必須從 EDD 填入
+
+**啟動步驟生成規則**：
+- `{{MIGRATE_CMD}}` 與 §4.6 Migration 章節保持完全一致（同一來源）
+- `{{SEED_CMD}}` 與 §8 Test Data 章節保持一致
+- `{{API_PORT}}`、`{{WEB_PORT}}` 從 EDD §3.5 服務 Port 對照表填入（禁止裸 placeholder）
+- `{{VERSION}}` 從 EDD Document Control version 欄填入
+
+**對外 Port 表格生成規則**：
+- `{{WEB_PORT}}`、`{{API_PORT}}`、`{{DB_PORT}}`、`{{REDIS_PORT}}`、`{{MINIO_PORT}}`、`{{MAIL_PORT}}` 全部從 EDD §3.5 填入
+- 若某服務不存在（如無 minio），移除對應行，禁止保留帶 placeholder 的空行
+- 注意：docker-compose 模式無 Ingress，各服務各自對外暴露 port（與 k8s 單一 port 80 不同）
+
+**測試指令生成規則**：
+- `{{TEST_UNIT_CMD}}`：從 test-plan.md §Unit Test 或 EDD §6 提取，若無則使用框架預設（`npm test`/`pytest`/`go test ./...`）
+- `{{TEST_INTEGRATION_CMD}}`：從 test-plan.md §Integration Test 提取，在 api container 內執行
+- E2E 測試指令使用 `npx playwright test --base-url http://localhost:{{WEB_PORT}}`，WEB_PORT 必須填入真實值
+
+**注意**：若專案為純後端（`client_type=none`），移除前端 Port 行（WEB_PORT）和前端驗證指令。
+
+---
+
 ## Prohibited Patterns（禁止模式）
 
 - 文件中不得有明文密碼（ConfigMap 中只有範例值 `secret` 並加注釋「僅本機開發用，禁止 production 使用」）

@@ -936,3 +936,95 @@ echo "  ngrok http 80 --host-header={{PROJECT_SLUG}}.local"
 ```
 
 > **AI 測試前端的完整流程**：執行 `ai-quickstart.sh` → 啟動 ngrok tunnel → 使用 Playwright 開啟 `_TUNNEL_URL` 驗證前端頁面可見、主要功能可操作（見 `features/client/*.feature`）。
+
+---
+
+## 19. Docker Compose（輔助方案）
+
+> **定位**：Docker Compose 是 K8s 的**輔助工具**，非主要部署方式。用於以下場景：
+> - 不需要 K8s 完整功能時的快速驗證（如單純測試 API 回應）
+> - CI 環境中的輕量 integration test
+> - 開發者偏好 Docker Compose 作為入門門檻較低的初次了解環境
+>
+> **所有功能與行為必須與 K8s 環境一致**；如有差異，以 K8s 為準。
+
+### 服務對照
+
+| K8s Deployment | Docker Compose Service | Image |
+|---------------|----------------------|-------|
+| api-server | `api` | `{{PROJECT_SLUG}}/api:local` |
+| web-app | `web` | `{{PROJECT_SLUG}}/web:local` |
+| worker | `worker` | `{{PROJECT_SLUG}}/api:local` |
+| postgres | `db` | `postgres:{{DB_VERSION}}` |
+| redis | `cache` | `redis:{{CACHE_VERSION}}-alpine` |
+| minio | `storage` | `minio/minio` |
+| mailpit | `mail` | `axllent/mailpit` |
+
+### 啟動步驟
+
+```bash
+# 1. 確認 Docker 執行中（Rancher Desktop container engine 即可）
+docker info
+
+# 2. 建置所有 image
+docker compose build
+
+# 3. 啟動所有服務（背景執行）
+docker compose up -d
+
+# 4. 確認所有容器啟動
+docker compose ps
+# Expected: 所有服務 Status = "Up" / "running"
+
+# 5. 初始化資料庫
+docker compose exec api {{MIGRATE_CMD}}
+docker compose exec api {{SEED_CMD}}
+
+# 6. 驗證 API 健康
+curl -s http://localhost:{{API_PORT}}/health | jq .
+# Expected: {"status":"ok","version":"{{VERSION}}"}
+
+# 7. 驗證前端（若有 web-app）
+curl -s -o /dev/null -w "%{http_code}" http://localhost:{{WEB_PORT}}
+# Expected: 200
+```
+
+### 對外 Port（docker-compose 模式）
+
+| 服務 | 本地 Port | 說明 |
+|------|---------|------|
+| web-app | `{{WEB_PORT}}` | 前端應用 |
+| api-server | `{{API_PORT}}` | REST API |
+| postgres | `{{DB_PORT}}` | DB（直連）|
+| redis | `{{REDIS_PORT}}` | Cache（直連）|
+| minio | `{{MINIO_PORT}}` | 物件儲存 |
+| mailpit | `{{MAIL_PORT}}` | Email 預覽 UI |
+
+> **注意**：docker-compose 模式無 Ingress，各服務各自對外暴露 port，與 K8s 單一 port 80 不同。這是兩者唯一的架構差異。
+
+### 測試（docker-compose 模式）
+
+```bash
+# Unit test（不需 Docker，直接在本機執行）
+{{TEST_UNIT_CMD}}
+
+# Integration test（在 api container 內執行）
+docker compose exec api {{TEST_INTEGRATION_CMD}}
+
+# E2E test（Playwright，連 web-app container）
+npx playwright test --base-url http://localhost:{{WEB_PORT}}
+```
+
+### 停止與清除
+
+```bash
+# 停止（保留資料）
+docker compose stop
+
+# 停止並移除 container（保留 volume 資料）
+docker compose down
+
+# 完全重置（移除 container + volume）
+docker compose down -v
+# Warning: 所有 DB、minio 資料永久刪除
+```
