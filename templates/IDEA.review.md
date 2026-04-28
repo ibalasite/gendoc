@@ -165,6 +165,22 @@ upstream-alignment:
 **Risk**: 核心章節含裸 placeholder，BRD 生成器以 IDEA 作為輸入時將繼承這些 placeholder，導致 BRD 大量空白欄位，需要多輪額外補充。
 **Fix**: 對每個裸 placeholder，依上下文推斷並填入具體值；若確實無法確定，以「（待定：[說明]）」替代 placeholder，而非保留雙大括號格式。
 
+---
+
+### Layer 7: 技術種子完整性（由 Technical Advisor 主審，共 2 項）
+
+#### [HIGH] 25 — client_type 欄位缺失或為 TBD
+**Check**: Document Control 的 `client_type` 欄位是否已由 gendoc-auto Step 1.8 填入具體值（非空白、非 TBD、非 placeholder）？
+**Risk**: client_type 未確認，下游 PDD/EDD 無法判斷是否需要 client 端技術選型（web/mobile/game/api-only），導致架構設計遺漏或多做無用功。
+**Fix**: 執行 gendoc-auto Step 1.8 確認 client_type 並填入；若為 api-only 需在 §7.2 說明無 client 端。
+
+#### [HIGH] 26 — §7.2 服務角色識別表少於 2 個具名服務
+**Check**: §7.2「服務角色識別」小表是否至少有 2 行具名服務（角色名非 `{{SERVICE_ROLE_N}}`，用途與建議技術均已填寫）？若整表為 placeholder 或缺少此子表，視為 HIGH。
+**Risk**: 服務角色不明確，EDD 撰寫者無法從 IDEA.md 推導服務邊界，導致 EDD §3 服務架構設計從零推斷，增加遺漏風險。
+**Fix**: 依 §1 Elevator Pitch 和 §7.1 競品分析，識別至少 2 個核心服務角色（如 API Gateway、Auth Service、Worker），填入角色名、用途、建議技術。
+
+---
+
 #### [LOW] 24 — §1.4 Innovation Type 未分類
 **Check**: §1.4 Innovation Type Classification 表格是否已勾選恰好一個類型（Incremental / Sustaining / Adjacent / Disruptive / Radical），且「分類依據」欄位已填寫實質理由？若所有類型均未勾選，或分類依據為 `{{CLASSIFICATION_RATIONALE}}`，視為 LOW。
 **Risk**: 未分類創新類型，資源投入策略（快速 ROI vs 長期實驗）無法在 BRD 階段獲得正確的期望校準，stakeholder 對投資時間表可能存在誤解。
