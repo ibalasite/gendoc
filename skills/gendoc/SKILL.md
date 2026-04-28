@@ -97,6 +97,12 @@ options:
 # uml-class     → UML-CLASS-GUIDE
 # frontend      → FRONTEND
 # client        → FRONTEND  （向後相容別名）
+# client-impl   → CLIENT_IMPL
+# client_impl   → CLIENT_IMPL  （底線別名）
+# cocos         → CLIENT_IMPL  （遊戲快捷別名）
+# unity         → CLIENT_IMPL
+# react-impl    → CLIENT_IMPL
+# vue-impl      → CLIENT_IMPL
 
 _CWD="$(pwd)"
 if [[ -f "$_CWD/templates/pipeline.json" ]]; then
