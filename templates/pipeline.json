@@ -150,6 +150,17 @@
       "note": "動畫特效設計文件：骨骼動畫/幀動畫/Tween/粒子/Shader、引擎設定（Cocos/Unity/HTML5 PixiJS）、效能預算與 LOD 策略"
     },
     {
+      "id": "D10d-CLIENT_IMPL",
+      "type": "CLIENT_IMPL",
+      "layer": "設計層",
+      "output": ["docs/CLIENT_IMPL.md"],
+      "multi_file": false,
+      "condition": "client_type != none",
+      "handled_by": "gendoc-flow",
+      "commit_prefix": "docs(gendoc)[D10d-CLIENT_IMPL]",
+      "note": "客戶端實作規格書：依 EDD §3.3 偵測引擎（Cocos Creator / Unity WebGL / React / Vue / HTML5），自動展開對應的場景結構、資源載入策略、動畫觸發規格、AudioManager 架構、VFX 整合規格。上游：EDD + VDD + ANIM + AUDIO。"
+    },
+    {
       "id": "D11-test-plan",
       "type": "test-plan",
       "layer": "品質層",
