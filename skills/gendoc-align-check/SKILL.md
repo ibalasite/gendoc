@@ -288,6 +288,14 @@ spawn Agent，傳入以下指令：
 - features/client/ 每個 Scenario，RTM 是否有對應的追溯行（Scenario → PRD AC 或 PDD 元件規格）
 - RTM 的 BDD-client 欄位若存在，是否與 features/client/ 檔案總數一致
 
+**EDD → LOCAL_DEPLOY（若 LOCAL_DEPLOY.md 存在）**
+- EDD §3.5 環境矩陣 Local Namespace 欄位（`{{PROJECT_SLUG}}-local`）是否與 LOCAL_DEPLOY 全文 namespace 一致？任何不一致視為 HIGH
+- EDD §3.5 服務 Port 對照表中每個 Local Port，是否在 LOCAL_DEPLOY §5（port-forward 表）或 §12（Port Reference）中都有對應條目？遺漏視為 HIGH
+- EDD §3.3 列出的所有服務（api-server、web-app、worker、postgres、redis 等），LOCAL_DEPLOY §2 Architecture 的 Mermaid 圖是否都有呈現？缺失視為 MEDIUM
+- EDD §3.5 中標記為 K8s-only 的服務（如 job-migrator），LOCAL_DEPLOY 是否有對應的 InitContainer 或 Job 說明？缺失視為 MEDIUM
+- EDD §6 Tech Stack 中的 Backend Runtime 版本（如 Node 20、Python 3.12），LOCAL_DEPLOY §1 Prerequisites 的版本要求是否一致？衝突視為 HIGH
+- EDD §3.5 docker-compose Local Port（`{{WEB_PORT}}`、`{{API_PORT}}`）是否在 LOCAL_DEPLOY §19（docker-compose 對外 Port 表格）中都有填入且與 EDD 一致？衝突視為 CRITICAL（直接影響 docker-compose 模式可用性）
+
 ---
 
 ### 衝突類型判斷（上下游說法不一致時，必須分類，不可標 MANUAL）
