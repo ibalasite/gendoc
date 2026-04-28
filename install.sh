@@ -23,6 +23,15 @@ for skill_dir in "$SKILLS_SRC"/*/; do
   log "  ✓ $skill_name"
 done
 
+# Templates 安裝到固定位置 — skill 從此讀，不依賴目標專案的 templates/ 副本
+TEMPLATES_SRC="$GENDOC_DIR/templates"
+TEMPLATES_DST="$SKILLS_DST/gendoc/templates"
+if [[ -d "$TEMPLATES_SRC" ]]; then
+  mkdir -p "$TEMPLATES_DST"
+  cp -r "$TEMPLATES_SRC/." "$TEMPLATES_DST/"
+  log "  ✓ templates → $TEMPLATES_DST"
+fi
+
 # Clear throttle stamp so next session will check for further updates
 rm -f "$GENDOC_DIR/.last-update-check" 2>/dev/null || true
 

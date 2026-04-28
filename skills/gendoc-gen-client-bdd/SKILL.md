@@ -113,11 +113,7 @@ esac
 ### 2A-1：讀取 Gen Template
 
 ```bash
-_TEMPLATE_DIR="$(dirname "$(find ~/.claude/skills -name 'gendoc-flow' -type d 2>/dev/null | head -1)")/gendoc/templates"
-# 優先找 project-local templates
-if [[ -d "${_CWD}/templates" ]]; then
-  _TEMPLATE_DIR="${_CWD}/templates"
-fi
+_TEMPLATE_DIR="$HOME/.claude/skills/gendoc/templates"
 _GEN_RULES="${_TEMPLATE_DIR}/BDD-client.gen.md"
 _REVIEW_RULES="${_TEMPLATE_DIR}/BDD-client.review.md"
 
