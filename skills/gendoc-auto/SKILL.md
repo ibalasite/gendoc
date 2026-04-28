@@ -990,10 +990,10 @@ print('[state] idea_review_passed = True')
 
 ```
 你是 IDEA 文件審查專家。
-任務：依照 templates/IDEA.review.md 的審查標準，審查 docs/IDEA.md。
+任務：依照 $HOME/.claude/gendoc/templates/IDEA.review.md 的審查標準，審查 docs/IDEA.md。
 
 執行步驟：
-1. 讀取 templates/IDEA.review.md — 獲取所有 review items
+1. 讀取 $HOME/.claude/gendoc/templates/IDEA.review.md — 獲取所有 review items
 2. 讀取 docs/IDEA.md
 3. 逐項執行每個 review item 的 Check，引用文件中的具體§章節
 
@@ -1027,7 +1027,7 @@ REVIEW_RESULT:
 
 執行步驟：
 1. 讀取 docs/IDEA.md
-2. 讀取 templates/IDEA.review.md 中對應 item 的 Fix 指引
+2. 讀取 $HOME/.claude/gendoc/templates/IDEA.review.md 中對應 item 的 Fix 指引
 3. 精準修復每個 finding（只修改 finding 指出的具體位置，不動其他部分）
 4. 修復後驗證
 
@@ -1225,10 +1225,10 @@ print('[state] brd_review_passed = True')
 
 ```
 你是 BRD 文件審查專家。
-任務：依照 templates/BRD.review.md 的審查標準，審查 docs/BRD.md。
+任務：依照 $HOME/.claude/gendoc/templates/BRD.review.md 的審查標準，審查 docs/BRD.md。
 
 執行步驟：
-1. 讀取 templates/BRD.review.md — 獲取所有 review items
+1. 讀取 $HOME/.claude/gendoc/templates/BRD.review.md — 獲取所有 review items
 2. 讀取 docs/IDEA.md（上游文件）
 3. 讀取 docs/BRD.md
 4. 逐項執行每個 review item 的 Check，引用文件中的具體§章節
@@ -1263,7 +1263,7 @@ REVIEW_RESULT:
 
 執行步驟：
 1. 讀取 docs/BRD.md
-2. 讀取 templates/BRD.review.md 中對應 item 的 Fix 指引
+2. 讀取 $HOME/.claude/gendoc/templates/BRD.review.md 中對應 item 的 Fix 指引
 3. 精準修復每個 finding（只修改 finding 指出的具體位置，不動其他部分）
 4. 修復後驗證
 
