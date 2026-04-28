@@ -20,6 +20,7 @@
 | **輸入模式** | {{多輪訪談 \| Quick Start \| AI 自動填入}} |
 | **建立方式** | /gendoc-auto 自動捕捉；請執行 /reviewdoc brd 審查後方可升版 |
 | **下游文件** | docs/BRD.md（由本文件產生） |
+| **client_type** | {{web \| mobile \| both \| game \| api-only}}（由 gendoc-auto Step 1.8 確認填入） |
 
 ---
 
@@ -326,6 +327,13 @@ Week 3：數據分析，決策：Go（生成 BRD）/ Pivot（修改 IDEA）/ Kil
 | 基礎設施 | {{TECH_INFRA}} | {{REASON}} |
 
 *技術建議基於 Q3（{{Q3_TECH}}）與 Q4（{{Q4_SCALE}}）。*
+
+#### 服務角色識別
+
+| 角色名 | 用途 | 建議技術 |
+|--------|------|---------|
+| {{SERVICE_ROLE_1}} | {{SERVICE_ROLE_1_PURPOSE}} | {{SERVICE_ROLE_1_TECH}} |
+| {{SERVICE_ROLE_2}} | {{SERVICE_ROLE_2_PURPOSE}} | {{SERVICE_ROLE_2_TECH}} |
 
 ---
 
