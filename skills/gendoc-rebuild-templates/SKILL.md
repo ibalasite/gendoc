@@ -18,7 +18,7 @@ allowed-tools:
 
 # gendoc-rebuild-templates — 模板全量重建
 
-執行環境：`/Users/tobala/projects/gendoc/`（或目前 gendoc 根目錄）。
+執行環境：目前所在目錄（`$CWD`）的 `templates/` 子目錄。
 
 ---
 
@@ -291,7 +291,7 @@ quality-bar: "<quality bar>（與 review.md 一致）"
 
 ```bash
 echo "=== review.md 行數統計 ==="
-for f in /Users/tobala/projects/gendoc/templates/*.review.md; do
+for f in $_CWD/templates/*.review.md; do
   lines=$(wc -l < "$f")
   name=$(basename "$f")
   if [[ $lines -lt 100 ]]; then
@@ -303,7 +303,7 @@ done
 
 echo ""
 echo "=== gen.md Iron Rule 存在性 ==="
-for f in /Users/tobala/projects/gendoc/templates/*.gen.md; do
+for f in $_CWD/templates/*.gen.md; do
   name=$(basename "$f")
   if grep -q "Iron Rule" "$f"; then
     echo "  ✅ $name: Iron Rule 存在"
@@ -314,7 +314,7 @@ done
 
 echo ""
 echo "=== gen.md upstream-docs 完整性 ==="
-for f in /Users/tobala/projects/gendoc/templates/*.gen.md; do
+for f in $_CWD/templates/*.gen.md; do
   name=$(basename "$f")
   if grep -q "upstream-docs" "$f"; then
     echo "  ✅ $name: upstream-docs 存在"
@@ -325,7 +325,7 @@ done
 
 echo ""
 echo "=== IDEA Appendix C 特殊處理 ==="
-for f in /Users/tobala/projects/gendoc/templates/*.gen.md; do
+for f in $_CWD/templates/*.gen.md; do
   name=$(basename "$f")
   if grep -qi "appendix c\|docs/req" "$f"; then
     echo "  ✅ $name: IDEA/req 特殊處理存在"
@@ -340,9 +340,12 @@ done
 ## Step 6：安裝同步
 
 ```bash
-cd /Users/tobala/projects/gendoc
-./install.sh
-echo "✅ 技能已同步至 ~/.claude/skills/"
+if [[ -f "./install.sh" ]]; then
+  ./install.sh
+  echo "✅ 技能已同步至 ~/.claude/skills/"
+else
+  echo "ℹ️  非 gendoc 開發目錄，略過 install.sh"
+fi
 ```
 
 ---

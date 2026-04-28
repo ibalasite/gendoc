@@ -99,7 +99,11 @@ options:
 # client        → FRONTEND  （向後相容別名）
 
 _CWD="$(pwd)"
-_TEMPLATE_DIR="${_TEMPLATE_DIR:-$HOME/.claude/gendoc/templates}"
+if [[ -f "$_CWD/templates/pipeline.json" ]]; then
+  _TEMPLATE_DIR="${_TEMPLATE_DIR:-$_CWD/templates}"
+else
+  _TEMPLATE_DIR="${_TEMPLATE_DIR:-$HOME/.claude/gendoc/templates}"
+fi
 _DOCS_DIR="${_DOCS_DIR:-$_CWD/docs}"
 
 # 查找對應的模板基名（TYPE_BASENAME）

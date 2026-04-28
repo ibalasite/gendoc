@@ -113,7 +113,11 @@ esac
 ### 2A-1：讀取 Gen Template
 
 ```bash
-_TEMPLATE_DIR="${_TEMPLATE_DIR:-$HOME/.claude/gendoc/templates}"
+if [[ -f "$_CWD/templates/pipeline.json" ]]; then
+  _TEMPLATE_DIR="${_TEMPLATE_DIR:-$_CWD/templates}"
+else
+  _TEMPLATE_DIR="${_TEMPLATE_DIR:-$HOME/.claude/gendoc/templates}"
+fi
 _GEN_RULES="${_TEMPLATE_DIR}/BDD-client.gen.md"
 _REVIEW_RULES="${_TEMPLATE_DIR}/BDD-client.review.md"
 

@@ -85,7 +85,11 @@ _DOC_TYPE=""   # e.g., "local-deploy"
 # 多文件模式下，Step 2 的 subagent prompt 應傳入所有 .feature 檔案內容的彙整
 
 _CWD="$(pwd)"
-_TEMPLATE_DIR="${_TEMPLATE_DIR:-$HOME/.claude/gendoc/templates}"
+if [[ -f "$_CWD/templates/pipeline.json" ]]; then
+  _TEMPLATE_DIR="${_TEMPLATE_DIR:-$_CWD/templates}"
+else
+  _TEMPLATE_DIR="${_TEMPLATE_DIR:-$HOME/.claude/gendoc/templates}"
+fi
 _DOCS_DIR="${_DOCS_DIR:-$_CWD/docs}"
 
 # 多文件 BDD 路徑覆寫

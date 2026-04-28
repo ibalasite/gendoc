@@ -270,7 +270,11 @@ echo "[Pipeline] hash：$_PIPELINE_HASH_CURRENT"
 
 ```bash
 _CWD="$(pwd)"
-_TEMPLATE_DIR="${_TEMPLATE_DIR:-$HOME/.claude/gendoc/templates}"
+if [[ -f "$_CWD/templates/pipeline.json" ]]; then
+  _TEMPLATE_DIR="${_TEMPLATE_DIR:-$_CWD/templates}"
+else
+  _TEMPLATE_DIR="${_TEMPLATE_DIR:-$HOME/.claude/gendoc/templates}"
+fi
 _PIPELINE_FILE="${_TEMPLATE_DIR}/pipeline.json"
 _BRD_OK=false
 _IDEA_OK=false
