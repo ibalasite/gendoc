@@ -506,6 +506,33 @@ def python3_extract_lang_stack():
         return ""
     except:
         return ""
+
+# update_state_client_engine 輔助函式（原子寫入，鎖定客戶端引擎）
+def update_state_client_engine(client_engine):
+    import json, os
+    f = _STATE_FILE
+    d = json.load(open(f))
+    d['client_engine']        = client_engine
+    d['client_engine_locked'] = True   # 鎖定後 P-15-B 不再覆寫
+    tmp = f + '.tmp'
+    open(tmp,'w').write(json.dumps(d, indent=2, ensure_ascii=False))
+    os.replace(tmp, f)
+    print(f"[P-15-B] client_engine 已寫入 state 並鎖定：{client_engine}")
+
+# python3_extract_client_engine 輔助函式（從 EDD.md §3.3 提取客戶端引擎）
+def python3_extract_client_engine():
+    import re
+    try:
+        content = open('docs/EDD.md', encoding='utf-8').read()
+        # 找「客戶端引擎（若有）| <值> |」那行（§3.3 表格格式）
+        m = re.search(r'客戶端引擎[（(][^）)]*[）)]\s*\|\s*([^|{]+)\|', content)
+        if m:
+            val = m.group(1).strip()
+            if val and not val.startswith('{{'):
+                return val
+        return ""
+    except:
+        return ""
 ```
 
 **P-14 注意事項：**
@@ -536,6 +563,27 @@ def python3_extract_lang_stack():
                 print(f"[P-15]   若 EDD.md 中也無明確聲明，以 EDD Gen Agent 在 §語言/框架 所選定的值填入，不得留空。")
         else:
             print(f"[P-15] ⏭️  lang_stack 已鎖定（{_lang_stack_current}），跳過提取")
+
+    # ── P-15-B：D06-EDD 完成後提取並鎖定 client_engine ──────────
+    # 理由：EDD §3.3 客戶端引擎 決定後續 LOCAL_DEPLOY 的 build pipeline 策略
+    #       （Unity WebGL / Cocos / web 各有不同 Dockerfile 和 inner loop 指令），
+    #       必須鎖定至 state 供 LOCAL_DEPLOY.gen.md 讀取，避免 gen agent 自行猜測。
+    if step["id"] == "D06-EDD":
+        _client_engine_locked = state.get("client_engine_locked", False)
+        if not _client_engine_locked:
+            _client_engine_new = python3_extract_client_engine()
+            if _client_engine_new:
+                update_state_client_engine(_client_engine_new)
+                print(f"[P-15-B] ✅ client_engine 已從 EDD.md 提取並鎖定：{_client_engine_new}")
+            else:
+                # Fallback：正規表達式失敗，指示 Gen Agent 手動讀取
+                print(f"[P-15-B] ⚠️  無法自動提取 client_engine")
+                print(f"[P-15-B] [FALLBACK — 必須執行] 請直接讀取 docs/EDD.md §3.3 技術棧總覽，")
+                print(f"[P-15-B]   找出「客戶端引擎（若有）」那行的值（如 'Unity 6 WebGL' / 'Cocos Creator 3.8' / 'React 18' / 'N/A'），")
+                print(f"[P-15-B]   然後呼叫 update_state_client_engine('<引擎>') 寫入 state 並鎖定。")
+                print(f"[P-15-B]   若 EDD §3.3 無此欄位（舊版文件），以前端框架推斷：有 Unity → 'Unity WebGL'，有 Cocos → 'Cocos Creator'，否則同 FRONTEND_FRAMEWORK。")
+        else:
+            print(f"[P-15-B] ⏭️  client_engine 已鎖定（{state.get('client_engine', '')}），跳過提取")
 
 ---
 

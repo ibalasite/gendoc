@@ -245,6 +245,16 @@ nerdctl images | grep {{PROJECT_SLUG}}
 
 > **imagePullPolicy：** 本地環境所有 Deployment 設定 `imagePullPolicy: Never`，確保使用本機 build 的 image，不從 registry 拉取。
 
+> **客戶端引擎特定 Build 說明**（依 EDD §3.3「客戶端引擎（若有）」欄位）：
+>
+> | 引擎類型 | Dockerfile 策略 | `make image-build-web` 前置步驟 |
+> |---------|----------------|-------------------------------|
+> | Web / HTML5 / Phaser | multi-stage：`node build` → `dist/` → nginx serve | 無，直接執行 `make image-build-web` |
+> | Cocos Creator | multi-stage：`node + cocos CLI build` → `build/web-mobile/` → nginx serve | 無，Dockerfile 內含 Cocos CLI build |
+> | Unity WebGL | 單 stage：COPY Unity build 產出 → nginx serve | **必須先在 Unity Editor 完成 Build**（File > Build Settings > WebGL > Build，輸出至 `Assets/Builds/WebGL/`），再執行 `make image-build-web` |
+>
+> Unity WebGL build 不在 Dockerfile 內執行（需 Unity License + Editor）；CI 環境需使用 `unity-ci` runner image。
+
 ### 4.5 部署所有 K8s 資源
 
 ```bash
@@ -749,7 +759,7 @@ skaffold dev --profile local
 # skaffold 會 watch 原始碼，變更後自動 build + sync + restart
 ```
 
-### 前端（web-app client）
+### 前端（Web / HTML5 / Phaser client）
 
 ```bash
 # 方法 1：重 build + rolling restart
@@ -764,6 +774,45 @@ make web-dev
 # kubectl exec -it deploy/web-app -n {{K8S_NAMESPACE}}-local -- \
 #   {{WEB_DEV_CMD}}  # e.g. npm run dev / pnpm dev
 ```
+
+### 前端（Cocos Creator client）
+
+Cocos Creator 支援 CLI build，整合在 Dockerfile multi-stage 內：
+
+```bash
+# 方法 1：Dockerfile 內含 cocos build，直接 rebuild image（約 60-120 秒）
+make image-build-web && make k8s-restart-web
+
+# 方法 2（開發迭代）：Cocos Editor 內建「預覽」在 localhost 驗證邏輯，確認後再部署 k8s
+# Cocos Editor → 點擊「預覽」→ http://localhost:7456
+
+# 方法 3：手動 CLI build
+npx cocos-creator build --platform web-mobile --output-dir build/web-mobile
+make image-build-web && make k8s-restart-web
+```
+
+### 前端（Unity WebGL client）
+
+Unity WebGL 無 HMR，每次改動需重新 build：
+
+```bash
+# 步驟 1：在 Unity Editor 執行 WebGL Build
+# File > Build Settings > 選 WebGL > 點 Build
+# 輸出目錄：Assets/Builds/WebGL/
+
+# 步驟 2（可選）：命令列 build（CI 或無 GUI 環境）
+UNITY_PATH="/Applications/Unity/Hub/Editor/{{CLIENT_ENGINE_VERSION}}/Unity.app/Contents/MacOS/Unity"
+"$UNITY_PATH" -batchmode -quit \
+  -projectPath "$(pwd)" \
+  -buildTarget WebGL \
+  -customBuildPath "Assets/Builds/WebGL"
+
+# 步驟 3：Build image 並套用至 k8s
+make image-build-web && make k8s-restart-web
+```
+
+> **Unity inner loop 建議**：用 Unity Editor Play Mode 驗證邏輯（不需 k8s），
+> 全量 WebGL build 約 2–10 分鐘，只在需要確認 WebGL 特定行為時才走完整 build。
 
 ### 使用 skaffold（完整 inner loop）
 

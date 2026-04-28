@@ -108,6 +108,7 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 | `BASE_IMAGE` + `BASE_IMAGE_TAG` | §3.5 **Docker Base Image** | e.g., `node:20-alpine` |
 | `FRONTEND_LANG` | §3.3 **前端語言** | 若純後端填 `N/A` |
 | `FRONTEND_FRAMEWORK` + `FRONTEND_FW_VERSION` | §3.3 **前端框架** | 用於推斷 WEB_DEV_CMD；若純後端填 `N/A` |
+| `CLIENT_ENGINE` + `CLIENT_ENGINE_VERSION` | §3.3 **客戶端引擎（若有）** | 決定 §4.4 build 策略和 §15 inner loop 類型；e.g. `Unity 6 WebGL` / `Cocos Creator 3.8` / `Phaser 3` / `React 18`；純後端填 `N/A`。優先從 state.client_engine 讀取（由 P-15-B 鎖定）|
 | `API_PORT` | §3.5 服務 Port 對照表 **api-server K8s Internal Port** | e.g., `8080` |
 | `WEB_PORT` | §3.5 服務 Port 對照表 **web-app K8s Internal Port** | e.g., `3000`；若純後端填 `N/A` |
 | `DB_PORT` | §3.5 服務 Port 對照表 **PostgreSQL Local port-forward Port** | e.g., `5432` |
@@ -124,7 +125,7 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 | `MIGRATE_CMD` | ORM = Prisma → `npx prisma migrate deploy`；Alembic → `alembic upgrade head`；Flyway → `flyway migrate`；GORM AutoMigrate → `./app migrate`；TypeORM → `npx typeorm migration:run`；Spring Boot Liquibase → `./gradlew flywayMigrate`；無 ORM → `make db-migrate`（保留，含 TODO 說明） |
 | `MIGRATE_STATUS_CMD` | 對應 ORM 的 status 命令；Prisma → `npx prisma migrate status`；若無則 `make db-status` |
 | `SEED_CMD` | 若 EDD §3.3 有 seed 框架 → 對應指令；否則 `make db-seed`（保留，含 TODO 說明） |
-| `WEB_DEV_CMD` | 前端框架 = Next.js / Nuxt.js / Remix → `npm run dev`；Vite（React/Vue/Svelte）→ `pnpm dev`；Angular → `ng serve`；純後端（N/A）→ 整個前端 inner loop 段標記跳過 |
+| `WEB_DEV_CMD` | 前端框架 = Next.js / Nuxt.js / Remix → `npm run dev`；Vite（React/Vue/Svelte）→ `pnpm dev`；Angular → `ng serve`；Phaser/HTML5 → `pnpm dev`（依 Vite/webpack 設定）；Cocos Creator → `npx cocos-creator build --platform web-mobile`（無 HMR，用 Editor 預覽替代）；Unity WebGL → 整個 HMR 段標記「Unity WebGL 無 HMR，見 §15 Unity Build Steps」；純後端（N/A）→ 整個前端 inner loop 段標記跳過 |
 | `RUNTIME_CMD` | Runtime = Node.js → `node`；Python → `python3`；Go → `go`；Java/Kotlin → `java` |
 
 **以下欄位使用格式範例佔位符（允許保留，不視為缺失）：**
@@ -181,6 +182,11 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 - nerdctl build（非 docker）+ 使用 EDD §3.5 Base Image
 - Dockerfile 路徑：`docker/api/Dockerfile`、`docker/web/Dockerfile`（若純後端只有 api）
 - 明確說明：`imagePullPolicy: Never`
+- **依 CLIENT_ENGINE 生成 web Dockerfile 策略說明**：
+  - Web / HTML5 / Phaser → 標準 multi-stage（node build → dist/ → nginx serve）
+  - Cocos Creator → multi-stage（node + cocos CLI build → build/web-mobile/ → nginx serve）
+  - Unity WebGL → 單 stage COPY（Unity build 產出 → nginx serve）+ 必須說明「需先在 Unity Editor 完成 Build，輸出至 Assets/Builds/WebGL/」
+  - 純後端（N/A）→ 無 web Dockerfile 說明，整個段落標記「純後端服務，無前端 image」
 
 **§4.5 部署所有 K8s 資源**：
 - `kubectl apply -k k8s/overlays/local/`
@@ -317,9 +323,11 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 **後端 inner loop**：
 - nerdctl build + rollout restart：`kubectl rollout restart deploy/api-server -n {{K8S_NAMESPACE}}`
 
-**前端 inner loop**（若有前端）：
-- HMR 命令使用推斷的 `WEB_DEV_CMD`
-- 若純後端：整段標記 `（純後端服務，無前端 inner loop）`
+**前端 inner loop**（依 CLIENT_ENGINE 路由）：
+- Web / HTML5 / Phaser：HMR 命令使用推斷的 `WEB_DEV_CMD`；生成「前端（Web / HTML5 / Phaser client）」小節
+- Cocos Creator：生成「前端（Cocos Creator client）」小節，包含 3 種方法（rebuild image / Editor 預覽 / CLI build）
+- Unity WebGL：生成「前端（Unity WebGL client）」小節，包含 Editor build + 命令列 build + 套用 k8s；加注釋「用 Unity Play Mode 驗證邏輯，避免頻繁 WebGL build」
+- 純後端（N/A）：整段標記 `（純後端服務，無前端 inner loop）`
 
 **Skaffold 段**：profile 固定為 `local`：`skaffold dev --profile local`
 
@@ -424,6 +432,8 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 - [ ] §11 Logs & Debugging 所有 kubectl 命令使用真實 namespace（非 placeholder）
 - [ ] §14 Mock Services 表從 EDD §2.1 外部依賴生成（非全部保留模板預設）
 - [ ] §15 Inner Loop 若純後端已移除/標記前端段落
+- [ ] §4.4 Build 策略說明與 CLIENT_ENGINE 一致（Unity WebGL / Cocos / Web 各有對應 Dockerfile 說明）
+- [ ] §15 Inner Loop 包含正確的引擎特定小節（Web HMR / Cocos CLI / Unity WebGL build steps）
 
 **安全性（4 項）**
 - [ ] §7 Database Operations 所有含明文密碼 `secret` 的連線字串前均有安全警示注釋

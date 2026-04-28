@@ -165,6 +165,7 @@ Infrastructure Layer — Repository / Adapter（資料庫、外部 API 實作）
 | 整合 / E2E 測試框架 | {{INT_E2E_FRAMEWORK}} | {{INT_E2E_VERSION}} | {{REASON}}（e.g. Supertest / Playwright / Testcontainers）|
 | 前端語言（若有）| {{FRONTEND_LANG}} | {{FRONTEND_LANG_VERSION}} | {{REASON}}（純後端 API 服務填 N/A）|
 | 前端框架（若有）| {{FRONTEND_FRAMEWORK}} | {{FRONTEND_FW_VERSION}} | {{REASON}}（純後端 API 服務填 N/A）|
+| 客戶端引擎（若有）| {{CLIENT_ENGINE}} | {{CLIENT_ENGINE_VERSION}} | {{REASON}}（e.g. React 18 / Vue 3 / Unity 6 WebGL / Cocos Creator 3.8 / Phaser 3；純後端填 N/A）|
 
 ### 3.4 Bounded Context & Context Map（DDD）
 
