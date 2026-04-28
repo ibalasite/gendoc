@@ -110,57 +110,50 @@ options:
 
 ### 選「從某個 STEP 重新開始」
 
-用 `AskUserQuestion` 詢問：
+**[AI 指令]** 先執行以下 bash + python3 取得動態清單，再呼叫 `AskUserQuestion`：
 
-```
-question: "從哪個 STEP 重新開始？"
-options:
-  - "D01-IDEA：IDEA.md 生成"
-  - "D01-IDEA-R：IDEA Review Loop"
-  - "D02-BRD：BRD.md 生成"
-  - "D02-BRD-R：BRD Review Loop"
-  - "D03-PRD：PRD 生成"
-  - "D03-PRD-R：PRD Review Loop"
-  - "D04-PDD：PDD 生成（client_type≠none）"
-  - "D04-PDD-R：PDD Review Loop"
-  - "D05-VDD：VDD 視覺設計文件生成（client_type≠none）"
-  - "D05-VDD-R：VDD Review Loop"
-  - "D06-EDD：EDD 生成"
-  - "D06-EDD-R：EDD Review Loop"
-  - "D07-ARCH：ARCH 架構文件生成"
-  - "D07-ARCH-R：ARCH Review Loop"
-  - "D07b-UML：UML 圖表生成（gendoc-gen-diagrams）"
-  - "D08-API：API 設計文件生成"
-  - "D08-API-R：API Review Loop"
-  - "D09-SCHEMA：Schema 設計文件生成"
-  - "D09-SCHEMA-R：Schema Review Loop"
-  - "D10-FRONTEND：FRONTEND 前端技術設計生成（client_type≠none）"
-  - "D10-FRONTEND-R：FRONTEND Review Loop"
-  - "D10b-AUDIO：AUDIO 音效設計文件生成（client_type=game）"
-  - "D10b-AUDIO-R：AUDIO Review Loop"
-  - "D10c-ANIM：ANIM 動畫特效設計文件生成（client_type=game）"
-  - "D10c-ANIM-R：ANIM Review Loop"
-  - "D11-test-plan：Test Plan 生成"
-  - "D11-test-plan-R：Test Plan Review Loop"
-  - "D12-BDD-server：Server BDD Feature Files 生成"
-  - "D12-BDD-server-R：Server BDD Review Loop"
-  - "D12b-BDD-client：Client BDD Feature Files 生成（client_type≠none）"
-  - "D12b-BDD-client-R：Client BDD Review Loop"
-  - "D13-RTM：RTM 需求追溯矩陣生成"
-  - "D13-RTM-R：RTM Review Loop"
-  - "D14-runbook：Runbook 生成"
-  - "D14-runbook-R：Runbook Review Loop"
-  - "D15-LOCAL_DEPLOY：LOCAL_DEPLOY 生成"
-  - "D15-LOCAL_DEPLOY-R：LOCAL_DEPLOY Review Loop"
-  - "D16-ALIGN：跨文件對齊掃描（align-check）"
-  - "D16-ALIGN-F：對齊問題自動修復（align-fix）"
-  - "D17-CONTRACTS：機器可讀規格生成（OpenAPI YAML / JSON Schema / Pact / IaC / Seed Code）"
-  - "D18-MOCK：FastAPI Mock Server 生成（前端開發用）"
-  - "D19-HTML：HTML 文件網站生成"
-  - "D19-HTML-P：GitHub Pages 部署驗證"
+```bash
+# 1. 定位 pipeline.json（local-first）
+_CWD="$(pwd)"
+if [[ -f "$_CWD/templates/pipeline.json" ]]; then
+  _PIPELINE_FILE="$_CWD/templates/pipeline.json"
+elif [[ -f "$HOME/.claude/gendoc/templates/pipeline.json" ]]; then
+  _PIPELINE_FILE="$HOME/.claude/gendoc/templates/pipeline.json"
+else
+  echo "⚠️  找不到 pipeline.json，無法動態產生 step 清單"; exit 1
+fi
+
+# 2. 從 pipeline.json 生成 step 選項（gen + review-loop 兩行一組）
+python3 - "$_PIPELINE_FILE" <<'PY'
+import json, sys
+pipe = json.load(open(sys.argv[1], encoding="utf-8"))
+# 這些 special_skill 步驟沒有獨立的 review loop
+SPECIAL = {
+    "gendoc-gen-diagrams", "gendoc-align-check", "gendoc-align-fix",
+    "gendoc-gen-contracts", "gendoc-gen-mock", "gendoc-gen-prototype", "gendoc-gen-html"
+}
+for s in pipe.get("steps", []):
+    sid   = s["id"]
+    stype = s["type"]
+    cond  = s.get("condition", "always")
+    note  = s.get("note", "")
+    cond_str = f"（{cond}）" if cond != "always" else ""
+    print(f"{sid}：{stype} 生成{cond_str}")
+    if not s.get("special_skill"):
+        print(f"{sid}-R：{stype} Review Loop")
+PY
 ```
 
-→ 設 `_NEW_STEP = <使用者選擇的 STEP ID>`，繼續 Step 3 → Step 4
+**[AI 指令]** 將 python3 每行輸出作為一個 option，呼叫：
+
+```
+AskUserQuestion(
+  question: "從哪個 STEP 重新開始？",
+  options: [<python3 輸出的每一行>]
+)
+```
+
+→ 設 `_NEW_STEP = <使用者選擇文字中 `:` 前的 ID 部分>`，繼續 Step 3 → Step 4
 
 ---
 

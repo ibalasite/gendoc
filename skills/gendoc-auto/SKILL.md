@@ -912,7 +912,7 @@ fi
 if [[ -z "$_SKIP_IDEA_GEN" ]] || [[ -n "$_RESUME_IDEA_REVIEW" ]]; then
 ```
 
-主 Claude 直接驅動 Review → Fix → Round Summary → Commit loop（同 gendoc-flow Phase D-2）。
+**以 Agent tool 建立 subagent 驅動整個 IDEA Review Loop**（不得在主 Claude 直接執行 loop，否則 context 將爆滿導致 Step 8 無法自動觸發）。
 
 ```bash
 _MAX_ROUNDS=$(python3 -c "
@@ -925,66 +925,53 @@ import json
 try: d=json.load(open('${_STATE_FILE}')); print(d.get('review_strategy','standard'))
 except: print('standard')
 " 2>/dev/null || echo "standard")
-echo "[IDEA Review] 策略：${_REVIEW_STRATEGY}，最多 ${_MAX_ROUNDS} 輪"
+echo "[IDEA Review Loop] 策略：${_REVIEW_STRATEGY}，最多 ${_MAX_ROUNDS} 輪"
 ```
 
-**Review → Fix → Round Summary → Commit loop（max_rounds 次）：**
+主 Claude 派送以下 Agent（填入實際值：`$_PROJECT_DIR` / `$_TEMPLATE_DIR` / `$_MAX_ROUNDS` / `$_REVIEW_STRATEGY`）：
 
-```python
-for round in range(1, max_rounds + 1):
+> **任務**：對 docs/IDEA.md 執行完整的 Review → Fix → Commit loop，直到通過或達上限。
+> **專案目錄**：{_PROJECT_DIR}（先 cd 進去）
+> **Templates 目錄**：{_TEMPLATE_DIR}
+> **max_rounds**：{_MAX_ROUNDS}　**review_strategy**：{_REVIEW_STRATEGY}
+>
+> **預備**：
+> 1. cd {_PROJECT_DIR}
+> 2. 讀取 {_TEMPLATE_DIR}/IDEA.review.md（獲取所有 reviewer-roles + review items）
+> 3. 讀取 docs/IDEA.md
+>
+> **對每個 round（1 到 {_MAX_ROUNDS}）**：
+> a. **Review**：扮演 IDEA.review.md 定義的所有審查角色，逐項執行 Check（引用文件具體§章節）
+> b. **判斷終止**：
+>    - finding_total=0 → PASSED
+>    - strategy=rapid 且 round≥3 → MAX_ROUNDS
+>    - strategy=tiered 且 round≥6 且 CRITICAL+HIGH+MEDIUM=0 → PASSED
+>    - round≥max_rounds → MAX_ROUNDS
+> c. **Fix**（finding>0 時必執行）：精準修復 docs/IDEA.md
+>    - CRITICAL+HIGH 必修；MEDIUM+LOW 盡力
+>    - 只修改 finding 指出的具體位置，保持其他部分不變
+> d. **Round Summary**（每輪必輸出）：
+>    ┌─── D01-IDEA Review Round N/{max_rounds} ──────────────────────────┐
+>    │  Review：CRITICAL=N HIGH=N MEDIUM=N LOW=N  Total=N
+>    │  Fix：   修復 N 個 / 殘留 N 個
+>    │  本輪狀態：✅ PASS | ⚠️  MAX | 🔄 CONT   {terminate_reason}
+>    └────────────────────────────────────────────────────────────────────┘
+> e. **Commit**：
+>    - finding=0：`git add docs/IDEA.md && git commit -m "docs(gendoc-auto)[D01-IDEA]: review-r{N} — PASS (0 findings)"`
+>    - finding>0：`git add docs/IDEA.md && git commit -m "docs(gendoc-auto)[D01-IDEA]: review-r{N} — fix {fixed}/{total} findings"`
+> f. 若 terminate=True → break
+>
+> **完成後必須輸出**（格式嚴格，主 Claude 解析此區塊）：
+> REVIEW_LOOP_RESULT:
+>   step_id: D01-IDEA
+>   rounds_completed: N
+>   final_finding_total: N
+>   passed: true|false
+>   terminate_reason: "PASSED — finding=0 | MAX_ROUNDS=N 已達"
+>   summary: "N 輪完成，最終 finding=N（PASSED/MAX_ROUNDS）"
 
-    # ── Review Subagent ───────────────────────────────────
-    review_result = spawn_review_agent("IDEA", round)
-    finding_total = review_result["finding_total"]
-    critical      = review_result["critical"]
-    high          = review_result["high"]
-    medium        = review_result["medium"]
-    low           = review_result["low"]
-    findings      = review_result["findings"]
+等 Agent 回傳 REVIEW_LOOP_RESULT 後，主 Claude 更新 state：
 
-    # ── 判斷終止 ──────────────────────────────────────────
-    terminate = False
-    terminate_reason = ""
-    if finding_total == 0:
-        terminate = True; terminate_reason = "PASSED — finding=0"
-    elif review_strategy == "rapid" and round >= 3:
-        terminate = True; terminate_reason = "MAX_ROUNDS — rapid=3 已達"
-    elif review_strategy == "tiered" and round >= 6 and (critical + high + medium) == 0:
-        terminate = True; terminate_reason = "PASSED — tiered: CRITICAL+HIGH+MEDIUM=0"
-    elif round >= max_rounds:
-        terminate = True; terminate_reason = f"MAX_ROUNDS={max_rounds} 已達"
-
-    # ── Fix Subagent（finding>0 時必執行）────────────────
-    fix_result = None
-    if finding_total > 0:
-        fix_result = spawn_fix_agent("IDEA", round, findings)
-        unfixed_count = len(fix_result.get("unfixed", []))
-        fixed_count   = len(fix_result.get("fixed", []))
-    else:
-        unfixed_count = 0; fixed_count = 0
-
-    # ── Round Summary（commit 之前輸出）──────────────────
-    status_icon = "✅ PASS" if finding_total == 0 else ("⚠️  MAX" if terminate else "🔄 CONT")
-    print(f"""
-┌─── D01-IDEA Review Round {round}/{max_rounds} ──────────────────────────┐
-│  Review：CRITICAL={critical} HIGH={high} MEDIUM={medium} LOW={low}  Total={finding_total}
-│  Fix：   修復 {fixed_count} 個 / 殘留 {unfixed_count} 個（本輪未解）
-│  本輪狀態：{status_icon}  {terminate_reason if terminate else '繼續下一輪'}
-│  Fix summary：{fix_result['summary'] if fix_result else 'N/A（finding=0，無需修復）'}
-└──────────────────────────────────────────────────────────────────────┘""")
-
-    # ── Commit ───────────────────────────────────────────
-    git add docs/IDEA.md
-    if finding_total == 0:
-        git commit -m f"docs(gendoc-auto)[D01-IDEA]: review-r{round} — PASS (0 findings)"
-    else:
-        git commit -m f"docs(gendoc-auto)[D01-IDEA]: review-r{round} — fix {fixed_count}/{finding_total} findings"
-
-    if terminate:
-        break
-```
-
-更新 state：
 ```bash
 python3 -c "
 import json; f='${_STATE_FILE}'
@@ -994,65 +981,6 @@ d['idea_review_passed'] = True
 json.dump(d, open(f,'w'), ensure_ascii=False, indent=2)
 print('[state] idea_review_passed = True')
 "
-```
-
-**Review Subagent prompt（主 Claude 用 Agent tool 派送）：**
-
-```
-你是 IDEA 文件審查專家。
-任務：依照 {_TEMPLATE_DIR}/IDEA.review.md 的審查標準，審查 docs/IDEA.md。
-
-執行步驟：
-1. 讀取 {_TEMPLATE_DIR}/IDEA.review.md — 獲取所有 review items
-2. 讀取 docs/IDEA.md
-3. 逐項執行每個 review item 的 Check，引用文件中的具體§章節
-
-完成後必須輸出（格式嚴格，主 Claude 解析此區塊）：
-REVIEW_RESULT:
-  step_id: D01-IDEA
-  type: IDEA
-  round: {round}
-  finding_total: N
-  critical: N
-  high: N
-  medium: N
-  low: N
-  passed: true|false
-  findings:
-    - id: F-{N:02d}
-      severity: CRITICAL|HIGH|MEDIUM|LOW
-      section: "§X.Y"
-      issue: "具體問題描述（引用文件內容）"
-      fix_guide: "修復指引（來自 review.md 對應 item 的 Fix 段落）"
-```
-
-**Fix Subagent prompt（主 Claude 從 REVIEW_RESULT 提取 findings_text 後派送）：**
-
-```
-你是 IDEA 文件修復專家。
-任務：依照以下 findings，精準修復 docs/IDEA.md。
-
-本輪 Findings（Round {round}，共 {finding_total} 個）：
-{findings_text}
-
-執行步驟：
-1. 讀取 docs/IDEA.md
-2. 讀取 {_TEMPLATE_DIR}/IDEA.review.md 中對應 item 的 Fix 指引
-3. 精準修復每個 finding（只修改 finding 指出的具體位置，不動其他部分）
-4. 修復後驗證
-
-完成後必須輸出：
-FIX_RESULT:
-  step_id: D01-IDEA
-  type: IDEA
-  round: {round}
-  fixed:
-    - id: F-{N:02d}
-      action: "具體修復說明"
-  unfixed:
-    - id: F-{N:02d}
-      reason: "無法修復的原因（若有）"
-  summary: "一句話：本輪共修復 N 個 findings，主要修復了 ..."
 ```
 
 ```bash
@@ -1147,7 +1075,7 @@ fi
 if [[ -z "$_SKIP_BRD_GEN" ]] || [[ -n "$_RESUME_BRD_REVIEW" ]]; then
 ```
 
-主 Claude 直接驅動 Review → Fix → Round Summary → Commit loop（同 gendoc-flow Phase D-2）。
+**以 Agent tool 建立 subagent 驅動整個 BRD Review Loop**（不得在主 Claude 直接執行 loop，否則 context 將爆滿導致 Step 8 無法自動觸發）。
 
 ```bash
 _MAX_ROUNDS=$(python3 -c "
@@ -1160,66 +1088,54 @@ import json
 try: d=json.load(open('${_STATE_FILE}')); print(d.get('review_strategy','standard'))
 except: print('standard')
 " 2>/dev/null || echo "standard")
-echo "[BRD Review] 策略：${_REVIEW_STRATEGY}，最多 ${_MAX_ROUNDS} 輪"
+echo "[BRD Review Loop] 策略：${_REVIEW_STRATEGY}，最多 ${_MAX_ROUNDS} 輪"
 ```
 
-**Review → Fix → Round Summary → Commit loop（max_rounds 次）：**
+主 Claude 派送以下 Agent（填入實際值：`$_PROJECT_DIR` / `$_TEMPLATE_DIR` / `$_MAX_ROUNDS` / `$_REVIEW_STRATEGY`）：
 
-```python
-for round in range(1, max_rounds + 1):
+> **任務**：對 docs/BRD.md 執行完整的 Review → Fix → Commit loop，直到通過或達上限。
+> **專案目錄**：{_PROJECT_DIR}（先 cd 進去）
+> **Templates 目錄**：{_TEMPLATE_DIR}
+> **max_rounds**：{_MAX_ROUNDS}　**review_strategy**：{_REVIEW_STRATEGY}
+>
+> **預備**：
+> 1. cd {_PROJECT_DIR}
+> 2. 讀取 {_TEMPLATE_DIR}/BRD.review.md（獲取所有 reviewer-roles + review items）
+> 3. 讀取 docs/IDEA.md（上游文件）
+> 4. 讀取 docs/BRD.md
+>
+> **對每個 round（1 到 {_MAX_ROUNDS}）**：
+> a. **Review**：扮演 BRD.review.md 定義的所有審查角色，逐項執行 Check（引用文件具體§章節）
+> b. **判斷終止**：
+>    - finding_total=0 → PASSED
+>    - strategy=rapid 且 round≥3 → MAX_ROUNDS
+>    - strategy=tiered 且 round≥6 且 CRITICAL+HIGH+MEDIUM=0 → PASSED
+>    - round≥max_rounds → MAX_ROUNDS
+> c. **Fix**（finding>0 時必執行）：精準修復 docs/BRD.md
+>    - CRITICAL+HIGH 必修；MEDIUM+LOW 盡力
+>    - 只修改 finding 指出的具體位置，保持其他部分不變
+> d. **Round Summary**（每輪必輸出）：
+>    ┌─── D02-BRD Review Round N/{max_rounds} ───────────────────────────┐
+>    │  Review：CRITICAL=N HIGH=N MEDIUM=N LOW=N  Total=N
+>    │  Fix：   修復 N 個 / 殘留 N 個
+>    │  本輪狀態：✅ PASS | ⚠️  MAX | 🔄 CONT   {terminate_reason}
+>    └─────────────────────────────────────────────────────────────────────┘
+> e. **Commit**：
+>    - finding=0：`git add docs/BRD.md && git commit -m "docs(gendoc-auto)[D02-BRD]: review-r{N} — PASS (0 findings)"`
+>    - finding>0：`git add docs/BRD.md && git commit -m "docs(gendoc-auto)[D02-BRD]: review-r{N} — fix {fixed}/{total} findings"`
+> f. 若 terminate=True → break
+>
+> **完成後必須輸出**（格式嚴格，主 Claude 解析此區塊）：
+> REVIEW_LOOP_RESULT:
+>   step_id: D02-BRD
+>   rounds_completed: N
+>   final_finding_total: N
+>   passed: true|false
+>   terminate_reason: "PASSED — finding=0 | MAX_ROUNDS=N 已達"
+>   summary: "N 輪完成，最終 finding=N（PASSED/MAX_ROUNDS）"
 
-    # ── Review Subagent ───────────────────────────────────
-    review_result = spawn_review_agent("BRD", round)
-    finding_total = review_result["finding_total"]
-    critical      = review_result["critical"]
-    high          = review_result["high"]
-    medium        = review_result["medium"]
-    low           = review_result["low"]
-    findings      = review_result["findings"]
+等 Agent 回傳 REVIEW_LOOP_RESULT 後，主 Claude 更新 state：
 
-    # ── 判斷終止 ──────────────────────────────────────────
-    terminate = False
-    terminate_reason = ""
-    if finding_total == 0:
-        terminate = True; terminate_reason = "PASSED — finding=0"
-    elif review_strategy == "rapid" and round >= 3:
-        terminate = True; terminate_reason = "MAX_ROUNDS — rapid=3 已達"
-    elif review_strategy == "tiered" and round >= 6 and (critical + high + medium) == 0:
-        terminate = True; terminate_reason = "PASSED — tiered: CRITICAL+HIGH+MEDIUM=0"
-    elif round >= max_rounds:
-        terminate = True; terminate_reason = f"MAX_ROUNDS={max_rounds} 已達"
-
-    # ── Fix Subagent（finding>0 時必執行）────────────────
-    fix_result = None
-    if finding_total > 0:
-        fix_result = spawn_fix_agent("BRD", round, findings)
-        unfixed_count = len(fix_result.get("unfixed", []))
-        fixed_count   = len(fix_result.get("fixed", []))
-    else:
-        unfixed_count = 0; fixed_count = 0
-
-    # ── Round Summary（commit 之前輸出）──────────────────
-    status_icon = "✅ PASS" if finding_total == 0 else ("⚠️  MAX" if terminate else "🔄 CONT")
-    print(f"""
-┌─── D02-BRD Review Round {round}/{max_rounds} ───────────────────────────┐
-│  Review：CRITICAL={critical} HIGH={high} MEDIUM={medium} LOW={low}  Total={finding_total}
-│  Fix：   修復 {fixed_count} 個 / 殘留 {unfixed_count} 個（本輪未解）
-│  本輪狀態：{status_icon}  {terminate_reason if terminate else '繼續下一輪'}
-│  Fix summary：{fix_result['summary'] if fix_result else 'N/A（finding=0，無需修復）'}
-└──────────────────────────────────────────────────────────────────────┘""")
-
-    # ── Commit ───────────────────────────────────────────
-    git add docs/BRD.md
-    if finding_total == 0:
-        git commit -m f"docs(gendoc-auto)[D02-BRD]: review-r{round} — PASS (0 findings)"
-    else:
-        git commit -m f"docs(gendoc-auto)[D02-BRD]: review-r{round} — fix {fixed_count}/{finding_total} findings"
-
-    if terminate:
-        break
-```
-
-更新 state：
 ```bash
 python3 -c "
 import json; f='${_STATE_FILE}'
@@ -1229,66 +1145,6 @@ d['brd_review_passed'] = True
 json.dump(d, open(f,'w'), ensure_ascii=False, indent=2)
 print('[state] brd_review_passed = True')
 "
-```
-
-**Review Subagent prompt（主 Claude 用 Agent tool 派送）：**
-
-```
-你是 BRD 文件審查專家。
-任務：依照 {_TEMPLATE_DIR}/BRD.review.md 的審查標準，審查 docs/BRD.md。
-
-執行步驟：
-1. 讀取 {_TEMPLATE_DIR}/BRD.review.md — 獲取所有 review items
-2. 讀取 docs/IDEA.md（上游文件）
-3. 讀取 docs/BRD.md
-4. 逐項執行每個 review item 的 Check，引用文件中的具體§章節
-
-完成後必須輸出（格式嚴格，主 Claude 解析此區塊）：
-REVIEW_RESULT:
-  step_id: D02-BRD
-  type: BRD
-  round: {round}
-  finding_total: N
-  critical: N
-  high: N
-  medium: N
-  low: N
-  passed: true|false
-  findings:
-    - id: F-{N:02d}
-      severity: CRITICAL|HIGH|MEDIUM|LOW
-      section: "§X.Y"
-      issue: "具體問題描述（引用文件內容）"
-      fix_guide: "修復指引（來自 review.md 對應 item 的 Fix 段落）"
-```
-
-**Fix Subagent prompt（主 Claude 從 REVIEW_RESULT 提取 findings_text 後派送）：**
-
-```
-你是 BRD 文件修復專家。
-任務：依照以下 findings，精準修復 docs/BRD.md。
-
-本輪 Findings（Round {round}，共 {finding_total} 個）：
-{findings_text}
-
-執行步驟：
-1. 讀取 docs/BRD.md
-2. 讀取 {_TEMPLATE_DIR}/BRD.review.md 中對應 item 的 Fix 指引
-3. 精準修復每個 finding（只修改 finding 指出的具體位置，不動其他部分）
-4. 修復後驗證
-
-完成後必須輸出：
-FIX_RESULT:
-  step_id: D02-BRD
-  type: BRD
-  round: {round}
-  fixed:
-    - id: F-{N:02d}
-      action: "具體修復說明"
-  unfixed:
-    - id: F-{N:02d}
-      reason: "無法修復的原因（若有）"
-  summary: "一句話：本輪共修復 N 個 findings，主要修復了 ..."
 ```
 
 ```bash
@@ -1338,30 +1194,21 @@ _BRD_LINES=$(wc -l < "docs/BRD.md" 2>/dev/null || echo "0")
 ## Step 8：銜接 gendoc-flow（C-17）
 
 ```bash
-echo "🚀 文件已準備就緒！"
-echo "   docs/IDEA.md：已通過 Review"
-echo "   docs/BRD.md：已通過 Review"
-echo "   專案目錄：$(pwd)"
-echo ""
-echo "正在啟動 /gendoc-flow ..."
-```
-
-**立即用 Skill 工具呼叫 `gendoc-flow`**（不得輸出成文字，必須真正觸發工具）。
-
-**若 Skill 工具未能自動觸發**：
-
-立即輸出以下醒目提示（不可只在 prose 中提及）：
-
-```bash
 echo ""
 echo "╔══════════════════════════════════════════════════════════╗"
-echo "║  [P-08] gendoc-flow 需手動啟動                           ║"
+echo "║  ✅ IDEA.md + BRD.md 通過 Review，正在啟動 gendoc-flow   ║"
 echo "╠══════════════════════════════════════════════════════════╣"
-echo "║  IDEA.md + BRD.md 已就緒，請在本 session 執行：          ║"
-echo "║                                                          ║"
-echo "║     /gendoc-flow                                         ║"
-echo "║                                                          ║"
-echo "║  若想從特定 step 開始，先執行 /gendoc-config 設定。      ║"
+echo "║  接下來將從 D03-PRD 自動繼續整條文件流水線。             ║"
+echo "╚══════════════════════════════════════════════════════════╝"
+```
+
+**立即用 Skill 工具呼叫 `gendoc-flow`**（不得只輸出文字，必須真正觸發工具）。
+
+**若 Skill 工具觸發失敗**，輸出：
+
+```bash
+echo "╔══════════════════════════════════════════════════════════╗"
+echo "║  [P-08] 請立即輸入：/gendoc-flow                         ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 ```
 
