@@ -32,6 +32,12 @@ if [[ -d "$TEMPLATES_SRC" ]]; then
   log "  ✓ templates → $TEMPLATES_DST"
 fi
 
+# Central tools — skills call these directly; no copy into target projects needed
+BIN_DST="$HOME/.claude/gendoc/bin"
+mkdir -p "$BIN_DST"
+cp "$GENDOC_DIR/bin/gen_html.py" "$BIN_DST/gen_html.py"
+log "  ✓ bin/gen_html.py → $BIN_DST/gen_html.py"
+
 # Clear throttle stamp so next session will check for further updates
 rm -f "$GENDOC_DIR/.last-update-check" 2>/dev/null || true
 
