@@ -1004,6 +1004,47 @@ Frontend 圖合計：N 張（skip 時：0 張）
 
 ---
 
+## Step 5：[Fix-A] Step 2B 完整度強制驗證
+
+**摘要輸出後立即執行以下驗證，不得跳過。**
+
+```bash
+_STATE_FILE=$(ls .gendoc-state-*.json 2>/dev/null | head -1 || echo ".gendoc-state.json")
+_CLIENT_TYPE_CHECK=$(python3 -c "
+import json
+try: print(json.load(open('$_STATE_FILE')).get('client_type','none'))
+except: print('none')
+" 2>/dev/null || echo "none")
+
+_FRONTEND_MD=$([ -f "docs/FRONTEND.md" ] && echo "yes" || echo "no")
+
+if [[ "$_CLIENT_TYPE_CHECK" != "api-only" && "$_CLIENT_TYPE_CHECK" != "none" && "$_FRONTEND_MD" == "yes" ]]; then
+  _FRONTEND_COUNT=$(ls docs/diagrams/frontend-*.md 2>/dev/null | wc -l | tr -d ' ')
+  if [[ "$_FRONTEND_COUNT" -lt "10" ]]; then
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║  ❌ BLOCKED — [Fix-A] Step 2B 前端 UML 未完整生成            ║"
+    echo "╠══════════════════════════════════════════════════════════════╣"
+    printf "║  client_type=%-47s ║\n" "${_CLIENT_TYPE_CHECK}，FRONTEND.md 存在"
+    printf "║  實際生成：%-2d 個 frontend-*.md（需 ≥ 10）                  ║\n" "${_FRONTEND_COUNT}"
+    echo "║                                                              ║"
+    echo "║  原因：Step 2B 靜默跳過（技術棧偵測失敗或舊版 skill）         ║"
+    echo "║  處置：主 Claude 必須立即執行 Step 2B（不可標記為 complete）   ║"
+    echo "║        依 2B-1 至 2B-16 逐一生成所有 frontend-*.md 後繼續    ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "BLOCKED: frontend_uml_incomplete count=${_FRONTEND_COUNT}"
+    exit 1
+  else
+    echo "[Fix-A] ✅ Step 2B 驗證通過：frontend-*.md = ${_FRONTEND_COUNT} 個（≥ 10）"
+  fi
+else
+  echo "[Fix-A] skip（client_type=${_CLIENT_TYPE_CHECK} 或 FRONTEND.md 不存在，Step 2B 不適用）"
+fi
+```
+
+---
+
 ## 附錄：UML 九大圖對照表
 
 | # | UML 圖類型 | EDD §章節（新版→舊版）| 輸出檔案 | Mermaid 語法 | 最低張數 |

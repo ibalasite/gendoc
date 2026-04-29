@@ -43,14 +43,24 @@ Scope:   僅負責 D01-IDEA + D02-BRD；其餘文件由 gendoc-flow 接手
 
 ## Step -1：版本自動更新檢查 + SPAWNED_SESSION 偵測
 
-遵循 `gendoc-shared §-1`（R-00）：靜默檢查版本，有新版時以 Agent subagent 執行 `/gendoc-update` 後繼續。
-
 ```bash
 # SPAWNED_SESSION 偵測
 [ -n "$OPENCLAW_SESSION" ] && _SPAWNED="true" || _SPAWNED="false"
 echo "SPAWNED_SESSION: $_SPAWNED"
-# 若為 spawned session，全程跳過 AskUserQuestion，強制 full-auto
 [[ "$_SPAWNED" == "true" ]] && echo "[SPAWNED] 跳過互動提問，強制 full-auto 模式"
+
+# [Fix-D] 主動版本比對 — 若 repo 有新版則自動 upgrade，再繼續
+_GENDOC_REPO="$HOME/projects/gendoc"
+_VERSION_FILE="$HOME/.claude/gendoc/.installed-version"
+_REPO_HEAD=$(git -C "$_GENDOC_REPO" rev-parse --short HEAD 2>/dev/null || echo "")
+_INSTALLED=$(cat "$_VERSION_FILE" 2>/dev/null | tr -d '[:space:]' || echo "")
+if [[ -n "$_REPO_HEAD" && "$_REPO_HEAD" != "$_INSTALLED" ]]; then
+  echo "[R-00] 偵測到新版 gendoc（${_INSTALLED:-未知} → ${_REPO_HEAD}），執行 upgrade..."
+  bash "$_GENDOC_REPO/bin/gendoc-upgrade"
+  echo "[R-00] ✅ upgrade 完成，繼續執行"
+else
+  echo "[R-00] gendoc 版本已是最新（${_REPO_HEAD:-未知}），繼續"
+fi
 ```
 
 **立即用 Skill tool 呼叫 `gendoc-shared`。等 Skill tool 回傳後才繼續 Step 0，在此之前不得執行任何後續步驟。**

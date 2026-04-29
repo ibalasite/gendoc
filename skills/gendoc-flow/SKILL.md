@@ -70,12 +70,24 @@ Main AI: 主 Claude 協調整條流水線，直到 pipeline 走完
 
 ## Step -1：版本自動更新檢查 + SPAWNED_SESSION 偵測
 
-遵循 `gendoc-shared §-1`（R-00）：靜默檢查版本，有新版時以 Agent subagent 執行 `/gendoc-update` 後繼續。
-
 ```bash
+# SPAWNED_SESSION 偵測
 [ -n "$OPENCLAW_SESSION" ] && _SPAWNED="true" || _SPAWNED="false"
 echo "SPAWNED_SESSION: $_SPAWNED"
 [[ "$_SPAWNED" == "true" ]] && echo "[SPAWNED] 強制 full-auto，跳過互動提問"
+
+# [Fix-D] 主動版本比對 — 若 repo 有新版則自動 upgrade，再繼續
+_GENDOC_REPO="$HOME/projects/gendoc"
+_VERSION_FILE="$HOME/.claude/gendoc/.installed-version"
+_REPO_HEAD=$(git -C "$_GENDOC_REPO" rev-parse --short HEAD 2>/dev/null || echo "")
+_INSTALLED=$(cat "$_VERSION_FILE" 2>/dev/null | tr -d '[:space:]' || echo "")
+if [[ -n "$_REPO_HEAD" && "$_REPO_HEAD" != "$_INSTALLED" ]]; then
+  echo "[R-00] 偵測到新版 gendoc（${_INSTALLED:-未知} → ${_REPO_HEAD}），執行 upgrade..."
+  bash "$_GENDOC_REPO/bin/gendoc-upgrade"
+  echo "[R-00] ✅ upgrade 完成，繼續執行"
+else
+  echo "[R-00] gendoc 版本已是最新（${_REPO_HEAD:-未知}），繼續"
+fi
 ```
 
 **立即用 Skill tool 呼叫 `gendoc-shared`。等 Skill tool 回傳後才繼續 Step 0，在此之前不得執行任何後續步驟。**
@@ -615,7 +627,50 @@ if step.get("special_skill"):
 
 ```
 用 Skill 工具呼叫 step["special_skill"]，不帶額外 args。
-等待完成後：
+等待完成後執行以下步驟（順序不可改）：
+```
+
+**[Fix-B] D07b-UML 完成後立即執行前端 UML 完整度驗證（其他特殊步驟跳過此區塊）：**
+
+```bash
+# Fix-B：僅 D07b-UML 執行此驗證
+if [[ "${step_id}" == "D07b-UML" ]]; then
+  _CT=$(python3 -c "import json; d=json.load(open('${_STATE_FILE}')); print(d.get('client_type','none'))" 2>/dev/null || echo "none")
+  _FRONTEND_MD=$([ -f "docs/FRONTEND.md" ] && echo "yes" || echo "no")
+
+  if [[ "$_CT" != "api-only" && "$_CT" != "none" && "$_FRONTEND_MD" == "yes" ]]; then
+    _FE_COUNT=$(ls docs/diagrams/frontend-*.md 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$_FE_COUNT" -lt "10" ]]; then
+      echo "[Fix-B] ⚠️  D07b-UML 前端 UML 不足（${_FE_COUNT}/16，需 ≥ 10）"
+      echo "[Fix-B] 清除殘檔，重新呼叫 gendoc-gen-diagrams（第 1 次重試）..."
+      rm -f docs/diagrams/frontend-*.md 2>/dev/null || true
+      _FIX_B_RETRY="true"
+    else
+      echo "[Fix-B] ✅ D07b-UML 前端 UML 驗證通過：${_FE_COUNT} 個 frontend-*.md"
+      _FIX_B_RETRY="false"
+    fi
+  else
+    echo "[Fix-B] skip（client_type=${_CT} 或無 FRONTEND.md）"
+    _FIX_B_RETRY="false"
+  fi
+
+  # 重試一次（若 Fix-B 驗證不通過）
+  if [[ "$_FIX_B_RETRY" == "true" ]]; then
+    # → 重新呼叫 Skill tool：gendoc-gen-diagrams（等待完成）
+    _FE_COUNT2=$(ls docs/diagrams/frontend-*.md 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$_FE_COUNT2" -lt "10" ]]; then
+      echo "[Fix-B] ❌ BLOCKED — 重試後仍不足（${_FE_COUNT2}/16）"
+      echo "         請手動確認 FRONTEND.md 是否包含完整元件/場景資訊後重跑。"
+      exit 1
+    else
+      echo "[Fix-B] ✅ 重試成功：${_FE_COUNT2} 個 frontend-*.md"
+    fi
+  fi
+fi
+```
+
+```
+繼續執行（Fix-B 通過後）：
   git add {step.output}
   # §8-B Pre-Commit Scan
   _BARE=$(python3 -c "import re,sys; from pathlib import Path; p=re.compile(r'(?<!\w)\{\{([A-Z][A-Z0-9_]*)\}\}(?!\s*[：:\-—])'); a=re.compile(r'\{\{.+?\}\}.*[：:\-—]'); total=sum(1 for f in Path('docs').glob('*.md') for l in f.read_text('utf-8').splitlines() if p.search(l) and not a.search(l)); print(total)" 2>/dev/null || echo "0")

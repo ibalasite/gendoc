@@ -35,4 +35,10 @@ fi
 # Clear throttle stamp so next session will check for further updates
 rm -f "$GENDOC_DIR/.last-update-check" 2>/dev/null || true
 
+# Write installed version stamp so Fix-D version checks work
+_VERSION_DIR="$HOME/.claude/gendoc"
+mkdir -p "$_VERSION_DIR"
+git -C "$GENDOC_DIR" rev-parse --short HEAD 2>/dev/null > "$_VERSION_DIR/.installed-version" || true
+log "  ✓ version stamp → $_VERSION_DIR/.installed-version"
+
 log "[install] 完成"
