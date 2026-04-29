@@ -355,6 +355,36 @@ def health_section():
         '</div></div></section>'
     )
 
+def doc_cards_section(doc_pages, server_diagrams, frontend_diagrams):
+    cards = []
+    for slug, label, icon in doc_pages:
+        if slug == 'index':
+            continue
+        cards.append(
+            f'<a class="index-card" href="{slug}.html">'
+            f'<span class="index-card__icon">{icon}</span>'
+            f'<span class="index-card__title">{esc(label)}</span>'
+            f'</a>'
+        )
+    diag_total = len(server_diagrams) + len(frontend_diagrams)
+    if diag_total:
+        cards.append(
+            f'<a class="index-card" href="diag-{server_diagrams[0][0] if server_diagrams else frontend_diagrams[0][0]}.html">'
+            f'<span class="index-card__icon">📐</span>'
+            f'<span class="index-card__title">UML 圖表 ({diag_total} 張)</span>'
+            f'<span class="index-card__desc">Server {len(server_diagrams)} / Frontend {len(frontend_diagrams)}</span>'
+            f'</a>'
+        )
+    if not cards:
+        return ''
+    return (
+        '<section style="margin-top:2.5rem">'
+        '<h2 style="font-size:1rem;font-weight:600;color:var(--text-muted);'
+        'text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem">文件導覽</h2>'
+        '<div class="index-grid">' + ''.join(cards) + '</div>'
+        '</section>'
+    )
+
 def req_section():
     if not REQ_DIR.exists():
         return ''
@@ -450,11 +480,12 @@ def main():
 
     # index.html
     readme = BASE / "README.md"
+    cards = doc_cards_section(doc_pages, server_diagrams, frontend_diagrams)
     if readme.exists():
-        body = md_to_html(readme.read_text()) + health_section()
+        body = md_to_html(readme.read_text()) + cards + health_section()
     else:
         body = (f'<h1>{APP_NAME} 文件中心</h1>'
-                '<p>請從左側導覽列選擇文件。</p>' + health_section())
+                '<p>請從左側導覽列選擇文件。</p>' + cards + health_section())
     write_page("index.html", body, f'{APP_NAME} 文件中心', f'{APP_NAME} 文件中心', 'index', True)
 
     for s, label, p in known_doc_entries:
