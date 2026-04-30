@@ -855,6 +855,25 @@ for html_file in sorted(pages.glob("*.html")):
             if not blk.strip():
                 issues.append(f"EMPTY_MERMAID|{html_file.name}")
 
+    # 4. Mermaid v11 syntax: par without and (causes "Syntax error in text")
+    if html_file.name.startswith("diag-"):
+        for blk in re.findall(r'<pre class="mermaid">(.*?)</pre>', content, re.DOTALL):
+            blk_s = blk.strip()
+            if not blk_s or 'sequenceDiagram' not in blk_s:
+                continue
+            lines_b = blk_s.split('\n')
+            in_par = False; has_and = False
+            for line in lines_b:
+                s = line.strip()
+                if re.match(r'^par\b', s):
+                    in_par = True; has_and = False
+                elif re.match(r'^and\b', s) and in_par:
+                    has_and = True
+                elif s == 'end' and in_par:
+                    if not has_and:
+                        issues.append(f"MERMAID_SYNTAX|{html_file.name}|par_without_and")
+                    in_par = False
+
 print(f"ISSUE_COUNT:{len(issues)}")
 for iss in issues:
     print(f"ISSUE:{iss}")
@@ -866,6 +885,92 @@ PY
 
   if [[ "$_ISSUE_COUNT" -gt 0 ]]; then
     echo "$_REPORT" | grep "^ISSUE:" | head -20
+
+    # 修復 MERMAID_SYNTAX：在源 .md 中移除缺少 and 的 par/end 包裹
+    if echo "$_REPORT" | grep -q "^ISSUE:MERMAID_SYNTAX|"; then
+      echo "[html-verify] 修復 MERMAID_SYNTAX（在 docs/diagrams/ 中移除無效 par/end）..."
+      python3 - <<'FIXPY'
+import re, sys
+from pathlib import Path
+
+diagrams = Path.cwd() / "docs" / "diagrams"
+pages    = Path.cwd() / "docs" / "pages"
+
+def fix_par_without_and(block_lines):
+    result = []
+    i = 0
+    while i < len(block_lines):
+        line = block_lines[i]
+        s = line.strip()
+        if re.match(r'^par\b', s):
+            j = i + 1; depth = 1; found_and = False
+            while j < len(block_lines):
+                s2 = block_lines[j].strip()
+                if re.match(r'^(par|loop|alt|opt|critical|break)\b', s2): depth += 1
+                elif s2 == 'end':
+                    depth -= 1
+                    if depth == 0: break
+                elif re.match(r'^and\b', s2) and depth == 1: found_and = True
+                j += 1
+            if not found_and:
+                i += 1; depth = 1
+                while i < len(block_lines):
+                    s2 = block_lines[i].strip()
+                    if s2 == 'end' and depth == 1: i += 1; break
+                    if re.match(r'^(par|loop|alt|opt|critical|break)\b', s2):
+                        depth += 1; result.append(block_lines[i])
+                    elif s2 == 'end':
+                        depth -= 1; result.append(block_lines[i])
+                    elif re.match(r'^and\b', s2) and depth == 1:
+                        pass  # skip stray 'and' in invalid par block
+                    else:
+                        result.append(block_lines[i])
+                    i += 1
+                continue
+        result.append(line); i += 1
+    return result
+
+for html_file in sorted(pages.glob("diag-*.html")):
+    content = html_file.read_text()
+    has_issue = False
+    for blk in re.findall(r'<pre class="mermaid">(.*?)</pre>', content, re.DOTALL):
+        blk_s = blk.strip()
+        if 'sequenceDiagram' not in blk_s: continue
+        lines_b = blk_s.split('\n'); in_par = False; has_and = False
+        for line in lines_b:
+            s = line.strip()
+            if re.match(r'^par\b', s): in_par = True; has_and = False
+            elif re.match(r'^and\b', s) and in_par: has_and = True
+            elif s == 'end' and in_par:
+                if not has_and: has_issue = True
+                in_par = False
+    if not has_issue: continue
+    # Map diag-{name}.html -> docs/diagrams/{name}.md
+    md_name = html_file.stem[5:] + ".md"
+    md_file = diagrams / md_name
+    if not md_file.exists(): print(f"  WARN: source not found: {md_name}"); continue
+    lines = md_file.read_text().split('\n')
+    result = []; in_mermaid = False; mermaid_buf = []; changed = False
+    for line in lines:
+        if line.strip() == '```mermaid': in_mermaid = True; mermaid_buf = []
+        elif in_mermaid and line.strip() == '```':
+            in_mermaid = False
+            if any('sequenceDiagram' in l for l in mermaid_buf):
+                fixed = fix_par_without_and(mermaid_buf)
+                if fixed != mermaid_buf: changed = True
+                result.append('```mermaid'); result.extend(fixed); result.append('```')
+            else:
+                result.append('```mermaid'); result.extend(mermaid_buf); result.append('```')
+        elif in_mermaid: mermaid_buf.append(line)
+        else: result.append(line)
+    if changed:
+        md_file.write_text('\n'.join(result))
+        print(f"  FIXED: {md_name}")
+    else:
+        print(f"  UNCHANGED: {md_name} (source may already be correct)")
+FIXPY
+    fi
+
     echo "[html-verify] 重新執行 gen_html.py 修復..."
     python3 "$HOME/.claude/gendoc/bin/gen_html.py"
   fi
@@ -876,11 +981,13 @@ if [[ "$_ISSUE_COUNT" -gt 0 ]]; then
   echo "$_REPORT" | grep "^ISSUE:"
   echo ""
   echo "常見原因："
-  echo "  FRONTMATTER  → gen_html.py 版本過舊（需 ≥ 3.2.0），執行 bash ~/projects/gendoc/install.sh 更新"
-  echo "  BROKEN_IMG   → docs/*.md 中有不存在的圖片路徑，需修正來源 .md 或補充圖片檔"
-  echo "  EMPTY_MERMAID → docs/diagrams/*.md 中某個 mermaid block 為空"
+  echo "  FRONTMATTER    → gen_html.py 版本過舊（需 ≥ 3.2.0），執行 /gendoc-update 更新"
+  echo "  BROKEN_IMG     → docs/*.md 中有不存在的圖片路徑，需修正來源 .md 或補充圖片檔"
+  echo "  EMPTY_MERMAID  → docs/diagrams/*.md 中某個 mermaid block 為空"
+  echo "  MERMAID_SYNTAX → sequenceDiagram 中 par 缺少 and 分隔子句（mermaid v11 語法錯誤）"
+  echo "                   建議：重新執行 /gendoc-gen-diagrams 以正確語法重生成圖表"
 else
-  echo "✅ [html-verify] 所有圖表頁面驗證通過（frontmatter 已清除、圖片路徑正確、mermaid 非空）"
+  echo "✅ [html-verify] 所有圖表頁面驗證通過（frontmatter 已清除、圖片路徑正確、mermaid 非空、語法合規）"
 fi
 ```
 
