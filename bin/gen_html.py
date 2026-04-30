@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # bin/gen_html.py
-# VERSION: 3.2.0
+# VERSION: 3.2.1
 # Maintained by gendoc — DO NOT EDIT IN TARGET PROJECTS
 # Install: ./install.sh  →  ~/.claude/gendoc/bin/gen_html.py
 # Usage:   python3 ~/.claude/gendoc/bin/gen_html.py   (run from project root)
@@ -168,7 +168,7 @@ def md_to_html(text, src_dir=None):
             while i < len(lines) and lines[i].strip() != '```':
                 block.append(lines[i])
                 i += 1
-            out.append('<div class="diagram-container"><pre class="mermaid">' + '\n'.join(block) + '</pre></div>')
+            out.append('<div class="diagram-container"><pre class="mermaid">' + '\n'.join(esc(l) for l in block) + '</pre></div>')
         elif s.startswith('```'):
             lang = s[3:].strip()
             block = []
