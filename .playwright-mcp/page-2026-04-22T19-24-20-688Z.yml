@@ -1,0 +1,296 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - link "gendoc" [ref=e3] [cursor=pointer]:
+      - /url: index.html
+    - generic [ref=e4]:
+      - searchbox "搜尋文件..." [ref=e6]
+      - link "⌥ GitHub" [ref=e7] [cursor=pointer]:
+        - /url: https://github.com/ibalasite/gendoc
+      - button "☰" [ref=e8] [cursor=pointer]
+  - generic [ref=e9]:
+    - paragraph [ref=e10]:
+      - link "gendoc" [ref=e11] [cursor=pointer]:
+        - /url: index.html
+      - text: › 文件中心
+      - link "⌥ GitHub ↗" [ref=e13] [cursor=pointer]:
+        - /url: https://github.com/ibalasite/gendoc
+    - heading "gendoc 文件中心" [level=1] [ref=e14]
+  - generic [ref=e15]:
+    - complementary "文件導覽" [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]: 文件
+        - link "🏠 首頁" [ref=e19] [cursor=pointer]:
+          - /url: index.html
+        - link "📝 產品需求文件 (PRD)" [ref=e20] [cursor=pointer]:
+          - /url: prd.html
+    - main [ref=e21]:
+      - heading "gendoc" [level=1] [ref=e22]
+      - paragraph [ref=e23]:
+        - 'link "License: MIT" [ref=e24] [cursor=pointer]':
+          - /url: LICENSE
+          - 'img "License: MIT" [ref=e25]'
+      - paragraph [ref=e26]:
+        - link "Platform" [ref=e27] [cursor=pointer]:
+          - /url: https://github.com/ibalasite/gendoc
+          - img "Platform" [ref=e28]
+      - paragraph [ref=e29]:
+        - link "Claude Code" [ref=e30] [cursor=pointer]:
+          - /url: https://claude.ai/code
+          - img "Claude Code" [ref=e31]
+      - paragraph [ref=e32]:
+        - strong [ref=e33]: AI-driven engineering document generation system for Claude Code.
+        - text: One command generates BRD, PRD, EDD, ARCH, API, Schema, Runbook and more — each document inherits knowledge from all upstream docs automatically.
+      - separator [ref=e34]
+      - heading "Overview" [level=2] [ref=e35]
+      - paragraph [ref=e36]:
+        - code [ref=e37]: gendoc
+        - text: is a Claude Code skill suite that automates the full engineering documentation lifecycle. Using a three-layer template architecture (
+        - code [ref=e38]: TYPE.md
+        - text: structure +
+        - code [ref=e39]: TYPE.gen.md
+        - text: generation rules +
+        - code [ref=e40]: TYPE.review.md
+        - text: review criteria), it generates and iteratively reviews production-quality engineering documents from an initial idea through deployment runbooks.
+      - paragraph [ref=e41]: "Key capabilities:"
+      - list [ref=e42]:
+        - listitem [ref=e43]:
+          - strong [ref=e44]: Cumulative upstream reading
+          - text: — every doc reads all ancestor docs, never just its direct parent
+        - listitem [ref=e45]:
+          - strong [ref=e46]: Universal generation
+          - text: —
+          - code [ref=e47]: /gendoc <type>
+          - text: for any document type, driven by templates
+        - listitem [ref=e48]:
+          - strong [ref=e49]: Universal review loop
+          - text: —
+          - code [ref=e50]: /reviewdoc <type>
+          - text: with configurable strategy (rapid / standard / exhaustive)
+        - listitem [ref=e51]:
+          - strong [ref=e52]: Auto-update via SessionStart hook
+          - text: — harness-enforced, LLM-independent, runs in background
+        - listitem [ref=e53]:
+          - strong [ref=e54]: Windows native support
+          - text: — Python-based hook for Windows, bash for macOS/Linux
+      - separator [ref=e55]
+      - heading "Skills" [level=2] [ref=e56]
+      - table [ref=e57]:
+        - rowgroup [ref=e58]:
+          - row "Skill Command Purpose" [ref=e59]:
+            - columnheader "Skill" [ref=e60]
+            - columnheader "Command" [ref=e61]
+            - columnheader "Purpose" [ref=e62]
+          - row "gendoc /gendoc <type> Generate any document type" [ref=e63]:
+            - cell "gendoc" [ref=e64]:
+              - code [ref=e65]: gendoc
+            - cell "/gendoc <type>" [ref=e66]:
+              - code [ref=e67]: /gendoc <type>
+            - cell "Generate any document type" [ref=e68]
+          - row "reviewdoc /reviewdoc <type> Review & iteratively fix any document" [ref=e69]:
+            - cell "reviewdoc" [ref=e70]:
+              - code [ref=e71]: reviewdoc
+            - cell "/reviewdoc <type>" [ref=e72]:
+              - code [ref=e73]: /reviewdoc <type>
+            - cell "Review & iteratively fix any document" [ref=e74]
+          - 'row "gendoc-auto /gendoc-auto Full pipeline: all docs + reviews in sequence" [ref=e75]':
+            - cell "gendoc-auto" [ref=e76]:
+              - code [ref=e77]: gendoc-auto
+            - cell "/gendoc-auto" [ref=e78]:
+              - code [ref=e79]: /gendoc-auto
+            - 'cell "Full pipeline: all docs + reviews in sequence" [ref=e80]'
+          - row "gendoc-flow /gendoc-flow Step-through pipeline with pause points" [ref=e81]:
+            - cell "gendoc-flow" [ref=e82]:
+              - code [ref=e83]: gendoc-flow
+            - cell "/gendoc-flow" [ref=e84]:
+              - code [ref=e85]: /gendoc-flow
+            - cell "Step-through pipeline with pause points" [ref=e86]
+          - row "gendoc-config /gendoc-config Configure execution mode & review strategy" [ref=e87]:
+            - cell "gendoc-config" [ref=e88]:
+              - code [ref=e89]: gendoc-config
+            - cell "/gendoc-config" [ref=e90]:
+              - code [ref=e91]: /gendoc-config
+            - cell "Configure execution mode & review strategy" [ref=e92]
+          - row "gendoc-align-check /gendoc-align-check Cross-document alignment scan" [ref=e93]:
+            - cell "gendoc-align-check" [ref=e94]:
+              - code [ref=e95]: gendoc-align-check
+            - cell "/gendoc-align-check" [ref=e96]:
+              - code [ref=e97]: /gendoc-align-check
+            - cell "Cross-document alignment scan" [ref=e98]
+          - row "gendoc-align-fix /gendoc-align-fix Auto-fix alignment issues" [ref=e99]:
+            - cell "gendoc-align-fix" [ref=e100]:
+              - code [ref=e101]: gendoc-align-fix
+            - cell "/gendoc-align-fix" [ref=e102]:
+              - code [ref=e103]: /gendoc-align-fix
+            - cell "Auto-fix alignment issues" [ref=e104]
+          - row "gendoc-gen-html /gendoc-gen-html Generate HTML documentation site" [ref=e105]:
+            - cell "gendoc-gen-html" [ref=e106]:
+              - code [ref=e107]: gendoc-gen-html
+            - cell "/gendoc-gen-html" [ref=e108]:
+              - code [ref=e109]: /gendoc-gen-html
+            - cell "Generate HTML documentation site" [ref=e110]
+          - row "gendoc-gen-diagrams /gendoc-gen-diagrams Generate architecture diagrams" [ref=e111]:
+            - cell "gendoc-gen-diagrams" [ref=e112]:
+              - code [ref=e113]: gendoc-gen-diagrams
+            - cell "/gendoc-gen-diagrams" [ref=e114]:
+              - code [ref=e115]: /gendoc-gen-diagrams
+            - cell "Generate architecture diagrams" [ref=e116]
+          - row "gendoc-gen-client-bdd /gendoc-gen-client-bdd Client-facing BDD features" [ref=e117]:
+            - cell "gendoc-gen-client-bdd" [ref=e118]:
+              - code [ref=e119]: gendoc-gen-client-bdd
+            - cell "/gendoc-gen-client-bdd" [ref=e120]:
+              - code [ref=e121]: /gendoc-gen-client-bdd
+            - cell "Client-facing BDD features" [ref=e122]
+          - row "gendoc-update /gendoc-update Manual skill upgrade" [ref=e123]:
+            - cell "gendoc-update" [ref=e124]:
+              - code [ref=e125]: gendoc-update
+            - cell "/gendoc-update" [ref=e126]:
+              - code [ref=e127]: /gendoc-update
+            - cell "Manual skill upgrade" [ref=e128]
+      - heading "Supported Document Types" [level=3] [ref=e129]
+      - paragraph [ref=e130]:
+        - code [ref=e131]: edd
+        - text: ·
+        - code [ref=e132]: brd
+        - text: ·
+        - code [ref=e133]: prd
+        - text: ·
+        - code [ref=e134]: pdd
+        - text: ·
+        - code [ref=e135]: arch
+        - text: ·
+        - code [ref=e136]: api
+        - text: ·
+        - code [ref=e137]: schema
+        - text: ·
+        - code [ref=e138]: bdd
+        - text: ·
+        - code [ref=e139]: test-plan
+        - text: ·
+        - code [ref=e140]: runbook
+        - text: ·
+        - code [ref=e141]: local-deploy
+        - text: ·
+        - code [ref=e142]: idea
+        - text: ·
+        - code [ref=e143]: readme
+      - separator [ref=e144]
+      - heading "Quick Start" [level=2] [ref=e145]
+      - heading "Install (macOS / Linux / WSL)" [level=3] [ref=e146]
+      - code [ref=e148]: "# 1. Clone git clone https://github.com/ibalasite/gendoc.git ~/projects/gendoc # 2. Install skills + register auto-update hook cd ~/projects/gendoc && ./setup # 3. Restart Claude Code — skills are now available"
+      - heading "Install (Windows native)" [level=3] [ref=e149]
+      - code [ref=e151]: "# Requires: Git for Windows + Python 3 git clone https://github.com/ibalasite/gendoc.git ~/projects/gendoc cd ~/projects/gendoc .\\setup.ps1"
+      - heading "Uninstall" [level=3] [ref=e152]
+      - code [ref=e154]: "~/projects/gendoc/setup --uninstall # macOS/Linux # Or: .\\setup.ps1 -Uninstall # Windows"
+      - separator [ref=e155]
+      - heading "Usage" [level=2] [ref=e156]
+      - code [ref=e158]: "# Generate a single document (reads templates automatically) /gendoc edd /gendoc brd /gendoc runbook # Review a document with iterative fix loop /reviewdoc edd /reviewdoc runbook # Full pipeline (interactive) /gendoc-config # set mode: interactive or full-auto /gendoc-auto # run all docs sequentially # Manual upgrade /gendoc-update"
+      - separator [ref=e159]
+      - heading "Auto-Update" [level=2] [ref=e160]
+      - paragraph [ref=e161]:
+        - text: After
+        - code [ref=e162]: ./setup
+        - text: ", a"
+        - strong [ref=e163]: SessionStart hook
+        - text: is registered in
+        - code [ref=e164]: ~/.claude/settings.json
+        - text: . Every time Claude Code starts a session, the harness automatically runs
+        - code [ref=e165]: git pull + install
+        - text: in the background (throttled to once per hour). No LLM involvement — 100% reliable.
+      - code [ref=e167]: Session start → harness triggers hook → git pull (background) → skills updated
+      - paragraph [ref=e168]:
+        - text: "Manual update:"
+        - code [ref=e169]: /gendoc-update
+        - text: or
+        - code [ref=e170]: ~/projects/gendoc/bin/gendoc-upgrade
+      - separator [ref=e171]
+      - heading "Template Architecture" [level=2] [ref=e172]
+      - code [ref=e174]: "templates/ ├── <TYPE>.md ← document structure skeleton ├── <TYPE>.gen.md ← AI generation rules (Iron Law: must be read first) └── <TYPE>.review.md ← review criteria & quality gates"
+      - paragraph [ref=e175]:
+        - text: The
+        - strong [ref=e176]: Iron Law
+        - text: ": no document is generated without reading both"
+        - code [ref=e177]: TYPE.md
+        - text: AND
+        - code [ref=e178]: TYPE.gen.md
+        - text: first. Templates are the single source of truth — editing a template immediately changes behavior of all
+        - code [ref=e179]: /gendoc
+        - text: and
+        - code [ref=e180]: /reviewdoc
+        - text: calls.
+      - heading "Upstream Dependency Chain" [level=3] [ref=e181]
+      - code [ref=e183]: IDEA → BRD → PRD → PDD ↓ ↓ EDD → ARCH → API → SCHEMA ↓ ↓ ↓ test-plan BDD runbook ↓ local-deploy → README
+      - paragraph [ref=e184]: Each document accumulates knowledge from all ancestors (skips silently if missing).
+      - separator [ref=e185]
+      - heading "Repository Structure" [level=2] [ref=e186]
+      - code [ref=e188]: "gendoc/ ├── setup # Install script (macOS/Linux) ├── setup.ps1 # Install script (Windows PowerShell) ├── install.sh # Sync skills/ → ~/.claude/skills/ (bash) ├── install.py # Sync skills/ → ~/.claude/skills/ (Python/Windows) ├── bin/ │ ├── gendoc-session-update # SessionStart hook (bash) │ ├── gendoc-session-update.py # SessionStart hook (Python) │ ├── _gendoc-update-worker.py # Background update worker │ ├── gendoc-settings-hook # settings.json editor (bash wrapper) │ ├── gendoc-settings-hook.py # settings.json editor (Python) │ └── gendoc-upgrade # Manual upgrade script ├── skills/ # Source of truth for all SKILL.md files │ ├── gendoc/ │ ├── gendoc-auto/ │ ├── gendoc-flow/ │ └── ... ├── templates/ # Document templates (structure + gen rules + review) │ ├── EDD.md / EDD.gen.md │ ├── BRD.md / BRD.gen.md │ └── ... └── docs/ # gendoc's own project documentation"
+      - separator [ref=e189]
+      - heading "Review Strategies" [level=2] [ref=e190]
+      - paragraph [ref=e191]:
+        - text: Configure via
+        - code [ref=e192]: /gendoc-config
+        - text: ":"
+      - table [ref=e193]:
+        - rowgroup [ref=e194]:
+          - row "Strategy Max Rounds Stop Condition" [ref=e195]:
+            - columnheader "Strategy" [ref=e196]
+            - columnheader "Max Rounds" [ref=e197]
+            - columnheader "Stop Condition" [ref=e198]
+          - row "rapid 3 first round with 0 findings" [ref=e199]:
+            - cell "rapid" [ref=e200]:
+              - code [ref=e201]: rapid
+            - cell "3" [ref=e202]
+            - cell "first round with 0 findings" [ref=e203]
+          - row "standard 5 first round with 0 findings (default)" [ref=e204]:
+            - cell "standard" [ref=e205]:
+              - code [ref=e206]: standard
+            - cell "5" [ref=e207]
+            - cell "first round with 0 findings (default)" [ref=e208]
+          - row "exhaustive unlimited findings = 0" [ref=e209]:
+            - cell "exhaustive" [ref=e210]:
+              - code [ref=e211]: exhaustive
+            - cell "unlimited" [ref=e212]
+            - cell "findings = 0" [ref=e213]
+          - 'row "tiered unlimited rounds 1–5: findings=0; round 6+: CRITICAL+HIGH+MEDIUM=0" [ref=e214]':
+            - cell "tiered" [ref=e215]:
+              - code [ref=e216]: tiered
+            - cell "unlimited" [ref=e217]
+            - 'cell "rounds 1–5: findings=0; round 6+: CRITICAL+HIGH+MEDIUM=0" [ref=e218]'
+          - row "custom unlimited user-defined condition" [ref=e219]:
+            - cell "custom" [ref=e220]:
+              - code [ref=e221]: custom
+            - cell "unlimited" [ref=e222]
+            - cell "user-defined condition" [ref=e223]
+      - separator [ref=e224]
+      - heading "Requirements" [level=2] [ref=e225]
+      - table [ref=e226]:
+        - rowgroup [ref=e227]:
+          - row "Platform Requirements" [ref=e228]:
+            - columnheader "Platform" [ref=e229]
+            - columnheader "Requirements" [ref=e230]
+          - row "macOS / Linux Git, Python 3, Claude Code" [ref=e231]:
+            - cell "macOS / Linux" [ref=e232]
+            - cell "Git, Python 3, Claude Code" [ref=e233]
+          - row "Windows (PowerShell) Git for Windows, Python 3, Claude Code" [ref=e234]:
+            - cell "Windows (PowerShell)" [ref=e235]
+            - cell "Git for Windows, Python 3, Claude Code" [ref=e236]
+          - row "Windows (WSL / git-bash) Same as macOS/Linux" [ref=e237]:
+            - cell "Windows (WSL / git-bash)" [ref=e238]
+            - cell "Same as macOS/Linux" [ref=e239]
+      - separator [ref=e240]
+      - heading "Contributing" [level=2] [ref=e241]
+      - list [ref=e242]:
+        - listitem [ref=e243]:
+          - text: Edit skill files in
+          - code [ref=e244]: skills/<skill-name>/SKILL.md
+          - text: or templates in
+          - code [ref=e245]: templates/
+        - listitem [ref=e246]:
+          - text: Run
+          - code [ref=e247]: ./install.sh
+          - text: to deploy changes to
+          - code [ref=e248]: ~/.claude/skills/
+        - listitem [ref=e249]: Test with Claude Code
+        - listitem [ref=e250]: Commit and push — other machines auto-pull via SessionStart hook
+      - separator [ref=e251]
+      - heading "License" [level=2] [ref=e252]
+      - paragraph [ref=e253]: MIT © ibalasite
