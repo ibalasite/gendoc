@@ -740,11 +740,15 @@ if (resizerEl && pageWrapper && sidebarEl) {
 
 ## Step 4：確認 central script 存在
 
+> **⚠️ 絕對路徑原則**：永遠使用 `$HOME/.claude/gendoc/bin/gen_html.py`。
+> 目標專案目錄（含 `docs/pages/`）內若存在任何 `gen_html.py`，**完全忽略**，不得執行、不得參考、不得修改。
+> 那是使用者自己的工具，與 gendoc 無關。
+
 ```bash
 _CENTRAL="$HOME/.claude/gendoc/bin/gen_html.py"
 if [[ ! -f "$_CENTRAL" ]]; then
   echo "❌ 找不到 $_CENTRAL"
-  echo "   請先執行 gendoc 安裝：bash ~/projects/gendoc/install.sh"
+  echo "   請執行 /gendoc-update 安裝最新版本"
   exit 1
 fi
 _VERSION=$(head -3 "$_CENTRAL" | grep "# VERSION:" | awk '{print $NF}' || echo "?")
