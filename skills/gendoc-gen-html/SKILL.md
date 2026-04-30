@@ -805,6 +805,82 @@ ls -la $(pwd)/docs/pages/*.html
 若任何必要頁面缺失 → 重新執行 `python3 "$HOME/.claude/gendoc/bin/gen_html.py"`
 
 ---
+
+## Step 6.1：圖表品質 Fix Loop（最多 3 輪）
+
+**目的**：確保所有 UML 圖表頁面不含 frontmatter 殘留、本地圖片路徑正確、mermaid block 非空。
+
+```bash
+_MAX_FIX_ROUNDS=3
+_FIX_ROUND=0
+_ISSUE_COUNT=999  # enter loop
+
+while [[ $_FIX_ROUND -lt $_MAX_FIX_ROUNDS && $_ISSUE_COUNT -gt 0 ]]; do
+  _FIX_ROUND=$((_FIX_ROUND + 1))
+  echo "[html-verify] Round $_FIX_ROUND/$_MAX_FIX_ROUNDS"
+
+  _REPORT=$(python3 - <<'PY'
+import re, sys
+from pathlib import Path
+
+pages = Path.cwd() / "docs/pages"
+issues = []
+
+for html_file in sorted(pages.glob("*.html")):
+    content = html_file.read_text()
+    m = re.search(r'<main class="doc-content">(.*?)</main>', content, re.DOTALL)
+    body = m.group(1) if m else ""
+
+    # 1. Frontmatter leak — generated YAML fields appearing as <p> tags
+    for field in ("diagram:", "uml-type:", "generated:", "source:", "note:"):
+        if f"<p>{field}" in body:
+            issues.append(f"FRONTMATTER|{html_file.name}|{field}")
+            break
+
+    # 2. Broken local img src
+    for im in re.finditer(r'<img[^>]+src="([^"]+)"', content):
+        src = im.group(1)
+        if src.startswith(("http", "data:", "#", "//")):
+            continue
+        if not (pages / src).resolve().exists():
+            issues.append(f"BROKEN_IMG|{html_file.name}|{src}")
+
+    # 3. Empty mermaid blocks in diagram pages
+    if html_file.name.startswith("diag-"):
+        for blk in re.findall(r'<pre class="mermaid">(.*?)</pre>', content, re.DOTALL):
+            if not blk.strip():
+                issues.append(f"EMPTY_MERMAID|{html_file.name}")
+
+print(f"ISSUE_COUNT:{len(issues)}")
+for iss in issues:
+    print(f"ISSUE:{iss}")
+PY
+  )
+
+  _ISSUE_COUNT=$(echo "$_REPORT" | grep "^ISSUE_COUNT:" | cut -d: -f2)
+  echo "[html-verify] 發現問題：$_ISSUE_COUNT"
+
+  if [[ "$_ISSUE_COUNT" -gt 0 ]]; then
+    echo "$_REPORT" | grep "^ISSUE:" | head -20
+    echo "[html-verify] 重新執行 gen_html.py 修復..."
+    python3 "$HOME/.claude/gendoc/bin/gen_html.py"
+  fi
+done
+
+if [[ "$_ISSUE_COUNT" -gt 0 ]]; then
+  echo "⚠️  [html-verify] 仍有 $_ISSUE_COUNT 個問題未修復，列出詳情："
+  echo "$_REPORT" | grep "^ISSUE:"
+  echo ""
+  echo "常見原因："
+  echo "  FRONTMATTER  → gen_html.py 版本過舊（需 ≥ 3.2.0），執行 bash ~/projects/gendoc/install.sh 更新"
+  echo "  BROKEN_IMG   → docs/*.md 中有不存在的圖片路徑，需修正來源 .md 或補充圖片檔"
+  echo "  EMPTY_MERMAID → docs/diagrams/*.md 中某個 mermaid block 為空"
+else
+  echo "✅ [html-verify] 所有圖表頁面驗證通過（frontmatter 已清除、圖片路徑正確、mermaid 非空）"
+fi
+```
+
+---
 ## Step 6.5：Prototype 生成（條件性）
 
 ```bash

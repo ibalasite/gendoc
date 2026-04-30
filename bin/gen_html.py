@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # bin/gen_html.py
-# VERSION: 3.1.0
+# VERSION: 3.2.0
 # Maintained by gendoc — DO NOT EDIT IN TARGET PROJECTS
 # Install: ./install.sh  →  ~/.claude/gendoc/bin/gen_html.py
 # Usage:   python3 ~/.claude/gendoc/bin/gen_html.py   (run from project root)
@@ -90,7 +90,21 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 def esc(t):
     return _html.escape(str(t))
 
-def inline_md(text):
+def strip_frontmatter(text: str) -> str:
+    """Strip YAML frontmatter (--- ... ---) from the top of a markdown file."""
+    if not (text.startswith('---\n') or text.startswith('---\r\n')):
+        return text
+    end = text.find('\n---', 4)
+    if end < 0:
+        return text
+    # Skip past the closing --- and any trailing newline
+    after = end + 4
+    if after < len(text) and text[after] in ('\n', '\r'):
+        after += 1
+    return text[after:]
+
+def inline_md(text, src_dir=None):
+    """Process inline markdown. src_dir: Path of source .md file's directory for img path fixing."""
     codes = {}
     def save(m):
         k = f"\x00C{len(codes)}\x00"
@@ -100,7 +114,21 @@ def inline_md(text):
     text = esc(text)
     for k, v in codes.items():
         text = text.replace(esc(k), v)
-    text = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', r'<img src="\2" alt="\1" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'badge-fallback\',textContent:this.alt}))">', text)
+
+    def fix_img(m):
+        alt, src = m.group(1), m.group(2)
+        if src_dir and not src.startswith(('http', 'data:', '//', '#')):
+            cand = (src_dir / src).resolve()
+            if cand.exists():
+                try:
+                    src = os.path.relpath(cand, PAGES_DIR).replace('\\', '/')
+                except ValueError:
+                    pass
+        return (f'<img src="{src}" alt="{esc(alt)}" loading="lazy" '
+                f'onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),'
+                f'{{className:\'badge-fallback\',textContent:this.alt}}))">')
+
+    text = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', fix_img, text)
     text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2" target="_blank" rel="noopener">\1</a>', text)
     text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
     text = re.sub(r'(?<!\w)__(.+?)__(?!\w)', r'<strong>\1</strong>', text)
@@ -108,7 +136,7 @@ def inline_md(text):
     text = re.sub(r'(?<!\w)_(.+?)_(?!\w)', r'<em>\1</em>', text)
     return text
 
-def build_table(table_lines):
+def build_table(table_lines, src_dir=None):
     rows = []
     for line in table_lines:
         if re.match(r'^\|[\s\-:|]+\|$', line.strip()):
@@ -118,13 +146,16 @@ def build_table(table_lines):
     if not rows:
         return ''
     out = ['<table>']
-    out.append('<tr>' + ''.join(f'<th>{inline_md(c)}</th>' for c in rows[0]) + '</tr>')
+    out.append('<tr>' + ''.join(f'<th>{inline_md(c, src_dir)}</th>' for c in rows[0]) + '</tr>')
     for row in rows[1:]:
-        out.append('<tr>' + ''.join(f'<td>{inline_md(c)}</td>' for c in row) + '</tr>')
+        out.append('<tr>' + ''.join(f'<td>{inline_md(c, src_dir)}</td>' for c in row) + '</tr>')
     out.append('</table>')
     return '\n'.join(out)
 
-def md_to_html(text):
+def md_to_html(text, src_dir=None):
+    """Convert markdown to HTML.
+    src_dir: Path directory of the source .md file — used to resolve relative img paths."""
+    text = strip_frontmatter(text)
     lines = text.split('\n')
     out = []
     i = 0
@@ -148,23 +179,23 @@ def md_to_html(text):
             cls = f'language-{lang}' if lang else ''
             out.append(f'<pre><code class="{cls}">' + '\n'.join(block) + '</code></pre>')
         elif s.startswith('#### '):
-            out.append(f'<h4>{inline_md(s[5:])}</h4>')
+            out.append(f'<h4>{inline_md(s[5:], src_dir)}</h4>')
         elif s.startswith('### '):
-            out.append(f'<h3>{inline_md(s[4:])}</h3>')
+            out.append(f'<h3>{inline_md(s[4:], src_dir)}</h3>')
         elif s.startswith('## '):
-            out.append(f'<h2>{inline_md(s[3:])}</h2>')
+            out.append(f'<h2>{inline_md(s[3:], src_dir)}</h2>')
         elif s.startswith('# '):
-            out.append(f'<h1>{inline_md(s[2:])}</h1>')
+            out.append(f'<h1>{inline_md(s[2:], src_dir)}</h1>')
         elif re.match(r'^[-*_]{3,}$', s):
             out.append('<hr>')
         elif s.startswith('> '):
-            out.append(f'<blockquote><p>{inline_md(s[2:])}</p></blockquote>')
+            out.append(f'<blockquote><p>{inline_md(s[2:], src_dir)}</p></blockquote>')
         elif s.startswith('|') and '|' in s[1:]:
             table_lines = []
             while i < len(lines) and lines[i].strip().startswith('|'):
                 table_lines.append(lines[i])
                 i += 1
-            out.append(build_table(table_lines))
+            out.append(build_table(table_lines, src_dir))
             continue
         elif re.match(r'^[-*+] ', s):
             items = []
@@ -175,13 +206,13 @@ def md_to_html(text):
                 if re.match(r'^[-*+] ', stripped):
                     text = stripped[2:]
                     if text.startswith('[ ] '):
-                        li = f'<li style="list-style:none"><input type="checkbox" disabled> {inline_md(text[4:])}</li>'
+                        li = f'<li style="list-style:none"><input type="checkbox" disabled> {inline_md(text[4:], src_dir)}</li>'
                     elif text.startswith('[x] ') or text.startswith('[X] '):
-                        li = f'<li style="list-style:none"><input type="checkbox" checked disabled> {inline_md(text[4:])}</li>'
+                        li = f'<li style="list-style:none"><input type="checkbox" checked disabled> {inline_md(text[4:], src_dir)}</li>'
                     elif indent >= 2:
-                        li = f'<li style="margin-left:{indent * 0.5}rem">{inline_md(text)}</li>'
+                        li = f'<li style="margin-left:{indent * 0.5}rem">{inline_md(text, src_dir)}</li>'
                     else:
-                        li = f'<li>{inline_md(text)}</li>'
+                        li = f'<li>{inline_md(text, src_dir)}</li>'
                     items.append(li)
                     i += 1
                 else:
@@ -192,7 +223,7 @@ def md_to_html(text):
             items = []
             while i < len(lines) and re.match(r'^\d+\. ', lines[i].strip()):
                 t = re.sub(r'^\d+\. ', '', lines[i].strip())
-                items.append(f'<li>{inline_md(t)}</li>')
+                items.append(f'<li>{inline_md(t, src_dir)}</li>')
                 i += 1
             out.append('<ol>' + ''.join(items) + '</ol>')
             continue
@@ -482,32 +513,32 @@ def main():
     readme = BASE / "README.md"
     cards = doc_cards_section(doc_pages, server_diagrams, frontend_diagrams)
     if readme.exists():
-        body = md_to_html(readme.read_text()) + cards + health_section()
+        body = md_to_html(readme.read_text(), src_dir=BASE) + cards + health_section()
     else:
         body = (f'<h1>{APP_NAME} 文件中心</h1>'
                 '<p>請從左側導覽列選擇文件。</p>' + cards + health_section())
     write_page("index.html", body, f'{APP_NAME} 文件中心', f'{APP_NAME} 文件中心', 'index', True)
 
     for s, label, p in known_doc_entries:
-        c = md_to_html(p.read_text())
+        c = md_to_html(p.read_text(), src_dir=p.parent)
         if s == 'idea':
             c += req_section()
         write_page(f"{s}.html", c, label, label, s)
 
     for s, label, p in extra_doc_entries:
-        c = md_to_html(p.read_text())
+        c = md_to_html(p.read_text(), src_dir=p.parent)
         write_page(f"{s}.html", c, label, label, s)
 
     if has_server_bdd:
         parts = [f"## {f.name}\n\n```gherkin\n{f.read_text()}\n```"
                  for f in server_bdd_features]
-        c = md_to_html('\n\n'.join(parts))
+        c = md_to_html('\n\n'.join(parts), src_dir=FEATURES_DIR)
         write_page("bdd-server.html", c, "Server BDD", "Server BDD Scenarios", 'bdd-server')
 
     if has_client_bdd:
         parts = [f"## {f.relative_to(client_bdd_dir)}\n\n```gherkin\n{f.read_text()}\n```"
                  for f in client_bdd_features]
-        c = md_to_html('\n\n'.join(parts))
+        c = md_to_html('\n\n'.join(parts), src_dir=client_bdd_dir)
         write_page("bdd-client.html", c, "Client BDD", "Client BDD Scenarios", 'bdd-client')
 
     if has_req:
@@ -517,11 +548,11 @@ def main():
         write_page("req.html", req_body, "原始素材 (req/)", "原始素材 (req/)", 'req')
 
     for stem, label, icon, p in server_diagrams:
-        c = md_to_html(p.read_text())
+        c = md_to_html(p.read_text(), src_dir=p.parent)
         write_page(f"diag-{stem}.html", c, label, label, f'diag-{stem}')
 
     for stem, label, icon, p in frontend_diagrams:
-        c = md_to_html(p.read_text())
+        c = md_to_html(p.read_text(), src_dir=p.parent)
         write_page(f"diag-{stem}.html", c, label, label, f'diag-{stem}')
 
     (PAGES_DIR / "search-data.json").write_text(
