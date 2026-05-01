@@ -254,9 +254,9 @@ export function usePermission() {
 ### §7.2 Dashboard（/admin/dashboard）
 
 統計卡（KPI Cards）：
-| 卡片 | 資料來源 | 說明 |
-|------|---------|------|
-| `{{指標名}}` | `GET /admin/stats/{{endpoint}}` | `{{說明}}` |
+| 卡片 | 資料來源 | 說明 | 更新策略 |
+|------|---------|------|---------|
+| `{{指標名}}` | `GET /admin/stats/{{endpoint}}` | `{{說明}}` | `{{輪詢/手動刷新/頁面載入}}` |
 
 圖表：
 | 圖表 | 類型 | 資料來源 |
@@ -331,19 +331,19 @@ http.interceptors.response.use(
 
 ### §8.2 API Endpoints 對應表（對應 API.md /admin/* 路由）
 
-| 功能 | Method | Path | 所需 Permission |
-|------|--------|------|----------------|
-| Admin 登入 | POST | `/admin/auth/login` | 公開 |
-| Token Refresh | POST | `/admin/auth/refresh` | 公開 |
-| 取得當前用戶 | GET | `/admin/me` | 已驗證 |
-| 使用者列表 | GET | `/admin/users` | `user:list` |
-| 建立使用者 | POST | `/admin/users` | `user:create` |
-| 更新使用者 | PATCH | `/admin/users/:id` | `user:update` |
-| 角色列表 | GET | `/admin/roles` | `role:list` |
-| 建立角色 | POST | `/admin/roles` | `role:create` |
-| 指派角色 | POST | `/admin/users/:id/roles` | `role:assign` |
-| 稽核日誌 | GET | `/admin/audit-logs` | `audit_log:view` |
-| `{{功能}}` | `{{方法}}` | `{{路徑}}` | `{{權限}}` |
+| 功能 | Method | Path | 所需 Permission | 對應頁面 |
+|------|--------|------|----------------|---------|
+| Admin 登入 | POST | `/admin/auth/login` | 公開 | `/admin/login` |
+| Token Refresh | POST | `/admin/auth/refresh` | 公開 | — |
+| 取得當前用戶 | GET | `/admin/me` | 已驗證 | — |
+| 使用者列表 | GET | `/admin/users` | `user:list` | `/admin/users` |
+| 建立使用者 | POST | `/admin/users` | `user:create` | `/admin/users` |
+| 更新使用者 | PATCH | `/admin/users/:id` | `user:update` | `/admin/users/:id` |
+| 角色列表 | GET | `/admin/roles` | `role:list` | `/admin/roles` |
+| 建立角色 | POST | `/admin/roles` | `role:create` | `/admin/roles` |
+| 指派角色 | POST | `/admin/users/:id/roles` | `role:assign` | `/admin/users/:id` |
+| 稽核日誌 | GET | `/admin/audit-logs` | `audit_log:view` | `/admin/audit-log` |
+| `{{功能}}` | `{{方法}}` | `{{路徑}}` | `{{權限}}` | `{{頁面}}` |
 
 ---
 
@@ -546,7 +546,7 @@ location /api/admin/ {
 
 ## §16 Self-Check Checklist（生成後必須全部通過）
 
-- [ ] §3.3 _ADMIN_FRAMEWORK 已確認（來自 EDD）
+- [ ] §0 Admin 技術棧欄位已填入（_ADMIN_FRAMEWORK 來自 EDD §3.3，非 placeholder）
 - [ ] §5.1 角色清單與 EDD §5.5-A 完全對應（無遺漏）
 - [ ] §5.1 Permission 清單與 API.md /admin/* endpoint 一對一對應
 - [ ] §7.1-7.5 所有頁面均有對應的 API endpoint

@@ -31,6 +31,7 @@ quality-bar:
   - "§8 API 整合：baseURL、interceptor、所有 /admin/* endpoint 對應表"
   - "§9 三個 Pinia Store（authStore/permissionStore/userStore）有完整 state + actions"
   - "§15 部署配置：env 變數 + Nginx /admin 路由規則"
+  - "§14 效能目標有具體數值（bundle < 150KB gzipped，首屏 < 2s），無殘留 {{N}} placeholder"
   - "禁止保留任何 {{PLACEHOLDER}} 或 TODO 空欄"
 condition: has_admin_backend
 ---
@@ -88,6 +89,45 @@ TECH_DEFAULTS = {
 - Role / Permission / RolePermission / AdminUser / AuditLog 表結構
 - 若表不存在，則在 §5 中自行設計並說明「依 EDD §5.5 擴展 Schema」
 
+### Step 0-D：非預設框架時的調整說明
+
+當 EDD `_ADMIN_FRAMEWORK` 指定的框架**非** Vue3 + Element Plus 時，以下步驟需對應調整：
+
+| Step | 預設（Vue3 + Element Plus） | 非預設框架時的調整方向 |
+|------|-----------------------------|----------------------|
+| Step 4 | 使用 `composables/` + `stores/` | 依目標框架慣用目錄命名（如 React 用 `hooks/` + `store/`） |
+| Step 5 | Vue Router 4.x 路由守衛 | 替換為目標框架的路由解決方案（如 React Router 6.x、Next.js App Router） |
+| Step 6.2 | `composables/usePermission.ts`（Vue Composition API 風格） | 依目標框架調整（如 React 用 `hooks/usePermission.ts`） |
+| Step 11 | Element Plus 組件規範（el-table / el-form / ElMessageBox） | 替換為目標 UI 庫對應組件（如 Ant Design / MUI / Naive UI）及其使用慣例 |
+| Step 12 | SearchableTable 以 Element Plus el-table 為基礎 | 包裝目標框架對應的 Table 組件 |
+
+> 非預設框架時，TECH_DEFAULTS 中所有 Element Plus 特定內容均需替換，但 RBAC 模型、路由守衛邏輯、Token 管理策略保持不變。
+
+### Step 0-E：上游一致性驗證
+
+在開始生成前，執行以下衝突偵測，任一衝突需停止並告知用戶：
+
+**場景 1：技術棧衝突**  
+若 EDD `_ADMIN_FRAMEWORK` 指定的框架與 ARCH.md 中 Admin Portal 容器描述不一致（例如 EDD 說 Vue3，ARCH.md 說 React），輸出警告：
+```
+[Conflict] ADMIN_IMPL 技術棧衝突：EDD §3.3 = {EDD值}，ARCH.md Admin 容器 = {ARCH值}。
+請先對齊兩份文件後再生成。
+```
+
+**場景 2：RBAC 角色衝突**  
+若 EDD §5.5 定義的 Role 清單與 SCHEMA.md Role 表的 `code` 欄位值不完全一致（有遺漏或命名差異），輸出警告：
+```
+[Conflict] RBAC Role 不一致：EDD 定義了 {N} 個 Role，SCHEMA Role 表有 {M} 個 code。
+差異：{列出差異項}。建議先修正 SCHEMA 或 EDD 後再生成。
+```
+
+**場景 3：API Endpoint 缺失**  
+若 API.md 中 `/admin/*` 路徑數量少於 EDD §5.5 Admin 功能模組數量（每個模組至少需要 1 個 CRUD endpoint），輸出警告：
+```
+[Conflict] API endpoint 不足：API.md /admin/* 共 {N} 個路徑，但 EDD 定義了 {M} 個 Admin 功能模組。
+可能遺漏：{列出未對應的模組}。
+```
+
 ---
 
 ## Step 1：生成 §0 文件資訊
@@ -142,13 +182,13 @@ TECH_DEFAULTS = {
 admin/
 ├── src/
 │   ├── views/           # 頁面（login/dashboard/users/roles/audit/...）
-│   ├── layout/          # HeaderBar + SidebarMenu + MainContent
+│   ├── layouts/         # AdminLayout.vue（HeaderBar + SidebarMenu + MainContent）
 │   ├── router/          # index.ts + guards.ts + routes.ts
-│   ├── store/           # authStore / permissionStore / userStore
+│   ├── stores/          # authStore / permissionStore / userStore（Pinia stores）
 │   ├── api/             # 對應 API.md /admin/* 各模組
 │   ├── components/      # 共用組件（SearchableTable / ConfirmDialog / ...）
-│   ├── utils/           # permission.ts / request.ts / format.ts
-│   ├── hooks/           # usePermission / usePagination / useTable
+│   ├── composables/     # usePermission / usePagination / useTable（Vue Composition API）
+│   ├── utils/           # request.ts / format.ts（工具函式）
 │   ├── styles/          # variables.scss / global.scss
 │   └── types/           # 與 API response 對應的 TypeScript types
 ├── public/
@@ -189,16 +229,23 @@ admin/
 ### 6.2 Permission Guard 實作
 
 ```typescript
-// utils/permission.ts
-export function hasPermission(userPermissions: string[], required: string): boolean {
-  return userPermissions.includes(required) || userPermissions.includes('*')
+// composables/usePermission.ts（Vue Composition API 慣用風格，與骨架 §5.2 一致）
+export function usePermission() {
+  const permStore = usePermissionStore()
+
+  const hasPermission = (permission: string): boolean => {
+    return permStore.permissions.includes(permission) || permStore.permissions.includes('*')
+  }
+
+  return { hasPermission }
 }
 
-// 指令（v-permission）
+// 指令（v-permission），掛載在 main.ts
 export const permissionDirective = {
   mounted(el: HTMLElement, binding: DirectiveBinding) {
     const { value } = binding
-    if (!hasPermission(store.permissions, value)) {
+    const permStore = usePermissionStore()
+    if (!permStore.permissions.includes(value) && !permStore.permissions.includes('*')) {
       el.parentNode?.removeChild(el)
     }
   }
@@ -398,6 +445,7 @@ location /admin/api/ {
 ✅ API 對應表：所有 /admin/* endpoint 均已列出
 ✅ Pinia：authStore + permissionStore + userStore 三個 Store 完整
 ✅ 部署：Nginx /admin/ try_files + env 變數清單
+✅ §14 效能目標：bundle size 有具體數值（< 150KB gzipped）+ 首屏時間（< 2s）+ 無殘留 {{N}} placeholder
 ✅ Self-Check Checklist 全部通過（8/8）
 ```
 
