@@ -72,6 +72,7 @@ options:
   - "runbook — Operations Runbook"
   - "local-deploy — Local K8s Deploy Guide"
   - "frontend — Frontend Design Document"
+  - "resource — Frontend/Client Resource List"
   - "其他（手動輸入）"
 ```
 
@@ -106,6 +107,8 @@ options:
 # admin-impl    → ADMIN_IMPL
 # admin_impl    → ADMIN_IMPL   （底線別名）
 # admin         → ADMIN_IMPL   （快捷別名）
+# resource      → RESOURCE
+# resource-list → RESOURCE  （別名）
 
 _CWD="$(pwd)"
 if [[ -f "$_CWD/templates/pipeline.json" ]]; then
