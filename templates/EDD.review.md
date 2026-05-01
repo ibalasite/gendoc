@@ -199,3 +199,32 @@ upstream-alignment:
 **Check**: 是否有 `{{PLACEHOLDER}}` 格式未替換的空白佔位符（技術名稱、端點、數值等）？逐一列出位置（章節）。
 **Risk**: 裸 placeholder 殘留，工程師閱讀時無法確認文件完整性，需要人工詢問架構師填寫缺漏內容，降低文件可信度。
 **Fix**: 替換所有裸 placeholder 為真實值；若暫時無法確定，改為 `（待確認：描述說明）` 格式並標注負責人。
+
+---
+
+### Layer 5: HA / SPOF / SCALE / BCP 架構規範（由 SRE / Architecture Expert 主審，共 5 項）
+
+#### [CRITICAL] 25 — §3.6 HA/SPOF Architecture Specification 缺失
+**Check**: EDD 是否有 §3.6 HA/SPOF/SCALE/BCP Architecture Specification？包含：SPOF 分析表（每個元件 Min Replicas ≥ 2）、HA 設計原則（Stateless API/冪等 Worker/Graceful Shutdown/Circuit Breaker）、SLO/RTO/RPO 具體數字、BCP 故障場景表？完全缺失視為 CRITICAL。
+**Risk**: 沒有 §3.6，所有下游文件（ARCH/runbook/test-plan）缺少 HA 設計的權威來源，各文件各自定義（或不定義）HA 需求，導致設計不一致；運維人員在故障時無 BCP 可依循，RTO 延長數倍。
+**Fix**: 依照 EDD.md 骨架補充完整 §3.6（含 SPOF 分析表、HA 原則、SLO/RTO/RPO、BCP 場景）；確認 §3.5 環境矩陣的 Local 副本數 ≥ 2。
+
+#### [CRITICAL] 26 — 任何元件 Min Replicas = 1（SPOF 未消除）
+**Check**: EDD §3.6.1 SPOF 分析表（或 §3.5 環境矩陣）中，是否有任何核心元件的 Min Replicas = 1？包含 API Server、Worker、DB Primary（無 Standby）、Redis（單節點）。任何核心元件 Min Replicas = 1 視為 CRITICAL。
+**Risk**: Min Replicas = 1 意味著單個 Pod/Node 故障會導致服務完全中斷（SPOF），與 HA-First 架構原則直接矛盾；在 K8s rolling update 期間舊 Pod 被刪除、新 Pod 還未 ready 時，服務會有完全停機窗口。
+**Fix**: 將所有核心元件的 Min Replicas 改為 ≥ 2；在 SPOF 分析表中記錄每個元件的消除方式（K8s Deployment multi-replica / RDS Multi-AZ / Redis Sentinel）；更新 K8s Deployment YAML 範本。
+
+#### [HIGH] 27 — BCP 場景少於 3 個或缺少 RTO
+**Check**: §3.6.4 BCP 場景表是否包含 ≥ 3 個故障場景？每個場景是否有具體 RTO（秒數，非「快速」「盡快」等模糊描述）？缺少場景或 RTO 模糊視為 HIGH。
+**Risk**: BCP 場景不完整，運維人員在實際故障時無法按計畫操作，依賴個人經驗（不可靠）；RTO 沒有數字，無法在事後評估是否達成恢復目標。
+**Fix**: 補充 BCP 場景至 ≥ 3 個（最少包含：API Pod 崩潰、DB Primary 故障、Redis 主節點故障），每個場景填入 RTO 秒數（來自 §3.6.3）。
+
+#### [CRITICAL] 28 — SLO 中可用性 / RTO / RPO 缺少具體數字
+**Check**: §3.6.3（或 §10.5）SLO 表中：Availability 是否有具體百分比（如 99.9%）？RTO 是否有具體秒數？RPO 是否有明確說明（0 = 同步複本，或具體秒數）？若任一為「TBD」「待確認」「越快越好」視為 CRITICAL。
+**Risk**: SLO 沒有數字無法被測試覆蓋（test-plan §3.6 的通過條件需要從 SLO 推算）；也無法在故障後判斷是否達成恢復目標；oncall 工程師不知道「多快才算恢復」。
+**Fix**: 依 BRD 非功能需求填入具體數字：Availability ≥ 99.9%（= 月度停機 ≤ 43.8 分鐘）、RTO ≤ 30s（API Pod）/ ≤ 30s（DB Failover）、RPO = 0（同步複本 WAL）。
+
+#### [HIGH] 29 — Graceful Shutdown 設計未定義
+**Check**: §3.6.5 或 §8 是否有 Graceful Shutdown 設計說明？包含：SIGTERM 處理方式（停止接受新請求）、in-flight 請求最大等待時間（建議 ≤ 30s）、K8s `terminationGracePeriodSeconds` 設定、Readiness Probe 在 SIGTERM 後立即失敗的設計？缺少以上說明視為 HIGH。
+**Risk**: 沒有 Graceful Shutdown，每次 Deploy（Canary / Rolling Update）Pod 替換時，正在處理的請求會被強制中斷（502/503）；Scale-down 事件（HPA 縮容）也會中斷 in-flight 請求；test-plan §3.6 @graceful-shutdown 無法通過。
+**Fix**: 在 §3.6.5 補充 Graceful Shutdown 流程（5 步驟：SIGTERM → Readiness 失敗 → 等待 in-flight → 正常退出 → K8s 釋放資源），並提供 lang_stack 對應的具體實作示例（Node.js / Java / Python）。

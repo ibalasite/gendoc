@@ -264,6 +264,69 @@ graph LR
 
 ---
 
+### 3.6 HA / SPOF / SCALE / BCP Architecture Specification
+
+> **架構前提**：本系統從 Day 1 採用 HA-First 設計。HA、SPOF 消除、水平擴展、BCP 是架構前提，不是選項。  
+> 本節是所有下游文件（ARCH.md、runbook.md、LOCAL_DEPLOY.md、test-plan.md、API.md、SCHEMA.md）HA 設計的**權威來源**。
+
+#### §3.6.1 SPOF 分析與消除清單
+
+| 元件 | SPOF 風險 | 消除方式 | Min Replicas |
+|------|-----------|---------|--------------|
+| API Server | 單 pod 故障 → 服務中斷 | ≥ 2 pod，K8s Deployment + HPA | 2 |
+| Background Worker | 單 pod 故障 → 背景任務停止 | ≥ 2 pod，冪等設計 + Distributed Lock | 2 |
+| PostgreSQL | 主節點故障 → 所有寫入停止 | Primary-Standby（RDS Multi-AZ 或 Patroni）| Primary + 1 Standby |
+| Redis | 單節點故障 → Cache/Queue 失效 | Sentinel（3 nodes）或 Cluster（≥ 3 shards）| 3 |
+| API Gateway / Ingress | 單節點故障 → 所有流量中斷 | ≥ 2 replicas，Cloud LB 多 AZ | 2 |
+| {{ADDITIONAL_COMPONENT}} | {{SPOF_RISK}} | {{MITIGATION}} | {{MIN_REPLICAS}} |
+
+> **強制要求**：所有元件 Min Replicas ≥ 2（消除 SPOF）。部署腳本中不得出現 `replicas: 1`（除測試環境的非核心輔助工具）。
+
+#### §3.6.2 HA 設計原則
+
+| 原則 | 說明 | 實作要求 |
+|------|------|---------|
+| **Stateless API** | API Server 不保存本地 Session | Session 存 Redis，Pod 可任意重啟 |
+| **冪等 Worker** | 同一 Job 被多個 Worker 消費，業務結果只執行一次 | DB 唯一約束 + Distributed Lock（Redis SETNX/Redlock）|
+| **Graceful Shutdown** | Pod 收到 SIGTERM 後不接受新請求，等待 in-flight 完成 | `terminationGracePeriodSeconds: 60`，Readiness Probe 先失敗 |
+| **Health Check** | K8s Liveness + Readiness Probe | Liveness: `/health/live`（5s），Readiness: `/health/ready`（3s）|
+| **Circuit Breaker** | 依賴項（DB/Cache/外部 API）故障時，快速失敗並降級 | 錯誤率 > 50%（5s 窗口）→ Open；30s 後 Half-Open 探測 |
+| **Auto-Scaling** | 流量增加時水平 scale，不 scale to 0 | HPA min=2，CPU 70% → scale up，scale down 冷卻 300s |
+
+#### §3.6.3 SLO / RTO / RPO
+
+| 指標 | 目標 | 測量窗口 | 說明 |
+|------|------|---------|------|
+| 可用性（Availability）| ≥ 99.9% | 30 天滾動 | = 月度停機 ≤ 43.8 分鐘 |
+| RTO（Recovery Time Objective）| ≤ 30s | — | API Pod 重啟到可接受流量的時間 |
+| RPO（Recovery Point Objective）| ≤ 0 | — | DB Standby 同步複本，已確認寫入不遺失 |
+| P99 API 延遲 | ≤ 2000ms | 5 分鐘 | 含 DB query + Cache + 業務邏輯 |
+| Deploy 期間 5XX 率 | ≤ 0.1% | — | Graceful Shutdown + Readiness Probe 保障 |
+
+#### §3.6.4 BCP（Business Continuity Plan）
+
+| 場景 | 觸發條件 | 自動/手動 | 恢復步驟 | RTO |
+|------|---------|---------|---------|-----|
+| API Pod 崩潰 | Liveness Probe 連續 3 次失敗 | 自動（K8s 重啟）| K8s 自動重啟新 Pod，Readiness 通過後接流量 | ≤ 30s |
+| DB Primary 故障 | Primary 無法連線 > 30s | 自動（RDS Multi-AZ Failover）或 Patroni Sentinel | Standby 自動提升，連線字串不變（DNS 切換）| ≤ 30s |
+| Redis 主節點故障 | Sentinel 偵測 master 下線 | 自動（Sentinel 選主）| Sentinel 選出新 Master，業務降級（Cache Miss）| ≤ 30s |
+| AZ 完全故障 | 整個 AZ 不可用 | 自動（Multi-AZ LB 切換）| LB 將流量切至其他 AZ，Pod 在存活 AZ 仍可服務 | ≤ 60s |
+| Region 完全故障 | 主 Region 不可用 | 手動觸發 DR | DR Region 提升（詳見 Runbook §DR）| ≤ {{DR_RTO}} |
+
+#### §3.6.5 Graceful Shutdown 流程
+
+```
+1. K8s 發送 SIGTERM 至 Pod
+2. Pod Readiness Probe 立即回傳 503（LB 停止分流給此 Pod）
+3. Pod 繼續處理 in-flight 請求（最多等待 terminationGracePeriodSeconds = 60s）
+4. 所有 in-flight 請求完成後，Pod 正常退出（exit 0）
+5. K8s 確認 Pod 退出，釋放資源
+```
+
+> **驗證方式**（test-plan.md §3.6 @ha @graceful-shutdown）：Pod 收到 SIGTERM → 正在處理的 5 秒請求正常完成 → 新請求自動轉至其他 Pod → 期間 5XX 率 = 0%。
+
+---
+
 ## 4. Module / Component Design
 <!-- C4 Level 3：元件內部設計 -->
 
