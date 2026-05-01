@@ -17,6 +17,7 @@ upstream-docs:
   - docs/test-plan.md
   - features/          # BDD-server 輸出（Server BDD Feature Files）
   - features/client/   # BDD-client 輸出（Client E2E Feature Files，若 client_type≠none）
+  - docs/ADMIN_IMPL.md  # 若存在（has_admin_backend=true）：Admin 需求追溯到測試案例
 quality-bar: "100% PRD P0 User Stories 有對應 Test Case；所有 BDD @tag 在 RTM 有對應條目；無孤立 Test Case（有測試無需求）；§1 統計數字與正文完全一致。"
 ---
 
@@ -319,9 +320,27 @@ Pie Chart 使用計算後的真實數字，不保留 `{{...}}` 佔位符。
 - [ ] 若 `features/` 存在：所有 BDD-server @TC-E2E-* tag 在 §5 E2E RTM 中有對應條目
 - [ ] 若 `features/client/` 存在：所有 BDD-client @TC-E2E-* tag 在 §5 E2E RTM 中有對應條目
 - [ ] 若 PDD.md 存在：§5 SC-ID 欄位來自 PDD Screen 清單（非自行編號）
+- [ ] Admin RTM（has_admin_backend 條件）：若 true，ADMIN_IMPL.md §19 Admin User Stories 已加入 RTM
 - [ ] 無裸 `{{PROJECT_NAME}}`、`{{PROJECT_CODE}}`、`{{DATE}}` placeholder（應已替換）
 - [ ] 初次生成：所有 TC 狀態為 `TODO`（無預設 PASS 狀態）
 - [ ] 初次生成：§7 FAIL 缺陷表為空或僅含格式範例行
+
+### Admin Backend 條件步驟（has_admin_backend=true 時執行）
+
+```python
+_has_admin = state.get("has_admin_backend", False)
+if _has_admin:
+    # 從 docs/PRD.md §19.4 Admin User Stories 提取 Admin 需求
+    # 從 features/client/admin/ 提取 Admin BDD scenarios
+    # 將 Admin 需求加入 RTM：
+    # - Admin 登入需求 → Admin login TC（TC-ADMIN-001）
+    # - RBAC 需求 → RBAC 測試案例（TC-ADMIN-003）
+    # - 稽核日誌需求 → audit-log TC（TC-ADMIN-004）
+    # - 各 Admin 功能模組需求 → 對應 TC
+    # 確認 §6 快查索引包含 Admin 需求的 Req-ID
+else:
+    pass  # 無需 Admin RTM 條目
+```
 
 ---
 

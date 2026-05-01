@@ -14,6 +14,7 @@ upstream-docs:
   - docs/AUDIO.md    # 若存在：音效觸發事件 → 按鈕點擊/場景切換 音訊行為 scenario
   - docs/ANIM.md     # 若存在：動畫狀態清單 → 進場/離場/載入動畫 scenario
   - docs/test-plan.md
+  - docs/ADMIN_IMPL.md  # 若存在（has_admin_backend=true）：Admin UI BDD scenarios
 quality-bar: "所有 PRD P0 AC 有對應 Client BDD Scenario（UI Happy Path + Error Flow）；所有 FRONTEND.md P0 Screen Flow 有 E2E Scenario 覆蓋；無後端業務邏輯驗證（DB 狀態、業務計算）出現在 Then 步驟；可直接用 Playwright / Cypress 執行"
 gen-expert: "資深 Frontend QA Expert + E2E Automation Specialist（10 年以上 Playwright / Cypress BDD 經驗）"
 ---
@@ -335,3 +336,21 @@ Then('I should see the dashboard', async function () {
 | 數值非 TBD/N/A | 等待時間、元素 id/class 等填有實際值 | 從 PDD.md 對應畫面提取 |
 | UI 元素具體 | 步驟中的 UI 元素非「某按鈕」，而是具體的 id/class/label | 從 PDD §畫面設計 提取具體值 |
 | Happy Path + Error | 每個 Feature 至少有 1 個 happy path Scenario 和 1 個錯誤 Scenario | 補充缺失 Scenario |
+| Admin BDD（條件） | has_admin_backend=true 時：Admin login / RBAC / user-management / audit-log Feature 均已生成 | 補充缺失 Admin Feature |
+
+### Admin Backend 條件步驟（has_admin_backend=true 時執行）
+
+```python
+_has_admin = state.get("has_admin_backend", False)
+if _has_admin:
+    # 從 docs/ADMIN_IMPL.md 讀取 §4 路由 + §5 RBAC + §7 頁面規格
+    # 生成以下 Admin BDD Feature 檔案（features/client/admin/ 子目錄）：
+    # admin-login.feature：登入成功/失敗/MFA/鎖定 scenario
+    # admin-user-management.feature：用戶列表/搜尋/停用/刪除 scenario
+    # admin-role-management.feature：角色 CRUD + 權限分配 scenario
+    # admin-audit-log.feature：稽核日誌列表/篩選/導出 scenario
+    # admin-rbac.feature：不同角色看到不同 sidebar/按鈕的 scenario
+    # 每個 scenario 的 When/Then 只驗證 UI 可觀測狀態（不驗證 DB）
+else:
+    pass  # 不生成 Admin Feature files
+```

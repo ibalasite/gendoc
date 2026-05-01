@@ -14,6 +14,7 @@ upstream-docs:
   - docs/FRONTEND.md  # Layer 6 — 前端元件架構（E2E 測試目標、VRT 覆蓋範圍）
   - docs/AUDIO.md    # 若存在：音效觸發清單、效能預算 → 音訊播放/靜音/格式/FPS 測試案例
   - docs/ANIM.md     # 若存在：動畫規格、效能預算 → 幀率/記憶體/reduced-motion 測試案例
+  - docs/ADMIN_IMPL.md  # 若存在（has_admin_backend=true）：Admin RBAC 測試案例、稽核日誌測試
 quality-bar: "Test Pyramid 比例已說明（Unit 70%/Integration 20%/E2E 10%）；所有 P0 AC 均有對應 TC-ID；OWASP A01–A10 每項均有覆蓋計畫；4 個效能測試場景（Smoke/Load/Stress/Soak）均已定義且含具體 P50/P95/P99 數字；RTM 涵蓋所有 Must-have AC"
 ---
 
@@ -666,8 +667,29 @@ SLO / SLI 矩陣（P50/P95/P99 均必須有具體數字）：
 - [ ] §20 A11y CI Gate：critical/serious violations 零容忍的 CI YAML 是否已提供？
 - [ ] §21 Flaky Test 管理：@flaky 標記 + 隔離清單 + 1 週修復 SLA 流程是否已說明？
 - [ ] §21 測試健康儀表板：6 項週度指標（覆蓋率/Mutation Score/Flaky 數/CI 時間/失敗率/A11y 違規）是否已定義？
+- [ ] Admin 測試（has_admin_backend 條件）：若 true，RBAC 測試 + 稽核日誌測試 + Admin 登入 MFA 測試已加入
 - [ ] 所有 `[UPSTREAM_CONFLICT]` 標記均已處理或說明
 - [ ] 無 TBD、「待確認」、「N/A」等未填寫欄位
+
+### Admin Backend 條件步驟（has_admin_backend=true 時執行）
+
+```python
+_has_admin = state.get("has_admin_backend", False)
+if _has_admin:
+    # 從 docs/ADMIN_IMPL.md 讀取 RBAC 角色定義 + Permission 清單
+    # 生成 Admin 專屬測試案例：
+    # TC-ADMIN-001: Admin 登入（正確 credentials + TOTP）
+    # TC-ADMIN-002: Admin 登入（錯誤密碼連續 5 次 → 帳號鎖定）
+    # TC-ADMIN-003: RBAC 權限隔離（operator 無法存取 super_admin 功能）
+    # TC-ADMIN-004: 稽核日誌記錄（刪除用戶後確認 AuditLog 寫入）
+    # TC-ADMIN-005: Admin Token 過期（15 分鐘後自動登出）
+    # TC-ADMIN-006: 用戶管理 CRUD 完整流程
+    # TC-ADMIN-007: 角色管理 CRUD + 權限分配
+    # TC-ADMIN-008: 稽核日誌 CSV 導出功能
+    # 確認所有 ADMIN_IMPL.md §16 Self-Check 項目都有對應 TC
+else:
+    pass  # 無需額外 Admin 測試案例
+```
 
 ---
 
