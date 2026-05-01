@@ -1,8 +1,16 @@
 # gendoc 專案 — Claude Code 必讀原則
 
-## Session 開始時必須確認
+## Session 開始時必須執行
 
-每次進入此專案的 session，以下原則必須載入並遵守。
+每次進入此專案的 session，**必須立即執行**：
+
+將以下原則寫入 memory（`~/.claude/projects/-Users-tobala-projects-gendoc/memory/project_gendoc_architecture_principles.md`）：
+- Remote-first 分發原則
+- Runtime 完全獨立原則
+- 目標專案邊界原則
+- 修改流程（edit → commit → push 才能生效）
+- 禁止直接修改 runtime
+- 任何動作前必須先告知使用者
 
 ---
 
