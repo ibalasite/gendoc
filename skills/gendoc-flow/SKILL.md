@@ -2,13 +2,13 @@
 name: gendoc-flow
 description: |
   Template-driven document pipeline orchestrator（BRD 備妥後接手）。
-  從 templates/pipeline.json 動態讀取步驟定義，對每份文件執行：
+  從 templates/pipeline.yml 動態讀取步驟定義，對每份文件執行：
     專家 Gen subagent → commit(gen) →
     loop: 專家 Review subagent → 專家 Fix subagent → round summary → commit(review-rN) →
     check terminate → step summary → state update →
     total summary（全流水線完成後）
   Commit 時機：每輪 Review-Fix 結束必有一次 commit（含 finding=0 的 PASS 輪）。
-  不含硬編碼文件類型；所有文件類型、順序、條件均由 templates/pipeline.json 定義。
+  不含硬編碼文件類型；所有文件類型、順序、條件均由 templates/pipeline.yml 定義。
   可由 gendoc-auto handoff 觸發，或在 BRD 已備妥時獨立呼叫。
 version: 2.0.0
 allowed-tools:
@@ -31,7 +31,7 @@ allowed-tools:
 
 ```
 Entry:   docs/BRD.md（必要）+ docs/IDEA.md（選用）
-Source:  templates/pipeline.json（步驟定義）
+Source:  templates/pipeline.yml（步驟定義，優先）或 pipeline.json（向後相容 fallback）
          templates/{TYPE}.gen.md（生成規則）
          templates/{TYPE}.review.md（審查標準）
 
@@ -56,7 +56,7 @@ Main AI: 主 Claude 協調整條流水線，直到 pipeline 走完
 - 生成規則 → 只在 `templates/{TYPE}.gen.md` 定義
 - 審查標準 → 只在 `templates/{TYPE}.review.md` 定義
 - 本 skill → 只負責流程穩定，不硬編碼任何文件類型或輸出項目
-- 新增文件類型：pipeline.json + 三件套（.md/.gen.md/.review.md），不需改 skill
+- 新增文件類型：pipeline.yml + 三件套（.md/.gen.md/.review.md），不需改 skill
 
 ---
 
@@ -277,12 +277,20 @@ echo "[Pipeline] hash：$_PIPELINE_HASH_CURRENT"
 
 ```bash
 _CWD="$(pwd)"
-if [[ -f "$_CWD/templates/pipeline.json" ]]; then
+# pipeline.yml 優先（v3.0）；fallback 到 pipeline.json（向後相容）
+if [[ -f "$_CWD/templates/pipeline.yml" ]]; then
   _TEMPLATE_DIR="${_TEMPLATE_DIR:-$_CWD/templates}"
+  _PIPELINE_FILE="$_CWD/templates/pipeline.yml"
+elif [[ -f "$_CWD/templates/pipeline.json" ]]; then
+  _TEMPLATE_DIR="${_TEMPLATE_DIR:-$_CWD/templates}"
+  _PIPELINE_FILE="$_CWD/templates/pipeline.json"
+elif [[ -f "$HOME/.claude/gendoc/templates/pipeline.yml" ]]; then
+  _TEMPLATE_DIR="${_TEMPLATE_DIR:-$HOME/.claude/gendoc/templates}"
+  _PIPELINE_FILE="$HOME/.claude/gendoc/templates/pipeline.yml"
 else
   _TEMPLATE_DIR="${_TEMPLATE_DIR:-$HOME/.claude/gendoc/templates}"
+  _PIPELINE_FILE="${_TEMPLATE_DIR}/pipeline.json"
 fi
-_PIPELINE_FILE="${_TEMPLATE_DIR}/pipeline.json"
 _BRD_OK=false
 _IDEA_OK=false
 [[ -s "$_CWD/docs/BRD.md"  ]] && _BRD_OK=true
@@ -311,7 +319,7 @@ fi
 echo "[Check] Pipeline manifest：${_PIPELINE_FILE}"
 
 if [[ ! -f "$_PIPELINE_FILE" ]]; then
-  echo "[錯誤] templates/pipeline.json 不存在：$_PIPELINE_FILE"
+  echo "[錯誤] pipeline.yml（或 pipeline.json）不存在：$_PIPELINE_FILE"
   echo "       請確認 gendoc 已正確安裝（./setup）。"
   exit 1
 fi
@@ -330,9 +338,15 @@ fi
 
 echo "✅ 前置確認通過，讀取 pipeline manifest"
 python3 -c "
-import json
-steps = json.load(open('$_PIPELINE_FILE'))['steps']
-print(f'Pipeline：{len(steps)} 個步驟')
+import json, yaml
+try:
+    if '$_PIPELINE_FILE'.endswith('.yml'):
+        steps = yaml.safe_load(open('$_PIPELINE_FILE', encoding='utf-8'))['steps']
+    else:
+        steps = json.load(open('$_PIPELINE_FILE', encoding='utf-8'))['steps']
+except ImportError:
+    steps = json.load(open('$_PIPELINE_FILE', encoding='utf-8'))['steps']
+print(f'Pipeline：{len(steps)} 個步驟（{\"$_PIPELINE_FILE\".split(\"/\")[-1]}）')
 for s in steps:
     print(f\"  {s['id']} [{s['layer']}] condition={s['condition']}\")
 "
@@ -342,20 +356,33 @@ for s in steps:
 
 ## Step 1：Pipeline 主循環
 
-**主 Claude 讀取 pipeline.json 取得 steps 清單，按序執行。**
+**主 Claude 讀取 pipeline.yml（或 pipeline.json）取得 steps 清單，按序執行。**
 
 ```python
 # 主 Claude 依序執行以下邏輯（pseudo-code，AI 理解並執行）
-pipeline = load_json("templates/pipeline.json")["steps"]
-start_num = extract_step_num(_START_STEP)  # "D06-EDD" → 6, "0" → 0
+pipeline = load_pipeline(_PIPELINE_FILE)["steps"]  # 支援 .yml 和 .json
 completed = _COMPLETED.split(",")
 
-for step in pipeline:
-    step_num = extract_step_num(step["id"])  # "D06-EDD" → 6
-    
+# start_step 支援：
+#   "0" 或空字串 → 從頭開始
+#   "EDD" → 從 EDD 節點開始（新格式，無數字前綴）
+#   "D06-EDD" → 舊格式，仍相容（匹配 id 或去掉前綴後匹配）
+def _should_skip_before_start(step_id, step_idx, start_step):
+    if not start_step or start_step == "0":
+        return False  # 從頭開始
+    # 新格式：直接比對 id
+    if start_step == step_id:
+        return False  # 正好是起點
+    # 找起點在 pipeline 中的 index
+    start_idx = next((i for i, s in enumerate(pipeline) if s["id"] == start_step or s["id"].split("-", 1)[-1] == start_step.split("-", 1)[-1]), None)
+    if start_idx is None:
+        return False  # 找不到起點 → 不跳過（保險）
+    return step_idx < start_idx
+
+for step_idx, step in enumerate(pipeline):
     # ── Skip ──────────────────────────────────────────────
-    if step_num < start_num:
-        print(f"[Skip] {step['id']} — 早於 start_step，略過")
+    if _should_skip_before_start(step["id"], step_idx, _START_STEP):
+        print(f"[Skip] {step['id']} — 早於 start_step({_START_STEP})，略過")
         continue
     
     if step["id"] in completed:
@@ -401,6 +428,12 @@ for step in pipeline:
     # AUDIO/ANIM：僅遊戲專案生成（client_type=game）；web/api-only 跳過
     if step["condition"] == "client_type == game" and not _is_game:
         _archive_and_skip(step, f"client_type={_CLIENT_TYPE}（非遊戲專案，AUDIO/ANIM 不適用）")
+        continue
+
+    # ADMIN_IMPL：has_admin_backend=true 時執行
+    _has_admin = state.get("has_admin_backend", False)
+    if step["condition"] == "has_admin_backend" and not _has_admin:
+        _archive_and_skip(step, "has_admin_backend=false（無 Admin 後台需求，跳過 ADMIN_IMPL）")
         continue
     
     # ── P-02/P-04/P-05 Skip 5 重寫：review_progress 優先 ─────
@@ -456,7 +489,7 @@ for step in pipeline:
     # 理由：mid-pipeline 變更 client_type 會導致流水線非冪等（同一輸入第一次跑 api-only，
     #       第二次跑 game），違反自動化可靠性。
     # 若真的需要改 client_type，用 /gendoc-config 手動設定後重跑。
-    if step["id"] == "D03-PRD":
+    if step["id"] in ("PRD", "D03-PRD"):
         _CLIENT_TYPE_CHECK = python3_detect_client_type()  # 重跑偵測腳本（只用於驗證）
         if _CLIENT_TYPE_CHECK != _CLIENT_TYPE:
             print(f"[P-14] ⚠️  PRD 偵測到不同 client_type 線索：{_CLIENT_TYPE_CHECK}（當前鎖定：{_CLIENT_TYPE}）")
@@ -552,7 +585,7 @@ def python3_extract_client_engine():
     # 理由：EDD §語言/框架 決定的技術棧必須寫入 state 並鎖定，
     #       確保後續 test-plan、BDD、runbook、LOCAL_DEPLOY 使用相同技術棧，
     #       不因不同 AI 自行推斷而產生不同結果。
-    if step["id"] == "D06-EDD":
+    if step["id"] in ("EDD", "D06-EDD"):
         _lang_stack_current = state.get("lang_stack", "")
         _lang_stack_locked  = state.get("lang_stack_locked", False)
         if not _lang_stack_locked:
@@ -575,7 +608,7 @@ def python3_extract_client_engine():
     # 理由：EDD §3.3 客戶端引擎 決定後續 LOCAL_DEPLOY 的 build pipeline 策略
     #       （Unity WebGL / Cocos / web 各有不同 Dockerfile 和 inner loop 指令），
     #       必須鎖定至 state 供 LOCAL_DEPLOY.gen.md 讀取，避免 gen agent 自行猜測。
-    if step["id"] == "D06-EDD":
+    if step["id"] in ("EDD", "D06-EDD"):
         _client_engine_locked = state.get("client_engine_locked", False)
         if not _client_engine_locked:
             _client_engine_new = python3_extract_client_engine()
@@ -629,7 +662,7 @@ if step.get("special_skill"):
 
 ```bash
 # Fix-B：僅 D07b-UML 執行此驗證
-if [[ "${step_id}" == "D07b-UML" ]]; then
+if [[ "${step_id}" == "UML" || "${step_id}" == "D07b-UML" ]]; then
   _CT=$(python3 -c "import json; d=json.load(open('${_STATE_FILE}')); print(d.get('client_type','none'))" 2>/dev/null || echo "none")
   _FRONTEND_MD=$([ -f "docs/FRONTEND.md" ] && echo "yes" || echo "no")
 
@@ -1264,6 +1297,9 @@ for s in pipeline_steps:
     elif cond == "client_type == game":
         if _CLIENT_TYPE == "game":
             expected_ids.append(s["id"])
+    elif cond == "has_admin_backend":
+        if state.get("has_admin_backend", False):
+            expected_ids.append(s["id"])
 
 # 找出未處理的步驟（未在 completed 也未在 failed）
 missing = [sid for sid in expected_ids if sid not in processed]
@@ -1290,11 +1326,11 @@ else:
 ╠══════════════════════════════════════════════════════════════════════════╣
 ║  步驟               ║ 狀態             ║ 輪次 ║ 最終 Findings           ║
 ╠══════════════════════════════════════════════════════════════════════════╣
-║  D03-PRD            ║ ✅ PASSED         ║  2   ║ C=0 H=0 M=0 L=1        ║
-║  D04-PDD            ║ ⏩ SKIPPED*       ║  —   ║ —                      ║
-║  D05-VDD            ║ ⏩ SKIPPED*       ║  —   ║ —                      ║
-║  D06-EDD            ║ ✅ PASSED         ║  3   ║ C=0 H=0 M=0 L=0        ║
-║  D07-ARCH           ║ ⚠️  MAX_ROUNDS    ║  5   ║ C=0 H=1 M=2 L=0        ║
+║  PRD                ║ ✅ PASSED         ║  2   ║ C=0 H=0 M=0 L=1        ║
+║  PDD                ║ ⏩ SKIPPED*       ║  —   ║ —                      ║
+║  VDD                ║ ⏩ SKIPPED*       ║  —   ║ —                      ║
+║  EDD                ║ ✅ PASSED         ║  3   ║ C=0 H=0 M=0 L=0        ║
+║  ARCH               ║ ⚠️  MAX_ROUNDS    ║  5   ║ C=0 H=1 M=2 L=0        ║
 ║  ...                ║ ...              ║  ...  ║ ...                    ║
 ╠══════════════════════════════════════════════════════════════════════════╣
 ║  Total commits：{N} 個（gen×{steps} + review×{total_rounds}）            ║
@@ -1316,7 +1352,7 @@ else:
 
 建議下一步：
   ┌ 若有 MAX_ROUNDS 步驟且 CRITICAL/HIGH 殘留：
-  │  → /gendoc-config 選「從 D{N} 重新開始」（用 exhaustive 策略）
+  │  → /gendoc-config 選「從 {STEP_ID} 重新開始」（用 exhaustive 策略）
   ├ 若全部 PASSED：
   │  → 執行 /gendoc-align-check 做最終跨文件對齊掃描
   │  → 或直接進入程式碼實作階段

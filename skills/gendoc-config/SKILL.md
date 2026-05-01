@@ -95,6 +95,7 @@ options:
   - "從某個 STEP 重新開始"
   - "只更換審查強度（不重設進度）"
   - "手動設定 client_type（web / game / api-only）"
+  - "手動設定 has_admin_backend（Admin 後台）"
   - "清除全部設定（刪除所有 state file）"
 ```
 
@@ -113,20 +114,31 @@ options:
 **[AI 指令]** 先執行以下 bash + python3 取得動態清單，再呼叫 `AskUserQuestion`：
 
 ```bash
-# 1. 定位 pipeline.json（local-first）
+# 1. 定位 pipeline.yml（local-first）；fallback 到 pipeline.json
 _CWD="$(pwd)"
-if [[ -f "$_CWD/templates/pipeline.json" ]]; then
+if [[ -f "$_CWD/templates/pipeline.yml" ]]; then
+  _PIPELINE_FILE="$_CWD/templates/pipeline.yml"
+elif [[ -f "$_CWD/templates/pipeline.json" ]]; then
   _PIPELINE_FILE="$_CWD/templates/pipeline.json"
+elif [[ -f "$HOME/.claude/gendoc/templates/pipeline.yml" ]]; then
+  _PIPELINE_FILE="$HOME/.claude/gendoc/templates/pipeline.yml"
 elif [[ -f "$HOME/.claude/gendoc/templates/pipeline.json" ]]; then
   _PIPELINE_FILE="$HOME/.claude/gendoc/templates/pipeline.json"
 else
-  echo "⚠️  找不到 pipeline.json，無法動態產生 step 清單"; exit 1
+  echo "⚠️  找不到 pipeline.yml 或 pipeline.json，無法動態產生 step 清單"; exit 1
 fi
 
-# 2. 從 pipeline.json 生成 step 選項（gen + review-loop 兩行一組）
+# 2. 從 pipeline.yml 生成 step 選項（gen + review-loop 兩行一組）
 python3 - "$_PIPELINE_FILE" <<'PY'
 import json, sys
-pipe = json.load(open(sys.argv[1], encoding="utf-8"))
+try:
+    import yaml
+    if sys.argv[1].endswith('.yml'):
+        pipe = yaml.safe_load(open(sys.argv[1], encoding="utf-8"))
+    else:
+        pipe = json.load(open(sys.argv[1], encoding="utf-8"))
+except ImportError:
+    pipe = json.load(open(sys.argv[1], encoding="utf-8"))
 # 這些 special_skill 步驟沒有獨立的 review loop
 SPECIAL = {
     "gendoc-gen-diagrams", "gendoc-align-check", "gendoc-align-fix",
@@ -176,6 +188,24 @@ options:
 ```
 
 取得 `_NEW_CLIENT_TYPE`。
+
+→ 維持 `_NEW_STEP = $_STEP`（不重設進度）
+→ 直接跳到 Step 4 寫入（跳過 Step 3 審查強度）
+
+---
+
+### 選「手動設定 has_admin_backend（Admin 後台）」
+
+用 `AskUserQuestion` 詢問：
+
+```
+question: "請設定 has_admin_backend（影響 ADMIN_IMPL 是否生成）"
+options:
+  - "true  — 需要 Admin 後台（生成 ADMIN_IMPL.md，預設 Vue3+ElementPlus+Vite）"
+  - "false — 無需 Admin 後台（跳過 ADMIN_IMPL）"
+```
+
+取得 `_NEW_ADMIN_BACKEND`（`true` 或 `false`）。
 
 → 維持 `_NEW_STEP = $_STEP`（不重設進度）
 → 直接跳到 Step 4 寫入（跳過 Step 3 審查強度）
@@ -277,6 +307,9 @@ d['last_updated']           = '$_NOW'
 if '${_NEW_CLIENT_TYPE:-}':
     d['client_type'] = '${_NEW_CLIENT_TYPE}'
     d['client_type_source'] = 'confirmed'  # P-13/P-14 不再覆寫此值
+# 若使用者手動設定了 has_admin_backend
+if '${_NEW_ADMIN_BACKEND:-}' in ('true', 'false'):
+    d['has_admin_backend'] = '${_NEW_ADMIN_BACKEND}' == 'true'
 # 若是情境 B 首次建立（_INIT_CLIENT_TYPE 已寫入初始 JSON，此處不再重複寫入）
 with open('$_TMP', 'w') as f:
     json.dump(d, f, indent=2)
@@ -297,6 +330,7 @@ PYEOF
 ║  審查強度：<_NEW_STRATEGY>（最多 <_NEW_MAX_ROUNDS> 輪）║
 ║  從 STEP：<_NEW_STEP> 開始                            ║
 ║  client_type：<_NEW_CLIENT_TYPE 若有設定，否則顯示「沿用自動偵測」> ║
+║  has_admin_backend：<_NEW_ADMIN_BACKEND 若有設定，否則顯示「沿用現有值」> ║
 ╚══════════════════════════════════════════════════════╝
 ```
 
