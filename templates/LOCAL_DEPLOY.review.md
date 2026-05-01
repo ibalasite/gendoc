@@ -196,3 +196,25 @@ upstream-alignment:
 **Check**: §19 對外 Port 表格下方是否有注意事項，說明「docker-compose 模式無 Ingress，各服務各自對外暴露 port，與 K8s 單一 port 80 的差異」？
 **Impact**: 缺少差異說明，工程師會誤以為 docker-compose 和 k8s 的 port 行為相同，在 E2E 測試設定時使用錯誤的 base URL。
 **Fix**: 在對外 Port 表格後加注意事項，明確說明兩種模式的架構差異。
+
+---
+
+### Layer 5: Local HA 驗證（由 SRE / Backend Lead 主審，共 3 項）
+
+#### [CRITICAL] 24 — API Server 本地副本數 < 2
+**Check**: LOCAL_DEPLOY.md 中的 API Server Deployment（K8s）副本數是否 ≥ 2？確認方式：搜尋 `replicas:` 欄位中 API Server 的值；或查看 `kubectl get pods` 範例輸出是否顯示 ≥ 2 個 api-server pod。副本數 = 1 視為 CRITICAL。
+**Risk**: Local 環境 API Server 只有 1 個副本，無法測試 HA 相關程式碼（shared session、distributed lock、pub/sub、sticky session 等）；Local 通過測試的程式在 Staging（多副本）失敗，修改成本極高。
+**Fix**: 將 API Server Deployment 的 `replicas` 改為 2（或以上）；在 §4 部署確認步驟補充驗證指令：`kubectl get pods -l app=api-server | grep Running | wc -l` 輸出 ≥ 2。
+
+#### [CRITICAL] 25 — Worker 本地副本數 < 2
+**Check**: 若系統有 Background Worker（Job Queue 消費者），其 Deployment 副本數是否 ≥ 2？確認 Worker 副本數設定並在 `kubectl get pods` 範例中驗證。
+**Risk**: Worker 只有 1 個副本，無法驗證冪等性（同一 Job 是否只執行一次，在兩個 Worker 同時消費時）；也無法測試分散式鎖（Distributed Lock）的正確性。
+**Fix**: 將 Worker Deployment 的 `replicas` 改為 2；補充冪等性驗證步驟：送出同一 Job 兩次，確認業務結果只執行一次（DB 記錄不重複）。
+
+#### [HIGH] 26 — 缺少 Local HA 驗證步驟
+**Check**: LOCAL_DEPLOY.md 的驗證步驟（§4 或 §6）是否包含 HA 驗證：強制終止一個 API Pod 後，服務是否在 ≤ 5s 內恢復？包含以下指令：`kubectl delete pod <api-pod-name>` + `curl -s http://localhost:8080/health` 驗證？若無此類步驟，視為 HIGH。
+**Risk**: 無 HA 驗證步驟，開發者不知道如何在 Local 環境確認 HA 相關功能正常，也無法在 PR 合併前驗證。
+**Fix**: 在 §4 Quick Verify 或 §6 驗證步驟新增 HA 驗證區塊（遵循 EDD §3.7 圖 B + test-plan.md §3.6.3）：  
+`kubectl delete pod $(kubectl get pods -l app=api-server -o jsonpath='{.items[0].metadata.name}')`  
+`sleep 5 && curl -s http://localhost:8080/health | jq .status`  
+期望：`"ok"` 或 `200`。

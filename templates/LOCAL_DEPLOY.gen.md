@@ -507,6 +507,7 @@ LOCAL_DEPLOY.md 必須包含服務啟動和關閉的依賴順序圖：
 | §17 Tunnel Access 存在 | 包含 ngrok + cloudflare 兩種 tunnel 方式 + 驗證 curl 指令 | 生成 §17 |
 | §18 AI Quick Start 可執行 | ai-quickstart.sh 腳本可被 AI 直接執行，6 步驟完整，末尾輸出前端 URL | 修正腳本使每步驟無需人工介入 |
 | K8s-First 合規 | 文件主架構為 k8s（非 Docker Compose）；若有 docker-compose 提及，僅出現在 §14 輔助說明 | 移除 Docker Compose 主架構引用 |
+| Local HA ≥ 2 Replicas | API Server 副本數 ≥ 2、Worker 副本數 ≥ 2（遵循 EDD §3.7 圖 B），含 HA 驗證指令 | 修正 Deployment replicas 設定及補充驗證步驟 |
 
 ---
 
