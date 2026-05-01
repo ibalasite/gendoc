@@ -79,6 +79,9 @@ _DOCS_FOUND=""
 [ -f "docs/PRD.md" ]       && _DOCS_FOUND="$_DOCS_FOUND PRD.md"
 [ -f "docs/EDD.md" ]       && _DOCS_FOUND="$_DOCS_FOUND EDD.md"
 [ -f "docs/SCHEMA.md" ]    && _DOCS_FOUND="$_DOCS_FOUND SCHEMA.md"
+[ -f "docs/ADMIN_IMPL.md" ] && _DOCS_FOUND="$_DOCS_FOUND ADMIN_IMPL.md"
+
+_HAS_ADMIN=$(python3 -c "import json; d=json.load(open('$_STATE_FILE')); print('1' if d.get('has_admin_backend', False) else '0')" 2>/dev/null || echo "0")
 
 # 決定 Prototype 模式
 if [ "$_HAS_FRONTEND" -eq 1 ] && [ "$_HAS_API" -eq 1 ]; then
@@ -92,7 +95,7 @@ else
 fi
 
 echo "[proto] 偵測到文件：${_DOCS_FOUND}"
-echo "[proto] MODE=${_PROTO_MODE}  HAS_FRONTEND=${_HAS_FRONTEND}  HAS_API=${_HAS_API}  HAS_AUDIO=${_HAS_AUDIO}  HAS_ANIM=${_HAS_ANIM}"
+echo "[proto] MODE=${_PROTO_MODE}  HAS_FRONTEND=${_HAS_FRONTEND}  HAS_API=${_HAS_API}  HAS_AUDIO=${_HAS_AUDIO}  HAS_ANIM=${_HAS_ANIM}  HAS_ADMIN=${_HAS_ADMIN}"
 
 if [ "$_HAS_FRONTEND" -eq 0 ] && [ "$_HAS_API" -eq 0 ]; then
   echo ""
@@ -832,6 +835,278 @@ API_EXPLORER_GEN_RESULT:
 
 ---
 
+## Step 2-C：Admin Portal Prototype 生成（僅 has_admin_backend=true 時執行）
+
+**`_HAS_ADMIN == "1"` 時執行。**
+
+用 **Agent tool** 派送「Admin Portal Prototype Generation Subagent」：
+
+```
+你是 Admin Portal Prototype Engineer，任務是依照 ADMIN_IMPL.md + ARCH.md + API.md（§18 Admin API）
+生成 Admin 後台的 HTML Prototype 頁面，儲存至 docs/pages/prototype/admin/ 目錄。
+
+**讀取步驟（不得跳過）：**
+1. 讀取 docs/ADMIN_IMPL.md → 提取：
+   - RBAC 角色清單（super_admin / operator / auditor 等）
+   - 功能模組清單（用戶管理/角色管理/審計日誌/業務管理等）
+   - Admin Portal 技術棧（Vue3 + ElementPlus + Vite 預設）
+   - 色彩系統（若有 VDD，讀取 Admin 色彩主題）
+2. 若存在，讀取 docs/ARCH.md §18 Admin Portal Architecture → 提取：C4 架構、RBAC 設計
+3. 若存在，讀取 docs/API.md §18 Admin API → 提取：所有 admin endpoint（用於 sidebar 選單 + mock data 對應）
+4. 若存在，讀取 docs/PRD.md §19 Admin Backend Requirements → 提取：業務管理模組清單
+5. 若存在，讀取 docs/SCHEMA.md → 提取：AdminUser、Role、Permission、AuditLog entity 結構
+
+**生成目標：** docs/pages/prototype/admin/ 目錄下 5 個完整可運行的 Admin Portal HTML 頁面
+
+**執行步驟（不得跳過）：**
+
+Step A-1：建立目錄
+```bash
+mkdir -p docs/pages/prototype/admin/assets
+```
+
+Step A-2：寫入 docs/pages/prototype/admin/assets/admin-style.css
+使用 Write 工具寫入完整 CSS（必須包含）：
+- CSS 變數（深色 sidebar：--admin-sidebar-bg: #111827；淺色 content；--admin-accent: #2d9ef5）
+- Top nav：固定高度 56px，深色背景，含 Logo + 使用者下拉
+- Sidebar：固定寬 240px，深色背景，nav items（含 icon slot、active 狀態、hover 效果）
+- Content area：白色背景，左側 margin = sidebar width
+- Stats card：白色卡片，含標題/數值/趨勢 badge
+- Data table：含 thead（灰底）、tbody zebra stripe、action 列（Edit/Delete 按鈕）
+- Permission matrix：grid 佈局，Permission chip（enabled=藍底/disabled=灰底）
+- Status badge：active=綠/inactive=灰/locked=紅
+- 搜尋列：input + 篩選 select + 清除 button
+- Modal overlay：半透明遮罩 + 居中卡片
+- Form elements：ElInput 風格 input/select/radio
+- Pagination：prev/page numbers/next
+- Tag chip：小型 badge，含 role 顏色（super_admin=紫/operator=藍/auditor=灰）
+
+Step A-3：寫入 docs/pages/prototype/admin/assets/admin-mock.js
+使用 Write 工具寫入 mock data（不得用 Lorem ipsum）：
+
+```javascript
+// admin-mock.js — Admin Portal Mock Data
+// 依 ADMIN_IMPL.md 的 RBAC 設計 + SCHEMA.md entity 結構
+
+const ADMIN_MOCK = {
+  // 當前登入使用者（super_admin 示範）
+  currentUser: {
+    id: 1, username: "admin", name: "系統管理員",
+    role: "super_admin", mfa_enabled: true, last_login: "2026-05-01 09:23:11"
+  },
+
+  // AdminUser 清單（≥8 筆，含不同角色 + 狀態）
+  users: [
+    { id: 1, username: "admin",    name: "系統管理員", email: "admin@example.com",    role: "super_admin", status: "active",   last_login: "2026-05-01 09:23" },
+    { id: 2, username: "alice",    name: "Alice Chen", email: "alice@example.com",    role: "operator",   status: "active",   last_login: "2026-05-01 08:45" },
+    { id: 3, username: "bob",      name: "Bob Wang",   email: "bob@example.com",      role: "operator",   status: "active",   last_login: "2026-04-30 17:32" },
+    { id: 4, username: "carol",    name: "Carol Liu",  email: "carol@example.com",    role: "auditor",    status: "active",   last_login: "2026-04-29 11:15" },
+    { id: 5, username: "dave",     name: "Dave Lee",   email: "dave@example.com",     role: "operator",   status: "inactive", last_login: "2026-04-20 14:00" },
+    { id: 6, username: "eve",      name: "Eve Huang",  email: "eve@example.com",      role: "auditor",    status: "active",   last_login: "2026-04-28 10:30" },
+    { id: 7, username: "frank",    name: "Frank Zhao", email: "frank@example.com",    role: "operator",   status: "locked",   last_login: "2026-04-15 09:00" },
+    { id: 8, username: "grace",    name: "Grace Wu",   email: "grace@example.com",    role: "operator",   status: "active",   last_login: "2026-05-01 07:55" },
+  ],
+
+  // Role 清單（含 permissions）
+  roles: [
+    { id: 1, name: "super_admin", display: "超級管理員", user_count: 1,
+      permissions: ["user.list","user.create","user.edit","user.delete","user.lock",
+                    "role.list","role.create","role.edit","role.delete","role.assign",
+                    "audit.view","audit.export","business.*"] },
+    { id: 2, name: "operator",   display: "操作員",     user_count: 5,
+      permissions: ["user.list","user.create","user.edit","role.list","business.read","business.write"] },
+    { id: 3, name: "auditor",    display: "審計員",     user_count: 2,
+      permissions: ["audit.view","audit.export","user.list","role.list"] },
+  ],
+
+  // All permissions（module.action 格式）
+  permissions: [
+    { module: "user",     action: "list",    desc: "查看用戶列表" },
+    { module: "user",     action: "create",  desc: "建立用戶" },
+    { module: "user",     action: "edit",    desc: "編輯用戶" },
+    { module: "user",     action: "delete",  desc: "刪除用戶" },
+    { module: "user",     action: "lock",    desc: "鎖定/解鎖用戶" },
+    { module: "role",     action: "list",    desc: "查看角色列表" },
+    { module: "role",     action: "create",  desc: "建立角色" },
+    { module: "role",     action: "edit",    desc: "編輯角色" },
+    { module: "role",     action: "delete",  desc: "刪除角色" },
+    { module: "role",     action: "assign",  desc: "指派角色給用戶" },
+    { module: "audit",    action: "view",    desc: "查看審計日誌" },
+    { module: "audit",    action: "export",  desc: "匯出審計日誌 CSV" },
+    { module: "business", action: "read",    desc: "查看業務資料" },
+    { module: "business", action: "write",   desc: "修改業務資料" },
+  ],
+
+  // AuditLog 清單（≥15 筆，含不同操作類型）
+  auditLogs: [
+    { id: 1,  operator: "admin",  action: "user.create",  target: "grace(id=8)",   ip: "192.168.1.10", ts: "2026-05-01 07:50:22", result: "success" },
+    { id: 2,  operator: "admin",  action: "user.lock",    target: "frank(id=7)",   ip: "192.168.1.10", ts: "2026-05-01 07:52:01", result: "success" },
+    { id: 3,  operator: "alice",  action: "business.write", target: "order#2341",  ip: "10.0.0.15",   ts: "2026-05-01 08:20:33", result: "success" },
+    { id: 4,  operator: "alice",  action: "user.edit",    target: "dave(id=5)",    ip: "10.0.0.15",   ts: "2026-05-01 08:45:12", result: "success" },
+    { id: 5,  operator: "admin",  action: "role.assign",  target: "carol→auditor", ip: "192.168.1.10", ts: "2026-05-01 09:01:44", result: "success" },
+    { id: 6,  operator: "bob",    action: "user.create",  target: "tmp_user",      ip: "10.0.0.22",   ts: "2026-04-30 16:10:05", result: "failed" },
+    { id: 7,  operator: "carol",  action: "audit.export", target: "2026-04 log",   ip: "172.16.0.5",  ts: "2026-04-30 17:00:00", result: "success" },
+    { id: 8,  operator: "admin",  action: "user.delete",  target: "tmp_user",      ip: "192.168.1.10", ts: "2026-04-30 18:30:21", result: "success" },
+    { id: 9,  operator: "eve",    action: "audit.view",   target: "user audit",    ip: "172.16.0.8",  ts: "2026-04-29 10:15:33", result: "success" },
+    { id: 10, operator: "alice",  action: "business.read", target: "report Q1",   ip: "10.0.0.15",   ts: "2026-04-29 11:00:00", result: "success" },
+    { id: 11, operator: "admin",  action: "role.create",  target: "reporter",      ip: "192.168.1.10", ts: "2026-04-28 09:30:00", result: "success" },
+    { id: 12, operator: "bob",    action: "user.edit",    target: "grace(id=8)",   ip: "10.0.0.22",   ts: "2026-04-28 14:22:11", result: "success" },
+    { id: 13, operator: "admin",  action: "role.delete",  target: "reporter",      ip: "192.168.1.10", ts: "2026-04-28 15:00:00", result: "success" },
+    { id: 14, operator: "carol",  action: "audit.export", target: "2026-03 log",   ip: "172.16.0.5",  ts: "2026-04-27 16:45:00", result: "success" },
+    { id: 15, operator: "alice",  action: "user.create",  target: "new_member",    ip: "10.0.0.15",   ts: "2026-04-27 09:10:00", result: "success" },
+  ],
+
+  // Dashboard 統計（用於 admin-dashboard.html）
+  stats: {
+    total_users: 8, active_users: 6, locked_users: 1,
+    total_roles: 3,
+    audit_today: 5, audit_month: 47,
+    last_refresh: "2026-05-01 09:30"
+  }
+};
+```
+
+Step A-4：生成 5 個 Admin HTML 頁面（使用 Write 工具分別寫入）
+
+**頁面 1：docs/pages/prototype/admin/admin-login.html**
+
+登入頁：
+- 頁面置中卡片（min-height:100vh，深色漸層背景）
+- 系統名稱 Logo（大字）
+- 帳號欄位（type=text）+ 密碼欄位（type=password，可 toggle 顯示）
+- 「記住帳號」checkbox
+- 登入按鈕（loading 狀態：點擊後顯示 spinner 300ms → 跳轉至 admin-dashboard.html）
+- MFA TOTP 輸入框（6位數字，自動 focus 下一格）
+- 錯誤提示文字（紅色，預設隱藏）
+- 底部版本資訊（Admin Portal v1.0）
+- 示範帳號提示（demo 使用：admin / Admin@2026）
+
+**頁面 2：docs/pages/prototype/admin/admin-dashboard.html**
+
+控制台主頁（含 sidebar + 頂部 nav）：
+- 頂部 nav：左側 Logo + 右側「系統管理員 (super_admin)」下拉（含「登出」選項 → 返回 admin-login.html）
+- 左側 sidebar（固定，含導覽項目 + active 樣式）：
+  - 控制台（active）
+  - 用戶管理 → admin-users.html
+  - 角色管理 → admin-roles.html
+  - 審計日誌 → admin-audit-log.html
+  - （依 PRD §19.3 業務模組動態插入）
+- 主內容區：
+  - 標題「控制台」 + 副標「最後更新：{stats.last_refresh}」
+  - 4 個統計卡片（grid 2x2）：
+    - 用戶總數 8，↑ 活躍 6 / 鎖定 1
+    - 角色數 3
+    - 今日操作 5 筆
+    - 本月審計 47 筆
+  - 快速操作區：新增用戶、查看角色、匯出審計日誌（各自 button → 對應頁面）
+  - 最近操作記錄（取 auditLogs 前 5 筆）：操作員 / 動作 / 目標 / 時間 / 狀態
+
+**頁面 3：docs/pages/prototype/admin/admin-users.html**
+
+用戶管理（含 sidebar + 頂部 nav）：
+- 頁面標題「用戶管理」+ 右側「+ 新增用戶」按鈕（點擊彈出 Modal）
+- 搜尋列：關鍵字搜尋 input + 角色篩選 select（全部/super_admin/operator/auditor）+ 狀態篩選（全部/active/inactive/locked）
+- 資料表格（來自 ADMIN_MOCK.users，8 筆）：
+  - 欄位：ID / 使用者名稱 / 姓名 / Email / 角色（tag chip，各角色不同顏色）/ 狀態 badge / 最後登入 / 操作
+  - 操作列：編輯（icon btn）/ 鎖定|解鎖（依狀態）/ 刪除（紅色，二次確認）
+- 分頁（1/1，共 8 筆）
+- 新增用戶 Modal：
+  - 欄位：使用者名稱 / 姓名 / Email / 角色（下拉）/ 初始密碼
+  - 確認 / 取消按鈕（確認後 toast「✅ 新增成功」並關閉）
+
+**頁面 4：docs/pages/prototype/admin/admin-roles.html**
+
+角色管理（含 sidebar + 頂部 nav）：
+- 頁面標題「角色管理」+ 右側「+ 新增角色」按鈕
+- 角色卡片清單（來自 ADMIN_MOCK.roles，3 個角色）：
+  - 每張卡片：角色名 / 顯示名 / 用戶數 / 「編輯權限」按鈕
+- 權限配置 Panel（點擊「編輯權限」展開）：
+  - 依 module 分組（user / role / audit / business）
+  - 每個 permission 顯示為 chip（module.action）
+  - chip 狀態：當前角色有此權限 → 藍底；無 → 灰底
+  - 可 toggle（點擊切換），toggle 後顯示「儲存變更」按鈕
+  - 儲存後 toast「✅ 角色權限已更新」
+- 新增角色 Modal：角色識別碼 / 顯示名稱 / 描述
+
+**頁面 5：docs/pages/prototype/admin/admin-audit-log.html**
+
+審計日誌（含 sidebar + 頂部 nav）：
+- 頁面標題「審計日誌」
+- 篩選列：
+  - 日期範圍選擇（From / To，input type=date）
+  - 操作員篩選 input（關鍵字）
+  - 操作類型 select（全部 / user操作 / role操作 / audit操作 / business操作）
+  - 查詢按鈕 + 重置按鈕
+- 「匯出 CSV」按鈕（點擊後 blob download，含表頭 + 所有 auditLogs 資料）
+- 資料表格（來自 ADMIN_MOCK.auditLogs，15 筆）：
+  - 欄位：ID / 操作員 / 動作（monospace font）/ 目標 / IP 位址 / 時間 / 結果（success=綠badge/failed=紅badge）
+- 分頁（顯示 1-10 筆，第 2 頁含剩餘 5 筆）
+- 注意：審計日誌不可刪除、不可修改（無操作欄）
+
+**Sidebar 共用元件規格（所有頁面都要用）：**
+```html
+<!-- 每個頁面的 sidebar 必須一致，且正確 active 當前頁面 -->
+<nav class="admin-sidebar">
+  <div class="sidebar-brand">Admin Portal</div>
+  <ul class="sidebar-nav">
+    <li class="nav-item {active_if_dashboard}">
+      <a href="admin-dashboard.html">控制台</a>
+    </li>
+    <li class="nav-item {active_if_users}">
+      <a href="admin-users.html">用戶管理</a>
+    </li>
+    <li class="nav-item {active_if_roles}">
+      <a href="admin-roles.html">角色管理</a>
+    </li>
+    <li class="nav-item {active_if_audit}">
+      <a href="admin-audit-log.html">審計日誌</a>
+    </li>
+  </ul>
+</nav>
+```
+
+**Top Nav 共用元件規格（所有頁面都要用）：**
+```html
+<header class="admin-topnav">
+  <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+  <span class="topnav-title">Admin Portal</span>
+  <div class="topnav-right">
+    <span class="current-user">系統管理員 (super_admin)</span>
+    <button class="logout-btn" onclick="location.href='admin-login.html'">登出</button>
+  </div>
+</header>
+```
+
+**Iron Law（品質要求 — 生成後自我驗證）：**
+- [ ] 5 個 HTML 檔案均存在於 docs/pages/prototype/admin/
+- [ ] 所有頁面 sidebar 中當前頁面有 active 樣式
+- [ ] 所有 sidebar 連結指向正確相對路徑
+- [ ] admin-login.html 點擊登入 → 跳轉至 admin-dashboard.html
+- [ ] admin-dashboard.html 「登出」→ 返回 admin-login.html
+- [ ] admin-users.html 表格有 8 筆擬真資料（非空表格）
+- [ ] admin-roles.html 角色卡片有 3 個角色 + 權限 chips 可 toggle
+- [ ] admin-audit-log.html 有 15 筆日誌 + CSV 匯出可用
+- [ ] 無 Lorem ipsum、無空的 placeholder 欄位
+- [ ] 無 JS 語法錯誤（未閉合括號、未定義變數）
+
+完成後輸出：
+ADMIN_PROTO_GEN_RESULT:
+  pages_generated: 5
+  files:
+    - docs/pages/prototype/admin/admin-login.html
+    - docs/pages/prototype/admin/admin-dashboard.html
+    - docs/pages/prototype/admin/admin-users.html
+    - docs/pages/prototype/admin/admin-roles.html
+    - docs/pages/prototype/admin/admin-audit-log.html
+    - docs/pages/prototype/admin/assets/admin-style.css
+    - docs/pages/prototype/admin/assets/admin-mock.js
+  summary: "生成了 Admin Portal 5 個頁面 Prototype：登入/控制台/用戶管理/角色管理/審計日誌"
+```
+
+> **若 `_HAS_ADMIN == "0"`**：跳過本 Step，直接進入 Step 3（Review）。
+
+---
+
 ## Step 3：Review → Fix Loop
 
 主 Claude 執行以下 loop（最多 `_MAX_ROUNDS` 輪）：
@@ -1122,6 +1397,15 @@ PLAYWRIGHT_VERIFY_RESULT:
 </a>
 ```
 
+**Admin Portal 卡片（_HAS_ADMIN == "1" 時插入）：**
+```html
+<a class="index-card" href="prototype/admin/admin-login.html" style="border-color: #7c3aed; background: linear-gradient(135deg, #f5f3ff 0%, #fff 100%);">
+  <div class="index-card__icon">🛡️</div>
+  <div class="index-card__title">Admin Portal Prototype</div>
+  <div class="index-card__desc">5 頁面 · RBAC 角色管理 · 審計日誌 · Vue3+ElementPlus 規格</div>
+</a>
+```
+
 ---
 
 ## Step 5：Git Commit
@@ -1137,27 +1421,33 @@ _HAS_API_EXPLORER=$([[ -f "docs/pages/prototype/api-explorer/index.html" ]] && e
 
 git add docs/pages/prototype/ README.md docs/pages/index.html
 
+_ADMIN_SUFFIX=""
+[[ "$_HAS_ADMIN" == "1" ]] && _ADMIN_SUFFIX=" + Admin Portal（5 頁面）"
+
 if [[ "$_PROTO_MODE" == "api-explorer" ]]; then
-  _MSG="feat(gendoc)[prototype]: 生成 API Explorer（${_PROTO_SCREENS} endpoints）
+  _MSG="feat(gendoc)[prototype]: 生成 API Explorer（${_PROTO_SCREENS} endpoints）${_ADMIN_SUFFIX}
 
 - 基於 API.md/SCHEMA.md 生成互動式 API 試打介面
 - JavaScript Mock 回應：無需啟動後端
 - 雙模式參數輸入：Chips 快選 + 自由打值
 - Request Body Presets + 可編輯 textarea
-- Copy as cURL、Hash Deep Link、Auth 持久化
+- Copy as cURL、Hash Deep Link、Auth 持久化$([ "$_HAS_ADMIN" = "1" ] && echo "
+- Admin Portal：登入/控制台/用戶管理/角色管理/審計日誌（含 RBAC + Mock Data）")
 - 連結已更新至 README.md 和 docs/pages/index.html"
 elif [[ "$_PROTO_MODE" == "full" ]]; then
-  _MSG="feat(gendoc)[prototype]: 生成 UI Prototype + API Explorer
+  _MSG="feat(gendoc)[prototype]: 生成 UI Prototype + API Explorer${_ADMIN_SUFFIX}
 
 - UI：${_PROTO_SCREENS} 個畫面，含導覽路由、Mock Data、動畫音效
-- API Explorer：基於 API.md 生成可試打介面，JavaScript Mock 回應
+- API Explorer：基於 API.md 生成可試打介面，JavaScript Mock 回應$([ "$_HAS_ADMIN" = "1" ] && echo "
+- Admin Portal：登入/控制台/用戶管理/角色管理/審計日誌（含 RBAC + Mock Data）")
 - 連結已更新至 README.md 和 docs/pages/index.html"
 else
-  _MSG="feat(gendoc)[prototype]: 生成互動式 HTML Prototype（${_PROTO_SCREENS} 畫面）
+  _MSG="feat(gendoc)[prototype]: 生成互動式 HTML Prototype（${_PROTO_SCREENS} 畫面）${_ADMIN_SUFFIX}
 
 - 基於 PRD/PDD/VDD/FRONTEND/AUDIO/ANIM 生成完整可點擊原型
 - 包含導覽路由、Mock Data、動畫特效、音效觸發
-- 流程地圖 Modal 可全覽所有畫面
+- 流程地圖 Modal 可全覽所有畫面$([ "$_HAS_ADMIN" = "1" ] && echo "
+- Admin Portal：登入/控制台/用戶管理/角色管理/審計日誌（含 RBAC + Mock Data）")
 - 連結已更新至 README.md 和 docs/pages/index.html"
 fi
 
@@ -1177,16 +1467,21 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ║  畫面數量：{N} 個 Screen                                         ║
 ║  動畫特效：{HAS_ANIM}（P0 動畫 {M} 個）                         ║
 ║  音效實作：{HAS_AUDIO}（BGM {B} 條 + SFX {S} 個觸發點）         ║
+║  Admin Portal：{HAS_ADMIN}（5 頁面：登入/控制台/用戶/角色/審計） ║
 ║  Review：{rounds} 輪（{strategy}策略，最多 {max_rounds} 輪）     ║
 ║  終止原因：{terminate_reason}                                    ║
 ╠══════════════════════════════════════════════════════════════════╣
 ║  輸出位置：docs/pages/prototype/index.html                        ║
+║  Admin Portal：docs/pages/prototype/admin/admin-login.html        ║
 ║  README 連結：✅ 已更新                                           ║
 ║  文件站首頁：✅ 已插入 Prototype 卡片                             ║
 ╚══════════════════════════════════════════════════════════════════╝
 
 🚀 開啟 Prototype：
    file://$(pwd)/docs/pages/prototype/index.html
+
+🛡️  開啟 Admin Portal Prototype：
+   file://$(pwd)/docs/pages/prototype/admin/admin-login.html
 
 或在 gendoc-gen-html 生成後透過文件站首頁進入。
 ```

@@ -51,9 +51,12 @@ for f in EDD.md ARCH.md API.md SCHEMA.md PRD.md PDD.md VDD.md FRONTEND.md; do
 done
 
 _CLIENT_TYPE=$(python3 -c "import json; d=json.load(open('.gendoc-state.json')); print(d.get('client_type','none'))" 2>/dev/null || echo "none")
+_HAS_ADMIN=$(python3 -c "import json; d=json.load(open('.gendoc-state.json')); print('true' if d.get('has_admin_backend', False) else 'false')" 2>/dev/null || echo "false")
 echo "Client Type：$_CLIENT_TYPE"
+echo "Has Admin：$_HAS_ADMIN"
 _HAS_FRONTEND=$([ -f "${_DOCS_DIR}/FRONTEND.md" ] && echo "yes" || echo "no")
 echo "Frontend UML：$( [[ "$_CLIENT_TYPE" != 'none' && "$_CLIENT_TYPE" != 'api-only' && "$_HAS_FRONTEND" == 'yes' ]] && echo '✓ 將生成 Step 2B 前端 UML' || echo '✗ 跳過（client_type=none 或 api-only，或缺 FRONTEND.md）' )"
+echo "Admin UML：$( [[ "$_HAS_ADMIN" == 'true' ]] && echo '✓ 將生成 Step 2C Admin UML（3 張）' || echo '✗ 跳過（has_admin_backend=false）' )"
 ```
 
 ---
@@ -989,6 +992,78 @@ for md_file in sorted(diagrams.glob("*.md")):
 ```
 
 若有 ✗ 項目，主 Claude 依對應章節的「強制完整度標準」自動修正後繼續。
+
+---
+
+## Step 2C：生成 Admin UML 圖（條件執行：has_admin_backend=true）
+
+**觸發條件**：`_HAS_ADMIN == "true"` 且 `docs/ADMIN_IMPL.md` 存在。
+
+```bash
+if [[ "$_HAS_ADMIN" == "true" && -f "${_DOCS_DIR}/ADMIN_IMPL.md" ]]; then
+  echo "[Step 2C] has_admin_backend=true → 生成 Admin 專屬 UML 圖（3 張）"
+  mkdir -p "${_DIAGRAMS_DIR}/admin"
+else
+  echo "[Step 2C] 跳過（has_admin_backend=false 或 ADMIN_IMPL.md 不存在）"
+fi
+```
+
+若觸發，逐一生成以下 3 張 Admin 專屬圖（使用 Write 工具寫入 `docs/diagrams/admin/`）：
+
+### 2C-1：admin-rbac-entity.md — Admin RBAC Entity Diagram
+
+**來源**：`docs/ADMIN_IMPL.md` §5 RBAC + `docs/SCHEMA.md` RBAC tables + `docs/EDD.md` §5.5
+
+**生成規則**：
+- 使用 `erDiagram` 語法
+- 必須包含：AdminUser / Role / Permission / RolePermission / AdminUserRole / AuditLog
+- 每個 entity 列出所有欄位（從 SCHEMA.md 提取）
+- 關聯線：AdminUser ||--o{ AdminUserRole : "has", AdminUserRole }o--|| Role : "is", Role ||--o{ RolePermission : "contains", RolePermission }o--|| Permission : "grants"
+
+**最低標準**：6 個 entity + 所有關聯線 + 欄位類型標注
+
+### 2C-2：admin-login-sequence.md — Admin 登入 Sequence Diagram
+
+**來源**：`docs/ADMIN_IMPL.md` §5 Token 管理 + `docs/API.md` §18.1 Admin 認證端點
+
+**生成規則**：
+- 使用 `sequenceDiagram`
+- Participants：Admin Browser / Admin SPA / API Gateway / Backend / Redis / DB
+- 必須覆蓋：
+  1. Admin 輸入 credentials + TOTP
+  2. API Gateway 轉發 → Backend 驗證
+  3. TOTP 驗證（super_admin 強制）
+  4. 查詢 DB 取得 roles + permissions
+  5. 返回 JWT + permissions 清單
+  6. Admin SPA 存儲 token + 動態渲染 sidebar
+- 包含 alt 區塊：密碼錯誤（401）/ TOTP 失敗（403）/ 帳號鎖定（429）
+
+**最低標準**：6 個 participant + 主流程 ≥ 10 步 + 至少 2 個 alt 分支
+
+### 2C-3：admin-c4-container.md — Admin-Server C4 Container Diagram
+
+**來源**：`docs/ARCH.md` §18 Admin Portal 架構 + `docs/ADMIN_IMPL.md` §15 部署配置
+
+**生成規則**：
+- 使用 `graph TD`（C4 Container 風格，含框線區分 System Boundary）
+- 必須包含：Admin User / Admin SPA / API Gateway / Backend Service / Database
+- 標注技術棧（Vue3+ElementPlus / Vite dist / Nginx）
+- 標注通訊協議（HTTPS / /admin/api/* / SQL）
+- 包含 Admin 安全邊界框（MFA + JWT + IP 白名單標注）
+
+**最低標準**：5 個 container + 所有連接線 + 技術棧標注
+
+---
+
+完成後在 Summary 中加入：
+
+```
+Admin UML（Step 2C，條件執行：has_admin_backend=true）：
+    ✓/✗/skip docs/diagrams/admin/admin-rbac-entity.md    （Admin RBAC Entity Diagram）
+    ✓/✗/skip docs/diagrams/admin/admin-login-sequence.md  （Admin 登入循序圖）
+    ✓/✗/skip docs/diagrams/admin/admin-c4-container.md    （Admin-Server C4 Container）
+Admin 圖合計：3 張（skip 時：0 張）
+```
 
 ---
 

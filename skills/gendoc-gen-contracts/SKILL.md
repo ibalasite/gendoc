@@ -31,16 +31,19 @@ _LANG_STACK=$(python3 -c "import json; print(json.load(open('$_STATE')).get('lan
 _DEPLOY_TARGET=$(python3 -c "import json; print(json.load(open('$_STATE')).get('deployment_target', 'docker'))" 2>/dev/null || echo "docker")
 _PROJECT_NAME=$(python3 -c "import json; print(json.load(open('$_STATE')).get('project_name', '$(basename $(pwd))'))" 2>/dev/null || echo "$(basename $(pwd))")
 _CLIENT_TYPE=$(python3 -c "import json; print(json.load(open('$_STATE')).get('client_type', 'web'))" 2>/dev/null || echo "web")
+_HAS_ADMIN=$(python3 -c "import json; print('true' if json.load(open('$_STATE')).get('has_admin_backend', False) else 'false')" 2>/dev/null || echo "false")
 
 echo "PROJECT: $_PROJECT_NAME"
 echo "LANG_STACK: $_LANG_STACK"
 echo "DEPLOY_TARGET: $_DEPLOY_TARGET"
 echo "CLIENT_TYPE: $_CLIENT_TYPE"
+echo "HAS_ADMIN: $_HAS_ADMIN"
 
 # Check which source docs exist
 for f in docs/IDEA.md docs/BRD.md docs/PRD.md docs/EDD.md docs/API.md docs/SCHEMA.md docs/ARCH.md; do
   [[ -f "$f" ]] && echo "✅ $f" || echo "❌ $f (skip)"
 done
+[[ "$_HAS_ADMIN" == "true" ]] && { [[ -f "docs/ADMIN_IMPL.md" ]] && echo "✅ docs/ADMIN_IMPL.md (admin mode)" || echo "⚠️  docs/ADMIN_IMPL.md (admin mode 但文件不存在)"; }
 
 # Required minimum
 [[ ! -f "docs/EDD.md" ]] && echo "[ERROR] docs/EDD.md 不存在，無法提取 UML 結構" && exit 1
@@ -750,6 +753,39 @@ cp -r docs/blueprint/scaffold/src/ src/
 
 ---
 
+## Step 6.5: Admin API Contracts（has_admin_backend=true 時執行）
+
+```bash
+if [[ "$_HAS_ADMIN" == "true" ]]; then
+  echo "[Admin] has_admin_backend=true → 生成 Admin 專屬合約文件"
+  mkdir -p docs/blueprint/contracts/admin
+
+  # 6.5-A: Admin OpenAPI YAML
+  # 從 docs/API.md §18 Admin API 提取所有 /admin/* 端點
+  # 輸出：docs/blueprint/contracts/admin/admin-api.yaml
+  # 必須包含：auth/users/roles/audit-logs 全部 endpoint
+
+  # 6.5-B: RBAC Seed JSON
+  # 從 docs/ADMIN_IMPL.md §5 或 docs/EDD.md §5.5 提取 Role/Permission 定義
+  # 輸出：docs/blueprint/contracts/admin/rbac-seed.json
+  # 格式：{ "roles": [...], "permissions": [...], "role_permissions": [...] }
+
+  # 6.5-C: Admin Seed SQL/JSON
+  # 生成本地開發用初始 Admin 帳號 seed 數據
+  # 輸出：docs/blueprint/contracts/admin/admin-seed.json
+  # 包含：{ "admin_users": [{ "email": "admin@local.dev", "role": "super_admin" }] }
+
+  echo "[Admin] Admin 合約文件生成完成"
+  echo "  - docs/blueprint/contracts/admin/admin-api.yaml"
+  echo "  - docs/blueprint/contracts/admin/rbac-seed.json"
+  echo "  - docs/blueprint/contracts/admin/admin-seed.json"
+else
+  echo "[Admin] has_admin_backend=false → 跳過 Admin 合約生成"
+fi
+```
+
+---
+
 ## Step 7: Commit
 
 ```bash
@@ -764,7 +800,7 @@ _FILES=""
 
 if [[ -n "$_FILES" ]]; then
   git add $_FILES 2>/dev/null || true
-  git commit -m "feat(gendoc)[D17-CONTRACTS]: generate machine-readable specs from docs
+  git commit -m "feat(gendoc)[CONTRACTS]: generate machine-readable specs from docs
 
 - OpenAPI 3.1 YAML: docs/blueprint/contracts/openapi.yaml
 - JSON Schema: docs/blueprint/contracts/schemas/
