@@ -17,6 +17,7 @@ upstream-docs:
   - docs/test-plan.md
   - features/          # BDD-server 輸出（Server BDD Feature Files）
   - features/client/   # BDD-client 輸出（Client E2E Feature Files，若 client_type≠none）
+  - docs/ADMIN_IMPL.md  # 若存在（has_admin_backend=true）：Admin Portal 本地啟動（dev server port/env/初始帳號）
 quality-bar: "新進工程師第一天，依文件操作，5 分鐘內跑起完整本地環境，不需問任何人。"
 ---
 
@@ -555,3 +556,32 @@ echo "[F-04] ⚠️  若上述有 ❌ 項目，請在提交前修正 LOCAL_DEPLO
 - `k8s/overlays/local/` 不存在 → 在 LOCAL_DEPLOY.md §4.5 加注釋「需先建立 k8s manifest 目錄」（不阻斷生成）
 - 環境依賴缺失 → 在 LOCAL_DEPLOY.md §1 Prerequisites 補充安裝說明（不阻斷生成）
 - 驗證結果輸出到 stdout，由 gendoc-flow 記錄到 git commit message
+
+---
+
+### Admin Backend 條件步驟（has_admin_backend=true 時執行）
+
+```python
+_has_admin = state.get("has_admin_backend", False)
+if _has_admin:
+    # 從 docs/ADMIN_IMPL.md 讀取 §15 部署配置（Vite config / env vars / Nginx）
+    # 在 LOCAL_DEPLOY.md 中加入 Admin Portal 本地啟動章節：
+    #
+    # § Admin Portal 本地啟動：
+    #   Prerequisites：Node.js >= 18 / pnpm >= 8
+    #   環境變數設定：
+    #     VITE_API_BASE_URL=http://localhost:<backend_port>
+    #     VITE_ADMIN_BASE_PATH=/admin
+    #   啟動指令：
+    #     cd admin && pnpm install && pnpm dev
+    #     Admin Portal 運行於：http://localhost:5173（或依 vite.config.ts 設定）
+    #   初始 Admin 帳號（本地開發用）：
+    #     Email: admin@local.dev（從 db/seed/admin.sql 建立）
+    #     Password: 見 k8s/overlays/local/secrets.env ADMIN_INIT_PASSWORD
+    #   驗證步驟：
+    #     1. 瀏覽器開啟 http://localhost:5173/admin/login
+    #     2. 使用初始 Admin 帳號登入
+    #     3. 確認 Dashboard 正常顯示、側邊欄顯示所有功能模組
+else:
+    pass  # 不加入 Admin Portal 啟動說明
+```

@@ -17,6 +17,7 @@ upstream-docs:
   - docs/test-plan.md
   - features/          # BDD-server 輸出（Server BDD Feature Files）
   - features/client/   # BDD-client 輸出（Client E2E Feature Files，若 client_type≠none）
+  - docs/ADMIN_IMPL.md  # 若存在（has_admin_backend=true）：Admin Portal 運維程序（Token 重置、帳號鎖定解除、權限重整）
 quality-bar: "凌晨 3 點被叫醒，零前情提要，能直接執行，不需問任何人。"
 ---
 
@@ -320,6 +321,33 @@ Grafana：<GRAFANA_OVERVIEW_DASHBOARD>
 - [ ] §6 Incident Response P1/P2 回應時間來自 PRD；若 PRD 無此資訊，已使用格式佔位符並加 WARNING 注釋
 - [ ] §6.8 Post-Mortem 包含草稿截止日（2 business days）、分發對象、30 天 check-in 三要素
 - [ ] §12 Contacts 所有 Name/Contact 欄位為格式範例佔位符（無虛構姓名或電話號碼）
+- [ ] Admin Runbook（has_admin_backend 條件）：若 true，Admin Token 重置 + 帳號鎖定解除 + Admin 用戶緊急停用程序已加入
+
+### Admin Backend 條件步驟（has_admin_backend=true 時執行）
+
+```python
+_has_admin = state.get("has_admin_backend", False)
+if _has_admin:
+    # 從 docs/ADMIN_IMPL.md 讀取 §5 RBAC + §15 部署配置
+    # 在 runbook 中加入 Admin Portal 專屬運維程序：
+    #
+    # § Admin Portal 日常運維：
+    #   - Admin Portal 健康檢查指令（curl /admin/api/health）
+    #   - Admin Token 快取清除（Redis FLUSH 特定 key）
+    #   - Admin 靜態資源重新部署指令
+    #
+    # § Admin 緊急處理程序：
+    #   - 帳號鎖定解除（連續登入失敗 → SQL UPDATE admin_users SET locked_until=NULL）
+    #   - Super Admin 緊急停用（疑似帳號盜用 → 立即 disable）
+    #   - 批量 Token 撤銷（Token 洩露 → 清空 Redis admin_token:* keys）
+    #   - RBAC 權限緊急重整（角色異常 → 讀取 CONSTANTS.md 預設角色配置重建）
+    #
+    # § Admin AuditLog 查詢（事後追查）：
+    #   - 查詢特定時間段內所有 super_admin 操作的 SQL 範例
+    #   - 導出稽核日誌 CSV 指令
+else:
+    pass  # 不加入 Admin 運維程序
+```
 
 ---
 
