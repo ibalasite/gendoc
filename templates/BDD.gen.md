@@ -186,6 +186,12 @@ Background 步驟不得超過 5 個；若超過，應拆分 Feature 或改用 Sc
 | `@api` | API 測試 Scenario | API 驗證 Scenario 標記 |
 | `@contract` | API 契約測試 Scenario | 每個 API Endpoint 必須有對應 @contract Scenario |
 | `@TC-XXX-001` | RTM 追溯 tag | 與 test-plan.md §15 RTM 的 TC-ID 對應 |
+| `@ha` | 高可用性驗證 Scenario | Pod Failover / DB Failover / Graceful Shutdown（必填）|
+| `@failover` | 故障切換驗證 Scenario | 元件故障自動恢復的 E2E 驗證 |
+| `@chaos` | 混沌工程 Scenario | 強制終止 Pod / 注入延遲 / 模擬 DB 故障（夜間 CI）|
+| `@admin` | Admin 後台功能 Scenario | has_admin_backend=true 時必填 |
+| `@rbac` | 角色權限控制 Scenario | RBAC 邊界測試（Admin 角色隔離、Permission 邊界）|
+| `@audit` | 稽核日誌驗證 Scenario | 高風險操作 AuditLog 記錄完整性驗證 |
 
 ---
 
@@ -354,6 +360,68 @@ Feature: 使用者登入
 
 ---
 
+## §16 HA BDD 生成步驟
+
+> **觸發時機**：每次生成 BDD 時必須執行（HA 測試是 MVP 必要驗收標準，不是 Future Scope）。
+
+### 步驟
+
+1. 讀取 `EDD.md §3.6`（HA/SPOF/SCALE/BCP 架構規格）：
+   - §3.6.1 SPOF 分析表 → 確認每個元件的 Min Replicas 和 Failover 機制
+   - §3.6.4 BCP 場景 → 確認 5 個故障情境的 RTO 目標
+   - §3.6.5 Graceful Shutdown → 確認 5 步驟流程和 ≤30s 目標
+
+2. 讀取 `test-plan.md §3.6`（HA/Failover/Chaos Tests）：
+   - §3.6.1 Integration Test 表 → 確認各元件的測試步驟
+   - §3.6.2 E2E Chaos BDD → 確認已規劃的 HA 場景清單
+
+3. 生成 `features/ha/` 目錄下的 4 個 HA Feature 檔案：
+   - `features/ha/api_pod_failover.feature` — Pod Failover + Graceful Shutdown（參考 §16.1）
+   - `features/ha/db_failover.feature` — DB Primary Failover + Replica Lag（參考 §16.2）
+   - `features/ha/redis_failover.feature` — Redis Sentinel Failover（參考 §16.3）
+   - `features/ha/worker_idempotency.feature` — Worker 冪等性（參考 §16.4）
+
+4. 每個 HA Scenario 必須：
+   - 使用 `@ha` tag（必填）
+   - Failover 類型加 `@failover`；混沌注入類型加 `@chaos`
+   - Given 含具體 replica 數量和負載（e.g., 2 個 Pod，每秒 10 req）
+   - Then 含可驗證的 RTO 數字（e.g., ≤ 30s / ≤ 60s）和 5XX 錯誤率上限
+
+5. 驗證：`@ha` tagged Scenario 總數 ≥ 3 個（Pod Failover / DB Failover / Graceful Shutdown 三個最低必備）。
+
+---
+
+## §17 Admin BDD 生成步驟
+
+> **觸發條件**：讀取 state 中 `has_admin_backend` 欄位；若為 `true` 則執行，否則在 BDD.md §17 填入「本專案無 Admin 後台，跳過 §17」。
+
+```bash
+_HAS_ADMIN=$(python3 -c "import json; print(json.load(open('.gendoc-state.json')).get('has_admin_backend', 'false'))")
+```
+
+### 若 has_admin_backend=true，執行步驟
+
+1. 讀取 `docs/ADMIN_IMPL.md`（若存在）或 `API.md §Admin` 相關章節：
+   - RBAC 角色定義（super_admin / operator / content_manager 等）
+   - Admin API Endpoints 清單（/admin/api/v1/ 前綴）
+   - AuditLog 欄位規格（actor_id / action_type / resource_type / resource_id / ip / timestamp）
+
+2. 生成 `features/admin/` 目錄下的 2 個 Admin Feature 檔案：
+   - `features/admin/admin_auth.feature` — Admin 認證 + RBAC（參考 §17.1）
+   - `features/admin/admin_audit.feature` — 稽核日誌完整性驗證（參考 §17.2）
+
+3. 每個 Admin Scenario 必須：
+   - 使用 `@admin` tag（必填）
+   - 認證類加 `@auth`；RBAC 邊界類加 `@rbac`；稽核日誌類加 `@audit`
+   - RBAC 場景：每個 Admin 角色至少有一個「被拒絕存取」的 403 Scenario
+   - Audit 場景：驗證所有高風險操作（delete / ban / role_change）均寫入完整 AuditLog
+
+4. 驗證：
+   - `@admin @rbac` tagged Scenario ≥ 2 個（每個 Admin 角色邊界各一個）
+   - `@admin @audit` tagged Scenario ≥ 2 個（覆蓋高風險操作和不可竄改性）
+
+---
+
 ## 推斷規則
 
 ### Feature 推斷
@@ -414,3 +482,7 @@ Feature: 使用者登入
 | 數值非 TBD/N/A | 所有 Scenario 的 And/Given/Then 條件含有具體數值 | 從 PRD/API 提取填入 |
 | 上游術語對齊 | 步驟中的術語與 PRD/API/SCHEMA 定義一致 | 修正術語 |
 | 測試資料規格 | 每個 Feature 的 Background 或 Examples 有具體測試資料（非通用假資料） | 補充業務語義測試資料 |
+| HA BDD 覆蓋 | `features/ha/` 目錄存在且 @ha tagged Scenario ≥ 3 個（Pod Failover / DB Failover / Graceful Shutdown）| 依 §16 生成缺失 HA Feature |
+| HA Then 具體 RTO | 所有 @ha Scenario 的 Then 含具體 RTO 數字（≤ 30s / ≤ 60s）和 5XX 錯誤率上限 | 補充具體 RTO 值 |
+| Admin BDD 覆蓋 | has_admin_backend=true 時：features/admin/ 存在，@admin @rbac ≥ 2 + @admin @audit ≥ 2 | 依 §17 生成缺失 Admin Feature |
+| Admin RBAC 邊界 | 每個 Admin 角色至少有一個「403 拒絕存取」Scenario | 補充 RBAC 邊界測試 |

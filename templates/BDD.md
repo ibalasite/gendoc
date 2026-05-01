@@ -462,6 +462,12 @@ Feature: 登入頁面（UI）
 | `@ui` | 瀏覽器 E2E | 前端頁面 / 互動行為測試 | 對應 E2E CI job |
 | `@auth` | 認證 / 授權 | 所有涉及身份驗證的場景 | 安全回歸 |
 | `@security` | 安全測試 | 越權、注入、速率限制等場景 | 安全回歸 |
+| `@ha` | 高可用性驗證 | Pod Failover / DB Failover / Graceful Shutdown | 每次 deploy（pre-flight）|
+| `@failover` | 故障切換場景 | 元件故障後自動恢復的 E2E 驗證 | HA 回歸套件 |
+| `@chaos` | 混沌工程場景 | 強制終止 Pod / 注入延遲 / 模擬 DB 故障 | 每日夜間 |
+| `@admin` | Admin 後台功能 | 所有 Admin 後台相關場景（has_admin_backend=true 時必填）| Admin 回歸 |
+| `@rbac` | 角色權限控制 | RBAC 邊界測試（Admin 角色隔離、Permission 邊界）| 安全回歸 |
+| `@audit` | 稽核日誌驗證 | 確認高風險操作記錄在 AuditLog 且內容完整 | 安全回歸 |
 
 ### 10.2 Tag 組合原則
 
@@ -938,3 +944,192 @@ it.each([
 ```
 
 ---
+
+## 16. HA BDD Scenario Patterns（高可用性 BDD 場景模式）
+
+> **必要性**：HA 測試不是「Future Scope」，是 MVP 上線前的必要驗收標準。  
+> 所有 `@ha` / `@failover` / `@chaos` 場景必須在 `features/ha/` 目錄下定義。  
+> 生成時參考 EDD §3.6（HA Architecture）和 test-plan.md §3.6（HA 測試策略）。
+
+### 16.1 Pod Failover 場景模式
+
+```gherkin
+# features/ha/api_pod_failover.feature
+# 來源：EDD §3.6.4 BCP 場景 / test-plan §3.6.1
+
+Feature: API Pod Failover — 高可用性驗證
+
+  Background:
+    Given 系統已部署 2 個 API Server Pod（replicas ≥ 2）
+    And 有持續每秒 10 req 的流量（vegeta / k6 運行中）
+
+  @ha @failover @chaos @p0 @api
+  Scenario: 強制終止一個 API Pod，流量自動切換
+    When 其中 1 個 API Pod 被強制終止（kubectl delete pod）
+    Then 新 Pod 在 30 秒內通過 Readiness Probe
+    And 期間 5XX 錯誤率 ≤ 0.1%（允許 ≤ 1 個請求失敗）
+    And 終止的 Pod 名稱已從 Endpoints 列表中移除
+
+  @ha @failover @chaos @p0 @api
+  Scenario: Graceful Shutdown — in-flight 請求正常完成
+    Given 有 1 個 API Pod 正在處理需要 5 秒的長請求
+    When Kubernetes 對該 Pod 發送 SIGTERM 信號
+    Then Pod Readiness Probe 立即回傳 503（停止接收新請求）
+    And 正在處理的 5 秒請求正常完成（HTTP 200）
+    And 新請求自動路由至其他 Pod（HTTP 200）
+    And Pod 在 30 秒內正常退出（exit 0）
+```
+
+### 16.2 DB Failover 場景模式
+
+```gherkin
+# features/ha/db_failover.feature
+# 來源：EDD §3.6.4 BCP 場景 / SCHEMA §25
+
+Feature: DB Primary Failover — 資料一致性驗證
+
+  Background:
+    Given 系統 DB 為 Primary + Standby 架構
+    And 每秒有 5 筆寫入操作（訂單 / 用戶 / 資料記錄）
+
+  @ha @failover @chaos @p0 @api
+  Scenario: DB Primary 故障，Standby 自動提升
+    When DB Primary 節點停止（模擬：停止 PostgreSQL 進程）
+    Then Standby 在 30 秒內自動提升為 Primary
+    And 所有已確認（WAL 同步）的寫入資料不遺失
+    And API 在 60 秒內恢復正常寫入
+    And API Health Check（/health/ready）在 Failover 完成後回傳 200
+
+  @ha @chaos @p1 @api
+  Scenario: Replica Lag 過高時讀取走 Primary
+    Given DB Replica Lag 超過 5 秒
+    When 使用者查詢剛才寫入的資料
+    Then 系統自動切換至 Primary 讀取（避免讀到過期資料）
+    And 回應資料與寫入一致
+```
+
+### 16.3 Redis Failover 場景模式
+
+```gherkin
+# features/ha/redis_failover.feature
+# 來源：EDD §3.6.1 SPOF 分析
+
+Feature: Redis Sentinel Failover — Cache 服務降級驗證
+
+  @ha @failover @chaos @p1 @api
+  Scenario: Redis Master 故障，Sentinel 選出新 Master
+    Given Redis 以 Sentinel 模式運行（3 個 Sentinel 節點）
+    When Redis Master 節點停止
+    Then Sentinel 在 30 秒內選出新 Master
+    And 業務操作降級（Cache Miss，從 DB 讀取）但不報 500 錯誤
+    And API 回傳正確資料（降級但服務不中斷）
+    And 新 Master 選出後 Cache 逐步回填
+```
+
+### 16.4 Worker 冪等性驗證場景模式
+
+```gherkin
+# features/ha/worker_idempotency.feature
+# 來源：EDD §3.6.2 HA 設計原則 — 冪等 Worker
+
+Feature: Background Worker 冪等性驗證
+
+  @ha @p0 @api
+  Scenario: 同一 Job 被兩個 Worker 同時消費，業務結果只執行一次
+    Given Job Queue 有 1 個待處理的任務（任務 ID: {{JOB_ID}}）
+    And 系統有 2 個 Worker Pod 同時運行
+    When 兩個 Worker 同時嘗試消費同一個 Job
+    Then 業務操作只執行一次（DB 無重複記錄）
+    And Job 狀態標記為 "completed"（只出現一次）
+    And 第二個 Worker 偵測到重複並跳過（Distributed Lock / DB 唯一約束）
+
+  @ha @chaos @p1 @api
+  Scenario: Worker Pod 在任務中途崩潰，任務自動重試
+    Given Worker 正在處理一個需要 10 秒的任務
+    When Worker Pod 在第 3 秒被強制終止
+    Then 任務自動重新入隊
+    And 其他 Worker 在 30 秒內撿起並完成該任務
+    And 業務結果正確（冪等性：重試結果與首次執行一致）
+```
+
+---
+
+## 17. Admin BDD Scenario Patterns（Admin 後台 BDD 場景模式）
+
+<!-- 觸發條件：has_admin_backend=true；否則略過此章節 -->
+
+> **觸發條件**：`has_admin_backend=true` 時填寫，否則標注「本專案無 Admin 後台，跳過 §17」。  
+> Admin BDD 場景必須覆蓋：RBAC 角色邊界、稽核日誌記錄、高風險操作保護。
+
+### 17.1 Admin 認證與 RBAC 場景
+
+```gherkin
+# features/admin/admin_auth.feature
+# 來源：ADMIN_IMPL.md §RBAC / API.md §18.1
+
+Feature: Admin 認證與 RBAC 權限控制
+
+  Background:
+    Given Admin 後台入口為 /admin/api/v1/
+    And 所有 Admin 操作需要有效的 Admin JWT Token
+
+  @admin @auth @p0 @api
+  Scenario: Super Admin 成功登入（含 TOTP）
+    Given 有效的 Admin 帳號（super_admin 角色）
+    When 使用正確的 username/password + TOTP 碼登入
+    Then 回傳 Admin JWT Token（有效期 15 分鐘）
+    And Token payload 含 roles: ["super_admin"]
+
+  @admin @auth @p0 @api
+  Scenario: Admin 登入失敗 5 次帳號鎖定
+    Given Admin 帳號連續 5 次登入失敗
+    When 第 6 次嘗試登入
+    Then 回傳 HTTP 423（帳號已鎖定）
+    And 稽核日誌記錄「連續登入失敗 - 帳號鎖定」事件
+
+  @admin @rbac @p0 @api
+  Scenario: Operator 角色嘗試存取 Super Admin 功能被拒絕
+    Given Admin 帳號具有 "operator" 角色（無 user.delete 權限）
+    When 嘗試呼叫 DELETE /admin/api/v1/users/:id
+    Then 回傳 HTTP 403（無權限）
+    And 稽核日誌記錄「未授權存取嘗試」事件
+
+  @admin @rbac @p1 @api
+  Scenario: Super Admin 為 Operator 分配新角色
+    Given Super Admin 已登入
+    And 有一個 operator 角色的 Admin 用戶
+    When Super Admin 為其分配 "content_manager" 角色
+    Then 該 Admin 用戶的 roles 列表包含 "content_manager"
+    And 稽核日誌記錄「角色變更：operator → operator + content_manager」
+```
+
+### 17.2 Admin 稽核日誌 BDD 場景
+
+```gherkin
+# features/admin/admin_audit.feature
+# 來源：ADMIN_IMPL.md §AuditLog / API.md §18.4
+
+Feature: Admin 操作稽核日誌驗證
+
+  @admin @audit @p0 @api
+  Scenario: 刪除用戶操作寫入完整稽核日誌
+    Given Super Admin 已登入
+    And 有一個目標用戶 ID: {{USER_ID}}
+    When 執行 DELETE /admin/api/v1/users/{{USER_ID}}
+    Then 用戶被軟刪除（deleted_at 設定）
+    And 稽核日誌記錄包含：
+      | 欄位 | 值 |
+      | actor_id | <Super Admin UUID> |
+      | action_type | user.delete |
+      | resource_type | user |
+      | resource_id | {{USER_ID}} |
+      | ip_address | <請求 IP> |
+      | timestamp | <操作時間 ISO8601> |
+
+  @admin @audit @p1 @api
+  Scenario: 稽核日誌不可竄改（Audit Trail 完整性）
+    Given 稽核日誌中有 100 筆歷史記錄
+    When 嘗試修改或刪除稽核日誌記錄（PUT / DELETE）
+    Then 回傳 HTTP 405（Method Not Allowed）
+    And 稽核日誌記錄總數仍為 100 筆（未減少）
+```
