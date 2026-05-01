@@ -1132,12 +1132,12 @@ curl -v {{API_HEALTH_URL}}
 
 # Step 2: Check pod count
 kubectl get pods -n {{K8S_NAMESPACE}} -l app={{API_APP_LABEL}}
-# Expected: N pods Running and Ready (N = {{MIN_POD_COUNT}})
+# Expected: N pods Running and Ready (N = {{MIN_POD_COUNT}}，最小值 2，消除 SPOF)
 # If 0 pods: the deployment has been accidentally scaled to 0 — proceed to Step 3
 # If pods exist but not Ready: see Section 7.6
 
 # Step 3: If scaled to 0, restore minimum replica count
-kubectl scale deployment/{{API_DEPLOYMENT_NAME}} --replicas={{MIN_POD_COUNT}} -n {{K8S_NAMESPACE}}
+kubectl scale deployment/{{API_DEPLOYMENT_NAME}} --replicas={{MIN_POD_COUNT}} -n {{K8S_NAMESPACE}}  # MIN_POD_COUNT ≥ 2
 # Expected: pods appear within 60 seconds
 
 # Step 4: If pods exist and are Ready but LB is returning 502/503
@@ -1225,7 +1225,7 @@ kubectl exec -n {{REDIS_NAMESPACE}} $(kubectl get pods -n {{REDIS_NAMESPACE}} -l
 
 # Step 2: Check worker pod count and health
 kubectl get pods -n {{K8S_NAMESPACE}} -l app={{WORKER_APP_LABEL}}
-# Expected: {{MIN_WORKER_COUNT}} pods Running and Ready
+# Expected: {{MIN_WORKER_COUNT}} pods Running and Ready（最小值 2，消除 SPOF）
 
 # Step 3: Scale up workers (temporary)
 kubectl scale deployment/{{WORKER_DEPLOYMENT_NAME}} --replicas={{WORKER_SCALE_UP_COUNT}} -n {{K8S_NAMESPACE}}
@@ -1244,7 +1244,7 @@ watch -n 10 'kubectl exec -n {{REDIS_NAMESPACE}} $(kubectl get pods -n {{REDIS_N
 # Double quotes would expand $() once at shell parse time and use a stale pod name after a Redis restart.
 
 # Step 6: After queue is drained, scale workers back to normal
-kubectl scale deployment/{{WORKER_DEPLOYMENT_NAME}} --replicas={{MIN_WORKER_COUNT}} -n {{K8S_NAMESPACE}}
+kubectl scale deployment/{{WORKER_DEPLOYMENT_NAME}} --replicas={{MIN_WORKER_COUNT}} -n {{K8S_NAMESPACE}}  # MIN_WORKER_COUNT ≥ 2
 ```
 
 ### 7.5 Database Issues
