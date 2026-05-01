@@ -1,5 +1,8 @@
 ---
 doc-type: CONSTANTS
+status: DEPRECATED
+deprecated-since: pipeline-v3.0
+replaced-by: EDD Pass-0
 output-path: docs/CONSTANTS.md
 upstream-docs:
   - docs/PRD.md       # 主要數值來源（唯一真相來源）
@@ -8,7 +11,17 @@ upstream-docs:
 quality-bar: "§1-§8 所有章節均有實際數值（無 placeholder）；每個數值均有 PRD §來源標注；constants.json 同步生成且與 .md 一致；全文無任何 {{...}} 佔位符；數值與 PRD 對照無誤差。"
 ---
 
-# CONSTANTS 生成規則
+> **[DEPRECATED — pipeline v3.0]**
+>
+> CONSTANTS 不再是獨立 pipeline step。此生成規則不應被直接呼叫。
+>
+> 業務常數現由 **EDD Pass-0** 負責提取與生成，詳見：
+> - `templates/EDD.gen.md` — Pass-0 章節（§0. Business Constants Extraction）
+>
+> **若需重新生成 CONSTANTS**：執行 `/gendoc edd`，EDD Pass-0 會自動更新 `docs/CONSTANTS.md` 和 `docs/constants.json`。
+> 不需要單獨執行 `/gendoc constants`。
+
+# CONSTANTS 生成規則（已棄用）
 
 ## Iron Law
 

@@ -3,13 +3,25 @@ reviewer-roles:
   - "PRD 數值稽核師（PRD Value Auditor）：逐一核對 CONSTANTS.md 每個數值與 PRD 對應來源，驗證數值正確性"
   - "一致性審查員（Consistency Reviewer）：確認 constants.json 與 CONSTANTS.md 數值完全吻合，確認下游文件引用的數值與本文件一致"
 quality-bar: "全文無 {{PLACEHOLDER}}；每個數值有 PRD §來源；constants.json 已生成且與 .md 一致；§4 SLO 三項均有量化數值；§8 容量三項均有量化數值"
+status: DEPRECATED
+deprecated-since: pipeline-v3.0
+replaced-by: EDD Pass-0 (in EDD.gen.md)
 upstream-alignment:
   - docs/PRD.md       # 數值真相來源對照
   - docs/BRD.md       # SLO 業務依據
   - docs/constants.json  # JSON 同步一致性
 ---
 
-# CONSTANTS Review 標準
+> **[DEPRECATED — pipeline v3.0]**
+>
+> CONSTANTS 不再是獨立 pipeline step，此審查規則不應被單獨呼叫。
+>
+> 業務常數現由 **EDD Pass-0** 生成，審查應在 EDD Review 環節中一併完成。
+> 詳見 `templates/EDD.review.md` 中的 Pass-0 相關審查項目。
+>
+> **若需驗證 CONSTANTS 品質**：執行 `/reviewdoc edd` 或 `/reviewtemplate EDD`。
+
+# CONSTANTS Review 標準（已棄用）
 
 ## [CRITICAL] 1 — 存在未替換的 Placeholder
 

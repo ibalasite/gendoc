@@ -1,5 +1,14 @@
-# CONSTANTS — 業務常數與量化參數文件
-<!-- 跨文件數值一致性的唯一真相來源 -->
+# CONSTANTS — 業務常數與量化參數文件（已棄用）
+
+> **[DEPRECATED]** 此文件自 pipeline v3.0 起已棄用。
+>
+> CONSTANTS 不再是獨立 pipeline step。業務常數現由 **EDD Pass-0** 負責提取，
+> 輸出至 `docs/CONSTANTS.md`（結構相同）和 `docs/constants.json`。
+>
+> **遷移方式：** 執行 `/gendoc edd`，EDD Pass-0 會自動生成並維護 CONSTANTS 內容。
+> 不需要單獨執行 `/gendoc constants`。
+
+<!-- 跨文件數值一致性的唯一真相來源（由 EDD Pass-0 生成） -->
 <!-- 所有下游文件（EDD/BDD/test-plan/runbook）必須讀取此文件並引用，不得自行填寫未驗證數字 -->
 
 ---
