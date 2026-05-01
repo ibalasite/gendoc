@@ -104,6 +104,7 @@ state = json.load(open(state_file, encoding="utf-8"))
 
 completed = set(state.get("completed_steps", []))
 client_type = state.get("client_type", "unknown")
+has_admin   = bool(state.get("has_admin_backend", False))
 
 all_steps  = []
 # 支援 top-level steps（v2.x）和 phases（舊格式）兩種 pipeline 格式
@@ -132,6 +133,8 @@ for step, phase_name in raw_steps:
         continue
     if cond == "client_type == game" and client_type != "game":
         continue
+    if cond == "has_admin_backend" and not has_admin:
+        continue
     all_steps.append({
         "id":    sid,
         "phase": phase_name,
@@ -144,8 +147,9 @@ present  = [s for s in all_steps if s["id"] in completed]
 
 print(f"\n{'='*70}")
 print(f"  Pipeline Diff 報告")
-print(f"  pipeline   : {pipeline_file.split('/')[-1]}")
-print(f"  client_type: {client_type}")
+print(f"  pipeline        : {pipeline_file.split('/')[-1]}")
+print(f"  client_type     : {client_type}")
+print(f"  has_admin_backend: {has_admin}")
 print(f"  total steps: {len(all_steps)}")
 print(f"  completed  : {len(present)}")
 print(f"  missing    : {len(missing)}")

@@ -103,6 +103,9 @@ options:
 # unity         → CLIENT_IMPL
 # react-impl    → CLIENT_IMPL
 # vue-impl      → CLIENT_IMPL
+# admin-impl    → ADMIN_IMPL
+# admin_impl    → ADMIN_IMPL   （底線別名）
+# admin         → ADMIN_IMPL   （快捷別名）
 
 _CWD="$(pwd)"
 if [[ -f "$_CWD/templates/pipeline.json" ]]; then

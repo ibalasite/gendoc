@@ -62,7 +62,7 @@ _SCHEMA="${_SCHEMA:-$_DOCS/SCHEMA.md}"
 ```
 
 修復策略：
-1. 先確認衝突的上游優先順序（IDEA > BRD > PRD > PDD > EDD > ARCH > API > SCHEMA）
+1. 先確認衝突的上游優先順序（IDEA > BRD > PRD > PDD > VDD > EDD > ARCH > API > SCHEMA > FRONTEND > AUDIO > ANIM > CLIENT_IMPL > ADMIN_IMPL > CONTRACTS）
 2. 以優先度最高的上游文件為準修復下游
 3. 若修復影響多個下游文件，列出所有受影響文件的修復清單
 4. 修復後再次執行 align-check 驗證

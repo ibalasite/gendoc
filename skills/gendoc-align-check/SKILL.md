@@ -60,28 +60,88 @@ IDEA → BRD → PRD → PDD* → VDD* → EDD → ARCH → API → SCHEMA → F
 
 ```bash
 _CWD="$(pwd)"
-_DOCS="${_CWD}/docs"
 _SRC="${_CWD}/src"
 _TESTS="${_CWD}/tests"
 _FEATURES="${_CWD}/features"
 
-# 必有文件
-for f in BRD PRD EDD ARCH API SCHEMA test-plan RTM LOCAL_DEPLOY; do
-  [[ -f "${_DOCS}/${f}.md" ]] && echo "FOUND: docs/${f}.md" || echo "MISSING: docs/${f}.md"
-done
-
-# client_type 條件文件
-_CT=$(python3 -c "import json; d=json.load(open('.gendoc-state.json')); print(d.get('client_type','none'))" 2>/dev/null || echo "none")
-echo "client_type: $_CT"
-if [[ "$_CT" != "none" ]]; then
-  for f in PDD VDD FRONTEND; do
-    [[ -f "${_DOCS}/${f}.md" ]] && echo "FOUND: docs/${f}.md" || echo "MISSING (client): docs/${f}.md"
-  done
+# 找 pipeline.json（local-first）
+_PIPELINE_LOCAL="$_CWD/templates/pipeline.json"
+_PIPELINE_GLOBAL="$HOME/.claude/gendoc/templates/pipeline.json"
+if [[ -f "$_PIPELINE_LOCAL" ]]; then
+  _PIPELINE="$_PIPELINE_LOCAL"
+elif [[ -f "$_PIPELINE_GLOBAL" ]]; then
+  _PIPELINE="$_PIPELINE_GLOBAL"
+else
+  echo "[WARN] 找不到 pipeline.json，降級為靜態列表"
+  _PIPELINE=""
 fi
+
+# 從 pipeline.json + state 動態產生應存在的文件清單
+python3 - "$_PIPELINE" "$_CWD" <<'PY'
+import json, os, sys
+
+pipeline_file = sys.argv[1]
+cwd           = sys.argv[2]
+
+# 讀取 state（容錯）
+state = {}
+for sf in [".gendoc-state.json"] + \
+          [f for f in os.listdir(cwd) if f.startswith(".gendoc-state-") and f.endswith(".json")]:
+    try:
+        state = json.load(open(os.path.join(cwd, sf)))
+        break
+    except:
+        pass
+
+client_type = state.get("client_type", "none")
+has_admin   = bool(state.get("has_admin_backend", False))
+print(f"[State] client_type={client_type} | has_admin_backend={has_admin}")
+
+# 讀取 pipeline
+if not pipeline_file or not os.path.exists(pipeline_file):
+    print("[WARN] pipeline.json 不存在，跳過動態掃描")
+    sys.exit(0)
+
+pipe  = json.load(open(pipeline_file, encoding="utf-8"))
+steps = pipe.get("steps", [])
+
+def eval_cond(cond):
+    if not cond or cond == "always":
+        return True
+    if cond == "client_type != none" and client_type in ("none", ""):
+        return False
+    if cond == "client_type == game" and client_type != "game":
+        return False
+    if cond == "client_type != api-only" and client_type == "api-only":
+        return False
+    if cond == "has_admin_backend" and not has_admin:
+        return False
+    return True
+
+for step in steps:
+    cond = step.get("condition", "always")
+    if not eval_cond(cond):
+        continue
+    # 跳過 special_skill 步驟（ALIGN/CONTRACTS/MOCK/PROTOTYPE/HTML/UML）的輸出目錄（不是單一 .md）
+    if step.get("multi_file") or step.get("special_skill"):
+        out = step.get("output", [])
+        # BDD feature dirs 單獨在後面處理
+        for o in out:
+            print(f"CHECK_DIR: {o} [{step['id']}]")
+        continue
+    for o in step.get("output", []):
+        path = os.path.join(cwd, o)
+        if os.path.isfile(path) and os.path.getsize(path) > 0:
+            print(f"FOUND: {o} [{step['id']}]")
+        elif os.path.isfile(path):
+            print(f"EMPTY: {o} [{step['id']}] cond={cond}")
+        else:
+            print(f"MISSING: {o} [{step['id']}] cond={cond}")
+PY
 
 # BDD feature directories
 [[ -d "$_FEATURES" ]] && echo "FOUND: features/" || echo "MISSING: features/"
-[[ -d "${_FEATURES}/client" ]] && echo "FOUND: features/client/" || echo "MISSING: features/client/ (client_type=${_CT})"
+[[ -d "${_FEATURES}/client" ]] && echo "FOUND: features/client/" || echo "MISSING: features/client/"
 [[ -d "$_SRC" ]] && echo "FOUND: src/" || echo "MISSING: src/"
 [[ -d "$_TESTS" ]] && echo "FOUND: tests/" || echo "MISSING: tests/"
 ```
@@ -92,9 +152,13 @@ Align Check 採用**累積上游依賴鏈**模型，每個文件對比**所有**
 
 **依賴鏈（正確順序，含條件文件）：**
 ```
-IDEA → BRD → PRD → PDD* → VDD* → EDD → ARCH → API → SCHEMA → FRONTEND* → test-plan → BDD-server → BDD-client* → RTM → Code/Tests
-（* = client_type≠none 才存在）
+IDEA → BRD → PRD → PDD* → VDD* → EDD → ARCH → API → SCHEMA
+     → FRONTEND* → AUDIO** → ANIM** → CLIENT_IMPL* → ADMIN_IMPL***
+     → test-plan → BDD-server → BDD-client* → RTM → Code/Tests
+（* = client_type≠none；** = client_type==game；*** = has_admin_backend）
 ```
+
+> 文件清單由 `pipeline.json` 動態決定，新增 step 後無需修改此 skill。
 
 **對齊矩陣（每行 = 需驗證的文件對）：**
 
@@ -133,71 +197,118 @@ IDEA → BRD → PRD → PDD* → VDD* → EDD → ARCH → API → SCHEMA → F
 **Dimension 0（必要文件存在性）**：
 確認以下文件存在且非空。缺少任一 → 嚴重度如標示：
 
-**必有文件（缺少 → HIGH finding）：**
-- `README.md`
-- `docs/BRD.md`
-- `docs/PRD.md`
-- `docs/EDD.md`
-- `docs/ARCH.md`
-- `docs/API.md`
-- `docs/SCHEMA.md`
-- `docs/test-plan.md`
-- `docs/RTM.md`
-- `docs/LOCAL_DEPLOY.md`
+文件清單從 `pipeline.json` 動態產生（condition 由 state 的 client_type 和 has_admin_backend 評估），不再硬編碼。
 
-**client_type≠none 才需要（缺少 → MEDIUM finding）：**
-- `docs/PDD.md`
-- `docs/VDD.md`
-- `docs/FRONTEND.md`
-
-**BDD Feature Files（缺少 → HIGH finding）：**
-- `features/` 目錄存在且含 *.feature 檔案（BDD-server）
-- client_type≠none 時：`features/client/` 目錄存在且含 *.feature 檔案（BDD-client）
+嚴重度規則：
+- `condition: always` 的步驟輸出缺失 → **HIGH**
+- `condition: client_type != none / == game / != api-only / has_admin_backend` 的步驟輸出缺失 → **MEDIUM**
 
 ```bash
-_CT=$(python3 -c "import json; d=json.load(open('.gendoc-state.json')); print(d.get('client_type','none'))" 2>/dev/null || echo "none")
-echo "client_type: $_CT"
+# 找 pipeline.json（local-first，與 Step 1 相同）
+_PIPELINE_LOCAL="$(pwd)/templates/pipeline.json"
+_PIPELINE_GLOBAL="$HOME/.claude/gendoc/templates/pipeline.json"
+_PIPELINE=""
+[[ -f "$_PIPELINE_LOCAL" ]] && _PIPELINE="$_PIPELINE_LOCAL"
+[[ -z "$_PIPELINE" && -f "$_PIPELINE_GLOBAL" ]] && _PIPELINE="$_PIPELINE_GLOBAL"
 
-# 必有文件
-for f in README.md docs/BRD.md docs/PRD.md docs/EDD.md docs/ARCH.md docs/API.md docs/SCHEMA.md docs/test-plan.md docs/RTM.md docs/LOCAL_DEPLOY.md; do
-  if [[ ! -f "$f" ]]; then
-    echo "[HIGH] MISSING: $f"
-  elif [[ ! -s "$f" ]]; then
-    echo "[HIGH] EMPTY: $f"
-  else
-    echo "[OK] $f"
-  fi
-done
+python3 - "$_PIPELINE" "$(pwd)" <<'PY'
+import json, os, sys
 
-# client 條件文件
-if [[ "$_CT" != "none" ]]; then
-  for f in docs/PDD.md docs/VDD.md docs/FRONTEND.md; do
-    if [[ ! -f "$f" ]]; then
-      echo "[MEDIUM] MISSING (client_type=${_CT}): $f"
-    elif [[ ! -s "$f" ]]; then
-      echo "[MEDIUM] EMPTY (client_type=${_CT}): $f"
-    else
-      echo "[OK] $f"
-    fi
-  done
-fi
+pipeline_file = sys.argv[1]
+cwd           = sys.argv[2]
 
-# BDD Feature Files
-_SERVER_COUNT=$(find features -maxdepth 1 -name "*.feature" 2>/dev/null | wc -l | tr -d ' ')
-if [[ "$_SERVER_COUNT" -eq 0 ]]; then
-  echo "[HIGH] MISSING or EMPTY: features/*.feature (BDD-server)"
-else
-  echo "[OK] features/ — ${_SERVER_COUNT} .feature file(s)"
-fi
+# 讀取 state
+state = {}
+for sf in [".gendoc-state.json"] + \
+          [f for f in os.listdir(cwd) if f.startswith(".gendoc-state-") and f.endswith(".json")]:
+    try:
+        state = json.load(open(os.path.join(cwd, sf)))
+        break
+    except:
+        pass
 
-if [[ "$_CT" != "none" ]]; then
-  _CLIENT_COUNT=$(find features/client -maxdepth 1 -name "*.feature" 2>/dev/null | wc -l | tr -d ' ')
-  if [[ "$_CLIENT_COUNT" -eq 0 ]]; then
-    echo "[MEDIUM] MISSING or EMPTY: features/client/*.feature (BDD-client, client_type=${_CT})"
-  else
-    echo "[OK] features/client/ — ${_CLIENT_COUNT} .feature file(s)"
-  fi
-fi
+client_type = state.get("client_type", "none")
+has_admin   = bool(state.get("has_admin_backend", False))
+print(f"[Dim0] client_type={client_type} | has_admin_backend={has_admin}")
+
+if not pipeline_file or not os.path.exists(pipeline_file):
+    print("[WARN] pipeline.json 不存在，Dimension 0 跳過動態檢查")
+    sys.exit(0)
+
+pipe  = json.load(open(pipeline_file, encoding="utf-8"))
+steps = pipe.get("steps", [])
+
+def eval_cond(cond):
+    if not cond or cond == "always":
+        return True
+    if cond == "client_type != none" and client_type in ("none", ""):
+        return False
+    if cond == "client_type == game" and client_type != "game":
+        return False
+    if cond == "client_type != api-only" and client_type == "api-only":
+        return False
+    if cond == "has_admin_backend" and not has_admin:
+        return False
+    return True
+
+def severity(cond):
+    return "HIGH" if (not cond or cond == "always") else "MEDIUM"
+
+findings = []
+ok_count = 0
+
+for step in steps:
+    cond = step.get("condition", "always")
+    if not eval_cond(cond):
+        continue
+    # 跳過 multi-file / special_skill 步驟（BDD/CONTRACTS/MOCK/PROTOTYPE/UML/HTML/ALIGN）
+    # 這些步驟的存在性由各自的 special_skill 負責
+    if step.get("multi_file") or step.get("special_skill"):
+        continue
+    for out_path in step.get("output", []):
+        full = os.path.join(cwd, out_path)
+        sev  = severity(cond)
+        if not os.path.isfile(full):
+            findings.append(f"[{sev}] MISSING: {out_path} (step={step['id']}, cond={cond})")
+        elif os.path.getsize(full) == 0:
+            findings.append(f"[{sev}] EMPTY: {out_path} (step={step['id']}, cond={cond})")
+        else:
+            ok_count += 1
+            print(f"[OK] {out_path}")
+
+# BDD feature files（固定規則，不在 pipeline.json output 中）
+import glob
+server_features = glob.glob(os.path.join(cwd, "features", "*.feature"))
+if not server_features:
+    findings.append("[HIGH] MISSING: features/*.feature (BDD-server, step=D12-BDD-server)")
+else:
+    ok_count += 1
+    print(f"[OK] features/ — {len(server_features)} .feature file(s)")
+
+if client_type not in ("none", "", "api-only"):
+    client_features = glob.glob(os.path.join(cwd, "features", "client", "*.feature"))
+    if not client_features:
+        findings.append(f"[MEDIUM] MISSING: features/client/*.feature (BDD-client, client_type={client_type})")
+    else:
+        ok_count += 1
+        print(f"[OK] features/client/ — {len(client_features)} .feature file(s)")
+
+# README（非 pipeline step，但必有）
+readme = os.path.join(cwd, "README.md")
+if not os.path.isfile(readme) or os.path.getsize(readme) == 0:
+    findings.append("[HIGH] MISSING or EMPTY: README.md")
+else:
+    ok_count += 1
+    print("[OK] README.md")
+
+# 輸出 findings
+print()
+for f in findings:
+    print(f)
+print()
+print(f"[Dim0 Summary] OK={ok_count} | FINDINGS={len(findings)}")
+print(f"DIM0_FINDING_COUNT:{len(findings)}")
+PY
 ```
 
 將所有 MISSING / EMPTY 輸出收集為 Dimension 0 findings，納入最終報告。

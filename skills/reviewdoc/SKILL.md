@@ -68,6 +68,7 @@ _DOC_TYPE=""   # e.g., "local-deploy"
 # test-plan → test-plan | runbook → runbook | local-deploy → LOCAL_DEPLOY
 # idea → IDEA | readme → README | uml-class → UML-CLASS-GUIDE
 # frontend → FRONTEND | vdd → VDD
+# admin-impl → ADMIN_IMPL | admin_impl → ADMIN_IMPL | admin → ADMIN_IMPL
 # bdd-server → BDD-server（multi-file, target=features/）
 # bdd-client → BDD-client（multi-file, target=features/client/）
 # bdd → BDD-server（向後相容別名，等同 bdd-server）
