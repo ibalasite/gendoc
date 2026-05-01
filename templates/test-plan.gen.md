@@ -696,24 +696,45 @@ SLO / SLI 矩陣（P50/P95/P99 均必須有具體數字）：
 - [ ] 所有 `[UPSTREAM_CONFLICT]` 標記均已處理或說明
 - [ ] 無 TBD、「待確認」、「N/A」等未填寫欄位
 
-### Admin Backend 條件步驟（has_admin_backend=true 時執行）
+### §3.8 Admin Backend 測試（has_admin_backend=true 時執行）
+
+> **觸發條件**：讀取 `.gendoc-state.json` 的 `has_admin_backend` 欄位；若為 `true` 則執行，否則略過。
+
+**生成步驟**（依序完成）：
+
+1. **讀取 Admin 上游文件**：
+   - `docs/ADMIN_IMPL.md`（若存在）：RBAC 角色定義、Permission 清單、AuditLog 欄位規格
+   - `docs/API.md §Admin`（/admin/api/v1/ 相關 Endpoints）
+   - `docs/BDD.md §17`（Admin BDD Scenario 樣板）
+
+2. **Risk Matrix 更新**：確認 §9 Risk-Based Testing Matrix 中「Admin 後台（RBAC / 稽核日誌）」已列為 **H / P0**（不得為 L / P2）：
+   - Risk = **H**：許可權控制失效會導致資料洩漏或越權操作
+   - Priority = **P0**：RBAC 邊界測試 + 稽核日誌完整性是安全合規前提
+
+3. **生成 Admin 專屬 Unit Test 案例**（至少 8 個 TC）：
+   - TC-ADMIN-001: Admin 登入 — 正確 credentials + TOTP → 成功取得 Token（role: super_admin）
+   - TC-ADMIN-002: Admin 登入 — 連續 5 次失敗 → HTTP 423 帳號鎖定 + AuditLog 記錄
+   - TC-ADMIN-003: RBAC 隔離 — operator 角色呼叫 super_admin 專屬 API → HTTP 403
+   - TC-ADMIN-004: 稽核日誌 — 刪除用戶後確認 AuditLog 含 actor_id / action_type / resource_id / ip / timestamp
+   - TC-ADMIN-005: Admin Token 過期 — Token 15 分鐘後失效 → HTTP 401
+   - TC-ADMIN-006: 用戶管理 CRUD — 建立/查詢/停用/刪除用戶完整流程
+   - TC-ADMIN-007: 角色管理 — super_admin 分配新角色 → AuditLog 記錄角色變更
+   - TC-ADMIN-008: 稽核日誌不可竄改 — PUT / DELETE 稽核日誌 → HTTP 405
+
+4. **生成 Admin Integration Test 案例**：
+   - RBAC Matrix 全路徑測試：每個 Admin 角色 × 每個 Admin Endpoint 的許可/拒絕結果矩陣
+   - AuditLog 欄位完整性：所有高風險操作（delete / ban / role_change）的 AuditLog 寫入驗證
+
+5. **生成 Admin E2E / BDD 關聯**：
+   - 引用 BDD.md §17（@admin @rbac @audit scenarios）確認 E2E 已覆蓋
+   - 確認 @admin @rbac Scenario ≥ 2、@admin @audit Scenario ≥ 2
+
+6. **更新 §2 Test Scope** — Admin 功能納入 In-Scope（若 has_admin_backend=true 且之前未列入）
 
 ```python
 _has_admin = state.get("has_admin_backend", False)
-if _has_admin:
-    # 從 docs/ADMIN_IMPL.md 讀取 RBAC 角色定義 + Permission 清單
-    # 生成 Admin 專屬測試案例：
-    # TC-ADMIN-001: Admin 登入（正確 credentials + TOTP）
-    # TC-ADMIN-002: Admin 登入（錯誤密碼連續 5 次 → 帳號鎖定）
-    # TC-ADMIN-003: RBAC 權限隔離（operator 無法存取 super_admin 功能）
-    # TC-ADMIN-004: 稽核日誌記錄（刪除用戶後確認 AuditLog 寫入）
-    # TC-ADMIN-005: Admin Token 過期（15 分鐘後自動登出）
-    # TC-ADMIN-006: 用戶管理 CRUD 完整流程
-    # TC-ADMIN-007: 角色管理 CRUD + 權限分配
-    # TC-ADMIN-008: 稽核日誌 CSV 導出功能
-    # 確認所有 ADMIN_IMPL.md §16 Self-Check 項目都有對應 TC
-else:
-    pass  # 無需額外 Admin 測試案例
+if not _has_admin:
+    pass  # 略過 §3.8，在 test-plan.md §3.8 填入「has_admin_backend=false，略過 Admin 測試章節」
 ```
 
 ---
@@ -733,3 +754,6 @@ else:
 | 測試資料有值 | 每個 TC 的 Test Data 欄位填有具體資料（非「測試資料待定」） | 從 SCHEMA 和 API 提取現實資料 |
 | PRD AC 對應 | PRD 每條驗收標準（AC）都有至少一個對應的 TC | 對照 PRD AC 補充缺失的 TC |
 | 覆蓋率目標 | 有明確的測試覆蓋率目標（整體 ≥ 80%，核心邏輯 ≥ 90%） | 補充覆蓋率目標說明 |
+| Admin 風險等級正確 | has_admin_backend=true 時，§9 Risk Matrix 中 Admin 後台為 H / P0（非 L / P2）| 依 §3.8 步驟 2 更新 Risk Matrix |
+| Admin TC 覆蓋 | has_admin_backend=true 時，§3.8 含 ≥ 8 個 Admin TC（RBAC 邊界 + AuditLog 完整性）| 依 §3.8 步驟 3-4 補充 Admin TC |
+| Admin E2E 關聯 | has_admin_backend=true 時，已引用 BDD §17（@admin @rbac ≥ 2 + @admin @audit ≥ 2）| 補充 BDD §17 引用 |

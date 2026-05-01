@@ -804,7 +804,7 @@ PR merge 到 main 的強制條件（任一未達，自動 block）：
 | API Rate Limiting | **M** | 濫用保護，但 bypass 風險可接受 | P1 | Integration ≥ 80% |
 | {{SECONDARY_FEATURE_1}} | **M** | 功能重要但有 fallback 機制 | P1 | Unit ≥ 80% |
 | Email 通知功能 | **M** | 用戶體驗影響，但非阻塞性 | P1 | Unit ≥ 80%, Integration（mock SMTP） |
-| Admin Dashboard | **L** | 僅內部使用，影響範圍小 | P2 | Unit ≥ 70% |
+| Admin 後台（RBAC / 稽核日誌）| **H** | 許可權控制失效 → 資料洩漏 / 越權操作；has_admin_backend=true 時 | P0 | Unit ≥ 90%, Integration 100% RBAC boundary, E2E @admin @rbac @audit |
 | Report 匯出（CSV/PDF） | **L** | 輔助功能，非核心流程 | P2 | Unit ≥ 70% |
 | 使用者偏好設定 | **L** | 非業務關鍵，影響個別用戶 | P3 | Unit ≥ 60% |
 
