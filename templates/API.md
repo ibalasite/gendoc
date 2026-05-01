@@ -1201,6 +1201,14 @@ components:
 - [ ] Rate Limiting 規則已於 §6 明確說明
 - [ ] Webhook 事件類型（若有）已於 §8 定義
 
+### HA / Resilience（必查，所有端點）
+- [ ] 每個端點的 Timeout 已於 §2 或端點說明中明確定義（非 0 / 非無限）
+- [ ] 客戶端重試策略已定義（最大次數、Exponential Backoff、Jitter）
+- [ ] 重試端點的冪等性已於 §7 標注（POST 需 Idempotency-Key）
+- [ ] Rate Limiting 含 503/429 + Retry-After header，客戶端不盲目 retry
+- [ ] 關鍵外部呼叫（DB、Cache、第三方 API）有 Circuit Breaker 說明
+- [ ] 所有端點在服務 downscale / pod 重啟期間有 Graceful Shutdown 行為定義（in-flight request ≤ 30s 完成後才終止）
+
 ---
 
 ## 15. API Versioning & Deprecation Policy

@@ -209,3 +209,33 @@ upstream-alignment:
 **Check**: 對照 `docs/diagrams/` 目錄，每個 P0 Endpoint 是否有對應的 Sequence Diagram（`docs/diagrams/sequence-*.md`）？確認方式：逐一列出 API.md 的 P0 Endpoint，搜尋是否有對應的 `sequence-{flow}.md`（如 POST /auth/login → sequence-login.md）。無對應 Sequence Diagram 的 P0 Endpoint 視為 HIGH。
 **Risk**: 缺少 Sequence Diagram，工程師在實作時沒有「訊息傳遞時序」的視覺指引，各層之間的呼叫順序只能靠口頭溝通，容易造成 Controller 直接呼叫 Repository（跳過 Service 層）、Cache 操作順序錯誤、事件發布時機不一致等架構缺陷，且難以在 Code Review 中被發現。
 **Fix**: 執行 `/gendoc-gen-diagrams` 自動生成所有 Endpoint 的 Sequence Diagram；或手動為每個 P0 Endpoint 在 EDD §4.5.4 補充對應的 sequenceDiagram 程式碼塊，再由 gen-diagrams 提取。每張 Sequence Diagram 必須包含：Controller → Service → Repository → DB 完整呼叫鏈，以及 Happy Path 和至少 2 個 Error Path（使用者不存在、驗證失敗等）。
+
+
+---
+
+### Layer 9: HA / Resilience 設計（由 Backend Engineer 主審，共 5 項）
+
+#### [CRITICAL] 29 — 端點 Timeout 未定義
+**Check**: §2 通用規範或各端點說明中，是否明確定義每個 API 呼叫的 Timeout（含 Server-side response timeout 與 client-side read timeout）？若無任何 Timeout 定義，視為 CRITICAL。
+**Risk**: 沒有 Timeout 的服務在依賴項（DB、Cache、第三方 API）出現延遲時，請求會無限等待，佔用 thread pool，最終導致整個服務不可用（典型的 cascading failure 模式）。
+**Fix**: 在 §2 通用規範補充 Timeout 表格（連線建立 Timeout / 讀取 Timeout / 端點最大響應時間），並在效能敏感端點說明中標注個別 Timeout 值（從 EDD §效能需求推算）。
+
+#### [HIGH] 30 — 重試策略未定義
+**Check**: §2 或端點說明是否定義客戶端重試策略？包含：可重試的 HTTP 狀態碼（503/429/502）、不可重試碼（400/401/403）、最大重試次數、Exponential Backoff + Jitter 算法說明？缺少以上任一項視為 HIGH。
+**Risk**: 未定義重試策略，客戶端開發者自行實作：有人不重試、有人線性重試（Thundering Herd）、有人無限重試（DDoS 自家服務），導致 failover 後更難恢復。
+**Fix**: 在 §2 補充重試策略規格（可重試狀態碼 / 最大次數 / Backoff 公式 / Jitter 必要性說明）；POST 等非冪等端點的重試必須搭配 `Idempotency-Key`。
+
+#### [HIGH] 31 — Circuit Breaker 策略未說明
+**Check**: 對於呼叫外部服務的 API 端點（DB、Cache、第三方 API、微服務間呼叫），是否說明 Circuit Breaker 行為（fallback 回應、半開狀態逾時、錯誤率門檻）？若架構涉及微服務間呼叫或第三方依賴而完全無 Circuit Breaker 說明，視為 HIGH。
+**Risk**: 沒有 Circuit Breaker，單一依賴項故障會傳播至所有呼叫者，導致整個請求鏈超時並最終令上層服務也不可用（cascading failure）。
+**Fix**: 在 §17 Observability 或 §2 通用規範補充 Circuit Breaker 設計：觸發條件（5 秒錯誤率 > 50%）、開啟後的 fallback 回應（503 + Retry-After）、半開探測間隔（30s）。
+
+#### [HIGH] 32 — 冪等性設計未涵蓋重試場景
+**Check**: §7 Idempotency 是否說明：所有 POST 端點必須接受 `Idempotency-Key`（含有效期）？重複請求時是否回傳相同結果（而非再次執行）？`Idempotency-Key` 的儲存策略（Redis TTL）？缺少儲存策略或有效期視為 HIGH。
+**Risk**: 客戶端在網路重試時重複執行 POST 操作（重複下單、重複付款、重複建立資源），造成資料異常且難以偵測。
+**Fix**: 補充 §7 Idempotency：`Idempotency-Key` header 說明（UUID v4、有效期 24h）、Redis 儲存設計（key TTL / 請求結果快取）、重複請求偵測後的回應方式（HTTP 200 + 原始結果）。
+
+#### [CRITICAL] 33 — Graceful Shutdown 行為未定義
+**Check**: API 文件是否定義或引用 EDD §3.6 中的 Graceful Shutdown 行為？包含：pod 終止信號（SIGTERM）後不再接受新請求、in-flight 請求最多等待 N 秒（推薦 ≤ 30s）完成後才退出、Load Balancer 已移除該 pod 的流量後才開始 drain？若完全無說明視為 CRITICAL。
+**Risk**: 沒有 Graceful Shutdown，每次 pod 重啟（deploy/scale/節點驅逐）都會造成部分請求 502/503，在 canary 或 rolling update 期間尤其明顯。
+**Fix**: 在 §2 通用規範補充「Graceful Shutdown 承諾」段落，並引用 EDD §3.6 HA Architecture 的 SIGTERM 處理流程；或在 §17 SLO 補充「每次 Deploy 期間 SLO 維持 99.9%」的實現說明（Graceful Shutdown + Readiness Probe 配置）。
