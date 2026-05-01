@@ -272,12 +272,17 @@ kubectl wait --for=condition=Ready pods --all -n {{K8S_NAMESPACE}}-local --timeo
 
 預期 Pod 狀態（全部 `Running`）：
 
+> Local 環境 API Server 維持 ≥ 2 replica，用以測試 HA 程式邏輯（共享 Session、distributed lock、pub/sub 等）。詳見 EDD §3.7 圖 B。
+
 ```
 NAME                          READY   STATUS    RESTARTS   AGE
-api-server-<hash>             1/1     Running   0          60s
+api-server-<hash1>            1/1     Running   0          60s
+api-server-<hash2>            1/1     Running   0          60s
 web-app-<hash>                1/1     Running   0          60s
-worker-<hash>                 1/1     Running   0          60s
+worker-<hash1>                1/1     Running   0          60s
+worker-<hash2>                1/1     Running   0          60s
 postgres-0                    1/1     Running   0          60s
+postgres-1                    1/1     Running   0          60s
 redis-0                       1/1     Running   0          60s
 minio-<hash>                  1/1     Running   0          60s
 mailpit-<hash>                1/1     Running   0          60s
