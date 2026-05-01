@@ -1,0 +1,369 @@
+# gendoc 文件流水線定義 v3.0
+# 此檔案是流水線的唯一順序來源（Single Source of Truth）。
+#
+# 新增文件類型：(1) 加入本檔案的 steps；(2) 建立 templates/{TYPE}.md + TYPE.gen.md + TYPE.review.md
+# 不需修改任何 skill 檔案。
+#
+# condition 語法：
+#   always              — 永遠執行
+#   client_type != none — 有前台客戶端時執行
+#   client_type == game — 遊戲類型時執行
+#   client_type != api-only — 非純 API 時執行
+#   has_admin_backend   — 有 admin 後台時執行（state.has_admin_backend=true）
+#
+# handled_by：
+#   gendoc-auto — 由 gendoc-auto skill 直接處理（IDEA/BRD）
+#   gendoc-flow — 由 gendoc-flow skill 的標準 gen→review 流程處理
+#
+# special_skill：覆寫 handled_by，直接呼叫指定 skill，不走標準 gen→review 流程
+
+version: "3.0"
+
+steps:
+
+  # ─── 需求層 ───────────────────────────────────────────────────────
+
+  - id: IDEA
+    type: IDEA
+    layer: 需求層
+    output:
+      - docs/IDEA.md
+    multi_file: false
+    condition: always
+    handled_by: gendoc-auto
+    commit_prefix: "docs(gendoc)[IDEA]"
+
+  - id: BRD
+    type: BRD
+    layer: 需求層
+    output:
+      - docs/BRD.md
+    multi_file: false
+    condition: always
+    handled_by: gendoc-auto
+    commit_prefix: "docs(gendoc)[BRD]"
+
+  - id: PRD
+    type: PRD
+    layer: 需求層
+    output:
+      - docs/PRD.md
+    multi_file: false
+    condition: always
+    handled_by: gendoc-flow
+    commit_prefix: "docs(gendoc)[PRD]"
+
+  # ─── 設計層 ───────────────────────────────────────────────────────
+
+  - id: PDD
+    type: PDD
+    layer: 設計層
+    output:
+      - docs/PDD.md
+    multi_file: false
+    condition: "client_type != none"
+    handled_by: gendoc-flow
+    commit_prefix: "docs(gendoc)[PDD]"
+
+  - id: VDD
+    type: VDD
+    layer: 設計層
+    output:
+      - docs/VDD.md
+    multi_file: false
+    condition: "client_type != none"
+    handled_by: gendoc-flow
+    commit_prefix: "docs(gendoc)[VDD]"
+
+  - id: EDD
+    type: EDD
+    layer: 設計層
+    output:
+      - docs/EDD.md
+    multi_file: false
+    condition: always
+    handled_by: gendoc-flow
+    commit_prefix: "docs(gendoc)[EDD]"
+    note: >
+      EDD 採用四 pass 架構：
+      Pass-0 從 PRD 提取業務數值（輸出 docs/CONSTANTS.md + docs/constants.json）；
+      Pass-A 生成 §0-§8；
+      Pass-B 生成 §4.5 UML（Mermaid）；
+      Pass-C 生成 §9-§21。
+      四個 pass 均輸出到同一個 docs/EDD.md，review loop 在全部完成後執行。
+      NOTE: CONSTANTS 不再是獨立 step，由 EDD Pass-0 負責提取。
+
+  - id: ARCH
+    type: ARCH
+    layer: 設計層
+    output:
+      - docs/ARCH.md
+    multi_file: false
+    condition: always
+    handled_by: gendoc-flow
+    commit_prefix: "docs(gendoc)[ARCH]"
+
+  - id: UML
+    type: UML
+    layer: 設計層
+    output:
+      - docs/diagrams/
+    output_glob: "docs/diagrams/*.md"
+    multi_file: true
+    condition: always
+    special_skill: gendoc-gen-diagrams
+    handled_by: gendoc-flow
+    commit_prefix: "docs(gendoc)[UML]"
+    note: >
+      特殊步驟：呼叫 gendoc-gen-diagrams skill，生成 9 大 Server UML 圖 + class-inventory.md。
+      has_admin_backend=true 時額外生成 3 張 Admin 圖（RBAC Entity / Admin Login Sequence / Admin-Server C4）。
+      不走標準 gen→review 流程。class-inventory.md 供 test-plan 和 RTM 讀取。
+
+  - id: API
+    type: API
+    layer: 設計層
+    output:
+      - docs/API.md
+    multi_file: false
+    condition: always
+    handled_by: gendoc-flow
+    commit_prefix: "docs(gendoc)[API]"
+
+  - id: SCHEMA
+    type: SCHEMA
+    layer: 設計層
+    output:
+      - docs/SCHEMA.md
+    multi_file: false
+    condition: always
+    handled_by: gendoc-flow
+    commit_prefix: "docs(gendoc)[SCHEMA]"
+
+  - id: FRONTEND
+    type: FRONTEND
+    layer: 設計層
+    output:
+      - docs/FRONTEND.md
+    multi_file: false
+    condition: "client_type != none"
+    handled_by: gendoc-flow
+    commit_prefix: "docs(gendoc)[FRONTEND]"
+
+  - id: AUDIO
+    type: AUDIO
+    layer: 設計層
+    output:
+      - docs/AUDIO.md
+    multi_file: false
+    condition: "client_type == game"
+    handled_by: gendoc-flow
+    commit_prefix: "docs(gendoc)[AUDIO]"
+    note: "音效設計文件：BGM/SFX/VO 清單、音效觸發邏輯、引擎設定、資產規格、效能預算"
+
+  - id: ANIM
+    type: ANIM
+    layer: 設計層
+    output:
+      - docs/ANIM.md
+    multi_file: false
+    condition: "client_type == game"
+    handled_by: gendoc-flow
+    commit_prefix: "docs(gendoc)[ANIM]"
+    note: "動畫特效設計文件：骨骼動畫/幀動畫/Tween/粒子/Shader、引擎設定、效能預算與 LOD 策略"
+
+  - id: ADMIN_IMPL
+    type: ADMIN_IMPL
+    layer: 設計層
+    output:
+      - docs/ADMIN_IMPL.md
+    multi_file: false
+    condition: has_admin_backend
+    handled_by: gendoc-flow
+    commit_prefix: "docs(gendoc)[ADMIN_IMPL]"
+    note: >
+      Admin 後台實作規格（預設技術棧：Vue3 + Element Plus + Vite）。
+      包含：RBAC 架構、Component 規範、路由設計、API 串接、Pinia Store、部署配置。
+      上游：EDD（§3.3 _ADMIN_FRAMEWORK, §5.5 RBAC 模型）+ ARCH + API + SCHEMA。
+      觸發條件：has_admin_backend=true（在 gendoc-auto Session Config 中設定）。
+
+  - id: CLIENT_IMPL
+    type: CLIENT_IMPL
+    layer: 設計層
+    output:
+      - docs/CLIENT_IMPL.md
+    multi_file: false
+    condition: "client_type != none"
+    handled_by: gendoc-flow
+    commit_prefix: "docs(gendoc)[CLIENT_IMPL]"
+    note: >
+      客戶端實作規格書：依 EDD §3.3 偵測引擎（Cocos Creator / Unity WebGL / React / Vue / HTML5）。
+      注意：Vue3 Admin 後台不走本文件，見 ADMIN_IMPL。
+      上游：EDD + VDD + ANIM + AUDIO + FRONTEND。
+
+  # ─── 品質層 ───────────────────────────────────────────────────────
+
+  - id: test-plan
+    type: test-plan
+    layer: 品質層
+    output:
+      - docs/test-plan.md
+    multi_file: false
+    condition: always
+    handled_by: gendoc-flow
+    commit_prefix: "docs(gendoc)[test-plan]"
+
+  - id: BDD-server
+    type: BDD-server
+    layer: 品質層
+    output:
+      - features/
+    output_glob: "features/*.feature"
+    multi_file: true
+    condition: always
+    handled_by: gendoc-flow
+    commit_prefix: "test(gendoc)[BDD-server]"
+    note: "生成多個 .feature 檔案 + step definitions skeleton；審查所有 features/*.feature（含上游 PRD/CONSTANTS 數值對照）"
+
+  - id: BDD-client
+    type: BDD-client
+    layer: 品質層
+    output:
+      - features/client/
+    output_glob: "features/client/*.feature"
+    multi_file: true
+    condition: "client_type != none"
+    handled_by: gendoc-flow
+    commit_prefix: "test(gendoc)[BDD-client]"
+    note: "生成多個 .feature 檔案 + step definitions skeleton；has_admin_backend=true 時含 Admin RBAC BDD scenarios"
+
+  - id: RTM
+    type: RTM
+    layer: 品質層
+    output:
+      - docs/RTM.md
+    multi_file: false
+    condition: always
+    handled_by: gendoc-flow
+    commit_prefix: "docs(gendoc)[RTM]"
+
+  # ─── 運維層 ───────────────────────────────────────────────────────
+
+  - id: runbook
+    type: runbook
+    layer: 運維層
+    output:
+      - docs/runbook.md
+    multi_file: false
+    condition: always
+    handled_by: gendoc-flow
+    commit_prefix: "docs(gendoc)[runbook]"
+
+  - id: LOCAL_DEPLOY
+    type: LOCAL_DEPLOY
+    layer: 運維層
+    output:
+      - docs/LOCAL_DEPLOY.md
+    multi_file: false
+    condition: always
+    handled_by: gendoc-flow
+    commit_prefix: "docs(gendoc)[LOCAL_DEPLOY]"
+    note: "LOCAL_DEPLOY.gen.md 要求生成後自動執行 docker/sandbox 驗證，確認所有命令可成功執行"
+
+  # ─── 稽核層 ───────────────────────────────────────────────────────
+
+  - id: ALIGN
+    type: ALIGN
+    layer: 稽核層
+    output:
+      - docs/ALIGN_REPORT.md
+    multi_file: false
+    condition: always
+    special_skill: gendoc-align-check
+    handled_by: gendoc-flow
+    commit_prefix: "docs(gendoc)[ALIGN]"
+    note: "特殊步驟：呼叫 gendoc-align-check skill，不走標準 gen→review 流程"
+
+  - id: ALIGN-F
+    type: ALIGN-F
+    layer: 稽核層
+    output:
+      - docs/ALIGN_REPORT.md
+    multi_file: false
+    condition: always
+    special_skill: gendoc-align-fix
+    handled_by: gendoc-flow
+    commit_prefix: "docs(gendoc)[ALIGN-F]"
+    note: "特殊步驟：依 ALIGN_REPORT.md 自動修復對齊問題，每條 fix verify 後 commit。完成後觸發 ALIGN-VERIFY。"
+
+  - id: ALIGN-VERIFY
+    type: ALIGN-VERIFY
+    layer: 稽核層
+    output:
+      - docs/ALIGN_REPORT.md
+    multi_file: false
+    condition: always
+    special_skill: gendoc-align-check
+    handled_by: gendoc-flow
+    commit_prefix: "docs(gendoc)[ALIGN-VERIFY]"
+    note: "特殊步驟：ALIGN-F 修復完成後重新執行 gendoc-align-check，確認修復效果。若仍有 CRITICAL/HIGH，繼續修復。"
+
+  # ─── 實作層 ───────────────────────────────────────────────────────
+
+  - id: CONTRACTS
+    type: CONTRACTS
+    layer: 實作層
+    output:
+      - docs/blueprint/contracts/
+      - docs/blueprint/infra/
+      - docs/blueprint/scaffold/
+    output_glob: "docs/blueprint/contracts/**/*"
+    multi_file: true
+    condition: always
+    special_skill: gendoc-gen-contracts
+    handled_by: gendoc-flow
+    commit_prefix: "feat(gendoc)[CONTRACTS]"
+    note: >
+      特殊步驟：從生成文件提取機器可讀規格（OpenAPI YAML, JSON Schema, Pact, IaC, Seed Code）。
+      has_admin_backend=true 時額外輸出 admin-api.yaml + rbac-seed.json + admin-seed.json。
+      生成後自動執行 openapi-spec-validator 驗證。
+
+  - id: MOCK
+    type: MOCK
+    layer: 實作層
+    output:
+      - docs/blueprint/mock/
+    output_glob: "docs/blueprint/mock/**/*"
+    multi_file: true
+    condition: "client_type != api-only"
+    special_skill: gendoc-gen-mock
+    handled_by: gendoc-flow
+    commit_prefix: "feat(gendoc)[MOCK]"
+    note: "特殊步驟：生成 FastAPI mock server + 擬真假資料 + frontend 使用手冊。生成後自動執行 python main.py --check。"
+
+  - id: PROTOTYPE
+    type: PROTOTYPE
+    layer: 實作層
+    output:
+      - docs/pages/prototype/
+    multi_file: true
+    condition: "client_type != api-only"
+    special_skill: gendoc-gen-prototype
+    handled_by: gendoc-flow
+    commit_prefix: "feat(gendoc)[PROTOTYPE]"
+    note: >
+      特殊步驟：依 PDD/FRONTEND/API.md 生成可點擊 HTML prototype + API explorer。
+      has_admin_backend=true 時額外生成 admin portal prototype 頁面（login/dashboard/user-list/role-management/audit-log）。
+
+  # ─── 發布層 ───────────────────────────────────────────────────────
+
+  - id: HTML
+    type: HTML
+    layer: 發布層
+    output:
+      - docs/pages/
+    multi_file: false
+    condition: always
+    special_skill: gendoc-gen-html
+    handled_by: gendoc-flow
+    commit_prefix: "docs(gendoc)[HTML]"
+    note: "特殊步驟：呼叫 gendoc-gen-html skill，將所有 docs/*.md 轉換為 HTML 文件網站。"

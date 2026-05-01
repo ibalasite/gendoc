@@ -1,6 +1,7 @@
 {
   "version": "2.1",
-  "description": "gendoc 文件流水線定義 — 此檔案是流水線的唯一順序來源。新增文件類型：(1) 加入本檔案的 steps；(2) 建立 templates/{TYPE}.md + TYPE.gen.md + TYPE.review.md。不需修改任何 skill 檔案。",
+  "description": "DEPRECATED: 此檔案已被 pipeline.yml 取代（v3.0）。保留作向後相容，下版本將移除。請改用 templates/pipeline.yml。",
+  "_deprecated_note": "pipeline.json → pipeline.yml 改革：(1) 去除數字前綴 ID；(2) CONSTANTS 合併至 EDD Pass-0；(3) 新增 ADMIN_IMPL 節點。",
   "steps": [
     {
       "id": "D01-IDEA",
