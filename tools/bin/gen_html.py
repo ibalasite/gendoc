@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # tools/bin/gen_html.py
-# VERSION: 3.3.0
+# VERSION: 3.4.0
 # Maintained by gendoc — DO NOT EDIT IN TARGET PROJECTS
 # Install: ~/.claude/skills/gendoc/setup  →  ~/.claude/skills/gendoc/tools/bin/gen_html.py
 # Usage:   python3 ~/.claude/skills/gendoc/tools/bin/gen_html.py   (run from project root)
@@ -91,27 +91,48 @@ def esc(t):
     return _html.escape(str(t))
 
 def _mermaid_fix_block(lines):
-    """Fix mermaid v11.14.0 breaking patterns in flowchart/graph blocks."""
+    """Fix mermaid v11 breaking patterns in flowchart/graph/sequenceDiagram blocks."""
     if not lines:
         return lines
     first = next((l.strip() for l in lines if l.strip()), '')
-    if not re.match(r'^(flowchart|graph)\b', first):
+    is_flowchart = bool(re.match(r'^(flowchart|graph)\b', first))
+    is_sequence  = bool(re.match(r'^sequenceDiagram', first))
+    if not is_flowchart and not is_sequence:
         return lines
 
-    def fix_line(line):
-        # STADIUM_SHAPE: ([text]) → ((text))
-        line = re.sub(r'\(\[([^\]]+)\]\)', r'((\1))', line)
-        # BARE_LT_IN_LABEL: raw < inside {...} diamond → &lt;
-        line = re.sub(r'(\{[^}]+\})', lambda m: m.group(0).replace('<', '&lt;'), line)
-        # NESTED_BRACKET: \n[inner] inside [...] → \n(inner)
-        line = re.sub(r'\[([^\]"]*?)\\n\[([^\]]*)\]([^\]"]*?)\]',
-                      lambda m: '[' + m.group(1) + '\\n(' + m.group(2) + ')' + m.group(3) + ']', line)
-        # BRACE_IN_BRACKET: {key} inside [...] → (key)
-        line = re.sub(r'\[([^\]"]*\{[^\]"]*\}[^\]"]*)\]',
-                      lambda m: '[' + m.group(1).replace('{', '(').replace('}', ')') + ']', line)
+    def fix_flowchart_line(line):
+        # Mermaid v11: unquoted [label] nodes cannot contain (, {, or nested [
+        # Fix: wrap such labels in double quotes → ["label"]
+        # Negative lookbehind (?<!\() avoids matching the inner [...] of ([...]) stadium shapes
+        def quote_if_needed(m):
+            content = m.group(1)
+            # Already quoted — leave alone
+            if content.startswith('"') and content.endswith('"'):
+                return '[' + content + ']'
+            # De-nest one level of inner brackets, keeping their text content
+            clean = re.sub(r'\[([^\[\]]*)\]', lambda nm: nm.group(1), content)
+            # If problematic chars exist, wrap entire label in double quotes
+            if '(' in clean or '{' in clean or '[' in clean:
+                return '["' + clean.replace('"', "'") + '"]'
+            return '[' + content + ']'
+
+        # Match [content] with optional one level of nesting; skip ([...]) stadium shapes
+        line = re.sub(r'(?<!\()\[([^\[\]]*(?:\[[^\[\]]*\][^\[\]]*)*)\]', quote_if_needed, line)
         return line
 
-    return [fix_line(l) for l in lines]
+    def fix_sequence_line(line):
+        # Mermaid v11: semicolons in message text are treated as statement separators
+        msg = re.match(r'^(\s*\S.*?(?:->>|-->>|->x|-->x|->>|->|-->)\s*\S[^:]*:\s*)(.*)', line, re.DOTALL)
+        if msg:
+            prefix, message = msg.group(1), msg.group(2)
+            message = message.replace(';', ',').replace('\\n', ' ')
+            line = prefix + message
+        return line
+
+    if is_flowchart:
+        return [fix_flowchart_line(l) for l in lines]
+    else:
+        return [fix_sequence_line(l) for l in lines]
 
 def strip_frontmatter(text: str) -> str:
     """Strip YAML frontmatter (--- ... ---) from the top of a markdown file."""
