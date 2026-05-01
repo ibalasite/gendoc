@@ -148,7 +148,7 @@ graph TD
 | {{FUTURE_FEATURE_1}} | v{{NEXT_VERSION}} | 需新增 E2E scenarios，預估 {{X}} 個 test cases |
 | 行動端 App | {{MOBILE_RELEASE_DATE}} | 需 Appium / Detox E2E 測試套件 |
 | 多語系（i18n）| v{{I18N_VERSION}} | 需 locale-specific 測試資料與 screenshot regression |
-| 高可用性驗證（HA Failover） | v{{HA_VERSION}} | 需 Chaos Engineering 場景（如 Chaos Monkey） |
+| {{FUTURE_FEATURE_2}} | v{{NEXT_MAJOR_VERSION}} | 新版本功能測試規劃 |
 
 ### §2.4 測試假設與限制
 
@@ -441,7 +441,70 @@ UAT PASS 條件（全部滿足才可 sign-off）：
 
 ---
 
-### §3.6 Security Tests
+### §3.6 HA / Failover / Chaos Tests
+
+**目標**：驗證系統在元件故障、節點重啟、網路中斷時，能自動恢復並維持 SLO（可用性 ≥ 99.9%）。  
+**HA 測試原則**：HA 是架構設計前提，不是「Future Scope」。所有服務在 MVP 上線前必須通過 §3.6 所定義的最小 HA 場景。
+
+#### §3.6.1 Integration Test — HA Failover
+
+| 測試場景 | 工具 | 通過條件 |
+|---------|------|---------|
+| **API Pod 強制終止**（`kubectl delete pod api-0`）| Kubernetes + curl | ≤ 5s 內新 pod ready，期間 健康檢查端點（/health）持續回應 200 |
+| **Worker Pod 強制終止** | Kubernetes + test queue producer | Job 自動重新入隊並由其他 Worker 完成，冪等性：同一 Job 只執行一次 |
+| **Primary DB 故障切換**（`pg_ctl stop -m immediate`）| pgbench + failover trigger | ≤ 30s 完成切換，寫入恢復，資料無遺失（WAL 同步複本）|
+| **Redis 單節點故障**（Sentinel 模式停掉 master）| redis-cli + health probe | Sentinel 選出新 Master，業務操作降級（Cache Miss）但不報錯 |
+| **API Gateway 限流觸發** | vegeta / k6 | 超過 Rate Limit 時回傳 429 + `Retry-After`，不報 500 |
+
+#### §3.6.2 E2E Test — HA Chaos Scenario
+
+```gherkin
+Feature: HA Failover — 端點對端點驗證
+
+  @ha @failover @chaos
+  Scenario: Pod 重啟期間使用者請求不中斷
+    Given 系統已部署 2 個 API Server Pod（≥ 2 replicas）
+    And 有持續每秒 10 req 的穩定流量
+    When 其中 1 個 API Pod 被強制終止
+    Then 流量自動切換至剩餘 Pod
+    And 期間 5XX 錯誤率 ≤ 0.1%（允許 ≤ 1 個請求失敗）
+    And 新 Pod 在 30 秒內通過 Readiness Probe 並重新接收流量
+
+  @ha @failover @chaos
+  Scenario: DB Primary 切換後資料一致性
+    Given 系統正在進行寫入操作（每秒 5 筆訂單）
+    When Primary DB 節點發生故障（模擬：停止 PostgreSQL 進程）
+    Then Standby DB 在 30 秒內自動提升為 Primary
+    And 所有已確認（Commit）的寫入資料不遺失
+    And API 在 60 秒內恢復正常寫入
+
+  @ha @graceful-shutdown
+  Scenario: Pod Rolling Update 期間 in-flight 請求完成
+    Given API Pod 正在處理需要 5 秒的請求
+    When Kubernetes 發送 SIGTERM 信號至該 Pod
+    Then Pod 停止接受新請求（Readiness Probe 失敗）
+    And 現有 in-flight 請求正常完成（最多等待 30s）
+    And Pod 退出後不殘留未完成的請求
+```
+
+#### §3.6.3 本地 HA 驗證（Local Dev，遵循 EDD §3.7 圖 B）
+
+```bash
+# 1. 確認 Local 有 ≥ 2 API replicas
+kubectl get pods -l app=api-server | grep Running | wc -l
+# 期望 ≥ 2
+
+# 2. 終止其中一個 Pod，觀察服務不中斷
+kubectl delete pod $(kubectl get pods -l app=api-server -o jsonpath='{.items[0].metadata.name}')
+curl http://localhost:8080/health  # 應在 5s 內繼續回應 200
+
+# 3. 驗證 Worker 冪等性
+# 送出同一 Job 兩次，確認只執行一次
+```
+
+---
+
+### §3.7 Security Tests
 
 **目標**：系統性識別並修復安全漏洞，確認符合 OWASP Top 10 安全標準。
 

@@ -170,3 +170,28 @@ upstream-alignment:
 **Check**: 是否有 `{{PLACEHOLDER}}` 格式未替換（Module 名稱、TC-ID 格式範例、工具版本號、環境 URL、RPS 數字等）？逐一掃描全文，列出所有裸 placeholder 及其位置（章節）。
 **Risk**: 裸 placeholder 讓 QA 工程師看到不完整的資訊，需自行猜測正確值，增加出錯機會；含 placeholder 的工具版本號也會導致環境建置失敗。
 **Fix**: 替換所有裸 placeholder 為真實的 Module 名稱、TC-ID 範例或具體版本號；若暫時無法確定，加上 `（待確認：說明）` 取代空白 placeholder。
+
+---
+
+### Layer 5: HA / Failover / Chaos 測試覆蓋（由 SRE / QA Lead 主審，共 4 項）
+
+#### [CRITICAL] 24 — HA Failover 測試缺失（放在 Future Scope）
+**Check**: §2.3 Future Scope 是否包含「HA Failover」或「高可用性驗證」？若有，視為 CRITICAL（HA 是架構前提，不是 Future Scope）。  
+同時確認 §3.6 是否存在 HA/Failover/Chaos 測試策略（包含 Integration Test + E2E Chaos Scenario + 本地驗證）。
+**Risk**: 將 HA 測試列為 Future Scope，等同宣告「MVP 上線時可接受單點故障」——與 EDD §3.6 HA 架構設計矛盾，且發生故障時無測試保護。
+**Fix**: 從 §2.3 移除 HA Failover；在 §3.6 新增 HA/Failover/Chaos 測試策略（Integration Test + E2E Chaos Scenario + 本地驗證），每個有 Replica 的元件至少一個強制終止場景。
+
+#### [CRITICAL] 25 — HA 測試場景無具體通過條件
+**Check**: §3.6 HA 測試場景的「通過條件」是否含有具體數字（如「≤ 5s 內新 pod ready」「Failover ≤ 30s」）？若只寫「服務恢復正常」或「不報錯」等模糊條件，視為 CRITICAL。
+**Risk**: 通過條件模糊，測試結果無法客觀判定（5 分鐘恢復是通過嗎？），SLO（≥ 99.9% 可用性）無法被測試保護。
+**Fix**: 對每個 HA 場景補充量化通過條件：Pod 重啟 → ≤ 5s 新 pod ready；DB Failover → ≤ 30s 完成切換；期間 5XX 錯誤率 ≤ 0.1%。所有數字從 EDD §3.6 SLO 推算。
+
+#### [HIGH] 26 — 缺少 Graceful Shutdown E2E 場景
+**Check**: §3.6 是否包含 Graceful Shutdown 場景（SIGTERM → 停止接受新請求 → in-flight 請求在 30s 內完成 → 退出）？若無此場景，視為 HIGH。
+**Risk**: 無 Graceful Shutdown 測試，每次 Deploy 都可能造成 in-flight 請求 502/503；canary/rolling update 期間用戶看到間歇性錯誤。
+**Fix**: 在 §3.6.2 E2E Chaos Scenarios 補充 `@ha @graceful-shutdown` Gherkin 場景，通過條件：Pod 收到 SIGTERM 後，現有 5 秒請求正常完成，新請求轉至其他 Pod。
+
+#### [HIGH] 27 — 本地 HA 驗證腳本缺失
+**Check**: §3.6 是否包含可直接執行的本地 HA 驗證腳本（kubectl 指令）？是否確認 Local Dev 環境有 ≥ 2 API replicas（遵循 EDD §3.7 圖 B）？
+**Risk**: 無本地驗證腳本，開發者無法在 PR 合併前驗證 HA 相關程式碼（shared state、distributed lock、pub/sub）是否正確，HA Bug 留到 Staging 才發現，修改成本高。
+**Fix**: 在 §3.6.3 補充本地 HA 驗證腳本：確認 ≥ 2 API replicas 的 kubectl 指令、強制終止一個 Pod 並驗證服務不中斷的完整流程。

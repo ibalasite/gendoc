@@ -239,7 +239,31 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 - **參與者**：Product Owner + QA Lead + 代表性終端用戶（1-3 人）
 - **通過條件**：P0 功能 100% 通過，P1 功能 ≥ 95% 通過，無 Critical/High 嚴重度未解決缺陷
 
-### §3.6 Security Tests
+### §3.6 HA / Failover / Chaos Tests
+
+**生成步驟**（必須全部完成）：
+
+1. **讀取 EDD §3.6**（HA Architecture Specification）和 **EDD §3.7**（最小完整度架構），提取：
+   - 服務元件清單（API Server / Worker / DB / Cache / MQ 等）
+   - 每個元件的 Min Replicas（≥ 2）
+   - Failover 機制說明（自動/手動，RTO/RPO 目標）
+
+2. **生成 §3.6.1 Integration Test — HA Failover 表格**：
+   - 每個有 Replica 的元件，至少一個「強制終止 1 個副本」場景
+   - 表格欄位：場景、工具、通過條件（含具體數字，如 ≤ 5s 恢復）
+
+3. **生成 §3.6.2 E2E HA Chaos Scenarios**：
+   - `@ha @failover @chaos` tagged Gherkin scenarios（≥ 3 個場景）
+   - 必含：Pod 重啟、DB Failover、Graceful Shutdown
+   - 所有數字從 EDD SLO 推算（不用 placeholder）
+
+4. **生成 §3.6.3 本地 HA 驗證腳本**：
+   - 遵循 EDD §3.7 圖 B（Local Dev ≥ 2 API replicas）
+   - 提供可直接執行的 kubectl 指令
+
+5. **重要**：HA 測試不得放在 Future Scope（§2.3），所有場景必須在 §3.6 定義並在 MVP 上線前完成。
+
+### §3.7 Security Tests
 
 - **工具**：依 lang_stack SAST 工具 + OWASP ZAP（DAST）
 - **OWASP Top 10 評估矩陣**（A01-A10 每項均必須有覆蓋計畫）：
@@ -650,7 +674,8 @@ SLO / SLI 矩陣（P50/P95/P99 均必須有具體數字）：
 - [ ] §3.4 Performance：4 個測試場景（Smoke / Load / Stress / Soak）均已定義，含 stages 設定
 - [ ] §3.4 Performance：SLO Targets 表格有具體 P50/P95/P99 數字
 - [ ] §3.5 UAT：驗收標準來自 PRD §9.5 DoD，逐項列出（非泛泛描述）
-- [ ] §3.6 Security：OWASP Top 10 A01-A10 每項均有覆蓋計畫（測試方法已填寫）
+- [ ] §3.6 HA/Failover：每個有 Replica 的元件至少一個 Failover 場景，§3.6.2 含 ≥ 3 個 @ha tagged BDD 場景
+- [ ] §3.7 Security：OWASP Top 10 A01-A10 每項均有覆蓋計畫（測試方法已填寫）
 - [ ] §4 Test Environment：至少定義 Dev / Staging / Prod-like 三個環境
 - [ ] §6 Entry/Exit Criteria：每個測試階段均有明確的 Blocking Defect 條件
 - [ ] §7 Defect Management：P0-P3 SLA 已量化（P0=4h, P1=24h, P2=3d, P3=next sprint）
