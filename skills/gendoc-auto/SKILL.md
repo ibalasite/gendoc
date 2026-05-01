@@ -649,7 +649,22 @@ else:
 PYEOF
 )
 
-echo "[Step 1.8] 建議 client_type：${_SUGGEST_CT} / 建議規模：${_SUGGEST_SCALE}"
+_SUGGEST_ADMIN=$(python3 - <<'PYEOF'
+import json
+try: d=json.load(open('${_STATE_FILE}'))
+except: d={}
+ct = d.get('client_type','') or '${_SUGGEST_CT}'
+# api-only 無 client，不需要 Admin 後台
+if ct == 'api-only':
+    print('false')
+else:
+    # 有 client（web/game/其他）→ 預設需要 Admin 後台
+    # 要取消請執行 /gendoc-config 手動設定
+    print('true')
+PYEOF
+)
+
+echo "[Step 1.8] 建議 client_type：${_SUGGEST_CT} / 建議規模：${_SUGGEST_SCALE} / has_admin_backend：${_SUGGEST_ADMIN}"
 ```
 
 ### SPAWNED / 已確認：直接採用建議值
@@ -668,7 +683,7 @@ if not d.get('client_type') or d.get('client_type_source','') not in ('confirmed
 if not d.get('q4_scale'):
     d['q4_scale']='${_SUGGEST_SCALE}'
 if 'has_admin_backend' not in d:
-    d['has_admin_backend']=False
+    d['has_admin_backend']='${_SUGGEST_ADMIN}'=='true'
 tmp=f+'.tmp'; open(tmp,'w').write(json.dumps(d,indent=2,ensure_ascii=False)); os.replace(tmp,f)
 print('[Step 1.8] auto: client_type='+d['client_type']+' / scale='+d['q4_scale']+' / has_admin_backend='+str(d['has_admin_backend']))
 PYEOF
@@ -677,7 +692,7 @@ fi
 
 ### 互動模式：顯示建議並詢問確認（2 問）
 
-**若 `_SKIP_1_8=false`**，用 `AskUserQuestion` 執行以下 3 個問題：
+**若 `_SKIP_1_8=false`**，用 `AskUserQuestion` 執行以下 2 個問題：
 
 **問題 1 — client_type 確認**：
 
@@ -723,23 +738,8 @@ options:
 
 取得 `_CONFIRMED_SCALE`（選項 1 → `$_SUGGEST_SCALE`；其他 → 對應文字）。
 
-**問題 3 — Admin 後台確認**（在問題 2 之後立即詢問）：
-
-```
-AskUserQuestion(
-  question: "此專案是否需要 Admin 後台（管理後台）？",
-  options: [
-    "是 — 需要 Admin Portal（預設技術棧：Vue3 + Element Plus + Vite，可在 EDD §3.3 調整）",
-    "否 — 無需 Admin 後台"
-  ]
-)
-```
-
-取得 `_CONFIRMED_ADMIN`：
-- 選「是」→ `_CONFIRMED_ADMIN=true`
-- 選「否」→ `_CONFIRMED_ADMIN=false`
-
-**SPAWNED 模式**：自動設為 `_CONFIRMED_ADMIN=false`，跳過互動。
+> `has_admin_backend` 由系統依 `client_type` 自動推斷（非 api-only 預設 true），無需詢問。
+> 需要調整請事後執行 `/gendoc-config`。
 
 **確認並寫入 state**：
 
@@ -752,7 +752,7 @@ except: d={}
 d['client_type']        = '${_CONFIRMED_CT}'
 d['client_type_source'] = 'confirmed'   # P-13/P-14 不再覆寫
 d['q4_scale']           = '${_CONFIRMED_SCALE}'
-d['has_admin_backend']  = '${_CONFIRMED_ADMIN:-false}' == 'true'
+d['has_admin_backend']  = '${_SUGGEST_ADMIN}' == 'true'
 tmp=f+'.tmp'; open(tmp,'w').write(json.dumps(d,indent=2,ensure_ascii=False)); os.replace(tmp,f)
 print('[Step 1.8] ✅ client_type='+d['client_type']+' / scale='+d['q4_scale']+' / has_admin_backend='+str(d['has_admin_backend'])+' 已確認並鎖定')
 PYEOF
@@ -763,7 +763,7 @@ echo "║  ✅ 設定已確認 — 接下來全程自動執行，無需再次確
 echo "╠══════════════════════════════════════════════════════════╣"
 printf "║  client_type : %-42s ║\n" "${_CONFIRMED_CT}"
 printf "║  系統規模    : %-42s ║\n" "${_CONFIRMED_SCALE}"
-printf "║  Admin 後台  : %-42s ║\n" "${_CONFIRMED_ADMIN:-false}"
+printf "║  Admin 後台  : %-42s ║\n" "${_SUGGEST_ADMIN}（自動推斷，如需調整請執行 /gendoc-config）"
 echo "║                                                          ║"
 echo "║  請放心等待，所有文件將依序自動生成完成。               ║"
 echo "╚══════════════════════════════════════════════════════════╝"
