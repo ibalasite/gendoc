@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-# bin/gen_html.py
+# tools/bin/gen_html.py
 # VERSION: 3.3.0
 # Maintained by gendoc — DO NOT EDIT IN TARGET PROJECTS
-# Install: ./install.sh  →  ~/.claude/gendoc/bin/gen_html.py
-# Usage:   python3 ~/.claude/gendoc/bin/gen_html.py   (run from project root)
+# Install: ~/.claude/skills/gendoc/setup  →  ~/.claude/skills/gendoc/tools/bin/gen_html.py
+# Usage:   python3 ~/.claude/skills/gendoc/tools/bin/gen_html.py   (run from project root)
 
 import os, re, json, html as _html
 from pathlib import Path
