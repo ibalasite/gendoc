@@ -1016,8 +1016,11 @@ def detect_client_type(combined_text: str) -> str:
 | `q1_users` | string | Q1 主要使用者澄清結果 |
 | `q2_painpoint` | string | Q2 核心痛點澄清結果 |
 | `q3_constraints` | string | Q3 技術限制澄清結果 |
-| `q4_scale` | string | Q4 使用規模澄清結果 |
+| `q4_dau` | string | PM Expert 推估 DAU（如 "50,000/day"）|
+| `q4_peak_ccu` | string | PM Expert 推估同時在線峰值（如 "3,000 人"）|
+| `q4_estimate_basis` | string | PM Expert 推估依據（如 "競品 A 月活 100 萬，DAU/MAU 比約 5%"）|
 | `q5_additional` | string | Q5 補充澄清結果 |
+| `has_admin_backend` | bool/string | 是否有 Admin 後台（true/false，缺少時由 gendoc-config 統一詢問）|
 
 ### review_strategy → max_rounds 換算表
 
@@ -1094,6 +1097,64 @@ AskUserQuestion:
 - 選 [3] → 刪除 state 中的 `brd_generated`、`brd_review_passed`、`idea_generated`、`idea_review_passed`，重新呼叫 `/gendoc`，args: `idea`（**不** 重建工作目錄、**不** 重新 init git）
 
 **Full-auto 模式**：直接呼叫 `{_DOWNSTREAM_SKILL}`，不詢問。
+
+---
+
+## §16 CLIENT_TYPE + HAS_ADMIN_BACKEND 缺值守衛（R-10）
+
+> **所有需要 client_type 或 has_admin_backend 的 skill 必須遵守此守衛。**  
+> gendoc-config 是唯一詢問使用者這兩個值的地方，其他 skill 不得自行詢問。
+
+### 觸發條件
+
+下游 skill（gendoc-auto、gendoc-flow、gen-*、review-*）在需要使用 `client_type` 或 `has_admin_backend` 時，**必須先讀取 state**，若任一值缺失則觸發此守衛。
+
+### 守衛邏輯（AI 指令，每個需要這兩個值的 skill 在使用前執行）
+
+```python
+import json
+d = json.load(open('${_STATE_FILE}', encoding='utf-8'))
+
+_CT  = d.get('client_type', '').strip()
+_ADM = str(d.get('has_admin_backend', '')).strip()
+
+_CT_OK  = bool(_CT)   and _CT  not in ('', 'null', 'None')
+_ADM_OK = bool(_ADM)  and _ADM not in ('', 'null', 'None')
+```
+
+若 `not _CT_OK or not _ADM_OK`：
+
+1. **立即透過 Skill tool 呼叫 `gendoc-config`**，讓其完整執行（包含 client_type 與 has_admin_backend 詢問步驟）。
+2. gendoc-config 完全結束後，**重新讀取 state**，確認兩個值都已寫入。
+3. **繼續呼叫方的原本流程**，不重新執行 gendoc-config。
+
+```bash
+# 守衛範例（skill 在需要兩值前插入）
+_CT=$(python3 -c "import json; d=json.load(open('${_STATE_FILE}')); print(d.get('client_type',''))" 2>/dev/null || echo "")
+_ADM=$(python3 -c "import json; d=json.load(open('${_STATE_FILE}')); print(d.get('has_admin_backend',''))" 2>/dev/null || echo "")
+
+if [[ -z "$_CT" || -z "$_ADM" ]]; then
+  echo "[R-10] client_type 或 has_admin_backend 缺值，呼叫 gendoc-config..."
+  # → Skill tool: gendoc-config
+  # gendoc-config 完成後重新讀取
+  _CT=$(python3 -c "import json; d=json.load(open('${_STATE_FILE}')); print(d.get('client_type',''))" 2>/dev/null || echo "")
+  _ADM=$(python3 -c "import json; d=json.load(open('${_STATE_FILE}')); print(d.get('has_admin_backend',''))" 2>/dev/null || echo "")
+fi
+```
+
+### gendoc-config 必須詢問並寫入的欄位
+
+| 欄位 | 問題 | 選項 |
+|------|------|------|
+| `client_type` | Client 端類型？ | web / unity / cocos / api-only（純後端）|
+| `has_admin_backend` | 是否有管理員後台？ | true / false |
+
+寫入範例（原子寫入，遵循 §2）：
+
+```python
+d['client_type']       = 'web'   # 或 'unity'/'cocos'/'api-only'
+d['has_admin_backend'] = True    # 或 False
+```
 
 ---
 
