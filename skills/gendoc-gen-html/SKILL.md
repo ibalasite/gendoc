@@ -15,7 +15,7 @@ allowed-tools:
 
 # gendoc-gen-html — 生成 HTML 文件網站
 
-MD → HTML 一對一映射，呼叫 `~/.claude/gendoc/bin/gen_html.py`（由 install.sh 安裝維護）。
+MD → HTML 一對一映射，呼叫 `$GENDOC_TOOLS/gen_html.py`（由 setup upgrade 安裝維護）。
 
 **模式說明（由 `_EXEC_MODE` 直接決定，不存中間變數）：**
 - `full-auto` 或 interactive 選 full（預設）：先呼叫 `/gendoc readme`，再轉換所有頁面為 HTML
@@ -740,12 +740,12 @@ if (resizerEl && pageWrapper && sidebarEl) {
 
 ## Step 4：確認 central script 存在
 
-> **⚠️ 絕對路徑原則**：永遠使用 `$HOME/.claude/gendoc/bin/gen_html.py`。
+> **⚠️ 絕對路徑原則**：永遠使用 `$GENDOC_TOOLS/gen_html.py`。
 > 目標專案目錄（含 `docs/pages/`）內若存在任何 `gen_html.py`，**完全忽略**，不得執行、不得參考、不得修改。
 > 那是使用者自己的工具，與 gendoc 無關。
 
 ```bash
-_CENTRAL="$HOME/.claude/gendoc/bin/gen_html.py"
+_CENTRAL="$GENDOC_TOOLS/gen_html.py"
 if [[ ! -f "$_CENTRAL" ]]; then
   echo "❌ 找不到 $_CENTRAL"
   echo "   請執行 /gendoc-update 安裝最新版本"
@@ -759,7 +759,7 @@ echo "[gen_html] central script：$_CENTRAL（VERSION: $_VERSION）"
 ## Step 5：執行生成腳本
 
 ```bash
-python3 "$HOME/.claude/gendoc/bin/gen_html.py"
+python3 "$GENDOC_TOOLS/gen_html.py"
 ```
 
 Python 腳本會：
@@ -805,7 +805,7 @@ fi
 ls -la $(pwd)/docs/pages/*.html
 ```
 
-若任何必要頁面缺失 → 重新執行 `python3 "$HOME/.claude/gendoc/bin/gen_html.py"`
+若任何必要頁面缺失 → 重新執行 `python3 "$GENDOC_TOOLS/gen_html.py"`
 
 ---
 
@@ -918,7 +918,7 @@ for md_file in sorted(docs_dir.glob("*.md")):
         print(f"FIXED: {md_file.name}")
 ```
 
-修復完後重新執行 `python3 "$HOME/.claude/gendoc/bin/gen_html.py"`，再次掃描。最多 3 輪。
+修復完後重新執行 `python3 "$GENDOC_TOOLS/gen_html.py"`，再次掃描。最多 3 輪。
 
 | 問題 ID | 觸發條件 | 修復方式 |
 |--------|---------|---------|
@@ -972,7 +972,7 @@ STEP 30 完成：HTML 文件網站生成
 Commit：<git hash>
 重點：
   - 模式：<full=含 README | html-only=僅 HTML>
-  - gen_html.py：~/.claude/gendoc/bin/gen_html.py（central，install.sh 維護）
+  - gen_html.py：$GENDOC_TOOLS/gen_html.py（central，setup upgrade 維護）
   - 生成 N 個 HTML 頁面到 docs/pages/
   - 風格：深色頂導（#111827）+ 深色 Banner + 淺色內容（#f6f8fa）
   - 功能：Sidebar 導覽、Prism.js 語法高亮、Mermaid 圖表、Client-side 搜尋

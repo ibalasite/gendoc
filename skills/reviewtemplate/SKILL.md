@@ -370,7 +370,7 @@ if terminate_reason == "PASSED":
 ✅ 三件套品質達標。
    可安心執行：/gendoc {TYPE}  ←  生成此類文件
                /reviewdoc {TYPE}  ←  生成後審查
-   建議：執行 ./install.sh 同步到 ~/.claude/skills/""")
+   建議：執行 /gendoc-upgrade 同步到 ~/.claude/skills/""")
 
 elif terminate_reason.startswith("MAX_ROUNDS"):
     print(f"""

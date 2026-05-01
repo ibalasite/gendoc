@@ -49,17 +49,12 @@ Scope:   僅負責 D01-IDEA + D02-BRD；其餘文件由 gendoc-flow 接手
 echo "SPAWNED_SESSION: $_SPAWNED"
 [[ "$_SPAWNED" == "true" ]] && echo "[SPAWNED] 跳過互動提問，強制 full-auto 模式"
 
-# [Fix-D] 主動版本比對 — 若 repo 有新版則自動 upgrade，再繼續
-_GENDOC_REPO="$HOME/projects/gendoc"
-_VERSION_FILE="$HOME/.claude/gendoc/.installed-version"
-_REPO_HEAD=$(git -C "$_GENDOC_REPO" rev-parse --short HEAD 2>/dev/null || echo "")
-_INSTALLED=$(cat "$_VERSION_FILE" 2>/dev/null | tr -d '[:space:]' || echo "")
-if [[ -n "$_REPO_HEAD" && "$_REPO_HEAD" != "$_INSTALLED" ]]; then
-  echo "[R-00] 偵測到新版 gendoc（${_INSTALLED:-未知} → ${_REPO_HEAD}），執行 upgrade..."
-  bash "$_GENDOC_REPO/bin/gendoc-upgrade"
-  echo "[R-00] ✅ upgrade 完成，繼續執行"
+# [Fix-D] 版本更新檢查
+source "$HOME/.claude/skills/gendoc/bin/gendoc-env.sh"
+if [[ -d "$GENDOC_DIR/.git" ]]; then
+  bash "$GENDOC_DIR/setup" upgrade 2>/dev/null && echo "[R-00] ✅ gendoc 已是最新版" || echo "[R-00] ⚠️ upgrade 失敗，繼續執行"
 else
-  echo "[R-00] gendoc 版本已是最新（${_REPO_HEAD:-未知}），繼續"
+  echo "[R-00] ⚠️ 找不到 gendoc runtime，跳過版本更新"
 fi
 ```
 

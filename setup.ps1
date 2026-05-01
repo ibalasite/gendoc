@@ -1,51 +1,92 @@
 # gendoc setup.ps1 — Windows native (PowerShell) version
 # Usage:
-#   .\setup.ps1             # install
-#   .\setup.ps1 -Uninstall  # remove hook
-#   .\setup.ps1 -Quiet      # silent mode
+#   .\setup.ps1             # install (default)
+#   .\setup.ps1 install     # same as above
+#   .\setup.ps1 uninstall   # remove hook + delete runtime
+#   .\setup.ps1 upgrade     # git pull + re-deploy
 
 param(
-    [switch]$Uninstall,
-    [switch]$Quiet
+    [string]$Command = "install"
 )
 
 $ErrorActionPreference = "Stop"
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
-$SettingsHook = Join-Path $ScriptDir "bin\gendoc-settings-hook.py"
-$HookPy       = Join-Path $ScriptDir "bin\gendoc-session-update.py"
-$InstallPy    = Join-Path $ScriptDir "install.py"
+$RepoUrl     = "https://github.com/ibalasite/gendoc.git"
+$RuntimeDir  = Join-Path $env:USERPROFILE ".claude\skills\gendoc"
+$SkillsSrc   = Join-Path $RuntimeDir "skills"
+$ClaudeSkillsDir = Join-Path $env:USERPROFILE ".claude\skills"
+$SettingsHook = Join-Path $RuntimeDir "bin\gendoc-settings-hook.py"
+$HookPy      = Join-Path $RuntimeDir "bin\gendoc-session-update.py"
 
-function Log($msg) { if (-not $Quiet) { Write-Host $msg } }
-
-# Dependency check
-if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-    Write-Error "❌ 需要 git（請安裝 Git for Windows）"; exit 1
-}
-if (-not (Get-Command python3 -ErrorAction SilentlyContinue) -and
-    -not (Get-Command python  -ErrorAction SilentlyContinue)) {
-    Write-Error "❌ 需要 Python 3"; exit 1
-}
 $py = if (Get-Command python3 -ErrorAction SilentlyContinue) { "python3" } else { "python" }
+$HookCmd = "$py `"$HookPy`""
 
-if ($Uninstall) {
-    Log "[setup] 解除安裝..."
-    & $py $SettingsHook remove
-    Log "[setup] hook 已移除。skills 保留，如需清除請手動刪除 $env:USERPROFILE\.claude\skills\gendoc*"
-    exit 0
+function Log($msg) { Write-Host $msg }
+
+function Deploy-Skills {
+    Log "[deploy] 複製 skills → ~/.claude/skills/"
+    New-Item -ItemType Directory -Force -Path $ClaudeSkillsDir | Out-Null
+    Get-ChildItem -Path $SkillsSrc -Directory | ForEach-Object {
+        $dest = Join-Path $ClaudeSkillsDir $_.Name
+        if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
+        Copy-Item -Recurse $_.FullName $dest
+        Log "  · $($_.Name)"
+    }
 }
 
-Log "[setup] 安裝 gendoc (Windows)..."
+function Do-Install {
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) { Write-Error "❌ 需要 git"; exit 1 }
+    if (-not (Get-Command $py -ErrorAction SilentlyContinue)) { Write-Error "❌ 需要 Python 3"; exit 1 }
 
-# Deploy skills
-$quietFlag = if ($Quiet) { "--quiet" } else { "" }
-& $py $InstallPy $quietFlag
+    if (Test-Path (Join-Path $RuntimeDir ".git")) {
+        Log "[install] $RuntimeDir 已存在，執行 upgrade..."
+        Do-Upgrade; return
+    }
 
-# Register SessionStart hook (Python version for Windows)
-$hookCmd = "$py `"$HookPy`""
-& $py $SettingsHook add $hookCmd
+    Log "[install] clone gendoc → $RuntimeDir"
+    git clone $RepoUrl $RuntimeDir
 
-Log ""
-Log "[setup] 完成！"
-Log "  · 下次開啟 Claude Code 時，gendoc 會自動檢查更新（每小時一次）"
-Log "  · 手動更新：cd $ScriptDir && git pull && $py install.py"
-Log "  · 解除安裝：.\setup.ps1 -Uninstall"
+    Deploy-Skills
+
+    Log "[deploy] 註冊 SessionStart hook..."
+    & $py $SettingsHook add $HookCmd
+
+    Log ""
+    Log "[install] 完成！重啟 Claude Code 讓技能生效。"
+}
+
+function Do-Uninstall {
+    Log "[uninstall] 移除 hook..."
+    if (Test-Path $SettingsHook) { & $py $SettingsHook remove }
+
+    Log "[uninstall] 移除 copied skills..."
+    if (Test-Path $SkillsSrc) {
+        Get-ChildItem -Path $SkillsSrc -Directory | ForEach-Object {
+            $dest = Join-Path $ClaudeSkillsDir $_.Name
+            if (Test-Path $dest) { Remove-Item -Recurse -Force $dest; Log "  · 刪除 $($_.Name)" }
+        }
+    }
+
+    Log "[uninstall] 刪除 $RuntimeDir..."
+    if (Test-Path $RuntimeDir) { Remove-Item -Recurse -Force $RuntimeDir }
+    Log "[uninstall] 完成。"
+}
+
+function Do-Upgrade {
+    if (-not (Test-Path (Join-Path $RuntimeDir ".git"))) {
+        Write-Error "[upgrade] 找不到 $RuntimeDir，請先執行 install。"; exit 1
+    }
+    Log "[upgrade] git pull..."
+    git -C $RuntimeDir pull --ff-only
+    Deploy-Skills
+    Log "[upgrade] 完成。"
+}
+
+switch ($Command.ToLower()) {
+    "install"   { Do-Install }
+    "uninstall" { Do-Uninstall }
+    "upgrade"   { Do-Upgrade }
+    default {
+        Write-Host "用法：.\setup.ps1 [install|uninstall|upgrade]"
+        exit 1
+    }
+}

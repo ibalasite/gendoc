@@ -68,29 +68,26 @@ Key capabilities:
 ### Install (macOS / Linux / WSL)
 
 ```bash
-# 1. Clone
-git clone https://github.com/ibalasite/gendoc.git ~/projects/gendoc
+# 1. Clone + install in one go
+git clone https://github.com/ibalasite/gendoc.git ~/.claude/skills/gendoc
+~/.claude/skills/gendoc/setup
 
-# 2. Install skills + register auto-update hook
-cd ~/projects/gendoc && ./setup
-
-# 3. Restart Claude Code — skills are now available
+# 2. Restart Claude Code — skills are now available
 ```
 
 ### Install (Windows native)
 
 ```powershell
 # Requires: Git for Windows + Python 3
-git clone https://github.com/ibalasite/gendoc.git ~/projects/gendoc
-cd ~/projects/gendoc
-.\setup.ps1
+git clone https://github.com/ibalasite/gendoc.git "$env:USERPROFILE\.claude\skills\gendoc"
+& "$env:USERPROFILE\.claude\skills\gendoc\setup.ps1"
 ```
 
 ### Uninstall
 
 ```bash
-~/projects/gendoc/setup --uninstall   # macOS/Linux
-# Or: .\setup.ps1 -Uninstall          # Windows
+~/.claude/skills/gendoc/setup uninstall   # macOS/Linux
+# Or: & "$env:USERPROFILE\.claude\skills\gendoc\setup.ps1" uninstall   # Windows
 ```
 
 ---
@@ -139,7 +136,7 @@ After `./setup`, a **SessionStart hook** is registered in `~/.claude/settings.js
 Session start → harness triggers hook → git pull (background) → skills updated
 ```
 
-Manual update: `/gendoc-update` or `~/projects/gendoc/bin/gendoc-upgrade`
+Manual update: `/gendoc-upgrade` or `~/.claude/skills/gendoc/setup upgrade`
 
 ---
 
@@ -253,19 +250,19 @@ Each document accumulates knowledge from **all** ancestors (skips silently if mi
 
 ```
 gendoc/
-├── setup               # Install script (macOS/Linux)
-├── setup.ps1           # Install script (Windows PowerShell)
-├── install.sh          # Sync skills/ → ~/.claude/skills/ (bash)
-├── install.py          # Sync skills/ → ~/.claude/skills/ (Python/Windows)
+├── SKILL.md            # /gendoc entry skill
+├── setup               # Unified tool: install / uninstall / upgrade (macOS/Linux)
+├── setup.ps1           # Unified tool: install / uninstall / upgrade (Windows)
 ├── bin/
-│   ├── gendoc-session-update      # SessionStart hook (bash)
-│   ├── gendoc-session-update.py   # SessionStart hook (Python)
+│   ├── gendoc-env.sh              # Path single source of truth (GENDOC_DIR etc.)
+│   ├── gendoc-session-update      # SessionStart hook — throttle wrapper (bash)
+│   ├── gendoc-session-update.py   # SessionStart hook — throttle wrapper (Python)
 │   ├── _gendoc-update-worker.py   # Background update worker
 │   ├── gendoc-settings-hook       # settings.json editor (bash wrapper)
-│   ├── gendoc-settings-hook.py    # settings.json editor (Python)
-│   └── gendoc-upgrade             # Manual upgrade script
+│   └── gendoc-settings-hook.py    # settings.json editor (Python)
+├── tools/
+│   └── bin/                       # Pipeline tools (gen_html.py etc.)
 ├── skills/                        # Source of truth for all SKILL.md files
-│   ├── gendoc/
 │   ├── gendoc-auto/
 │   ├── gendoc-flow/
 │   └── ...
@@ -308,9 +305,9 @@ Configure via `/gendoc-config`:
 ## Contributing
 
 1. Edit skill files in `skills/<skill-name>/SKILL.md` or templates in `templates/`
-2. Run `./install.sh` to deploy changes to `~/.claude/skills/`
-3. Test with Claude Code
-4. Commit and push — other machines auto-pull via SessionStart hook
+2. Commit and push to remote
+3. On any machine: run `/gendoc-upgrade` or `~/.claude/skills/gendoc/setup upgrade`
+4. Test with Claude Code — SessionStart hook auto-pulls every hour
 
 ---
 

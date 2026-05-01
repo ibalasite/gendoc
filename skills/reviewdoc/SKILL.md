@@ -31,12 +31,10 @@ allowed-tools:
 ## Step -1：版本自動更新檢查
 
 ```bash
-_UPDATE_EXIT=0
-for _c in "$HOME/projects/gendoc"; do
-  if [[ -f "$_c/check-update.sh" ]]; then
-    bash "$_c/check-update.sh" 2>/dev/null; _UPDATE_EXIT=$?; break
-  fi
-done
+source "$HOME/.claude/skills/gendoc/bin/gendoc-env.sh"
+if [[ -d "$GENDOC_DIR/.git" ]]; then
+  bash "$GENDOC_DIR/setup" upgrade 2>/dev/null || true
+fi
 
 _INIT_STATE=$(ls .gendoc-state-*.json 2>/dev/null | head -1 || echo "")
 if [[ -z "$_INIT_STATE" ]]; then

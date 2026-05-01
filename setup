@@ -1,52 +1,119 @@
 #!/usr/bin/env bash
-# gendoc setup — installs skills + registers SessionStart hook
+# gendoc setup — install / uninstall / upgrade
 # Usage:
-#   ./setup             # install
-#   ./setup --uninstall # remove hook (skills remain)
-#   ./setup --quiet     # silent mode (called by auto-update)
+#   ./setup             # install (default)
+#   ./setup install     # same as above
+#   ./setup uninstall   # remove hook + delete runtime
+#   ./setup upgrade     # git pull + re-deploy
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SETTINGS_HOOK="$SCRIPT_DIR/bin/gendoc-settings-hook.py"
-HOOK_BASH="$SCRIPT_DIR/bin/gendoc-session-update"
-HOOK_PY="$SCRIPT_DIR/bin/gendoc-session-update.py"
+REPO_URL="https://github.com/ibalasite/gendoc.git"
+RUNTIME_DIR="$HOME/.claude/skills/gendoc"
+SKILLS_SRC="$RUNTIME_DIR/skills"
+CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
+SETTINGS_HOOK="$RUNTIME_DIR/bin/gendoc-settings-hook.py"
+HOOK_CMD="bash \"$RUNTIME_DIR/bin/gendoc-session-update\""
 
-QUIET=0; UNINSTALL=0
-for arg in "$@"; do
-  case "$arg" in --quiet) QUIET=1 ;; --uninstall) UNINSTALL=1 ;; esac
-done
-log() { [[ $QUIET -eq 1 ]] || echo "$@"; }
+CMD="${1:-install}"
 
-# Ensure executable bits
-chmod +x "$HOOK_BASH" "$SCRIPT_DIR/bin/gendoc-upgrade" "$SCRIPT_DIR/install.sh" 2>/dev/null || true
+log() { echo "$@"; }
 
-if [[ $UNINSTALL -eq 1 ]]; then
-  log "[setup] 解除安裝..."
-  python3 "$SETTINGS_HOOK" remove
-  log "[setup] hook 已移除。skills 保留在 ~/.claude/skills/，如需清除請手動刪除。"
-  exit 0
-fi
+# ── install ───────────────────────────────────────────────────────────────────
+do_install() {
+  command -v git    >/dev/null 2>&1 || { echo "❌ 需要 git"; exit 1; }
+  command -v python3 >/dev/null 2>&1 || { echo "❌ 需要 python3"; exit 1; }
 
-log "[setup] 安裝 gendoc..."
+  if [[ -d "$RUNTIME_DIR/.git" ]]; then
+    log "[install] $RUNTIME_DIR 已存在，執行 upgrade..."
+    do_upgrade
+    return
+  fi
 
-# Dependency check
-command -v git    >/dev/null 2>&1 || { echo "❌ 需要 git"; exit 1; }
-command -v python3 >/dev/null 2>&1 || { echo "❌ 需要 python3"; exit 1; }
+  log "[install] clone gendoc → $RUNTIME_DIR"
+  git clone "$REPO_URL" "$RUNTIME_DIR"
 
-# Deploy skills
-bash "$SCRIPT_DIR/install.sh" ${QUIET:+--quiet}
+  _deploy_skills
+  _deploy_tools
+  _register_hook
 
-# Register hook: prefer bash if bash is available, else Python
-if command -v bash >/dev/null 2>&1; then
-  HOOK_CMD="bash \"$HOOK_BASH\""
-else
-  HOOK_CMD="python3 \"$HOOK_PY\""
-fi
-python3 "$SETTINGS_HOOK" add "$HOOK_CMD"
+  log ""
+  log "[install] 完成！重啟 Claude Code 讓技能生效。"
+  log "  · 手動升級：$RUNTIME_DIR/setup upgrade"
+  log "  · 解除安裝：$RUNTIME_DIR/setup uninstall"
+}
 
-log ""
-log "[setup] 完成！"
-log "  · 下次開啟 Claude Code 時，gendoc 會自動檢查更新（每小時一次）"
-log "  · 手動更新：$SCRIPT_DIR/bin/gendoc-upgrade"
-log "  · 解除安裝：$SCRIPT_DIR/setup --uninstall"
+# ── uninstall ─────────────────────────────────────────────────────────────────
+do_uninstall() {
+  log "[uninstall] 移除 hook..."
+  if [[ -f "$SETTINGS_HOOK" ]]; then
+    python3 "$SETTINGS_HOOK" remove
+  fi
+
+  log "[uninstall] 移除 copied skills..."
+  if [[ -d "$SKILLS_SRC" ]]; then
+    for skill_dir in "$SKILLS_SRC"/*/; do
+      name="$(basename "$skill_dir")"
+      [[ -d "$CLAUDE_SKILLS_DIR/$name" ]] && rm -rf "$CLAUDE_SKILLS_DIR/$name" && log "  · 刪除 ~/.claude/skills/$name"
+    done
+  fi
+
+  log "[uninstall] 刪除 $RUNTIME_DIR..."
+  rm -rf "$RUNTIME_DIR"
+
+  log "[uninstall] 完成。"
+}
+
+# ── upgrade ───────────────────────────────────────────────────────────────────
+do_upgrade() {
+  if [[ ! -d "$RUNTIME_DIR/.git" ]]; then
+    log "[upgrade] 找不到 $RUNTIME_DIR，請先執行 install。"
+    exit 1
+  fi
+
+  log "[upgrade] git pull..."
+  git -C "$RUNTIME_DIR" pull --ff-only
+
+  _deploy_skills
+  _deploy_tools
+
+  log "[upgrade] 完成。"
+}
+
+# ── helpers ───────────────────────────────────────────────────────────────────
+_deploy_skills() {
+  log "[deploy] 複製 skills → ~/.claude/skills/"
+  mkdir -p "$CLAUDE_SKILLS_DIR"
+  for skill_dir in "$SKILLS_SRC"/*/; do
+    name="$(basename "$skill_dir")"
+    rm -rf "$CLAUDE_SKILLS_DIR/$name"
+    cp -r "$skill_dir" "$CLAUDE_SKILLS_DIR/$name"
+    log "  · $name"
+  done
+}
+
+_deploy_tools() {
+  log "[deploy] 複製 tools/bin → $RUNTIME_DIR/tools/bin/"
+  # tools/bin already lives inside RUNTIME_DIR after clone; nothing extra to do.
+  # If tools need building, add build steps here per-package.
+  :
+}
+
+_register_hook() {
+  log "[deploy] 註冊 SessionStart hook..."
+  python3 "$SETTINGS_HOOK" add "$HOOK_CMD"
+}
+
+# ── dispatch ──────────────────────────────────────────────────────────────────
+case "$CMD" in
+  install)   do_install ;;
+  uninstall) do_uninstall ;;
+  upgrade)   do_upgrade ;;
+  *)
+    echo "用法：./setup [install|uninstall|upgrade]"
+    echo "  install   — clone + deploy + register hook（預設）"
+    echo "  uninstall — 移除 hook + 刪除 runtime"
+    echo "  upgrade   — git pull + re-deploy"
+    exit 1
+    ;;
+esac

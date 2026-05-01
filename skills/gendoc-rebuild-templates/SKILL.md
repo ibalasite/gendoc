@@ -38,7 +38,7 @@ allowed-tools:
 > 2. 建立 `templates/NEW_TYPE.gen.md`（生成規則）
 > 3. 建立 `templates/NEW_TYPE.review.md`（審查標準）
 > 4. 在 `templates/pipeline.json` 的 `steps` 陣列中加入新步驟（指定 id/layer/output/condition）
-> 5. 執行 `./install.sh`
+> 5. 執行 `/gendoc-upgrade`
 > 無需修改 gendoc-auto、gendoc-flow、gendoc、reviewdoc 任何 skill 檔案。
 
 ```bash
@@ -339,14 +339,7 @@ done
 
 ## Step 6：安裝同步
 
-```bash
-if [[ -f "./install.sh" ]]; then
-  ./install.sh
-  echo "✅ 技能已同步至 ~/.claude/skills/"
-else
-  echo "ℹ️  非 gendoc 開發目錄，略過 install.sh"
-fi
-```
+用 **Skill tool** 呼叫 `/gendoc-upgrade` 同步最新技能至 `~/.claude/skills/`。
 
 ---
 
@@ -359,7 +352,7 @@ fi
 ║  重建 review.md：<N> 份（全通過 ≥ 20 items / ≥ 4 layers）║
 ║  驗證 gen.md：<N> 份（累積上游鏈完整）                    ║
 ║  審查 *.md 結構：<N> 份（Document Control 完整）           ║
-║  安裝：install.sh 執行完成                                ║
+║  安裝：/gendoc-upgrade 執行完成                            ║
 ╚══════════════════════════════════════════════════════════╝
 
 建議下一步：執行 /gendoc-auto 從 D01-IDEA 全量生成文件套件。

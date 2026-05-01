@@ -18,8 +18,8 @@ allowed-tools:
 **所有 SKILL（gendoc-config 除外）在最開頭（Step -1）執行此邏輯。**
 
 > **版本更新由 SessionStart hook 自動處理**（每小時一次，背景執行，harness 強制觸發）。  
-> 手動更新請執行 `/gendoc-upgrade` 或 `cd ~/projects/gendoc && ./bin/gendoc-upgrade`。  
-> 首次安裝請執行 `cd ~/projects/gendoc && ./setup`。
+> 手動更新請執行 `/gendoc-upgrade` 或 `bash ~/.claude/skills/gendoc/setup upgrade`。  
+> 首次安裝請執行 `git clone https://github.com/ibalasite/gendoc.git ~/.claude/skills/gendoc && ~/.claude/skills/gendoc/setup`。
 
 ### 初始化守衛（R-01）
 

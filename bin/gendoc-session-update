@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# SessionStart hook: auto-update gendoc (macOS / Linux / WSL / git-bash)
+# SessionStart hook: auto-upgrade gendoc (macOS / Linux / WSL / git-bash)
 # Design: background, throttled (1h), lockfile, always exit 0
 
 set +e
 
-GENDOC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-STAMP_FILE="$GENDOC_DIR/.last-update-check"
-LOCK_DIR="$GENDOC_DIR/.update-lock"
+RUNTIME_DIR="$HOME/.claude/skills/gendoc"
+STAMP_FILE="$RUNTIME_DIR/.last-update-check"
+LOCK_DIR="$RUNTIME_DIR/.update-lock"
 THROTTLE_SECONDS=3600
 
-# Guard: must be a git repo
-[[ -d "$GENDOC_DIR/.git" ]] || exit 0
+# Guard: runtime must exist
+[[ -d "$RUNTIME_DIR/.git" ]] || exit 0
 
 # Throttle
 if [[ -f "$STAMP_FILE" ]]; then
@@ -23,11 +23,10 @@ fi
 mkdir "$LOCK_DIR" 2>/dev/null || exit 0
 trap 'rmdir "$LOCK_DIR" 2>/dev/null' EXIT
 
-# Background work
+# Background upgrade
 (
   touch "$STAMP_FILE"
-  git -C "$GENDOC_DIR" pull --ff-only --quiet 2>/dev/null || true
-  [[ -x "$GENDOC_DIR/install.sh" ]] && bash "$GENDOC_DIR/install.sh" --quiet 2>/dev/null || true
+  bash "$RUNTIME_DIR/setup" upgrade --quiet 2>/dev/null || true
 ) &
 
 exit 0
