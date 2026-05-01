@@ -750,3 +750,87 @@ CREATE TABLE user_consents (
 | A11y-10 | 支援減少動態效果（prefers-reduced-motion） | 2.3.3 | P1 |
 
 ---
+
+## 19. Admin Backend Requirements（管理後台需求）
+<!-- 條件章節：has_admin_backend=true 時填寫；否則標注「本專案無 Admin 後台需求」並略過 -->
+
+> **觸發條件**：專案啟用 Admin 後台（Session Config 中 `has_admin_backend=true`）時，此章節為必填。
+
+### 19.1 Admin Portal 定位
+
+| 項目 | 說明 |
+|------|------|
+| **目標用戶** | 內部運營人員（非終端 C 端用戶） |
+| **主要目的** | 用戶管理、系統配置、業務數據監控、稽核合規 |
+| **存取方式** | 獨立子路徑（`/admin/`）或獨立域名（`admin.{{DOMAIN}}.com`）|
+| **認證方式** | 獨立 JWT 體系（Admin Token，有效期更短）+ MFA（建議） |
+
+### 19.2 Admin 用戶角色定義
+
+| 角色 code | 中文名稱 | 職責範圍 | 敏感操作 |
+|----------|---------|---------|---------|
+| `super_admin` | 超級管理員 | 全部功能 + 角色管理 | ✅ 刪除用戶 / 角色授權 |
+| `operator` | 運營人員 | 業務數據查看 + 用戶查詢 | ❌ |
+| `auditor` | 稽核人員 | 稽核日誌查看（只讀） | ❌ |
+| `{{CUSTOM_ROLE}}` | {{ROLE_NAME}} | {{SCOPE}} | {{SENSITIVE}} |
+
+> ⚠️ 角色定義需與 EDD §5.5 RBAC 模型保持一致。
+
+### 19.3 Admin 功能模組需求
+
+| 模組 | 功能清單 | 所需角色 | 優先級 |
+|------|---------|---------|--------|
+| 用戶管理 | 列表 / 搜尋 / 詳情 / 停用 / 重設密碼 | super_admin, operator | P0 |
+| 角色管理 | 角色 CRUD / 權限分配 | super_admin | P0 |
+| 稽核日誌 | 列表 / 詳情 / 導出 CSV | super_admin, auditor | P0 |
+| 業務監控 | {{BUSINESS_MODULE_1}} 數據看板 | operator | P1 |
+| 系統配置 | {{CONFIG_ITEMS}} | super_admin | P1 |
+| {{CUSTOM_MODULE}} | {{FEATURES}} | {{ROLES}} | {{PRIORITY}} |
+
+### 19.4 Admin 核心 User Stories
+
+```
+作為 super_admin，我可以 管理所有用戶帳號（查看/停用/刪除），以便維護平台用戶安全。
+  驗收條件：
+  - Given: 已登入 super_admin 帳號
+  - When: 搜尋指定用戶並點擊停用
+  - Then: 該用戶立即無法登入，狀態顯示為「已停用」
+
+作為 super_admin，我可以 分配角色給 Admin 用戶，以便精細控制管理權限。
+  驗收條件：
+  - Given: 已建立 operator 帳號
+  - When: 在角色管理頁面為其分配 operator 角色
+  - Then: 該用戶登入後只看到 operator 授權的功能模組
+
+作為 auditor，我可以 查看和導出稽核日誌，以便滿足合規審計需求。
+  驗收條件：
+  - Given: 已登入 auditor 帳號
+  - When: 篩選日期範圍和操作類型後導出
+  - Then: 成功下載包含所有欄位的 CSV 文件
+```
+
+### 19.5 Admin 稽核要求
+
+> 依合規需求（{{COMPLIANCE_STANDARD：GDPR/ISO27001/SOC2}}），以下操作必須記錄 AuditLog：
+
+| 操作類型 | 觸發條件 | 必須記錄欄位 |
+|---------|---------|------------|
+| 用戶帳號變更 | 創建/停用/刪除/角色變更 | admin_id, target_user_id, action, before, after, ip, timestamp |
+| 角色權限變更 | 角色 CRUD / 權限分配修改 | admin_id, role_id, changes, timestamp |
+| 系統配置變更 | 任何配置項修改 | admin_id, config_key, before, after, timestamp |
+| 敏感資料存取 | 查看用戶 PII 資料 | admin_id, target_user_id, fields_accessed, timestamp |
+| 批量操作 | 批量停用/導出 | admin_id, affected_count, criteria, timestamp |
+
+### 19.6 Admin 非功能性需求
+
+| 需求類型 | 規格 |
+|---------|------|
+| 認證安全 | Admin Token 有效期 ≤ 15 分鐘（Refresh Token 8 小時）|
+| MFA | Super Admin 強制 TOTP MFA |
+| Session 管理 | 30 分鐘無操作自動登出 |
+| 登入嘗試限制 | 連續失敗 5 次後鎖定 30 分鐘 |
+| 密碼策略 | 最少 12 字元、含大小寫 + 數字 + 特殊符號 |
+| IP 白名單 | 可選（生產環境建議啟用） |
+| 回應時間 | 列表頁 < 1s（100 筆以內），Dashboard < 2s |
+
+---

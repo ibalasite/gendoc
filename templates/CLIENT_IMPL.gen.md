@@ -24,6 +24,12 @@ quality-bar: |
 **生成 CLIENT_IMPL.md 之前，必須先讀取 `CLIENT_IMPL.md`（結構）和本 `CLIENT_IMPL.gen.md`（生成規則）。**
 **絕對不允許在未讀取上游文件（EDD / VDD / ANIM / AUDIO）的情況下生成。**
 
+> **Admin 後台排除規則**：
+> 若 `docs/EDD.md §3.3` 的 `_CLIENT_ENGINE` 為純 Admin/Vue3 後台（`_ADMIN_FRAMEWORK` 存在但無獨立 C 端前台），
+> 則本 CLIENT_IMPL.md **不生成**，輸出說明：「本專案客戶端為 Vue3 Admin 後台，
+> 已由 ADMIN_IMPL.md 涵蓋，CLIENT_IMPL.md 不適用，跳過。」
+> 若同時有 C 端前台和 Admin 後台，則僅描述 C 端前台，不涵蓋 Admin 後台。
+
 ---
 
 ## 專家角色

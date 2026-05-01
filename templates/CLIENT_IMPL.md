@@ -3,6 +3,12 @@
 <!-- 本文件回答：「設計意圖如何轉成具體的客戶端代碼結構？」 -->
 <!-- 上游：EDD（架構） + VDD（視覺） + ANIM（動畫） + AUDIO（音效） -->
 <!-- 下游：開發人員直接依此文件實作，無需再做設計決策 -->
+<!--
+⚠️ 範圍說明：本文件覆蓋 C 端客戶端（Cocos Creator / Unity / React / HTML5 等）。
+   Vue3 Admin 後台不在本文件範圍內，見 docs/ADMIN_IMPL.md。
+   若 EDD §3.3 _ADMIN_FRAMEWORK 偵測到 Vue3 Admin，gen agent 應跳過本文件
+   並確認 ADMIN_IMPL.md 已生成。
+-->
 
 ---
 

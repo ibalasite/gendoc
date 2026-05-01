@@ -1357,3 +1357,77 @@ async def process_payment(request: PaymentRequest):
 ```
 
 ---
+
+## 18. Admin Portal 架構（條件章節）
+<!-- 觸發條件：has_admin_backend=true；否則略過此章節 -->
+
+> **觸發條件**：`has_admin_backend=true` 時填寫，否則標注「本專案無 Admin 後台，跳過 §18」。
+
+### 18.1 C4 Container — Admin Portal 整合視圖
+
+```mermaid
+C4Container
+title Admin Portal C4 Container Diagram（has_admin_backend=true）
+
+Person(admin, "Admin User", "Super Admin / Operator / Auditor")
+Container(admin_spa, "Admin Portal SPA", "Vue3 + Element Plus + Vite", "管理後台單頁應用")
+Container(api_gateway, "API Gateway", "Nginx / Kong", "統一入口、限流、認證代理")
+Container(backend, "Backend Service", "{{BACKEND_TECH}}", "業務服務 API")
+Container(admin_db, "Database", "{{DB_TECH}}", "包含 RBAC 相關表（roles/permissions/admin_users/audit_logs）")
+
+Rel(admin, admin_spa, "HTTPS", "/admin/*")
+Rel(admin_spa, api_gateway, "REST API", "/admin/api/*")
+Rel(api_gateway, backend, "HTTP", "/admin/* 路由轉發")
+Rel(backend, admin_db, "SQL", "RBAC + AuditLog 讀寫")
+```
+
+### 18.2 Admin RBAC 架構設計
+
+```
+Admin RBAC 層次：
+  AdminUser ──has many──> AdminUserRole
+  AdminUserRole ──belongs to──> Role
+  Role ──has many──> RolePermission
+  RolePermission ──belongs to──> Permission
+
+Permission 命名規範：
+  格式：module.action
+  例：user.list / user.delete / role.assign / audit.export
+
+授權流程：
+  1. Admin 登入 → 後端驗證 → 返回 AdminJWT（含 admin_id, roles[]）
+  2. 每次 API 請求 → API Gateway 驗證 JWT → 轉發含 X-Admin-ID header
+  3. 後端 middleware 讀取 roles → 查詢 Permission 集合 → 授權決策
+  4. 前端 Vue 路由守衛讀取 permissions → 動態渲染 sidebar + 按鈕
+```
+
+### 18.3 Admin vs. 主服務邊界
+
+| 邊界 | 設計決策 |
+|------|---------|
+| **資料庫** | 共用主資料庫，Admin 使用獨立 `admin_*` schema 前綴表（RBAC/AuditLog 等） |
+| **API 端點** | 獨立前綴 `/admin/api/v1/`，由後端 admin 路由分組處理 |
+| **認證 Token** | 獨立 Admin JWT（短效），不與 C 端用戶 Token 共用 |
+| **部署** | Admin SPA 打包為獨立靜態資源（`/dist/admin/`），Nginx 子路徑路由 |
+| **日誌** | Admin 操作寫入獨立 `audit_logs` 表，與業務日誌隔離 |
+
+### 18.4 Admin 安全架構補充
+
+```
+縱深防禦（Admin 層）：
+  Layer 1: Nginx - IP 白名單（可選）+ Rate Limit（嚴格）
+  Layer 2: API Gateway - Admin JWT 驗證 + MFA 檢查
+  Layer 3: Backend Middleware - Permission 細粒度授權
+  Layer 4: Database - Admin 操作前後狀態均記錄 AuditLog
+
+MFA 要求：
+  - super_admin 角色：強制 TOTP（Google Authenticator / FIDO2）
+  - 其他角色：可選，建議啟用
+
+Session 安全：
+  - Admin Token TTL: 15 min（從 CONSTANTS.md ADMIN_ACCESS_TOKEN_TTL 讀取）
+  - Refresh Token TTL: 8 hr
+  - 無操作 30 min 自動登出（前端實作）
+```
+
+---

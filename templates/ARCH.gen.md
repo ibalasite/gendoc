@@ -411,6 +411,22 @@ Closed ──(錯誤率 > 閾值)──► Open ──(等待 Timeout)──► 
 - [ ] §15 Architecture Review Checklist 已生成（12 個 NFR 均已驗證）
 - [ ] §16 FinOps Cost Optimization：成本分配 Tag 策略（Environment/Service/Team）是否已定義？
 - [ ] §16 月度 FinOps Review：成本預算警報規則（80%/100%/120% 閾值）是否已設定？
+- [ ] §18 Admin Portal 架構（has_admin_backend 條件）：若 true，C4 Admin Container 圖 + RBAC 架構 + 安全補充均已填寫
+
+### Admin Backend 條件步驟（has_admin_backend=true 時執行）
+
+```python
+_has_admin = state.get("has_admin_backend", False)
+if _has_admin:
+    # 生成 §18 Admin Portal 架構
+    # §18.1: 生成 C4 Container 圖（包含 Admin SPA + API Gateway + Backend + DB）
+    # §18.2: 描述 Admin RBAC 架構（AdminUser→Role→Permission 層次 + 授權流程）
+    # §18.3: 填寫 Admin vs 主服務邊界決策表（DB/API/Token/部署/日誌）
+    # §18.4: 補充 Admin 安全架構（縱深防禦 + MFA 要求 + Session 安全）
+    # Token TTL 從 CONSTANTS.md 讀取（若存在 ADMIN_ACCESS_TOKEN_TTL）
+else:
+    # §18 寫入：「本專案無 Admin 後台（has_admin_backend=false），略過 §18。」
+```
 
 若有遺漏，自行補齊後再寫入檔案。
 

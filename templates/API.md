@@ -1437,4 +1437,140 @@ graph LR
 
 ---
 
+## 18. Admin API（條件章節）
+<!-- 觸發條件：has_admin_backend=true；否則略過此章節 -->
+
+> **觸發條件**：`has_admin_backend=true` 時填寫，否則標注「本專案無 Admin 後台，跳過 §18」。
+> Admin API 使用獨立前綴 `/admin/api/v1/`，所有端點需攜帶 Admin JWT Token。
+
+### 18.0 Admin API 基礎規範
+
+| 項目 | 值 |
+|------|-----|
+| Base URL | `/admin/api/v1/` |
+| 認證 | `Authorization: Bearer <admin_jwt>` |
+| Admin JWT 有效期 | 15 分鐘（從 CONSTANTS.md `ADMIN_ACCESS_TOKEN_TTL` 讀取） |
+| 特殊 Header | `X-Admin-ID`（由 API Gateway 注入，后端信任） |
+| 稽核 | 所有 POST/PATCH/PUT/DELETE 操作自動寫入 AuditLog |
+| Rate Limit | 嚴格：100 req/min per Admin User |
+
+### 18.1 Admin 認證端點
+
+#### `POST /admin/api/v1/auth/login`
+
+Admin 登入（獨立於 C 端用戶登入）。
+
+**Request Body：**
+```json
+{
+  "username": "admin@example.com",
+  "password": "{{ADMIN_PASSWORD}}",
+  "totp_code": "{{6_DIGIT_TOTP}}"  // super_admin 強制
+}
+```
+
+**Response 200：**
+```json
+{
+  "access_token": "eyJhbGc...",
+  "refresh_token": "eyJhbGc...",
+  "admin_id": "uuid",
+  "roles": ["super_admin"],
+  "permissions": ["user.list", "user.delete", "role.assign", "audit.export"],
+  "expires_in": 900
+}
+```
+
+**Response 403（MFA 未通過）：**
+```json
+{ "code": "ADMIN_MFA_REQUIRED", "message": "TOTP verification failed" }
+```
+
+---
+
+#### `POST /admin/api/v1/auth/refresh`
+
+Admin Token 刷新。
+
+**Request Body：** `{ "refresh_token": "..." }`  
+**Response：** 同 login（僅返回新 access_token + 有效期）
+
+---
+
+#### `POST /admin/api/v1/auth/logout`
+
+登出（使 Refresh Token 失效）。
+
+---
+
+### 18.2 用戶管理端點
+
+| Method | Path | 說明 | 所需 Permission |
+|--------|------|------|----------------|
+| GET | `/admin/api/v1/users` | 用戶列表（支援搜尋/分頁/篩選） | `user.list` |
+| GET | `/admin/api/v1/users/:id` | 用戶詳情（含 PII，寫 AuditLog） | `user.view` |
+| PATCH | `/admin/api/v1/users/:id/status` | 啟用/停用用戶 | `user.update` |
+| POST | `/admin/api/v1/users/:id/reset-password` | 強制重設密碼 | `user.update` |
+| DELETE | `/admin/api/v1/users/:id` | 刪除用戶（軟刪除，需二次確認） | `user.delete` |
+
+**`GET /admin/api/v1/users` Query Parameters：**
+
+| 參數 | 類型 | 說明 |
+|------|------|------|
+| `q` | string | 關鍵字搜尋（email/username） |
+| `status` | `active\|disabled\|deleted` | 用戶狀態篩選 |
+| `created_from` | ISO8601 | 建立時間起始 |
+| `created_to` | ISO8601 | 建立時間終止 |
+| `page` | int | 頁碼（offset-based） |
+| `page_size` | int | 每頁筆數（max: 100） |
+
+---
+
+### 18.3 角色管理端點
+
+| Method | Path | 說明 | 所需 Permission |
+|--------|------|------|----------------|
+| GET | `/admin/api/v1/roles` | 角色列表 | `role.list` |
+| GET | `/admin/api/v1/roles/:id` | 角色詳情（含 Permission 清單） | `role.view` |
+| POST | `/admin/api/v1/roles` | 建立角色 | `role.create` |
+| PATCH | `/admin/api/v1/roles/:id` | 更新角色（名稱/描述/Permissions） | `role.update` |
+| DELETE | `/admin/api/v1/roles/:id` | 刪除角色（不得刪除 super_admin） | `role.delete` |
+| GET | `/admin/api/v1/permissions` | 所有可用 Permission 清單 | `role.list` |
+| POST | `/admin/api/v1/admin-users/:id/roles` | 為 Admin 用戶分配角色 | `role.assign` |
+| DELETE | `/admin/api/v1/admin-users/:id/roles/:role_id` | 移除 Admin 用戶角色 | `role.assign` |
+
+---
+
+### 18.4 稽核日誌端點
+
+| Method | Path | 說明 | 所需 Permission |
+|--------|------|------|----------------|
+| GET | `/admin/api/v1/audit-logs` | 稽核日誌列表（支援分頁/篩選） | `audit.view` |
+| GET | `/admin/api/v1/audit-logs/:id` | 稽核日誌詳情 | `audit.view` |
+| GET | `/admin/api/v1/audit-logs/export` | 導出 CSV（非同步，返回 job_id） | `audit.export` |
+
+**`GET /admin/api/v1/audit-logs` Query Parameters：**
+
+| 參數 | 類型 | 說明 |
+|------|------|------|
+| `actor_id` | UUID | 操作者 Admin ID |
+| `action_type` | string | 操作類型（user.delete 等） |
+| `resource_type` | string | 資源類型（user/role/config） |
+| `from` | ISO8601 | 時間起始 |
+| `to` | ISO8601 | 時間終止 |
+| `page` | int | 頁碼 |
+| `page_size` | int | 最大 200 |
+
+---
+
+### 18.5 業務管理端點（依 PRD §19.3 擴展）
+
+> 依專案 PRD §19.3 Admin 功能模組需求，補充以下業務管理端點：
+
+| Method | Path | 說明 | 所需 Permission |
+|--------|------|------|----------------|
+| {{METHOD}} | `/admin/api/v1/{{RESOURCE}}` | {{DESCRIPTION}} | `{{PERMISSION}}` |
+
+---
+
 *文件維護者：{{AUTHOR}} | 審閱者：{{REVIEWER}} | 最後更新：{{YYYYMMDD}}*

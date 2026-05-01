@@ -502,7 +502,25 @@ Flag 管理原則：
 - [ ] §17 Consent Management：同意記錄 Schema（user_consents table）已設計
 - [ ] §18 WCAG 2.1 AA 目標：Level A（MVP）/ Level AA（3 個月）里程碑已設定
 - [ ] §18 A11y 需求清單：A11y-01 到 A11y-10 十項已列入
+- [ ] §19 Admin 需求（has_admin_backend 條件）：若 true，Admin 角色/功能模組/User Stories/稽核要求均已填寫
 - [ ] 全文無 "TBD"、"待補"、"[待填]" 等空白佔位
+
+### Admin Backend 條件步驟（has_admin_backend=true 時執行）
+
+```python
+_has_admin = state.get("has_admin_backend", False)
+if _has_admin:
+    # 生成 §19 Admin Backend Requirements
+    # 讀取 EDD §3.1 角色定義（若已生成），推導 Admin 角色清單
+    # 填寫 §19.1 Admin Portal 定位（存取方式/認證說明）
+    # 填寫 §19.2 Admin 用戶角色定義（對應 EDD §5.5 RBAC 模型）
+    # 填寫 §19.3 Admin 功能模組需求（依業務領域展開，P0/P1 分級）
+    # 撰寫 §19.4 核心 Admin User Stories（至少 3 個，含 AC）
+    # 填寫 §19.5 稽核要求（AuditLog 觸發場景 + 必填欄位清單）
+    # 填寫 §19.6 Admin NFR（Token TTL 從 CONSTANTS.md 讀取/MFA/登入限制）
+else:
+    # §19 寫入：「本專案無 Admin 後台需求（has_admin_backend=false），略過此章節。」
+```
 
 ---
 
