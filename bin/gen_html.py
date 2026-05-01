@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # bin/gen_html.py
-# VERSION: 3.2.1
+# VERSION: 3.3.0
 # Maintained by gendoc — DO NOT EDIT IN TARGET PROJECTS
 # Install: ./install.sh  →  ~/.claude/gendoc/bin/gen_html.py
 # Usage:   python3 ~/.claude/gendoc/bin/gen_html.py   (run from project root)
@@ -90,6 +90,29 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 def esc(t):
     return _html.escape(str(t))
 
+def _mermaid_fix_block(lines):
+    """Fix mermaid v11.14.0 breaking patterns in flowchart/graph blocks."""
+    if not lines:
+        return lines
+    first = next((l.strip() for l in lines if l.strip()), '')
+    if not re.match(r'^(flowchart|graph)\b', first):
+        return lines
+
+    def fix_line(line):
+        # STADIUM_SHAPE: ([text]) → ((text))
+        line = re.sub(r'\(\[([^\]]+)\]\)', r'((\1))', line)
+        # BARE_LT_IN_LABEL: raw < inside {...} diamond → &lt;
+        line = re.sub(r'(\{[^}]+\})', lambda m: m.group(0).replace('<', '&lt;'), line)
+        # NESTED_BRACKET: \n[inner] inside [...] → \n(inner)
+        line = re.sub(r'\[([^\]"]*?)\\n\[([^\]]*)\]([^\]"]*?)\]',
+                      lambda m: '[' + m.group(1) + '\\n(' + m.group(2) + ')' + m.group(3) + ']', line)
+        # BRACE_IN_BRACKET: {key} inside [...] → (key)
+        line = re.sub(r'\[([^\]"]*\{[^\]"]*\}[^\]"]*)\]',
+                      lambda m: '[' + m.group(1).replace('{', '(').replace('}', ')') + ']', line)
+        return line
+
+    return [fix_line(l) for l in lines]
+
 def strip_frontmatter(text: str) -> str:
     """Strip YAML frontmatter (--- ... ---) from the top of a markdown file."""
     if not (text.startswith('---\n') or text.startswith('---\r\n')):
@@ -168,7 +191,8 @@ def md_to_html(text, src_dir=None):
             while i < len(lines) and lines[i].strip() != '```':
                 block.append(lines[i])
                 i += 1
-            out.append('<div class="diagram-container"><pre class="mermaid">' + '\n'.join(esc(l) for l in block) + '</pre></div>')
+            fixed = _mermaid_fix_block(block)
+            out.append('<div class="diagram-container"><pre class="mermaid">' + '\n'.join(esc(l) for l in fixed) + '</pre></div>')
         elif s.startswith('```'):
             lang = s[3:].strip()
             block = []
