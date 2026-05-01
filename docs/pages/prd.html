@@ -36,17 +36,17 @@
     <div class="sidebar-resizer" id="sidebarResizer"></div>
     <main class="doc-content"><h1>PRD — Product Requirements Document</h1>
 <p>&lt;!-- 對應學術標準：IEEE 830 (SRS)，對應業界：Google PRD / Amazon PRFAQ --&gt;</p>
-<p>&lt;!-- Version: v2.6 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 --&gt;</p>
+<p>&lt;!-- Version: v2.7 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 --&gt;</p>
 <hr>
 <h2>Document Control</h2>
 <table>
 <tr><th>欄位</th><th>內容</th></tr>
 <tr><td><strong>DOC-ID</strong></td><td>PRD-GENDOC-20260422</td></tr>
 <tr><td><strong>產品名稱</strong></td><td>gendoc — AI-Driven Implementation Blueprint Generator</td></tr>
-<tr><td><strong>文件版本</strong></td><td>v2.6</td></tr>
+<tr><td><strong>文件版本</strong></td><td>v2.7</td></tr>
 <tr><td><strong>狀態</strong></td><td>ACTIVE</td></tr>
 <tr><td><strong>作者（PM）</strong></td><td>AI Product Manager Agent</td></tr>
-<tr><td><strong>日期</strong></td><td>2026-04-28</td></tr>
+<tr><td><strong>日期</strong></td><td>2026-05-01</td></tr>
 <tr><td><strong>上游來源</strong></td><td>gendoc 開源專案（github.com/ibalasite/gendoc）</td></tr>
 <tr><td><strong>審閱者</strong></td><td>技術架構師、QA Lead</td></tr>
 <tr><td><strong>核准者</strong></td><td>待定</td></tr>
@@ -55,6 +55,7 @@
 <h2>Change Log</h2>
 <table>
 <tr><th>版本</th><th>日期</th><th>作者</th><th>變更摘要</th></tr>
+<tr><td>v2.7</td><td>2026-05-01</td><td>PM Agent</td><td><strong>架構重設計：Dev/Runtime 分離 + 統一 setup 工具</strong>：(1) <strong>Clone 位置根本性修正</strong> — 從 <code>~/projects/gendoc/</code>（開發目錄兼 runtime）改為 <code>~/.claude/skills/gendoc/</code>（純 runtime），徹底解決 SessionStart hook 每小時 <code>git pull</code> 可能覆蓋開發者未提交工作的風險；<code>~/projects/gendoc/</code> 恢復為純開發目錄，不再是任何人的 runtime 依賴。(2) <strong>統一 <code>setup</code> 工具</strong>：廢除 <code>install.sh</code>、<code>install.py</code>、<code>bin/gendoc-upgrade</code> 三個重複入口，整合為單一 <code>setup</code> 指令（預設=install）支援 <code>install</code> / <code>uninstall</code> / <code>upgrade</code> 三個子命令；macOS/Linux 用 <code>setup</code>、Windows 用 <code>setup.ps1</code>。(3) <strong><code>bin/gendoc-env.sh</code> 路徑唯一真相</strong>：新增環境變數宣告檔（<code>GENDOC_DIR</code> / <code>GENDOC_BIN</code> / <code>GENDOC_TEMPLATES</code> / <code>GENDOC_TOOLS</code>），所有 skill 和腳本均 <code>source</code> 此檔取得路徑，消除各處硬編碼 <code>~/projects/gendoc</code> 的違規。(4) <strong><code>tools/bin/</code> Pipeline 工具目錄</strong>：<code>gen_html.py</code> 從 <code>bin/</code> 移至 <code>tools/bin/</code>，區分基礎設施腳本（<code>bin/</code>）與流水線工具（<code>tools/bin/</code>）。(5) <strong>SKILL.md 移至 repo 根目錄</strong>：從 <code>skills/gendoc/SKILL.md</code> 移至 <code>SKILL.md</code>，與 gstack 慣例一致。(6) <strong>Fix-D 修正</strong>：<code>gendoc-auto</code>、<code>gendoc-flow</code>、<code>gendoc-repair</code>、<code>reviewdoc</code> 4 個 skill 移除硬編碼 <code>$HOME/projects/gendoc</code> 路徑，改為 source <code>gendoc-env.sh</code> 後呼叫 <code>$GENDOC_DIR/setup upgrade</code>。(7) <strong>架構違規稽核</strong>：建立 <code>VIOLATION_AUDIT.md</code>，記錄並解決 20 項架構違規（7×P2、8×P3、3×P4、2×D）。</td></tr>
 <tr><td>v2.6</td><td>2026-04-28</td><td>PM Agent</td><td><strong>CLIENT_IMPL 客戶端實作規格書 + pipeline.json 成為唯一維護入口 + Phase D-2 Agent 包裝</strong>：(1) 新增 D10d-CLIENT_IMPL 步驟（條件 <code>client_type != none</code>，位於 D10c-ANIM 之後），三件套模板（CLIENT_IMPL.md + CLIENT_IMPL.gen.md + CLIENT_IMPL.review.md），5-way 引擎路由 —— 依 EDD §3.3 自動偵測 CLIENT_ENGINE，分別為 Cocos Creator（cc.Node 樹、cc.assetManager.loadBundle、cc.EventTarget 事件驅動、cc.AudioSource pool、Prefab Object Pool）/ Unity WebGL（Hierarchy GameObject 樹、Addressables、Animator.SetTrigger、AudioMixer）/ React（JSX 組件樹、React.lazy + Suspense、Framer Motion / GSAP、pages/components/store 三層）/ Vue（SFC 組件樹、defineAsyncComponent、Pinia stores / composables）/ HTML5（DOM 結構、Web Audio API / Howler.js、Preload Manager、requestAnimationFrame）展開對應場景結構、資源載入策略、動畫觸發、AudioManager 架構、VFX 整合規格；<code>gendoc/SKILL.md</code> 新增 client-impl / client_impl / cocos / unity / react-impl / vue-impl 等 6 個型別別名。(2) <strong>pipeline.json 成為唯一維護入口</strong>：<code>gendoc-config</code> step picker 和 <code>gendoc-shared</code> STEP_SEQUENCE / STEP_ORDER / Review Loop 適用清單全部改為執行時動態讀取 pipeline.json（python3 解析），消除 skill 間硬編碼同步問題；新增步驟只需修改 pipeline.json 一個檔案，其他所有 skill 自動跟上。(3) <strong>gendoc-flow Phase D-2 → Agent subagent 包裝</strong>：每份文件的 review→fix loop 改由 Agent tool 委派給獨立 subagent 執行，主 Claude context 不再累積 12+ 文件 × 5 輪的 review/fix 輸出，pipeline 可持續運行至 D19 不被 context window 撐爆，回傳格式統一為 REVIEW_LOOP_RESULT 緊湊結構。</td></tr>
 <tr><td>v2.5</td><td>2026-04-28</td><td>PM Agent</td><td><strong>具體建置成功標準明確化</strong>：在「什麼是可實作的藍圖」新增 LOCAL_DEPLOY / Runbook / 跨文件一致性三條標準，明確定義 gendoc 產出必須能讓 AI 或人類 step-by-step 在 local 建置完整 k8s 環境（Rancher Desktop）、client 封進 k8s pod、對外僅一個 port、docker-compose 為輔助工具、所有 Unit / Integration / E2E 測試可完整執行、跨文件品質如各自聲明的標準且上下文對齊無缺漏。</td></tr>
 <tr><td>v2.4</td><td>2026-04-26</td><td>PM Agent</td><td><strong>gendoc-shared 集中守衛 + Phase D-2 Review Loop</strong>：<code>gendoc-shared</code> 從純參考文件改為可執行 Skill 入口（<code>allowed-tools: [Bash, Skill]</code>），負責執行 R-01 State File Guard（檢查 state file 是否存在，不存在則完整呼叫 <code>gendoc-config</code>）；<code>gendoc-auto</code> / <code>gendoc-flow</code> Step -1 移除 inline guard 邏輯，改為一行 Skill tool 呼叫 <code>gendoc-shared</code>，等其完全回傳後才繼續（禁止在 Skill tool 回傳前讀取任何檔案或執行任何準備動作），達成 <strong>單一維護點</strong>原則。<code>gendoc-config</code> 確立為 state file 唯一建立者，其他所有 skill 禁止自行建立 state file。<code>gendoc-auto</code> Step 5.5（IDEA Review Loop）與 Step 5.7（BRD Review Loop）從 Agent→subagent→reviewdoc 雙重委派架構改為 <strong>Phase D-2</strong> 模式：主 Claude 直接驅動 Review subagent → Fix subagent → Round Summary → Commit per round，與 <code>gendoc-flow</code> 統一，解決雙重委派導致 review 輸出不可見、每輪 Summary 消失的問題。</td></tr>
@@ -128,24 +129,24 @@
 <div class="diagram-container"><pre class="mermaid">C4Context
     title gendoc — System Context Diagram
 
-    Person(dev, "開發者 / PM", "執行 /gendoc-auto 指令")
-    Person(ai_dev, "AI 開發者（Claude Code）", "讀取 gendoc 輸出，直接實作程式碼")
-    Person(stakeholder, "技術主管 / 客戶", "閱讀 HTML 文件站，確認規格")
+    Person(dev, &quot;開發者 / PM&quot;, &quot;執行 /gendoc-auto 指令&quot;)
+    Person(ai_dev, &quot;AI 開發者（Claude Code）&quot;, &quot;讀取 gendoc 輸出，直接實作程式碼&quot;)
+    Person(stakeholder, &quot;技術主管 / 客戶&quot;, &quot;閱讀 HTML 文件站，確認規格&quot;)
 
-    System(gendoc, "gendoc Skill Suite", "22 個 Claude Code skills\n任意輸入 → 可直接實作的完整技術藍圖")
+    System(gendoc, &quot;gendoc Skill Suite&quot;, &quot;22 個 Claude Code skills\n任意輸入 → 可直接實作的完整技術藍圖&quot;)
 
-    System_Ext(claude_api, "Claude API (Anthropic)", "AI 推理能力，執行每個文件生成 Agent")
-    System_Ext(github, "GitHub", "存放輸出文件，建立 commit")
-    System_Ext(github_pages, "GitHub Pages", "托管自動生成的 HTML 文件網站")
-    System_Ext(web_sources, "外部來源", "URL / GitHub Repo / 圖片 / 本地文件")
+    System_Ext(claude_api, &quot;Claude API (Anthropic)&quot;, &quot;AI 推理能力，執行每個文件生成 Agent&quot;)
+    System_Ext(github, &quot;GitHub&quot;, &quot;存放輸出文件，建立 commit&quot;)
+    System_Ext(github_pages, &quot;GitHub Pages&quot;, &quot;托管自動生成的 HTML 文件網站&quot;)
+    System_Ext(web_sources, &quot;外部來源&quot;, &quot;URL / GitHub Repo / 圖片 / 本地文件&quot;)
 
-    Rel(dev, gendoc, "執行 /gendoc-auto", "Claude Code CLI")
-    Rel(ai_dev, gendoc, "讀取 docs/ 直接實作", "File System / Claude Context")
-    Rel(stakeholder, gendoc, "閱讀 HTML 文件站", "Browser")
-    Rel(gendoc, claude_api, "spawn subagent，執行文件生成", "Claude Agent SDK")
-    Rel(gendoc, github, "git push + 建立文件 commit", "git / gh CLI")
-    Rel(gendoc, github_pages, "部署 docs/pages/*.html", "GitHub Actions")
-    Rel(gendoc, web_sources, "WebFetch 讀取輸入素材", "HTTP")</pre></div>
+    Rel(dev, gendoc, &quot;執行 /gendoc-auto&quot;, &quot;Claude Code CLI&quot;)
+    Rel(ai_dev, gendoc, &quot;讀取 docs/ 直接實作&quot;, &quot;File System / Claude Context&quot;)
+    Rel(stakeholder, gendoc, &quot;閱讀 HTML 文件站&quot;, &quot;Browser&quot;)
+    Rel(gendoc, claude_api, &quot;spawn subagent，執行文件生成&quot;, &quot;Claude Agent SDK&quot;)
+    Rel(gendoc, github, &quot;git push + 建立文件 commit&quot;, &quot;git / gh CLI&quot;)
+    Rel(gendoc, github_pages, &quot;部署 docs/pages/*.html&quot;, &quot;GitHub Actions&quot;)
+    Rel(gendoc, web_sources, &quot;WebFetch 讀取輸入素材&quot;, &quot;HTTP&quot;)</pre></div>
 <hr>
 <h2>3. Stakeholders &amp; Users</h2>
 <h3>3.1 Stakeholder Map</h3>
@@ -387,52 +388,52 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
 <p>每個標準步驟執行<strong>三專家子代理模式</strong>：Gen ⚙ → Review ↻ → Fix ✎ → Commit ↑，直至 finding = 0 或達 max_rounds。</p>
 <p><code>✦</code> = client_type ≠ none 時執行（有 UI 的產品）　<code>★</code> = special_skill（不走三專家，直接呼叫 Skill）</p>
 <div class="diagram-container"><pre class="mermaid">flowchart TD
-    INPUT([任意輸入\n文字 · URL · 圖片 · Repo]) --> AUTO
+    INPUT((任意輸入\n文字 · URL · 圖片 · Repo)) --&gt; AUTO
 
-    subgraph AUTO["/gendoc-auto — 入口"]
+    subgraph AUTO[&quot;/gendoc-auto — 入口&quot;]
         direction LR
-        G1["⚙ Gen IDEA\n資深 PM Expert"] --> R1["↻ Review + Fix Loop\nfinding = 0 → pass\nfinding > 0 → Fix → re-Review"]
-        R1 --> G2["⚙ Gen BRD\n資深商業分析師"]
-        G2 --> R2["↻ Review + Fix Loop"]
+        G1[&quot;⚙ Gen IDEA\n資深 PM Expert&quot;] --&gt; R1[&quot;↻ Review + Fix Loop\nfinding = 0 → pass\nfinding &gt; 0 → Fix → re-Review&quot;]
+        R1 --&gt; G2[&quot;⚙ Gen BRD\n資深商業分析師&quot;]
+        G2 --&gt; R2[&quot;↻ Review + Fix Loop&quot;]
     end
 
-    R2 -->|"finding = 0\nhandoff = true 寫入 state"| FLOW
+    R2 --&gt;|&quot;finding = 0\nhandoff = true 寫入 state&quot;| FLOW
 
-    subgraph FLOW["/gendoc-flow — 每步驟 Gen ⚙ Review ↻ Fix ✎ Commit ↑"]
+    subgraph FLOW[&quot;/gendoc-flow — 每步驟 Gen ⚙ Review ↻ Fix ✎ Commit ↑&quot;]
         direction TD
-        subgraph REQ["需求層"]
+        subgraph REQ[&quot;需求層&quot;]
             direction LR
-            D03["D03 PRD"] --> D04["D04 PDD ✦"] --> D05["D05 VDD ✦"]
+            D03[&quot;D03 PRD&quot;] --&gt; D04[&quot;D04 PDD ✦&quot;] --&gt; D05[&quot;D05 VDD ✦&quot;]
         end
-        subgraph DES["設計層"]
+        subgraph DES[&quot;設計層&quot;]
             direction LR
-            D06["D06 EDD"] --> D07["D07 ARCH"] --> D08["D08 API"] --> D09["D09 SCHEMA"] --> D10["D10 FRONTEND ✦"]
+            D06[&quot;D06 EDD&quot;] --&gt; D07[&quot;D07 ARCH&quot;] --&gt; D08[&quot;D08 API&quot;] --&gt; D09[&quot;D09 SCHEMA&quot;] --&gt; D10[&quot;D10 FRONTEND ✦&quot;]
         end
-        subgraph QA["品質層"]
+        subgraph QA[&quot;品質層&quot;]
             direction LR
-            D11["D11 test-plan"] --> D12["D12 BDD-server"] --> D12b["D12b BDD-client ✦"] --> D13["D13 RTM"]
+            D11[&quot;D11 test-plan&quot;] --&gt; D12[&quot;D12 BDD-server&quot;] --&gt; D12b[&quot;D12b BDD-client ✦&quot;] --&gt; D13[&quot;D13 RTM&quot;]
         end
-        subgraph OPS["運維層"]
+        subgraph OPS[&quot;運維層&quot;]
             direction LR
-            D14["D14 runbook"] --> D15["D15 LOCAL_DEPLOY"]
+            D14[&quot;D14 runbook&quot;] --&gt; D15[&quot;D15 LOCAL_DEPLOY&quot;]
         end
-        subgraph AUDIT["稽核層"]
-            D16["D16 ALIGN ★"] --> D16F["D16-F ALIGN-FIX ★"]
+        subgraph AUDIT[&quot;稽核層&quot;]
+            D16[&quot;D16 ALIGN ★&quot;] --&gt; D16F[&quot;D16-F ALIGN-FIX ★&quot;]
         end
-        subgraph IMPL["實作層（docs/blueprint/）"]
+        subgraph IMPL[&quot;實作層（docs/blueprint/）&quot;]
             direction LR
-            D17["D17 CONTRACTS ★"] --> D18["D18 MOCK ★ ✦"]
+            D17[&quot;D17 CONTRACTS ★&quot;] --&gt; D18[&quot;D18 MOCK ★ ✦&quot;]
         end
-        subgraph PUB["發布層"]
-            D19["D19 HTML ★"]
+        subgraph PUB[&quot;發布層&quot;]
+            D19[&quot;D19 HTML ★&quot;]
         end
-        REQ --> DES --> QA --> OPS --> AUDIT --> IMPL --> PUB
+        REQ --&gt; DES --&gt; QA --&gt; OPS --&gt; AUDIT --&gt; IMPL --&gt; PUB
     end
 
-    FLOW --> DONE([GitHub Pages 文件站])
+    FLOW --&gt; DONE((GitHub Pages 文件站))
 
-    RESUME(["/gendoc-flow\n斷點續行"]) -.->|"review_progress\ncompleted_steps"| FLOW
-    CONFIG(["/gendoc-config\n設定強度 / 重跑點"]) -.-> FLOW
+    RESUME((&quot;/gendoc-flow\n斷點續行&quot;)) -.-&gt;|&quot;review_progress\ncompleted_steps&quot;| FLOW
+    CONFIG((&quot;/gendoc-config\n設定強度 / 重跑點&quot;)) -.-&gt; FLOW
 
     classDef condNode fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
     classDef specNode fill:#fef3c7,stroke:#f59e0b,color:#78350f
@@ -466,38 +467,38 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
                │              └─[稽核層] ALIGN_REPORT.md + README.md → docs/pages/</code></pre>
 <h4>文件上下層關係圖（Document Hierarchy Diagram）</h4>
 <div class="diagram-container"><pre class="mermaid">graph TD
-    REQ([docs/req/ 原始素材])
-    L0["L0 IDEA.md<br/><small>概念入口（可選）</small>"]
-    L1["L1 BRD.md<br/><small>商業需求</small>"]
-    L2["L2 PRD.md<br/><small>產品需求</small>"]
-    L3a["L3a PDD.md<br/><small>UX 互動設計</small>"]
-    L35["L3.5 VDD.md<br/><small>視覺設計 / Design Token</small>"]
-    L4["L4 EDD.md<br/><small>工程技術設計</small>"]
-    L5a["L5a ARCH.md<br/><small>架構設計</small>"]
-    L5b["L5b API.md<br/><small>API 定義</small>"]
-    L5c["L5c SCHEMA.md<br/><small>資料模型</small>"]
-    L6["L6 FRONTEND.md<br/><small>前端技術設計</small>"]
-    L7["L7 test-plan.md<br/><small>測試策略</small>"]
-    L8a["L8a BDD features/<br/><small>Server BDD</small>"]
-    L8b["L8b BDD client/<br/><small>Client BDD</small>"]
-    L9a["L9a RTM.md<br/><small>需求追溯矩陣</small>"]
-    L9b["L9b RUNBOOK.md<br/><small>運維文件</small>"]
-    L9c["L9c LOCAL_DEPLOY.md<br/><small>本地部署</small>"]
-    L10["L10 README.md<br/><small>專案總覽</small>"]
-    AUDIT["稽核層<br/>D16 ALIGN_REPORT"]
-    IMPL["實作層<br/>D17 docs/blueprint/contracts/ infra/ scaffold/<br/>D18 docs/blueprint/mock/"]
-    PUB["發布層<br/>D19 docs/pages/"]
+    REQ((docs/req/ 原始素材))
+    L0[&quot;L0 IDEA.md&lt;br/&gt;&lt;small&gt;概念入口（可選）&lt;/small&gt;&quot;]
+    L1[&quot;L1 BRD.md&lt;br/&gt;&lt;small&gt;商業需求&lt;/small&gt;&quot;]
+    L2[&quot;L2 PRD.md&lt;br/&gt;&lt;small&gt;產品需求&lt;/small&gt;&quot;]
+    L3a[&quot;L3a PDD.md&lt;br/&gt;&lt;small&gt;UX 互動設計&lt;/small&gt;&quot;]
+    L35[&quot;L3.5 VDD.md&lt;br/&gt;&lt;small&gt;視覺設計 / Design Token&lt;/small&gt;&quot;]
+    L4[&quot;L4 EDD.md&lt;br/&gt;&lt;small&gt;工程技術設計&lt;/small&gt;&quot;]
+    L5a[&quot;L5a ARCH.md&lt;br/&gt;&lt;small&gt;架構設計&lt;/small&gt;&quot;]
+    L5b[&quot;L5b API.md&lt;br/&gt;&lt;small&gt;API 定義&lt;/small&gt;&quot;]
+    L5c[&quot;L5c SCHEMA.md&lt;br/&gt;&lt;small&gt;資料模型&lt;/small&gt;&quot;]
+    L6[&quot;L6 FRONTEND.md&lt;br/&gt;&lt;small&gt;前端技術設計&lt;/small&gt;&quot;]
+    L7[&quot;L7 test-plan.md&lt;br/&gt;&lt;small&gt;測試策略&lt;/small&gt;&quot;]
+    L8a[&quot;L8a BDD features/&lt;br/&gt;&lt;small&gt;Server BDD&lt;/small&gt;&quot;]
+    L8b[&quot;L8b BDD client/&lt;br/&gt;&lt;small&gt;Client BDD&lt;/small&gt;&quot;]
+    L9a[&quot;L9a RTM.md&lt;br/&gt;&lt;small&gt;需求追溯矩陣&lt;/small&gt;&quot;]
+    L9b[&quot;L9b RUNBOOK.md&lt;br/&gt;&lt;small&gt;運維文件&lt;/small&gt;&quot;]
+    L9c[&quot;L9c LOCAL_DEPLOY.md&lt;br/&gt;&lt;small&gt;本地部署&lt;/small&gt;&quot;]
+    L10[&quot;L10 README.md&lt;br/&gt;&lt;small&gt;專案總覽&lt;/small&gt;&quot;]
+    AUDIT[&quot;稽核層&lt;br/&gt;D16 ALIGN_REPORT&quot;]
+    IMPL[&quot;實作層&lt;br/&gt;D17 docs/blueprint/contracts/ infra/ scaffold/&lt;br/&gt;D18 docs/blueprint/mock/&quot;]
+    PUB[&quot;發布層&lt;br/&gt;D19 docs/pages/&quot;]
 
-    REQ --> L0 --> L1 --> L2
-    L2 --> L3a --> L35 --> L4
-    L2 --> L4
-    L4 --> L5a --> L5b --> L5c --> L6 --> L7
-    L7 --> L8a --> L9a
-    L7 --> L8b
-    L8b --> L9a
-    L5a --> L9b --> L9c
-    L9a & L9b & L9c --> L10
-    L10 --> AUDIT --> IMPL --> PUB
+    REQ --&gt; L0 --&gt; L1 --&gt; L2
+    L2 --&gt; L3a --&gt; L35 --&gt; L4
+    L2 --&gt; L4
+    L4 --&gt; L5a --&gt; L5b --&gt; L5c --&gt; L6 --&gt; L7
+    L7 --&gt; L8a --&gt; L9a
+    L7 --&gt; L8b
+    L8b --&gt; L9a
+    L5a --&gt; L9b --&gt; L9c
+    L9a &amp; L9b &amp; L9c --&gt; L10
+    L10 --&gt; AUDIT --&gt; IMPL --&gt; PUB
 
     classDef cond fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
     classDef audit fill:#fef3c7,stroke:#f59e0b,color:#78350f
@@ -534,35 +535,35 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
 <h4>累積上游關聯圖（Cumulative Reference Visualization）</h4>
 <p>每個節點顏色深度代表累積讀取的文件層數；箭頭方向為「讀取方向」（下游文件讀上游文件）。</p>
 <div class="diagram-container"><pre class="mermaid">graph TD
-    REQ(["docs/req/ ●"]):::l0
-    ID["IDEA ●●"]:::l1
-    BR["BRD ●●●"]:::l2
-    PR["PRD ●●●●"]:::l3
-    PD["PDD ●●●●●"]:::cond
-    VD["VDD ●●●●●●"]:::cond
-    ED["EDD ●●●●●●●"]:::l4
-    AR["ARCH ●●●●●●●●"]:::l5
-    AP["API ●●●●●●●●●"]:::l6
-    SC["SCHEMA ●●●●●●●●●●"]:::l6
-    FE["FRONTEND ●●●●●●●●●●●"]:::cond
-    TP["test-plan ●●●●●●●●●●●●"]:::l7
-    BS["BDD-server ●●●●●●●●●●●●●"]:::l8
-    BC["BDD-client ●●●●●●●●●●●●●"]:::cond
-    RM["RTM ●●●●●●●●●●●●●●"]:::l9
-    RB["RUNBOOK ●●●●●●●●●●●●●●"]:::l9
-    LD["LOCAL_DEPLOY ●●●●●●●●●●●●●●●"]:::l9
-    ME["README ★ 全量"]:::l10
-    AL["ALIGN ★ 全量掃描"]:::audit
+    REQ((&quot;docs/req/ ●&quot;)):::l0
+    ID[&quot;IDEA ●●&quot;]:::l1
+    BR[&quot;BRD ●●●&quot;]:::l2
+    PR[&quot;PRD ●●●●&quot;]:::l3
+    PD[&quot;PDD ●●●●●&quot;]:::cond
+    VD[&quot;VDD ●●●●●●&quot;]:::cond
+    ED[&quot;EDD ●●●●●●●&quot;]:::l4
+    AR[&quot;ARCH ●●●●●●●●&quot;]:::l5
+    AP[&quot;API ●●●●●●●●●&quot;]:::l6
+    SC[&quot;SCHEMA ●●●●●●●●●●&quot;]:::l6
+    FE[&quot;FRONTEND ●●●●●●●●●●●&quot;]:::cond
+    TP[&quot;test-plan ●●●●●●●●●●●●&quot;]:::l7
+    BS[&quot;BDD-server ●●●●●●●●●●●●●&quot;]:::l8
+    BC[&quot;BDD-client ●●●●●●●●●●●●●&quot;]:::cond
+    RM[&quot;RTM ●●●●●●●●●●●●●●&quot;]:::l9
+    RB[&quot;RUNBOOK ●●●●●●●●●●●●●●&quot;]:::l9
+    LD[&quot;LOCAL_DEPLOY ●●●●●●●●●●●●●●●&quot;]:::l9
+    ME[&quot;README ★ 全量&quot;]:::l10
+    AL[&quot;ALIGN ★ 全量掃描&quot;]:::audit
 
-    REQ --> ID --> BR --> PR
-    PR --> PD --> VD --> ED
-    PR --> ED
-    ED --> AR --> AP --> SC --> FE --> TP
-    TP --> BS --> RM
-    TP --> BC --> RM
-    AR --> RB --> LD
-    RM & RB & LD --> ME
-    ME --> AL
+    REQ --&gt; ID --&gt; BR --&gt; PR
+    PR --&gt; PD --&gt; VD --&gt; ED
+    PR --&gt; ED
+    ED --&gt; AR --&gt; AP --&gt; SC --&gt; FE --&gt; TP
+    TP --&gt; BS --&gt; RM
+    TP --&gt; BC --&gt; RM
+    AR --&gt; RB --&gt; LD
+    RM &amp; RB &amp; LD --&gt; ME
+    ME --&gt; AL
 
     classDef l0 fill:#f0fdf4,stroke:#86efac,color:#14532d
     classDef l1 fill:#dcfce7,stroke:#4ade80,color:#14532d

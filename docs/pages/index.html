@@ -35,9 +35,9 @@
     </aside>
     <div class="sidebar-resizer" id="sidebarResizer"></div>
     <main class="doc-content"><h1>gendoc</h1>
-<p><a href="LICENSE" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'badge-fallback\',textContent:this.alt}))"></a></p>
-<p><a href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey" alt="Platform" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'badge-fallback\',textContent:this.alt}))"></a></p>
-<p><a href="https://claude.ai/code" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/Claude%20Code-skill-blueviolet" alt="Claude Code" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'badge-fallback\',textContent:this.alt}))"></a></p>
+<p><a href="LICENSE" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'badge-fallback',textContent:this.alt}))"></a></p>
+<p><a href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey" alt="Platform" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'badge-fallback',textContent:this.alt}))"></a></p>
+<p><a href="https://claude.ai/code" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/Claude%20Code-skill-blueviolet" alt="Claude Code" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'badge-fallback',textContent:this.alt}))"></a></p>
 <p><strong>AI-driven engineering document generation system for Claude Code.</strong> One command generates a complete implementation blueprint — IDEA, BRD, PRD, PDD, VDD, EDD, ARCH, API, Schema, FRONTEND, AUDIO, ANIM, <strong>CLIENT_IMPL</strong>, test-plan, BDD, RTM, Runbook, LOCAL_DEPLOY, CONTRACTS (OpenAPI/JSON Schema/Pact/IaC/Seed Code), and an HTML documentation site — all output consolidated under <code>docs/blueprint/</code> for portability — each document inheriting knowledge from all upstream docs automatically. For game projects (<code>client_type=game</code>), AUDIO and ANIM design documents are also generated. CLIENT_IMPL is generated for any project with a client (<code>client_type ≠ api-only</code>) and auto-routes to the correct engine: Cocos Creator / Unity WebGL / React / Vue / HTML5.</p>
 <hr>
 <h2>Overview</h2>
@@ -72,21 +72,18 @@
 <hr>
 <h2>Quick Start</h2>
 <h3>Install (macOS / Linux / WSL)</h3>
-<pre><code class="language-bash"># 1. Clone
-git clone https://github.com/ibalasite/gendoc.git ~/projects/gendoc
+<pre><code class="language-bash"># 1. Clone + install in one go
+git clone https://github.com/ibalasite/gendoc.git ~/.claude/skills/gendoc
+~/.claude/skills/gendoc/setup
 
-# 2. Install skills + register auto-update hook
-cd ~/projects/gendoc &amp;&amp; ./setup
-
-# 3. Restart Claude Code — skills are now available</code></pre>
+# 2. Restart Claude Code — skills are now available</code></pre>
 <h3>Install (Windows native)</h3>
 <pre><code class="language-powershell"># Requires: Git for Windows + Python 3
-git clone https://github.com/ibalasite/gendoc.git ~/projects/gendoc
-cd ~/projects/gendoc
-.\setup.ps1</code></pre>
+git clone https://github.com/ibalasite/gendoc.git &quot;$env:USERPROFILE\.claude\skills\gendoc&quot;
+&amp; &quot;$env:USERPROFILE\.claude\skills\gendoc\setup.ps1&quot;</code></pre>
 <h3>Uninstall</h3>
-<pre><code class="language-bash">~/projects/gendoc/setup --uninstall   # macOS/Linux
-# Or: .\setup.ps1 -Uninstall          # Windows</code></pre>
+<pre><code class="language-bash">~/.claude/skills/gendoc/setup uninstall   # macOS/Linux
+# Or: &amp; &quot;$env:USERPROFILE\.claude\skills\gendoc\setup.ps1&quot; uninstall   # Windows</code></pre>
 <hr>
 <h2>Usage</h2>
 <pre><code class="language-bash"># Full pipeline — start a new project
@@ -122,7 +119,7 @@ cd ~/projects/gendoc
 <h2>Auto-Update</h2>
 <p>After <code>./setup</code>, a <strong>SessionStart hook</strong> is registered in <code>~/.claude/settings.json</code>. Every time Claude Code starts a session, the harness automatically runs <code>git pull + install</code> in the background (throttled to once per hour). No LLM involvement — 100% reliable.</p>
 <pre><code class="">Session start → harness triggers hook → git pull (background) → skills updated</code></pre>
-<p>Manual update: <code>/gendoc-update</code> or <code>~/projects/gendoc/bin/gendoc-upgrade</code></p>
+<p>Manual update: <code>/gendoc-upgrade</code> or <code>~/.claude/skills/gendoc/setup upgrade</code></p>
 <hr>
 <h2>Template Architecture</h2>
 <pre><code class="">templates/
@@ -132,41 +129,41 @@ cd ~/projects/gendoc
 <p>The <strong>Iron Law</strong>: no document is generated without reading both <code>TYPE.md</code> AND <code>TYPE.gen.md</code> first. Templates are the single source of truth — editing a template immediately changes behavior of all <code>/gendoc</code> and <code>/reviewdoc</code> calls.</p>
 <h3>Pipeline (D01–D19)</h3>
 <div class="diagram-container"><pre class="mermaid">flowchart TD
-    INPUT([任意輸入\n文字 · URL · 圖片 · Repo]) --> AUTO
-    subgraph AUTO["/gendoc-auto — 入口"]
+    INPUT((任意輸入\n文字 · URL · 圖片 · Repo)) --&gt; AUTO
+    subgraph AUTO[&quot;/gendoc-auto — 入口&quot;]
         direction LR
-        G1["⚙ Gen IDEA\n資深 PM Expert"] --> R1["↻ Review + Fix Loop\nfinding = 0 → pass"]
-        R1 --> G2["⚙ Gen BRD\n資深商業分析師"]
-        G2 --> R2["↻ Review + Fix Loop"]
+        G1[&quot;⚙ Gen IDEA\n資深 PM Expert&quot;] --&gt; R1[&quot;↻ Review + Fix Loop\nfinding = 0 → pass&quot;]
+        R1 --&gt; G2[&quot;⚙ Gen BRD\n資深商業分析師&quot;]
+        G2 --&gt; R2[&quot;↻ Review + Fix Loop&quot;]
     end
-    R2 -->|"finding = 0\nhandoff = true 寫入 state"| FLOW
-    subgraph FLOW["/gendoc-flow — 每步驟 Gen ⚙ Review ↻ Fix ✎ Commit ↑"]
-        subgraph REQ["需求層"]
-            D03["D03 PRD"] --> D04["D04 PDD ✦"] --> D05["D05 VDD ✦"]
+    R2 --&gt;|&quot;finding = 0\nhandoff = true 寫入 state&quot;| FLOW
+    subgraph FLOW[&quot;/gendoc-flow — 每步驟 Gen ⚙ Review ↻ Fix ✎ Commit ↑&quot;]
+        subgraph REQ[&quot;需求層&quot;]
+            D03[&quot;D03 PRD&quot;] --&gt; D04[&quot;D04 PDD ✦&quot;] --&gt; D05[&quot;D05 VDD ✦&quot;]
         end
-        subgraph DES["設計層"]
-            D06["D06 EDD"] --> D07["D07 ARCH"] --> D07b["D07b UML ★"] --> D08["D08 API"] --> D09["D09 SCHEMA"] --> D10["D10 FRONTEND ✦"] --> D10b["D10b AUDIO ✧"] --> D10c["D10c ANIM ✧"]
+        subgraph DES[&quot;設計層&quot;]
+            D06[&quot;D06 EDD&quot;] --&gt; D07[&quot;D07 ARCH&quot;] --&gt; D07b[&quot;D07b UML ★&quot;] --&gt; D08[&quot;D08 API&quot;] --&gt; D09[&quot;D09 SCHEMA&quot;] --&gt; D10[&quot;D10 FRONTEND ✦&quot;] --&gt; D10b[&quot;D10b AUDIO ✧&quot;] --&gt; D10c[&quot;D10c ANIM ✧&quot;]
         end
-        subgraph QA["品質層"]
-            D11["D11 test-plan"] --> D12["D12 BDD-server"] --> D12b["D12b BDD-client ✦"] --> D13["D13 RTM"]
+        subgraph QA[&quot;品質層&quot;]
+            D11[&quot;D11 test-plan&quot;] --&gt; D12[&quot;D12 BDD-server&quot;] --&gt; D12b[&quot;D12b BDD-client ✦&quot;] --&gt; D13[&quot;D13 RTM&quot;]
         end
-        subgraph OPS["運維層"]
-            D14["D14 runbook"] --> D15["D15 LOCAL_DEPLOY"]
+        subgraph OPS[&quot;運維層&quot;]
+            D14[&quot;D14 runbook&quot;] --&gt; D15[&quot;D15 LOCAL_DEPLOY&quot;]
         end
-        subgraph AUDIT["稽核層"]
-            D16["D16 ALIGN ★"] --> D16F["D16-F ALIGN-FIX ★"]
+        subgraph AUDIT[&quot;稽核層&quot;]
+            D16[&quot;D16 ALIGN ★&quot;] --&gt; D16F[&quot;D16-F ALIGN-FIX ★&quot;]
         end
-        subgraph IMPL["實作層"]
-            D17["D17 CONTRACTS ★"] --> D18["D18 MOCK ★ ✦"]
+        subgraph IMPL[&quot;實作層&quot;]
+            D17[&quot;D17 CONTRACTS ★&quot;] --&gt; D18[&quot;D18 MOCK ★ ✦&quot;]
         end
-        subgraph PUB["發布層"]
-            D19["D19 HTML ★"]
+        subgraph PUB[&quot;發布層&quot;]
+            D19[&quot;D19 HTML ★&quot;]
         end
-        REQ --> DES --> QA --> OPS --> AUDIT --> IMPL --> PUB
+        REQ --&gt; DES --&gt; QA --&gt; OPS --&gt; AUDIT --&gt; IMPL --&gt; PUB
     end
-    FLOW --> DONE([GitHub Pages 文件站\n+ docs/blueprint/ 可攜帶])
-    RESUME(["/gendoc-flow 斷點續行"]) -.->|"review_progress\ncompleted_steps"| FLOW
-    CONFIG(["/gendoc-config 設定"]) -.-> FLOW
+    FLOW --&gt; DONE((GitHub Pages 文件站\n+ docs/blueprint/ 可攜帶))
+    RESUME((&quot;/gendoc-flow 斷點續行&quot;)) -.-&gt;|&quot;review_progress\ncompleted_steps&quot;| FLOW
+    CONFIG((&quot;/gendoc-config 設定&quot;)) -.-&gt; FLOW
     classDef condNode fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
     classDef gameNode fill:#fce7f3,stroke:#db2777,color:#831843
     classDef specNode fill:#fef3c7,stroke:#f59e0b,color:#78350f
@@ -179,35 +176,35 @@ cd ~/projects/gendoc
 <blockquote><p><strong>✦ 藍色節點</strong>（PDD / VDD / FRONTEND / BDD-client / MOCK）：<code>client_type=web</code> 或 <code>game</code> 才啟用（MOCK 同時跳過 <code>api-only</code>）。<strong>✧ 粉紅節點</strong>（AUDIO / ANIM）：<code>client_type=game</code> 專屬。<strong>★ 黃色節點</strong>：特殊步驟（special_skill）— 含 D16-ALIGN-FIX（依 ALIGN_REPORT.md 自動修復對齊問題）、D07b-UML（gen-diagrams: 9 Server UML + 16 Frontend UML）。</p></blockquote>
 <h3>文件上下層關係（Document Hierarchy）</h3>
 <div class="diagram-container"><pre class="mermaid">graph TD
-    REQ([docs/req/ 原始素材])
-    L0["L0 IDEA.md"]
-    L1["L1 BRD.md"]
-    L2["L2 PRD.md"]
-    L3a["L3a PDD.md"]:::cond
-    L35["L3.5 VDD.md"]:::cond
-    L4["L4 EDD.md"]
-    L5a["L5a ARCH.md"]
-    L5b["L5b API.md"]
-    L5c["L5c SCHEMA.md"]
-    L6["L6 FRONTEND.md"]:::cond
-    L7["L7 test-plan.md"]
-    L8a["L8a BDD-server"]
-    L8b["L8b BDD-client"]:::cond
-    L9a["L9a RTM.md"]
-    L9b["L9b RUNBOOK.md"]
-    L9c["L9c LOCAL_DEPLOY.md"]
-    L10["L10 README.md"]
-    IMPL["實作層 CONTRACTS + MOCK → docs/blueprint/"]:::impl
-    AUDIT["稽核層 ALIGN → docs/pages/"]:::audit
+    REQ((docs/req/ 原始素材))
+    L0[&quot;L0 IDEA.md&quot;]
+    L1[&quot;L1 BRD.md&quot;]
+    L2[&quot;L2 PRD.md&quot;]
+    L3a[&quot;L3a PDD.md&quot;]:::cond
+    L35[&quot;L3.5 VDD.md&quot;]:::cond
+    L4[&quot;L4 EDD.md&quot;]
+    L5a[&quot;L5a ARCH.md&quot;]
+    L5b[&quot;L5b API.md&quot;]
+    L5c[&quot;L5c SCHEMA.md&quot;]
+    L6[&quot;L6 FRONTEND.md&quot;]:::cond
+    L7[&quot;L7 test-plan.md&quot;]
+    L8a[&quot;L8a BDD-server&quot;]
+    L8b[&quot;L8b BDD-client&quot;]:::cond
+    L9a[&quot;L9a RTM.md&quot;]
+    L9b[&quot;L9b RUNBOOK.md&quot;]
+    L9c[&quot;L9c LOCAL_DEPLOY.md&quot;]
+    L10[&quot;L10 README.md&quot;]
+    IMPL[&quot;實作層 CONTRACTS + MOCK → docs/blueprint/&quot;]:::impl
+    AUDIT[&quot;稽核層 ALIGN → docs/pages/&quot;]:::audit
 
-    REQ --> L0 --> L1 --> L2
-    L2 --> L3a --> L35 --> L4
-    L2 --> L4
-    L4 --> L5a --> L5b --> L5c --> L6 --> L7
-    L7 --> L8a --> L9a
-    L7 --> L8b --> L9a
-    L5a --> L9b --> L9c
-    L9a & L9b & L9c --> L10 --> IMPL --> AUDIT
+    REQ --&gt; L0 --&gt; L1 --&gt; L2
+    L2 --&gt; L3a --&gt; L35 --&gt; L4
+    L2 --&gt; L4
+    L4 --&gt; L5a --&gt; L5b --&gt; L5c --&gt; L6 --&gt; L7
+    L7 --&gt; L8a --&gt; L9a
+    L7 --&gt; L8b --&gt; L9a
+    L5a --&gt; L9b --&gt; L9c
+    L9a &amp; L9b &amp; L9c --&gt; L10 --&gt; IMPL --&gt; AUDIT
 
     classDef cond fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
     classDef audit fill:#fef3c7,stroke:#f59e0b,color:#78350f
@@ -216,19 +213,19 @@ cd ~/projects/gendoc
 <hr>
 <h2>Repository Structure</h2>
 <pre><code class="">gendoc/
-├── setup               # Install script (macOS/Linux)
-├── setup.ps1           # Install script (Windows PowerShell)
-├── install.sh          # Sync skills/ → ~/.claude/skills/ (bash)
-├── install.py          # Sync skills/ → ~/.claude/skills/ (Python/Windows)
+├── SKILL.md            # /gendoc entry skill
+├── setup               # Unified tool: install / uninstall / upgrade (macOS/Linux)
+├── setup.ps1           # Unified tool: install / uninstall / upgrade (Windows)
 ├── bin/
-│   ├── gendoc-session-update      # SessionStart hook (bash)
-│   ├── gendoc-session-update.py   # SessionStart hook (Python)
+│   ├── gendoc-env.sh              # Path single source of truth (GENDOC_DIR etc.)
+│   ├── gendoc-session-update      # SessionStart hook — throttle wrapper (bash)
+│   ├── gendoc-session-update.py   # SessionStart hook — throttle wrapper (Python)
 │   ├── _gendoc-update-worker.py   # Background update worker
 │   ├── gendoc-settings-hook       # settings.json editor (bash wrapper)
-│   ├── gendoc-settings-hook.py    # settings.json editor (Python)
-│   └── gendoc-upgrade             # Manual upgrade script
+│   └── gendoc-settings-hook.py    # settings.json editor (Python)
+├── tools/
+│   └── bin/                       # Pipeline tools (gen_html.py etc.)
 ├── skills/                        # Source of truth for all SKILL.md files
-│   ├── gendoc/
 │   ├── gendoc-auto/
 │   ├── gendoc-flow/
 │   └── ...
@@ -261,10 +258,10 @@ cd ~/projects/gendoc
 </table>
 <hr>
 <h2>Contributing</h2>
-<ol><li>Edit skill files in <code>skills/&lt;skill-name&gt;/SKILL.md</code> or templates in <code>templates/</code></li><li>Run <code>./install.sh</code> to deploy changes to <code>~/.claude/skills/</code></li><li>Test with Claude Code</li><li>Commit and push — other machines auto-pull via SessionStart hook</li></ol>
+<ol><li>Edit skill files in <code>skills/&lt;skill-name&gt;/SKILL.md</code> or templates in <code>templates/</code></li><li>Commit and push to remote</li><li>On any machine: run <code>/gendoc-upgrade</code> or <code>~/.claude/skills/gendoc/setup upgrade</code></li><li>Test with Claude Code — SessionStart hook auto-pulls every hour</li></ol>
 <hr>
 <h2>License</h2>
-<p>MIT © ibalasite</p><section style="margin-top:3rem;padding:1.5rem;background:#fff;border:1px solid var(--border);border-radius:8px;"><h2 style="margin-top:0">📊 專案健康狀態</h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;margin-top:1rem"><div style="text-align:center;padding:1rem;background:var(--page-bg);border-radius:6px"><div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem">已完成 STEP</div><div style="font-size:1.5rem;font-weight:700;color:var(--accent)">0/20</div></div></div></section></main>
+<p>MIT © ibalasite</p><section style="margin-top:2.5rem"><h2 style="font-size:1rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem">文件導覽</h2><div class="index-grid"><a class="index-card" href="prd.html"><span class="index-card__icon">📝</span><span class="index-card__title">產品需求文件 (PRD)</span></a><a class="index-card" href="client.html"><span class="index-card__icon">📄</span><span class="index-card__title">Client</span></a><a class="index-card" href="gendoc-redesign-decisions.html"><span class="index-card__icon">📄</span><span class="index-card__title">Gendoc-Redesign-Decisions</span></a></div></section><section style="margin-top:3rem;padding:1.5rem;background:#fff;border:1px solid var(--border);border-radius:8px;"><h2 style="margin-top:0">📊 專案健康狀態</h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;margin-top:1rem"><div style="text-align:center;padding:1rem;background:var(--page-bg);border-radius:6px"><div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem">已完成 STEP</div><div style="font-size:1.5rem;font-weight:700;color:var(--accent)">0/20</div></div></div></section></main>
   </div>
   <script type="module">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';

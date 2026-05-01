@@ -1,6 +1,6 @@
 # PRD — Product Requirements Document
 <!-- 對應學術標準：IEEE 830 (SRS)，對應業界：Google PRD / Amazon PRFAQ -->
-<!-- Version: v2.6 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 -->
+<!-- Version: v2.7 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 -->
 
 ---
 
@@ -10,10 +10,10 @@
 |------|------|
 | **DOC-ID** | PRD-GENDOC-20260422 |
 | **產品名稱** | gendoc — AI-Driven Implementation Blueprint Generator |
-| **文件版本** | v2.6 |
+| **文件版本** | v2.7 |
 | **狀態** | ACTIVE |
 | **作者（PM）** | AI Product Manager Agent |
-| **日期** | 2026-04-28 |
+| **日期** | 2026-05-01 |
 | **上游來源** | gendoc 開源專案（github.com/ibalasite/gendoc） |
 | **審閱者** | 技術架構師、QA Lead |
 | **核准者** | 待定 |
@@ -24,6 +24,7 @@
 
 | 版本 | 日期 | 作者 | 變更摘要 |
 |------|------|------|---------|
+| v2.7 | 2026-05-01 | PM Agent | **架構重設計：Dev/Runtime 分離 + 統一 setup 工具**：(1) **Clone 位置根本性修正** — 從 `~/projects/gendoc/`（開發目錄兼 runtime）改為 `~/.claude/skills/gendoc/`（純 runtime），徹底解決 SessionStart hook 每小時 `git pull` 可能覆蓋開發者未提交工作的風險；`~/projects/gendoc/` 恢復為純開發目錄，不再是任何人的 runtime 依賴。(2) **統一 `setup` 工具**：廢除 `install.sh`、`install.py`、`bin/gendoc-upgrade` 三個重複入口，整合為單一 `setup` 指令（預設=install）支援 `install` / `uninstall` / `upgrade` 三個子命令；macOS/Linux 用 `setup`、Windows 用 `setup.ps1`。(3) **`bin/gendoc-env.sh` 路徑唯一真相**：新增環境變數宣告檔（`GENDOC_DIR` / `GENDOC_BIN` / `GENDOC_TEMPLATES` / `GENDOC_TOOLS`），所有 skill 和腳本均 `source` 此檔取得路徑，消除各處硬編碼 `~/projects/gendoc` 的違規。(4) **`tools/bin/` Pipeline 工具目錄**：`gen_html.py` 從 `bin/` 移至 `tools/bin/`，區分基礎設施腳本（`bin/`）與流水線工具（`tools/bin/`）。(5) **SKILL.md 移至 repo 根目錄**：從 `skills/gendoc/SKILL.md` 移至 `SKILL.md`，與 gstack 慣例一致。(6) **Fix-D 修正**：`gendoc-auto`、`gendoc-flow`、`gendoc-repair`、`reviewdoc` 4 個 skill 移除硬編碼 `$HOME/projects/gendoc` 路徑，改為 source `gendoc-env.sh` 後呼叫 `$GENDOC_DIR/setup upgrade`。(7) **架構違規稽核**：建立 `VIOLATION_AUDIT.md`，記錄並解決 20 項架構違規（7×P2、8×P3、3×P4、2×D）。 |
 | v2.6 | 2026-04-28 | PM Agent | **CLIENT_IMPL 客戶端實作規格書 + pipeline.json 成為唯一維護入口 + Phase D-2 Agent 包裝**：(1) 新增 D10d-CLIENT_IMPL 步驟（條件 `client_type != none`，位於 D10c-ANIM 之後），三件套模板（CLIENT_IMPL.md + CLIENT_IMPL.gen.md + CLIENT_IMPL.review.md），5-way 引擎路由 —— 依 EDD §3.3 自動偵測 CLIENT_ENGINE，分別為 Cocos Creator（cc.Node 樹、cc.assetManager.loadBundle、cc.EventTarget 事件驅動、cc.AudioSource pool、Prefab Object Pool）/ Unity WebGL（Hierarchy GameObject 樹、Addressables、Animator.SetTrigger、AudioMixer）/ React（JSX 組件樹、React.lazy + Suspense、Framer Motion / GSAP、pages/components/store 三層）/ Vue（SFC 組件樹、defineAsyncComponent、Pinia stores / composables）/ HTML5（DOM 結構、Web Audio API / Howler.js、Preload Manager、requestAnimationFrame）展開對應場景結構、資源載入策略、動畫觸發、AudioManager 架構、VFX 整合規格；`gendoc/SKILL.md` 新增 client-impl / client_impl / cocos / unity / react-impl / vue-impl 等 6 個型別別名。(2) **pipeline.json 成為唯一維護入口**：`gendoc-config` step picker 和 `gendoc-shared` STEP_SEQUENCE / STEP_ORDER / Review Loop 適用清單全部改為執行時動態讀取 pipeline.json（python3 解析），消除 skill 間硬編碼同步問題；新增步驟只需修改 pipeline.json 一個檔案，其他所有 skill 自動跟上。(3) **gendoc-flow Phase D-2 → Agent subagent 包裝**：每份文件的 review→fix loop 改由 Agent tool 委派給獨立 subagent 執行，主 Claude context 不再累積 12+ 文件 × 5 輪的 review/fix 輸出，pipeline 可持續運行至 D19 不被 context window 撐爆，回傳格式統一為 REVIEW_LOOP_RESULT 緊湊結構。 |
 | v2.5 | 2026-04-28 | PM Agent | **具體建置成功標準明確化**：在「什麼是可實作的藍圖」新增 LOCAL_DEPLOY / Runbook / 跨文件一致性三條標準，明確定義 gendoc 產出必須能讓 AI 或人類 step-by-step 在 local 建置完整 k8s 環境（Rancher Desktop）、client 封進 k8s pod、對外僅一個 port、docker-compose 為輔助工具、所有 Unit / Integration / E2E 測試可完整執行、跨文件品質如各自聲明的標準且上下文對齊無缺漏。 |
 | v2.4 | 2026-04-26 | PM Agent | **gendoc-shared 集中守衛 + Phase D-2 Review Loop**：`gendoc-shared` 從純參考文件改為可執行 Skill 入口（`allowed-tools: [Bash, Skill]`），負責執行 R-01 State File Guard（檢查 state file 是否存在，不存在則完整呼叫 `gendoc-config`）；`gendoc-auto` / `gendoc-flow` Step -1 移除 inline guard 邏輯，改為一行 Skill tool 呼叫 `gendoc-shared`，等其完全回傳後才繼續（禁止在 Skill tool 回傳前讀取任何檔案或執行任何準備動作），達成 **單一維護點**原則。`gendoc-config` 確立為 state file 唯一建立者，其他所有 skill 禁止自行建立 state file。`gendoc-auto` Step 5.5（IDEA Review Loop）與 Step 5.7（BRD Review Loop）從 Agent→subagent→reviewdoc 雙重委派架構改為 **Phase D-2** 模式：主 Claude 直接驅動 Review subagent → Fix subagent → Round Summary → Commit per round，與 `gendoc-flow` 統一，解決雙重委派導致 review 輸出不可見、每輪 Summary 消失的問題。 |

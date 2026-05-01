@@ -133,26 +133,26 @@
 <p><strong>畫面生成規則</strong>：SCR-002 的實際數量取決於 <code>docs/*.md</code> 的文件數量，由 <code>gen_html.py</code> 動態發現。當前已知文件頁包含：<code>prd.html</code>。未來生成後將依序增加 <code>idea.html</code>、<code>brd.html</code>、<code>edd.html</code>、<code>api.html</code>、<code>schema.html</code>、<code>test-plan.html</code> 等。</p>
 <h3>4.2 Navigation Map（Mermaid）</h3>
 <div class="diagram-container"><pre class="mermaid">stateDiagram-v2
-    [*] --> SCR001_Index : 瀏覽器開啟 GitHub Pages URL
+    [*] --&gt; SCR001_Index : 瀏覽器開啟 GitHub Pages URL
 
-    SCR001_Index --> SCR002_DocPage : 點擊側欄文件連結 / 點擊首頁 index-card
-    SCR002_DocPage --> SCR001_Index : 點擊側欄「首頁」連結 / 點擊 Breadcrumb 首頁
-    SCR002_DocPage --> SCR002_DocPage : 點擊側欄其他文件連結（頁面跳轉）
+    SCR001_Index --&gt; SCR002_DocPage : 點擊側欄文件連結 / 點擊首頁 index-card
+    SCR002_DocPage --&gt; SCR001_Index : 點擊側欄「首頁」連結 / 點擊 Breadcrumb 首頁
+    SCR002_DocPage --&gt; SCR002_DocPage : 點擊側欄其他文件連結（頁面跳轉）
 
-    SCR001_Index --> SCR003_Search : 在搜尋框輸入文字（≥1字元）
-    SCR002_DocPage --> SCR003_Search : 在搜尋框輸入文字（≥1字元）
-    SCR003_Search --> SCR001_Index : 點擊搜尋結果（目標為 index.html）
-    SCR003_Search --> SCR002_DocPage : 點擊搜尋結果（目標為 {doc}.html）
-    SCR003_Search --> SCR001_Index : 點擊搜尋框外側（關閉 Dropdown，留在原頁）
-    SCR003_Search --> SCR002_DocPage : 點擊搜尋框外側（關閉 Dropdown，留在原頁）
+    SCR001_Index --&gt; SCR003_Search : 在搜尋框輸入文字（≥1字元）
+    SCR002_DocPage --&gt; SCR003_Search : 在搜尋框輸入文字（≥1字元）
+    SCR003_Search --&gt; SCR001_Index : 點擊搜尋結果（目標為 index.html）
+    SCR003_Search --&gt; SCR002_DocPage : 點擊搜尋結果（目標為 {doc}.html）
+    SCR003_Search --&gt; SCR001_Index : 點擊搜尋框外側（關閉 Dropdown，留在原頁）
+    SCR003_Search --&gt; SCR002_DocPage : 點擊搜尋框外側（關閉 Dropdown，留在原頁）
 
-    SCR002_DocPage --> SCR002_Lightbox : 點擊 .diagram-container（放大 Mermaid 圖）
-    SCR002_Lightbox --> SCR002_DocPage : 點擊 ✕ 按鈕 / 點擊 Lightbox 背景
+    SCR002_DocPage --&gt; SCR002_Lightbox : 點擊 .diagram-container（放大 Mermaid 圖）
+    SCR002_Lightbox --&gt; SCR002_DocPage : 點擊 ✕ 按鈕 / 點擊 Lightbox 背景
 
-    SCR001_Index --> SCR004_BDD : 點擊側欄「BDD Scenarios」（僅在 features/ 存在時顯示）
-    SCR002_DocPage --> SCR004_BDD : 同上
-    SCR004_BDD --> SCR001_Index : 點擊側欄「首頁」
-    SCR004_BDD --> SCR002_DocPage : 點擊側欄其他文件</pre></div>
+    SCR001_Index --&gt; SCR004_BDD : 點擊側欄「BDD Scenarios」（僅在 features/ 存在時顯示）
+    SCR002_DocPage --&gt; SCR004_BDD : 同上
+    SCR004_BDD --&gt; SCR001_Index : 點擊側欄「首頁」
+    SCR004_BDD --&gt; SCR002_DocPage : 點擊側欄其他文件</pre></div>
 <p><strong>注意</strong>：此文件站為靜態網站，無認證機制，所有頁面均為公開存取。Auth Guard 不適用（見 §4.4）。</p>
 <h3>4.3 Deep Link / URL Scheme</h3>
 <table>
