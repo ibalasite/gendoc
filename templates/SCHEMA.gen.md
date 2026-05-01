@@ -288,3 +288,4 @@ $$ LANGUAGE plpgsql;
 | 主鍵完整 | 每個資料表都有 PRIMARY KEY 定義 | 補充缺失的主鍵 |
 | 外鍵關係明確 | 所有跨表引用都有 FOREIGN KEY 或等效說明（NoSQL 需說明引用方式） | 補充缺失的關聯定義 |
 | ER 圖與表格一致 | ERD Mermaid 圖中的表格和欄位與下方文字定義一致 | 修正不一致之處 |
+| HA Replication 覆蓋 | §16 HA 核查清單 5 項全部回答（Replication/讀寫分離/Lag/連線池/Shard Key）| 補充缺失說明 |

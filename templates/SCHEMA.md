@@ -1016,6 +1016,13 @@ SET search_path TO tenant_{{TENANT_SLUG}}, public;
 - [ ] 備份策略（§11）已確認適用於此資料庫
 - [ ] 索引膨脹監控查詢已加入維運 Runbook
 
+### HA / Replication / Read-Write Split（必查）
+- [ ] Primary-Standby 或 Multi-Primary 複本架構已於 §10 或 EDD §3.6 說明，無單一寫入節點 SPOF
+- [ ] 讀寫分離策略已定義（哪些查詢走 Replica，Write 一律走 Primary）
+- [ ] Replica Lag 可接受上限已定義（建議 ≤ 1s），並有 Lag 監控告警
+- [ ] 連線池（PgBouncer 等）已設定最大連線數，且高峰期不超過 DB max_connections 的 80%
+- [ ] Sharding / Partitioning 策略（§10）已定義，含 Shard Key 選擇依據與熱點分析
+
 ---
 
 ## 17. Data Retention & Lifecycle Policy

@@ -175,3 +175,27 @@ upstream-alignment:
 **Check**: 文件中是否有 `{{PLACEHOLDER}}` 格式未替換的空白佔位符（`{{table_name}}`、`{{YYYYMMDD}}`、`{{VERSION}}`、`{{DB_NAME}}`、`{{PROJECT_SLUG}}`）？逐一掃描全文，列出所有裸 placeholder 及其位置（章節）。注意：格式範例型 placeholder 若有說明則允許；純空白、無資訊的 placeholder 才是 finding。
 **Risk**: 裸 placeholder 的 Table 名稱或欄位名稱無法執行 Migration，工程師需手動識別並替換；`{{DB_NAME}}` 等配置 placeholder 若未替換可能導致 PgBouncer 連線失敗。
 **Fix**: 替換所有裸 placeholder 為真實的 Table 名稱、欄位名稱、版本號、或配置值；若真的無法確定，改為 `（待確認：描述）` 說明而非保留 `{{PLACEHOLDER}}`。
+
+---
+
+### Layer 6: HA / Replication / Read-Write Split（由 Backend DBA Expert 主審，共 4 項）
+
+#### [CRITICAL] 25 — 缺少 Primary-Standby Replication 設計說明
+**Check**: SCHEMA.md 或引用的 EDD §3.6 是否說明 DB 複本架構？包含：Primary 節點數量、Standby 節點數量（≥ 1）、Replication 模式（同步/非同步）、Failover 機制（自動/手動）？若完全無說明，或明確表示「單一 DB 節點，無 Replica」，視為 CRITICAL。
+**Risk**: 單一 DB 節點是整個系統最高風險的 SPOF：節點故障→所有服務停止；無 Replica→故障時無法切換，需等待節點恢復或從備份還原（RTO 數小時）。
+**Fix**: 在 §11 Backup & Recovery 或 §10 Sharding & Partitioning 補充 Replication 架構說明（Primary + ≥ 1 Standby），引用 EDD §3.6 HA Architecture；若使用 RDS 等 Managed Service，說明 Multi-AZ 設定。
+
+#### [HIGH] 26 — 讀寫分離策略未定義
+**Check**: 是否定義哪些查詢走 Primary，哪些走 Read Replica？是否說明：報表查詢、背景任務必須走 Replica（不影響線上服務）、用戶即時查詢是否允許走 Replica（可能有 Lag）、Replica Lag 可接受上限（建議 ≤ 1s）？缺少以上任一項視為 HIGH。
+**Risk**: 無讀寫分離策略，所有查詢打 Primary：Analytics/報表查詢佔用 Primary CPU/IO，直接影響線上 API 效能；Primary 達到 IOPS 上限時，所有服務（讀+寫）同時降速。
+**Fix**: 在 §7 效能設計或 §23 連線池設計補充讀寫分離規則：明確列出哪些 Service/API 使用 Replica 連線，說明 Replica Lag 監控指標（lag_seconds < 1s 告警）。
+
+#### [HIGH] 27 — Replica Lag 監控未定義
+**Check**: 是否說明 Replica Lag 的監控方式和告警門檻？包含：監控指標名稱（`pg_stat_replication.write_lag`、`seconds_behind_master`）、告警門檻（如 lag > 5s 警告，> 30s 嚴重）、Lag 過高時的降級策略（暫時讓讀查詢也走 Primary）？
+**Risk**: Replica Lag 無監控，業務應用程式不知道自己讀到的是過期資料，導致用戶看到不一致的狀態（剛才的操作「消失」）；Lag 過高時若未降級，可能引發業務邏輯錯誤。
+**Fix**: 在 §18 Database Observability 補充 Replica Lag 監控項：監控指標、告警門檻、降級策略（Lag > N s 時改從 Primary 讀取）。
+
+#### [HIGH] 28 — Sharding Key 選擇未說明
+**Check**: 若 §10 定義了 Sharding 策略，Shard Key 的選擇依據是否已說明？包含：為何選擇此欄位（高基數、查詢頻率、資料分布均勻性）、熱點分析（是否有特定 Shard Key 值資料量遠大於其他）、跨 Shard 查詢限制（JOIN 不跨 Shard）？若有 Sharding 但無以上說明，視為 HIGH。
+**Risk**: Shard Key 選擇錯誤（如使用低基數欄位如 status），導致資料分布嚴重不均（Hot Shard）；或使用時間戳作為 Shard Key 導致所有最新資料集中在一個 Shard；Hot Shard 的效能等同於單台 DB。
+**Fix**: 在 §10 Sharding & Partitioning 補充 Shard Key 選擇分析：基數評估、資料分布均勻性、跨 Shard 查詢影響、以及不選擇其他欄位的原因。
