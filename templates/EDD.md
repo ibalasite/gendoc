@@ -227,8 +227,8 @@ graph LR
 | **K8s Cluster 名稱** | `rancher-desktop` | `{{DEV_CLUSTER}}` | `{{STAGING_CLUSTER}}` | `{{PROD_CLUSTER}}` |
 | **K8s Namespace** | `{{PROJECT_SLUG}}-local` | `{{DEV_NAMESPACE}}` | `{{STAGING_NAMESPACE}}` | `{{PROD_NAMESPACE}}` |
 | **kubectl Context 名稱** | `rancher-desktop` | `{{DEV_K8S_CONTEXT}}` | `{{STAGING_K8S_CONTEXT}}` | `{{PROD_K8S_CONTEXT}}` |
-| **API 副本數（Replicas）** | 1 | {{DEV_API_REPLICAS}} | {{STAGING_API_REPLICAS}} | {{PROD_API_REPLICAS}}（HPA min–max）|
-| **Worker 副本數** | 1 | {{DEV_WORKER_REPLICAS}} | {{STAGING_WORKER_REPLICAS}} | {{PROD_WORKER_REPLICAS}}（HPA min–max）|
+| **API 副本數（Replicas）** | 2（HA 測試最低要求）| {{DEV_API_REPLICAS}} | {{STAGING_API_REPLICAS}} | {{PROD_API_REPLICAS}}（HPA min–max）|
+| **Worker 副本數** | 2（冪等/競爭條件測試最低要求）| {{DEV_WORKER_REPLICAS}} | {{STAGING_WORKER_REPLICAS}} | {{PROD_WORKER_REPLICAS}}（HPA min–max）|
 | **API CPU Request / Limit** | 100m / 500m | {{DEV_API_CPU_REQ}} / {{DEV_API_CPU_LIM}} | {{STG_API_CPU_REQ}} / {{STG_API_CPU_LIM}} | {{PROD_API_CPU_REQ}} / {{PROD_API_CPU_LIM}} |
 | **API Memory Request / Limit** | 128Mi / 512Mi | {{DEV_API_MEM_REQ}} / {{DEV_API_MEM_LIM}} | {{STG_API_MEM_REQ}} / {{STG_API_MEM_LIM}} | {{PROD_API_MEM_REQ}} / {{PROD_API_MEM_LIM}} |
 | **DB Host（Pattern）** | `postgres.{{PROJECT_SLUG}}-local.svc.cluster.local` | `{{DEV_DB_HOST}}` | `{{STAGING_DB_HOST}}` | `{{PROD_DB_HOST}}`（RDS endpoint）|
