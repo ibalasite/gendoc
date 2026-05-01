@@ -228,3 +228,15 @@ upstream-alignment:
 **Check**: §3.6.5 或 §8 是否有 Graceful Shutdown 設計說明？包含：SIGTERM 處理方式（停止接受新請求）、in-flight 請求最大等待時間（建議 ≤ 30s）、K8s `terminationGracePeriodSeconds` 設定、Readiness Probe 在 SIGTERM 後立即失敗的設計？缺少以上說明視為 HIGH。
 **Risk**: 沒有 Graceful Shutdown，每次 Deploy（Canary / Rolling Update）Pod 替換時，正在處理的請求會被強制中斷（502/503）；Scale-down 事件（HPA 縮容）也會中斷 in-flight 請求；test-plan §3.6 @graceful-shutdown 無法通過。
 **Fix**: 在 §3.6.5 補充 Graceful Shutdown 流程（5 步驟：SIGTERM → Readiness 失敗 → 等待 in-flight → 正常退出 → K8s 釋放資源），並提供 lang_stack 對應的具體實作示例（Node.js / Java / Python）。
+
+### Layer 6: 最小完整度架構圖（§3.7）（由 Software Architect 主審，共 2 項）
+
+#### [CRITICAL] 30 — §3.7 最小完整度架構圖缺失
+**Check**: EDD 是否有 §3.7 最小完整度架構圖（Minimum Viable HA Architecture）？包含：Figure A（生產環境 HA-HA Active-Active Mermaid 部署圖）和 Figure B（本地開發環境最小 HA Mermaid 架構圖）？任一圖缺失或兩圖均缺失視為 CRITICAL。
+**Risk**: 沒有 §3.7，下游工程師（特別是 LOCAL_DEPLOY / runbook / ARCH）對「最小 HA 長什麼樣子」沒有視覺參考，容易設計成單副本（因為看起來更簡單）；導致 HA 程式行為（Distributed Lock / 冪等性 / Session 共享）從未被測試，生產故障時才發現設計錯誤。
+**Fix**: 依 EDD.md §3.7 骨架，生成兩張 Mermaid `graph TB` 圖：Figure A（含 Global LB + 雙 Region + 每 Region ≥ 2 API Pod）和 Figure B（含 Local Nginx → api-1 + api-2 + worker-1 + worker-2）；並附上最小 Replica 表格。
+
+#### [HIGH] 31 — Figure B 本地 API Server / Worker 副本數為 1
+**Check**: §3.7.2 Figure B（本地開發環境）的最小 Replica 表格中，API Server 或 Worker 的 Min Replicas（Local）是否標注為 1 或「1（Local OK）」？若任一為 1 視為 HIGH。
+**Risk**: 本地允許單副本的錯誤示範會被開發者直接套用於 docker-compose.yml，導致 Distributed Lock（Redis SETNX/Redlock）、冪等防重入（DB 唯一約束）、Session 共享（Redis）等 HA 關鍵路徑從未被測試；到生產才發現競態問題時代價極高。
+**Fix**: 將 Figure B 最小 Replica 表格中 API Server 和 Worker 的 Min Replicas（Local）改為 **≥ 2**（加粗），並補充說明「必須 ≥ 2 以測試 HA 程式行為」；DB/Redis/MQ 在本地允許單節點。

@@ -327,6 +327,169 @@ graph LR
 
 ---
 
+### 3.7 最小完整度架構圖（Minimum Viable HA Architecture）
+
+> **設計前提**：本節展示滿足 §3.6 HA/SPOF/BCP 要求的**最小完整架構**。  
+> Figure A 為生產環境雙 Region HA-HA（同時接流量）；Figure B 為本地開發環境（單 Region，仍需 ≥ 2 API 副本以測試 HA 程式行為）。  
+> 下游文件（ARCH、runbook、LOCAL_DEPLOY）的部署設計必須符合本節所定義的最小 Replica 數量。
+
+#### §3.7.1 Figure A — 生產環境 HA-HA Active-Active 部署圖
+
+```mermaid
+graph TB
+    subgraph Internet
+        User[🌐 User / Client]
+    end
+
+    subgraph "Global Load Balancer（GeoDNS / Anycast）"
+        GLB[Global LB<br/>GeoDNS Failover]
+    end
+
+    subgraph "Region A（Primary）"
+        subgraph "AZ-A1"
+            LBA1[Regional LB / Ingress]
+            API_A1[API Server Pod 1<br/>replica ≥ 2]
+            API_A2[API Server Pod 2]
+            WKR_A1[Worker Pod 1<br/>replica ≥ 2]
+            WKR_A2[Worker Pod 2]
+        end
+        subgraph "Data Layer — Region A"
+            DB_A_PRI[PostgreSQL Primary]
+            DB_A_STB[PostgreSQL Standby]
+            REDIS_A[Redis Sentinel<br/>3 nodes]
+            MQ_A[Message Queue<br/>replica ≥ 2]
+        end
+    end
+
+    subgraph "Region B（DR / Hot Standby）"
+        subgraph "AZ-B1"
+            LBB1[Regional LB / Ingress]
+            API_B1[API Server Pod 1<br/>replica ≥ 2]
+            API_B2[API Server Pod 2]
+            WKR_B1[Worker Pod 1<br/>replica ≥ 2]
+            WKR_B2[Worker Pod 2]
+        end
+        subgraph "Data Layer — Region B"
+            DB_B_PRI[PostgreSQL Primary]
+            DB_B_STB[PostgreSQL Standby]
+            REDIS_B[Redis Sentinel<br/>3 nodes]
+            MQ_B[Message Queue<br/>replica ≥ 2]
+        end
+    end
+
+    subgraph "Shared Services"
+        OBS[Observability<br/>Metrics / Logs / Traces]
+        CICD[CI/CD Pipeline]
+    end
+
+    User --> GLB
+    GLB --> LBA1
+    GLB --> LBB1
+    LBA1 --> API_A1
+    LBA1 --> API_A2
+    LBB1 --> API_B1
+    LBB1 --> API_B2
+    API_A1 --> DB_A_PRI
+    API_A2 --> DB_A_PRI
+    API_B1 --> DB_B_PRI
+    API_B2 --> DB_B_PRI
+    DB_A_PRI -->|WAL Streaming| DB_A_STB
+    DB_B_PRI -->|WAL Streaming| DB_B_STB
+    DB_A_PRI -.->|Cross-Region Replication| DB_B_PRI
+    API_A1 --> REDIS_A
+    API_B1 --> REDIS_B
+    API_A1 --> MQ_A
+    MQ_A --> WKR_A1
+    MQ_A --> WKR_A2
+    API_B1 --> MQ_B
+    MQ_B --> WKR_B1
+    MQ_B --> WKR_B2
+    API_A1 --> OBS
+    API_B1 --> OBS
+    WKR_A1 --> OBS
+    WKR_B1 --> OBS
+```
+
+**最小 Replica 要求（生產環境）：**
+
+| 元件 | Min Replicas | 部署說明 |
+|------|-------------|---------|
+| API Server / Region | 2 | HPA min=2，CPU 70% 觸發 scale up |
+| Worker / Region | 2 | 冪等設計 + Distributed Lock |
+| PostgreSQL / Region | Primary + 1 Standby | Multi-AZ 或 Patroni |
+| Redis | 3（Sentinel）| Sentinel 選主，3 nodes 避免腦裂 |
+| Message Queue | 2+ | 依 MQ 選型（RabbitMQ Cluster / Kafka Partition）|
+| API Gateway / Ingress / Region | 2 | Cloud LB 多 AZ |
+
+#### §3.7.2 Figure B — 本地開發環境最小 HA 架構圖
+
+> **本地 HA 的必要性**：HA 程式行為（Stateless、Idempotent、Distributed Lock）必須在本地可以驗證。若本地只跑單副本，等於沒有測試 HA 關鍵路徑（Session 共享、冪等性、競態條件）。
+
+```mermaid
+graph TB
+    subgraph "Local Dev（Docker Compose / K8s Local）"
+        subgraph "Ingress"
+            LB_LOCAL[Nginx / Traefik<br/>Port: 8080]
+        end
+
+        subgraph "API Server（≥ 2 replicas）"
+            API_L1[api-1<br/>:8001]
+            API_L2[api-2<br/>:8002]
+        end
+
+        subgraph "Background Worker（≥ 2 replicas）"
+            WKR_L1[worker-1]
+            WKR_L2[worker-2]
+        end
+
+        subgraph "Data Layer（local HA）"
+            DB_L[PostgreSQL<br/>Primary only<br/>（local 可接受單節點）]
+            REDIS_L[Redis Single Node<br/>（local 可接受單節點）]
+            MQ_L[Message Queue<br/>（local 單節點）]
+        end
+
+        subgraph "Observability（local）"
+            OBS_L[Prometheus + Grafana<br/>或 local log aggregation]
+        end
+    end
+
+    Dev[💻 Developer] --> LB_LOCAL
+    LB_LOCAL --> API_L1
+    LB_LOCAL --> API_L2
+    API_L1 --> DB_L
+    API_L2 --> DB_L
+    API_L1 --> REDIS_L
+    API_L2 --> REDIS_L
+    API_L1 --> MQ_L
+    API_L2 --> MQ_L
+    MQ_L --> WKR_L1
+    MQ_L --> WKR_L2
+    API_L1 --> OBS_L
+    API_L2 --> OBS_L
+    WKR_L1 --> OBS_L
+    WKR_L2 --> OBS_L
+```
+
+**本地最小 Replica 要求：**
+
+| 元件 | Min Replicas（Local）| 說明 |
+|------|---------------------|------|
+| API Server | **≥ 2** | 必須 ≥ 2 以測試 Session 共享、Distributed Lock、冪等性 |
+| Worker | **≥ 2** | 必須 ≥ 2 以測試 Job 競態消費和冪等防重入 |
+| PostgreSQL | 1（Local OK）| 本地允許單節點，但必須配置 WAL 模擬測試 |
+| Redis | 1（Local OK）| 本地允許單節點 |
+| Message Queue | 1（Local OK）| 本地允許單節點 |
+
+> **驗證指令（LOCAL_DEPLOY 健康檢查）**：
+> ```bash
+> # 確認 API Server ≥ 2 副本運行
+> docker compose ps | grep api | grep -c "Up"  # 應輸出 ≥ 2
+> # 或 k8s local
+> kubectl get pods -l app=api-server | grep -c "Running"  # 應輸出 ≥ 2
+> ```
+
+---
+
 ## 4. Module / Component Design
 <!-- C4 Level 3：元件內部設計 -->
 
