@@ -459,11 +459,13 @@ Jitter：±30%（避免 thundering herd）
 
 **服務副本數（最小值）：**
 
+> **強制要求**：所有服務 Min Replicas ≥ 2，任何低於 2 的設計視為 SPOF，必須修正。
+
 | 服務 | Min Replicas | Max Replicas | Pod Disruption Budget |
 |------|-------------|-------------|----------------------|
-| API Gateway | {{GW_MIN_REPLICAS}} | {{GW_MAX_REPLICAS}} | minAvailable: {{GW_PDB}} |
-| {{SERVICE_A}} | {{SVC_A_MIN}} | {{SVC_A_MAX}} | minAvailable: {{SVC_A_PDB}} |
-| {{SERVICE_B}} | {{SVC_B_MIN}} | {{SVC_B_MAX}} | minAvailable: {{SVC_B_PDB}} |
+| API Gateway | {{GW_MIN_REPLICAS}}（≥ 2，消除 SPOF）| {{GW_MAX_REPLICAS}} | minAvailable: {{GW_PDB}} |
+| {{SERVICE_A}} | {{SVC_A_MIN}}（≥ 2，消除 SPOF）| {{SVC_A_MAX}} | minAvailable: {{SVC_A_PDB}} |
+| {{SERVICE_B}} | {{SVC_B_MIN}}（≥ 2，消除 SPOF）| {{SVC_B_MAX}} | minAvailable: {{SVC_B_PDB}} |
 
 **健康檢查策略：**
 
@@ -778,13 +780,16 @@ graph TB
 | 單 Region 部署 | 受限於 {{REGION}} AZ 數量 | 區域故障 | 服務完全不可用 | Multi-Region Active-Passive |
 | 存儲容量 | {{STORAGE_CEILING}} TB | 使用率 > 80% | 寫入失敗 | 分層存儲 + 冷資料歸檔 |
 
-**架構演進路線（隨規模成長）：**
+**架構演進路線（水平擴展里程碑）：**
+
+> 架構從啟動第一天即採 HA 設計（API ≥ 2 replica，DB Primary+Standby，Redis Sentinel），零 SPOF。
+> 以下為水平擴展里程碑，不代表架構切換，只代表擴展程度：
 
 ```
-Phase 1（0–{{P1_USERS}} 用戶）：單區單體服務 + 托管 DB
-Phase 2（{{P1_USERS}}–{{P2_USERS}}）：微服務拆分 + Read Replica + PgBouncer
-Phase 3（{{P2_USERS}}–{{P3_USERS}}）：Multi-Region + CQRS + Event Sourcing
-Phase 4（{{P3_USERS}}+）：全球分佈 + 資料分片 + 專用搜尋引擎
+Phase 1（< {{P1_USERS}} 並發）：HA 基線 + 單 Region，HPA 自動擴展
+Phase 2（{{P1_USERS}}–{{P2_USERS}} 並發）：Read Replica 擴展讀取吞吐，PgBouncer 連線池
+Phase 3（{{P2_USERS}}+ 並發）：Multi-Region Active-Passive，CQRS 分離讀寫
+Phase 4（{{P3_USERS}}+ 並發）：全球分佈，資料分片，專用搜尋引擎
 ```
 
 ---
@@ -1154,7 +1159,7 @@ graph LR
 |---------|---------|---------|---------|
 | EC2 / ECS | 使用 Spot Instances（批次/非關鍵工作負載） | 60-80% | 中 |
 | EC2 / ECS | Savings Plans / Reserved Instances（基礎負載） | 30-40% | 低 |
-| RDS | 非生產環境排程停機（週末、深夜） | 40-60% | 低 |
+| RDS | 非生產環境縮減副本（週末/深夜 scale to 1，非 scale to 0） | 20-40% | 低 |
 | RDS | 使用 Aurora Serverless v2（低流量服務） | 可變 | 中 |
 | S3 | Intelligent-Tiering（存取模式不規律） | 20-40% | 低 |
 | S3 | Lifecycle Policy（日誌歸檔至 Glacier） | 60-70% | 低 |
