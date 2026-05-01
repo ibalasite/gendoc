@@ -633,3 +633,50 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 | 色票有 HEX 值 | 所有顏色定義包含 HEX (#RRGGBB) 或 RGBA 值，非「深藍色」「米白色」等描述 | 替換為具體色碼 |
 | 字型有完整規格 | 每個字型定義包含 family + size (px/rem) + weight + line-height | 補充缺失的字型規格 |
 | 元件狀態完整 | 互動元件（按鈕、輸入框、下拉選單）定義 default/hover/active/disabled 四種狀態 | 補充缺失的狀態定義 |
+
+---
+
+## Admin UI 設計規範條件步驟（has_admin_backend=true 時執行）
+
+```bash
+_HAS_ADMIN=$(python3 -c "import json; d=json.load(open('.gendoc-state.json')); print('1' if d.get('has_admin_backend', False) else '0')" 2>/dev/null || echo "0")
+echo "HAS_ADMIN: ${_HAS_ADMIN}"
+```
+
+若 `_HAS_ADMIN == "1"`，生成 VDD.md § 13 Admin UI 設計規範章節：
+
+**生成指引（逐節）：**
+
+**§ 13.1 Admin 配色方案**
+- Admin 配色獨立於前台品牌色，走 Professional / Neutral 方向
+- `--admin-sidebar-bg`：深色（`#111827` 或更深），與前台明確區隔
+- `--admin-accent`：可引用前台 `--color-accent` 或設定獨立值
+- 讀取 VDD.md § 5 Design Token（若存在）→ 提取前台 accent 色作為 admin accent 參考
+- WCAG 對比度表：Sidebar 文字 vs 背景必須 ≥ 7:1（AAA），Content 文字 vs 背景 ≥ 4.5:1（AA）
+
+**§ 13.2 Admin Layout 規範**
+- Sidebar 寬度 240px 固定（可調整但需說明原因）
+- Top Nav 56px 固定
+- 所有數值必須具體（px），不得使用模糊描述
+
+**§ 13.3 Element Plus 主題客製化變數**
+- 讀取 EDD.md § 3.3 `_ADMIN_FRAMEWORK`，若為 Vue3+ElementPlus → 生成完整 element-override.css 變數
+- 若非 ElementPlus → 說明對應框架的主題配置方式
+- `--el-color-primary` 系列（包含 light-3/5/7/8/9 和 dark-2）必須完整計算
+- 說明：light 系列 = 主色與白色的混合；dark 系列 = 主色加深 20%
+
+**§ 13.4 Admin 表格 / 表單 設計規範**
+- 表格規範覆蓋：空狀態 / Loading / 操作欄 / 刪除確認 / 分頁 5 種場景
+- 表單規範覆蓋：驗證觸發 / 必填標記 / 錯誤提示 / 成功回饋 / 提交防重 5 種場景
+- Tag 配色表必須包含所有 RBAC 角色（從 ADMIN_IMPL.md § 5.1 或 EDD § 5.5 讀取）
+
+若 `_HAS_ADMIN == "0"`：
+在 § 13 寫入：「本專案無 Admin 後台需求（has_admin_backend=false），略過 § 13 Admin UI 設計規範。」
+
+**Admin UI 生成品質檢查（has_admin_backend=true 時追加至 Quality Gate）：**
+- [ ] § 13.1 所有 Token 均有具體色碼（非色彩描述詞如「深灰色」）
+- [ ] § 13.1 WCAG 對比度表：Sidebar 文字 vs 背景 ≥ 7:1（AAA）
+- [ ] § 13.2 所有尺寸均以 px 表示（無模糊描述）
+- [ ] § 13.3 `--el-color-primary` 系列 7 個值全部填入
+- [ ] § 13.4 Tag 配色涵蓋所有 RBAC 角色（角色清單來自 EDD § 5.5 或 ADMIN_IMPL.md）
+- [ ] Admin 配色與前台品牌色有明確區隔（非直接複製）

@@ -1393,7 +1393,100 @@ Cocos Creator 使用 TypeScript 搭配 `@ccclass` decorator 宣告元件，以 `
 
 ---
 
-## 15. Approval Sign-off
+## 15. Admin Portal 產品設計（condition: has_admin_backend=true）
+
+> **條件章節**：僅在 `has_admin_backend = true` 時填寫。若無 Admin 後台需求，本章節標記「不適用」即可。
+
+### 15.1 Admin Portal 定位與使用情境
+
+| 面向 | 說明 |
+|------|------|
+| **目標使用者** | 內部運營人員、系統管理員、稽核員（非終端消費者） |
+| **核心職責** | 用戶管理、RBAC 角色管理、業務資料後台操作、稽核日誌查閱 |
+| **存取方式** | 獨立網域或路徑隔離（如 `/admin/`），需 MFA 登入 |
+| **技術棧** | Vue3 + Element Plus + Vite（預設）；詳見 EDD §3.3 `_ADMIN_FRAMEWORK` |
+| **設計方向** | Professional / Neutral — 以資訊密度與效率為優先，非品牌展示頁 |
+
+**Admin User Story 清單（P0）：**
+
+| ID | 角色 | Story | Acceptance Criteria |
+|----|------|-------|---------------------|
+| A-US-01 | super_admin | 我要能新增/停用帳號，確保人員異動即時生效 | 操作後 AuditLog 記錄，變更即時反映登入狀態 |
+| A-US-02 | super_admin | 我要能設定角色與權限，確保最小權限原則 | Permission 以 `module.action` 細粒度控制，變更後 15 分鐘內 Token 失效並重導登入 |
+| A-US-03 | operator | 我要能查看和操作業務資料，提高處理效率 | 依 PRD §19.3 業務模組展開，每項操作受 RBAC 守衛 |
+| A-US-04 | auditor | 我要能查詢和匯出稽核日誌，以備合規審查 | 可依時間範圍、操作員、動作類型篩選；匯出 CSV 不逾 10 秒 |
+
+---
+
+### 15.2 Admin Information Architecture（導覽結構）
+
+```
+Admin Portal
+├── 登入頁（含 MFA TOTP）
+├── 控制台（Dashboard）          ← 統計卡 + 最近操作 + 快速入口
+├── 用戶管理（User Management）   ← CRUD + 角色指派 + 鎖定/解鎖
+├── 角色管理（Role Management）   ← 角色 CRUD + Permission Matrix 勾選
+├── 稽核日誌（Audit Log）         ← 篩選 + 匯出 CSV
+└── 業務管理（Business Modules）  ← 依 PRD §19.3 展開（動態選單）
+```
+
+選單可見性由 RBAC 動態控制（super_admin 見全部，auditor 僅見稽核日誌 + 只讀業務頁）。
+
+---
+
+### 15.3 Admin 核心頁面 Wireframe 描述
+
+#### A. 登入頁
+
+- 全頁深色漸層背景，置中卡片（max-width: 420px）
+- 欄位：帳號 / 密碼（含 toggle 顯示）/ TOTP 6 位數字
+- 連續錯誤 5 次 → 帳號鎖定提示
+- 成功 → 導向 Dashboard
+
+#### B. Dashboard
+
+- 頂部 Nav（固定，含 Logo + 用戶名 + 登出）
+- 左側 Sidebar（固定 240px，含 RBAC 動態選單 + active 樣式）
+- 統計卡片區：用戶總數 / 活躍用戶 / 今日操作 / 本月稽核（2×2 Grid）
+- 快速操作：新增用戶 / 查看角色 / 匯出稽核日誌
+- 最近操作記錄表格（最新 5 筆 AuditLog）
+
+#### C. 用戶管理
+
+- 搜尋列（關鍵字 + 角色篩選 + 狀態篩選）
+- 資料表格：ID / 用戶名 / 姓名 / Email / 角色 Tag / 狀態 Badge / 最後登入 / 操作
+- 操作：編輯（Modal）/ 鎖定 | 解鎖 / 刪除（二次確認）
+- 新增用戶 Modal：帳號 / 姓名 / Email / 角色 / 初始密碼
+
+#### D. 角色管理
+
+- 角色卡片清單（含用戶數量）
+- 點擊「編輯權限」→ 展開 Permission Matrix（module × action Chips，可 toggle）
+- 儲存後 Toast 通知
+
+#### E. 稽核日誌
+
+- 篩選：日期範圍 / 操作員 / 操作類型 Select
+- 表格：ID / 操作員 / 動作 / 目標 / IP / 時間 / 結果 Badge
+- 「匯出 CSV」按鈕（前端 Blob Download）
+- 不可刪除 / 不可修改（無操作欄）
+
+---
+
+### 15.4 Admin UX 設計決策
+
+| 決策 | 說明 | 理由 |
+|------|------|------|
+| 深色 Sidebar + 淺色 Content | Admin Portal 採 Sidebar 深色（#111827）+ Content 淺色 | 與前台區隔，減少誤操作風險 |
+| Element Plus 預設樣式 | 不大幅客製化 El 元件外觀 | Admin 以效率為主，客製化增加維護成本 |
+| Table 不支援批量刪除 | 敏感操作逐筆確認 | 防止誤操作，符合稽核要求 |
+| 稽核日誌唯讀 | 任何人不得修改或刪除稽核日誌 | 合規要求（ISO 27001 / GDPR 可追溯性） |
+| RBAC 即時生效 | 權限變更後最多 15 分鐘生效（Token TTL）| 安全性 vs 可用性平衡 |
+| MFA 強制 | 所有 Admin 帳號必須啟用 TOTP | 後台存取敏感資料，需雙因素驗證 |
+
+---
+
+## 16. Approval Sign-off
 
 | 角色 | 姓名 | 簽核日期 | 意見 |
 |------|------|---------|------|

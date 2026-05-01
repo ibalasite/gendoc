@@ -426,3 +426,40 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 | 上游術語對齊 | 元件名稱、畫面名稱與 PDD.md 一致 | 以 PDD 為準修正 |
 | API 整合點完整 | 所有與 API.md 的整合點（endpoint、auth method）都有對應描述 | 從 API.md 提取補充 |
 | 狀態管理策略 | 說明哪些狀態用 global store、哪些用 local state、哪些用 URL params | 補充缺失的狀態分類說明 |
+
+---
+
+## Admin Portal 邊界說明條件步驟（has_admin_backend=true 時執行）
+
+```bash
+_HAS_ADMIN=$(python3 -c "import json; d=json.load(open('.gendoc-state.json')); print('1' if d.get('has_admin_backend', False) else '0')" 2>/dev/null || echo "0")
+echo "HAS_ADMIN: ${_HAS_ADMIN}"
+```
+
+若 `_HAS_ADMIN == "1"`，生成 FRONTEND.md § 16 Admin Portal 邊界說明章節：
+
+**生成指引：**
+
+**§ 16.1 範圍排除聲明**
+- 明確列出 EDD § 3.3 `_ADMIN_FRAMEWORK` 的值（讀取後填入）
+- 若 `_ADMIN_FRAMEWORK = none`（has_admin_backend=true 但框架未設定）→ 提示應先補全 EDD § 3.3
+- 表格中「不在本文範圍」欄位直接引用 `_ADMIN_FRAMEWORK` 的值
+
+**§ 16.2 與 Admin Portal 的共用部分**
+- 讀取 API.md § 1 Auth 設計（若存在）→ 提取 Token 格式說明
+- 讀取 EDD § 3.3 Frontend Build Tool → 確認 `VITE_` 前綴是否正確（若用 Webpack 則不同）
+- 若為 Monorepo 架構，列出 shared package 名稱（從 EDD 推斷）
+
+**§ 16.3 路徑隔離**
+- 讀取 EDD § 3.3 `_CLIENT_ENGINE` 和 `_ADMIN_FRAMEWORK` → 判斷是否為 Monorepo 或獨立 Repo
+- Monorepo：前台目錄名稱從 EDD/ARCH 推斷（通常為 `frontend/` 或 `web/`）
+- 若共用 shared 型別，列出主要共用 Entity（從 SCHEMA.md 或 EDD § 5 提取）
+
+若 `_HAS_ADMIN == "0"`：
+在 § 16 寫入：「本專案無 Admin 後台（has_admin_backend=false），略過 § 16。」
+
+**Admin 邊界說明品質檢查（has_admin_backend=true 時追加至 Quality Gate）：**
+- [ ] § 16.1 `_ADMIN_FRAMEWORK` 實際值已填入（非裸 placeholder）
+- [ ] § 16.2 共用 Token 格式與 API.md § 1 Auth 一致
+- [ ] § 16.3 目錄結構與 EDD 架構決策一致（Monorepo vs 獨立 Repo）
+- [ ] 整個 § 16 無法過的「請見 ADMIN_IMPL.md」連結指向正確路徑

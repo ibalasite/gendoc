@@ -438,3 +438,46 @@ Match: 0（Match Width — 寬固定，高自動）
 | 數值非 TBD/N/A | 所有尺寸、間距、字型大小、動畫時長填有實際數字 | 從 VDD §Typography/Spacing 提取填入 |
 | 上游術語對齊 | 畫面名稱、流程步驟與 PRD §User Stories 一致 | 以 PRD 為準修正 |
 | 使用者流程完整 | 每個主要 User Story 有對應的畫面流程圖（Mermaid flowchart），無斷點 | 補充缺失的流程節點 |
+
+---
+
+## Admin Portal 條件步驟（has_admin_backend=true 時執行）
+
+```bash
+_HAS_ADMIN=$(python3 -c "import json; d=json.load(open('.gendoc-state.json')); print('1' if d.get('has_admin_backend', False) else '0')" 2>/dev/null || echo "0")
+echo "HAS_ADMIN: ${_HAS_ADMIN}"
+```
+
+若 `_HAS_ADMIN == "1"`，生成 PDD.md § 15 Admin Portal 產品設計章節：
+
+**生成指引（逐節）：**
+
+**§ 15.1 Admin Portal 定位與使用情境**
+- 讀取 PRD.md § 19 Admin Backend Requirements（若已生成）→ 提取角色定義與存取方式
+- 若 PRD § 19 尚未生成，從 PRD.md 的業務描述推斷 Admin 使用情境
+- User Story 必須覆蓋 PRD § 19.4 的所有 Admin AC（至少 4 個 Stories）
+- 讀取 EDD.md § 3.3 `_ADMIN_FRAMEWORK` 填入技術棧欄位
+
+**§ 15.2 Admin Information Architecture**
+- 讀取 ADMIN_IMPL.md § 4 路由設計（若已生成）→ 直接對應選單結構
+- 若 ADMIN_IMPL 尚未生成，依 PRD § 19.3 業務功能清單推斷導覽節點
+- 動態選單節點依 PRD § 19.3 的 P0 業務模組逐一列出
+
+**§ 15.3 Admin 核心頁面 Wireframe 描述**
+- 5 個固定頁面（登入 / Dashboard / 用戶管理 / 角色管理 / 稽核日誌）必須覆蓋
+- 業務管理頁依 PRD § 19.3 展開（每個 P0 業務模組一個頁面描述）
+- 每個頁面描述必須包含：Layout 結構 + 關鍵元件 + 主要互動行為
+
+**§ 15.4 Admin UX 設計決策**
+- 至少 5 條設計決策，每條含「決策 / 說明 / 理由」三欄
+- 讀取 EDD.md § 3.3 `_ADMIN_FRAMEWORK` 確認技術棧，與決策保持一致
+
+若 `_HAS_ADMIN == "0"`：
+在 § 15 寫入：「本專案無 Admin 後台需求（has_admin_backend=false），略過 § 15 Admin Portal 設計章節。」
+
+**Admin Portal 生成品質檢查（has_admin_backend=true 時追加至 Quality Gate）：**
+- [ ] § 15.1 User Story 覆蓋 PRD § 19.4 所有 AC（若 PRD § 19 存在）
+- [ ] § 15.2 IA 選單節點已依 PRD § 19.3 業務模組展開（無遺漏）
+- [ ] § 15.3 5 個固定頁面均有 Wireframe 描述（登入/Dashboard/用戶/角色/稽核）
+- [ ] § 15.4 至少 5 條 UX 設計決策，稽核日誌唯讀決策必含
+- [ ] § 15.1 技術棧欄位與 EDD § 3.3 `_ADMIN_FRAMEWORK` 一致

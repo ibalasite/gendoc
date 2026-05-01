@@ -1184,7 +1184,139 @@ Frame 層級：[Frame] {ComponentName}/{VariantName}/{State}
 
 ---
 
-## 13. 審核簽核 (Approval Sign-off)
+## 13. Admin UI 設計規範（condition: has_admin_backend=true）
+
+> **條件章節**：僅在 `has_admin_backend = true` 時填寫。若無 Admin 後台，標記「不適用」即可。
+
+### 13.1 Admin 配色方案
+
+Admin Portal 採 Professional / Neutral 方向，與前台品牌色彩刻意區隔，減少使用者對前後台的混淆。
+
+| Token 名稱 | 用途 | 預設值（可依品牌調整） |
+|-----------|------|----------------------|
+| `--admin-sidebar-bg` | Sidebar 背景 | `#111827`（Tailwind gray-900） |
+| `--admin-nav-text` | Sidebar 文字 | `#f9fafb`（gray-50） |
+| `--admin-nav-accent` | Sidebar active/hover 強調色 | `#2d9ef5`（與主題 accent 同色或相近） |
+| `--admin-content-bg` | 主內容區背景 | `#f6f8fa`（淺灰） |
+| `--admin-surface` | 卡片 / 表格背景 | `#ffffff` |
+| `--admin-border` | 分隔線、表格邊框 | `#e1e4e8` |
+| `--admin-text` | 主要文字 | `#24292e` |
+| `--admin-text-muted` | 次要文字（標籤、說明） | `#586069` |
+| `--admin-accent` | CTA 按鈕、連結、active 狀態 | `#2d9ef5` |
+| `--admin-success` | 狀態 Badge：成功 / 啟用 | `#22c55e` |
+| `--admin-warning` | 狀態 Badge：警告 / 待確認 | `#f59e0b` |
+| `--admin-error` | 狀態 Badge：錯誤 / 鎖定 | `#ef4444` |
+| `--admin-table-stripe` | 表格偶數行背景 | `#fafbfc` |
+
+**WCAG 對比度驗證（必達 AA）：**
+
+| 前景 | 背景 | 對比度 | 合規 |
+|------|------|--------|------|
+| `--admin-nav-text` `#f9fafb` | `--admin-sidebar-bg` `#111827` | ≥ 15:1 | ✅ AAA |
+| `--admin-text` `#24292e` | `--admin-surface` `#ffffff` | ≥ 12:1 | ✅ AAA |
+| `--admin-accent` `#2d9ef5` | `--admin-surface` `#ffffff` | ≥ 4.5:1 | ✅ AA |
+
+---
+
+### 13.2 Admin Layout 規範
+
+| 元素 | 規格 | 說明 |
+|------|------|------|
+| **Top Nav** 高度 | 56px | 固定，含 Logo + 用戶名 + 登出 |
+| **Sidebar** 寬度 | 240px（預設）/ 64px（收合） | 可 toggle 收合，收合時僅顯示 icon |
+| **Content Area** padding | 24px（左右）/ 20px（上下） | 主內容區四邊 padding |
+| **Card** 圓角 | 8px | 統計卡、表格容器 |
+| **Card** 陰影 | `0 1px 3px rgba(0,0,0,0.08)` | 輕微陰影，區隔背景 |
+| **Table** 行高 | 48px | 資料行高（含 8px 上下 padding） |
+| **Table** header 高度 | 44px | 含灰色背景 |
+| **Button** 高度 | 32px（small）/ 36px（default） | Element Plus 標準 |
+| **Modal** 最大寬度 | 520px（表單 Modal）| 一般 CRUD Modal |
+| **Form Label** 對齊 | 右對齊（label-width: 100px）| 與 Element Plus Form 一致 |
+| **Pagination** 位置 | 表格右下方 | 含「共 N 條」文字 |
+
+---
+
+### 13.3 Element Plus 主題客製化變數
+
+Admin Portal 採 Element Plus，以下 CSS 變數覆蓋預設主題，統一視覺風格：
+
+```css
+/* src/admin/styles/element-override.css */
+:root {
+  /* Primary Color（對應 --admin-accent） */
+  --el-color-primary: #2d9ef5;
+  --el-color-primary-light-3: #6cbdf7;
+  --el-color-primary-light-5: #96d0f9;
+  --el-color-primary-light-7: #c0e4fb;
+  --el-color-primary-light-8: #d5edfc;
+  --el-color-primary-light-9: #eaf6fe;
+  --el-color-primary-dark-2: #1a8ae0;
+
+  /* Border Radius */
+  --el-border-radius-base: 6px;
+  --el-border-radius-small: 4px;
+  --el-border-radius-round: 20px;
+
+  /* Table */
+  --el-table-header-bg-color: #f6f8fa;
+  --el-table-header-text-color: #586069;
+  --el-table-row-hover-bg-color: #f0f7ff;
+  --el-table-border-color: #e1e4e8;
+
+  /* Menu（Sidebar） */
+  --el-menu-bg-color: #111827;
+  --el-menu-text-color: #d1d5db;
+  --el-menu-active-color: #2d9ef5;
+  --el-menu-hover-bg-color: #1f2937;
+  --el-menu-item-height: 48px;
+
+  /* Form */
+  --el-font-size-base: 14px;
+  --el-form-label-font-size: 14px;
+}
+```
+
+---
+
+### 13.4 Admin 表格 / 表單 設計規範
+
+#### 表格（El-Table）規範
+
+| 場景 | 規格 |
+|------|------|
+| **多選** | 首欄 checkbox，批量操作限非破壞性行為（如：匯出、批量停用） |
+| **排序** | 重要欄位支援點擊排序（如：時間、ID） |
+| **空狀態** | El-Empty 元件，含說明文字和 CTA（如「+ 新增第一個用戶」） |
+| **Loading** | El-Table 的 `v-loading` directive，遮罩含 spinner |
+| **操作欄** | 固定最右欄（`fixed="right"`），含 Edit / Delete / 其他 icon button |
+| **刪除確認** | El-Popconfirm，非 window.confirm；確認文字：「確定要刪除「{name}」嗎？此操作不可復原。」 |
+| **分頁** | El-Pagination，`layout="total, sizes, prev, pager, next"`；預設每頁 20 筆 |
+
+#### 表單（El-Form）規範
+
+| 場景 | 規格 |
+|------|------|
+| **驗證觸發** | `trigger: "blur"` + 提交時全欄驗證 |
+| **必填標記** | 紅色星號 `*`，置於 label 左側（El 預設行為） |
+| **錯誤提示** | 欄位下方紅色文字（El 預設），不使用 Toast 替代 |
+| **成功回饋** | El-Message（`type: 'success'`），3 秒自動消失 |
+| **密碼欄位** | 含 show/hide toggle icon；不支援 autocomplete |
+| **提交 Loading** | Button `loading` 屬性，防止重複提交 |
+
+#### 角色 / 狀態 Tag 配色
+
+| 值 | 顏色 | El-Tag type |
+|----|------|-------------|
+| `super_admin` | 紫色 `#7c3aed` | `type="danger"` + 覆蓋色 |
+| `operator` | 藍色 `#2d9ef5` | `type="primary"` |
+| `auditor` | 灰色 `#586069` | `type="info"` |
+| `active` | 綠色 `#22c55e` | `type="success"` |
+| `inactive` | 灰色 `#9ca3af` | `type="info"` |
+| `locked` | 紅色 `#ef4444` | `type="danger"` |
+
+---
+
+## 14. 審核簽核 (Approval Sign-off)
 
 | 角色 | 姓名 | 簽核日期 | 職責範圍 | 意見 |
 |------|------|---------|---------|------|

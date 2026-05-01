@@ -551,3 +551,56 @@ perf(frontend): 優化 {{SCREEN}} 首屏載入（LCP -0.5s）
 ```
 
 ---
+
+## 16. Admin Portal 邊界說明（condition: has_admin_backend=true）
+
+> **條件章節**：僅在 `has_admin_backend = true` 時填寫。
+
+### 16.1 範圍排除聲明
+
+本文件（FRONTEND.md）處理的是**前台/遊戲客戶端**實作：
+
+| 框架 | 適用 |
+|------|------|
+| Cocos Creator | ✅ |
+| Unity WebGL | ✅ |
+| React SPA | ✅ |
+| Vue SPA（前台） | ✅ |
+| HTML5 / Vanilla JS | ✅ |
+| **Vue3 + Element Plus（Admin Portal）** | ❌ 不在本文範圍 |
+
+若 EDD § 3.3 `_ADMIN_FRAMEWORK` 已設定（如 `Vue3+ElementPlus+Vite`），
+**Admin Portal 的前端實作規格不在本文件**，請見 `docs/ADMIN_IMPL.md`。
+
+### 16.2 與 Admin Portal 的共用部分
+
+以下內容是前台與 Admin Portal 的**唯一共用點**，在本文件中說明即可，ADMIN_IMPL 不重複：
+
+| 共用項目 | 本文件的說明位置 | 備注 |
+|----------|----------------|------|
+| Auth Token 格式（JWT payload 結構） | § 6.2 API 整合 | Admin 採用相同格式但獨立 Token |
+| 環境變數命名規範（`VITE_` 前綴） | § 13 Build & Deploy | Admin 另有 `VITE_ADMIN_` 系列 |
+| ESLint / Prettier 配置（共用 .eslintrc） | § 14 Development Standards | Monorepo 共用 |
+| TypeScript 型別（共用 Entity 定義） | § 5 State Management | 如 `User` / `Role` 結構 |
+
+### 16.3 路徑隔離
+
+若採 Monorepo 結構（前台 + Admin Portal 共存），目錄配置如下：
+
+```
+frontend/           ← 本文件（FRONTEND.md）的範圍
+├── src/
+│   ├── components/
+│   ├── pages/
+│   └── ...
+admin/              ← ADMIN_IMPL.md 的範圍，本文件不涉及
+├── src/
+│   ├── components/
+│   ├── views/
+│   └── ...
+shared/             ← 前台與 Admin 共用（Entity types / utils）
+├── types/
+└── utils/
+```
+
+若採獨立 Repo 部署，shared 部分發布為 npm internal package 或直接複製。
