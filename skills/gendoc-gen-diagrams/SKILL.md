@@ -332,7 +332,7 @@ end
 **格式**：Mermaid `flowchart LR`
 
 **強制完整度標準**：
-- 每個節點：元件名稱 + 技術：`OrderService\n(Node.js 20.x)"`
+- 每個節點：元件名稱 + 技術：`["OrderService\n(Node.js 20.x)"]`（必須用引號包住，否則 Mermaid v11 解析失敗）
 - 每條邊：序號 + 完整訊息名稱 + 通訊協定 + 埠號：
   - 同步：`"1: POST /orders\nHTTPS:443"` → 實線 `-->`
   - 非同步：`"3: OrderCreated{orderId, status}\nNATS: order.created"` → 虛線 `-.->` + 標注 `[async]`
@@ -392,7 +392,7 @@ state PROCESSING : 訂單處理中，庫存已鎖定，TTL 30 分鐘
 
 **格式**：Mermaid `flowchart TD`（決策點 `{ }`，開始/結束 `(( ))`）
 
-> **⚠️ mermaid v11.14.0 Flowchart 禁止語法**：`([ ])` stadium shape 在 flowchart 中會觸發 "Syntax error in text"，必須改用 `(( ))` circle shape。
+> **⚠️ mermaid v11.14.0 Flowchart 禁止語法**：unquoted `[label]` 節點若含 `(`、`{`、`[` 會觸發 "Syntax error in text"，必須改用 `["label"]` 引號形式。`([...])` stadium shape 本身在 v11 合法。
 
 **強制完整度標準**：
 
@@ -400,7 +400,7 @@ state PROCESSING : 訂單處理中，庫存已鎖定，TTL 30 分鐘
 ```mermaid
 flowchart TD
   subgraph Client ["Client（使用者角色名）"]
-    A((開始)) --> B[精確動作名稱(params)]
+    A((開始)) --> B["精確動作名稱(params)"]
   end
   subgraph API ["API Server（ControllerName + ServiceName）"]
     C{具體條件描述？}
@@ -424,10 +424,10 @@ C -->|否（庫存不足）| E
 
 | 禁止模式 | 破圖原因 | 正確替代 |
 |---------|---------|---------|
-| `A([開始])` — `([...])` stadium shape | mermaid v11 flowchart lexer 解析失敗 | `A((開始))` — circle shape |
+| `N[OrderService\n(Node.js)]` — `(` 在未引號 `[...]` 內 | `(` 觸發 v11 shape modifier 解析失敗 | `N["OrderService\n(Node.js)"]` — 整個 label 加引號 |
 | `{Key 數 < 5？}` — `<` 在 label 內 | `<` 被解析為箭頭 token 起始 | `{Key 數 &lt; 5？}` |
-| `N[items\n[{json}]]` — `]` 在 `[...]` 內 | 第一個 `]` 提前關閉 label，殘留觸發錯誤 | `N[items\n({json})]` |
-| `N[X-Api-Key: {key}]` — `{` 在 `[...]` 內 | `{` 被誤判為 diamond shape 起始 | `N[X-Api-Key: (key)]` |
+| `N[items\n[{json}]]` — `]` 在 `[...]` 內 | 第一個 `]` 提前關閉 label，殘留觸發錯誤 | `N["items\n({json})"]` — 整個 label 加引號 |
+| `N[X-Api-Key: {key}]` — `{` 在 `[...]` 內 | `{` 被誤判為 diamond shape 起始 | `N["X-Api-Key: {key}"]` — 整個 label 加引號 |
 
 **節點命名**：精確動詞 + 受詞（`validateInventory(items: OrderItem[])`、`chargePaymentGateway(amount: Decimal, method: PaymentMethod)`）；**禁止**「處理訂單」「進行操作」等模糊描述
 
@@ -591,11 +591,8 @@ for md_file in sorted(diagrams.glob("*.md")):
                     issues.append(f"PAR_WITHOUT_AND|{md_file.name}")
                     break
 
-        # flowchart: 4 syntax patterns that cause "Syntax error in text" in v11.14.0
+        # flowchart: patterns that cause "Syntax error in text" in v11
         if re.match(r'^(flowchart|graph)\b', dtype):
-            for line in lines[1:]:
-                if re.search(r'\(\[[^\]]+\]\)', line):
-                    issues.append(f"STADIUM_SHAPE|{md_file.name}"); break
             for line in lines[1:]:
                 if re.search(r'\{[^}]*<(?![-=&])[^}]*\}', line):
                     issues.append(f"BARE_LT_IN_LABEL|{md_file.name}"); break
@@ -605,6 +602,10 @@ for md_file in sorted(diagrams.glob("*.md")):
             for line in lines[1:]:
                 if re.search(r'\[[^\]"]*\{[^}]*\}[^\]"]*\]', line):
                     issues.append(f"BRACE_IN_BRACKET|{md_file.name}"); break
+            for line in lines[1:]:
+                # Unquoted [label] containing ( — skip cylinder shape [(...)]
+                if re.search(r'(?<!\()\[(?!["\(])[^\[\]"]*\([^\[\]]*\)[^\[\]"]*\]', line):
+                    issues.append(f"PAREN_IN_BRACKET|{md_file.name}"); break
 
 for i in issues:
     print(i)
@@ -622,29 +623,27 @@ import re, pathlib
 
 diagrams = pathlib.Path("docs/diagrams")
 
-def fix_stadium(line):
-    return re.sub(r'\(\[([^\]]+)\]\)', r'((\1))', line)
-
 def fix_bare_lt(line):
     return re.sub(r'(\{[^}]+\})', lambda m: m.group(0).replace('<', '&lt;'), line)
 
-def fix_nested_bracket(line):
-    return re.sub(
-        r'\[([^\]"]*?)\\n\[([^\]]*)\]([^\]"]*?)\]',
-        lambda m: '[' + m.group(1) + '\\n(' + m.group(2) + ')' + m.group(3) + ']',
-        line)
-
-def fix_brace_in_bracket(line):
-    return re.sub(
-        r'\[([^\]"]*\{[^\]"]*\}[^\]"]*)\]',
-        lambda m: '[' + m.group(1).replace('{', '(').replace('}', ')') + ']',
-        line)
+def fix_flowchart_label(line):
+    """Wrap unquoted [label] in ["label"] when label contains (, {, or [.
+    Cylinder shape [(...)] is valid in v11 — leave alone."""
+    def quote_if_needed(m):
+        content = m.group(1)
+        if content.startswith('"') and content.endswith('"'):
+            return '[' + content + ']'
+        if content.startswith('(') and content.endswith(')'):
+            return '[' + content + ']'
+        clean = re.sub(r'\[([^\[\]]*)\]', lambda nm: nm.group(1), content)
+        if '(' in clean or '{' in clean or '[' in clean:
+            return '["' + clean.replace('"', "'") + '"]'
+        return '[' + content + ']'
+    return re.sub(r'(?<!\()\[([^\[\]]*(?:\[[^\[\]]*\][^\[\]]*)*)\]', quote_if_needed, line)
 
 def fix_flowchart_line(line):
-    line = fix_stadium(line)
     line = fix_bare_lt(line)
-    line = fix_nested_bracket(line)
-    line = fix_brace_in_bracket(line)
+    line = fix_flowchart_label(line)
     return line
 
 for md_file in sorted(diagrams.glob("*.md")):

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # tools/bin/gen_html.py
-# VERSION: 3.4.0
+# VERSION: 3.5.0
 # Maintained by gendoc — DO NOT EDIT IN TARGET PROJECTS
 # Install: ~/.claude/skills/gendoc/setup  →  ~/.claude/skills/gendoc/tools/bin/gen_html.py
 # Usage:   python3 ~/.claude/skills/gendoc/tools/bin/gen_html.py   (run from project root)
@@ -108,6 +108,9 @@ def _mermaid_fix_block(lines):
             content = m.group(1)
             # Already quoted — leave alone
             if content.startswith('"') and content.endswith('"'):
+                return '[' + content + ']'
+            # Cylinder shape [(...)] — valid in Mermaid v11, leave alone
+            if content.startswith('(') and content.endswith(')'):
                 return '[' + content + ']'
             # De-nest one level of inner brackets, keeping their text content
             clean = re.sub(r'\[([^\[\]]*)\]', lambda nm: nm.group(1), content)

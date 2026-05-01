@@ -492,7 +492,7 @@ end
 **格式**：Mermaid `flowchart LR`
 
 **強制完整度標準**：
-- 每個節點標注元件名稱 + 技術：`OrderService\n(Node.js)`
+- 每個節點標注元件名稱 + 技術：`["OrderService\n(Node.js)"]`（必須用引號包住，否則 Mermaid v11 解析失敗）
 - 每條邊標注訊息序號 + 完整訊息名稱 + 通訊協定：`"1: POST /orders\n(HTTP/REST)"` / `"3: OrderCreated{orderId}\n(NATS)"`
 - 序號連續且完整反映完整的訊息交換流程（不得跳號或省略中間訊息）
 - 非同步訊息用虛線邊 `-.->` + 標注 `[async]`；同步用實線 `-->`
