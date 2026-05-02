@@ -541,7 +541,7 @@
 | **建議怎麼改** | **(A) BDD.md**：(1) §2 Feature File 命名規範新增「Spring Modulith 模組組織」：`features/{bounded-context}/{domain}/` 結構，每個 BC 有獨立目錄，從 ARCH §4 或 EDD §3.4 推導 BC 名稱。(2) §10 Tag Strategy 新增 tag 族群：`@modulith`（全部 BC 整合場景）、`@cross-module`（跨 BC 呼叫只透過 Public Interface 驗證）、`@event-contract`（Domain Event 生產者/消費者合約）、`@module-isolation`（單一子系統冷啟動）。(3) 新增 §18「Spring Modulith BDD 場景模板」：提供 Domain Event 合約場景的標準 Given/When/Then 格式：`Given [Module A] 狀態滿足觸發條件 / When [Event Name] 事件已發布 / Then [Module B] 的可觀測行為符合預期`；提供 HC-2 Public Interface 場景：`Given 模組 A 需要模組 B 的資料 / When 呼叫模組 B 的公開 API / Then 回傳符合合約的資料（無直接 DB cross-access）`。(4) §16 HA BDD Scenario Patterns 仿照格式，新增 §16.5「Module Decomposability Scenarios」。**(B) BDD-server.md**：(1) §3 Standard Feature File Template 新增 Cross-Module Contract 標記格式。(2) §5 Contract Testing 擴充為兩層：HTTP Contract（Pact，現有）+ Domain Event Contract（schema version 兼容性測試）。**(C) BDD.gen.md**：(1) 生成規則新增：從 ARCH §4 服務邊界表推導所有跨 BC dependency pair，每個 pair 至少生成一個 `@event-contract` 場景；(2) Self-Check 新增：`[ ] 每個跨 BC 依賴有對應的 @event-contract 場景`、`[ ] 每個 Bounded Context 有至少一個 @module-isolation 冷啟動場景`、`[ ] 無場景在模組 A 的 step 中直接操作模組 B 的 DB 資料（HC-1）`。**(D) BDD-server.gen.md**：(1) F-03 Step Definition Skeleton 新增 Event Contract test stub（Kafka consumer mock + schema validation）；(2) Self-Check 新增：`[ ] 跨模組呼叫場景驗證 step 指向 Public Service Interface（HC-2）`。**(E) BDD-server.review.md**：(1) Layer 3 新增審查項「Domain Event Contract — 有跨 BC 依賴時，是否有 @event-contract 場景覆蓋 Event Schema 版本（MEDIUM）」；(2) Layer 5 Upstream Alignment 新增「Bounded Context 覆蓋 — features/ 目錄結構是否對應 ARCH §4 的每個 BC（HIGH）」。 |
 | **目標檔案** | `templates/BDD.md`（§2、§10、新增 §18）、`templates/BDD-server.md`（§5）、`templates/BDD.gen.md`（生成規則、Self-Check）、`templates/BDD-server.gen.md`（F-03 skeleton、Self-Check）、`templates/BDD-server.review.md`（Layer 3、Layer 5） |
 | **影響範圍** | BDD 五件（BDD-client 三件為 UI 範疇，不需改動） |
-| **決策** | |
+| **決策** | 可以|
 
 ---
 
@@ -553,7 +553,7 @@
 | **建議怎麼改** | **(A) templates/LOCAL_DEPLOY.md 骨架**：(1) §2 Architecture Overview 的 Ingress 圖加入 admin 路徑：`/admin → admin-service:80`（`has_admin_backend=true` 時）；(2) §5 Service Reference 表格加入 admin 行：`http://{{PROJECT_SLUG}}.local/admin/` 管理介面；(3) §10 Common Issues 加入兩個 admin 常見問題：「admin 靜態資源 404（未設 `base: '/admin/'`）」和「admin 頁面 refresh 404（nginx SPA fallback 未設定 `/admin/index.html`）」；(4) §12 Port Reference 的 Ingress 路徑表加入 admin 行。**(B) templates/LOCAL_DEPLOY.gen.md 生成規則**：(1) `has_admin_backend=true` 條件區塊新增 Ingress patch 段落，包含完整 Traefik Ingress YAML（`/admin` Prefix 規則）及 Traefik Middleware（如需 strip prefix 則生成，如 API server 自帶 `/api` prefix 則不需要）；(2) §4.4 Build Image 生成規則的 admin 段落加入建置約束：「admin 前端 image 必須以 `base: '/admin/'`（Vite）或等效框架設定建置，並加入驗證指令 `grep -q 'src="/admin/' ... index.html`」；(3) §4.5 Deployment 驗證步驟加入 admin 驗證：`curl http://{{PROJECT_SLUG}}.local/admin/` 回 200 且 SPA deep-link `curl http://{{PROJECT_SLUG}}.local/admin/login` 亦回 200；(4) §18 AI Quick Start Script 的驗證段落加入 admin 條件驗證；(5) §19 Docker Compose 生成規則重寫單一 Port 模式：移除「各服務各自對外暴露 port」敘述，改為「nginx proxy container 在 Port 80 提供統一入口」，生成 `docker/proxy/nginx.conf`（含 `/api`、`/admin`、`/` 三段 proxy_pass）；(6) §19 Docker Compose Iron Constraint 同步更新：`proxy` service 對外 ports 只有 `80:80`，各 backend service 不暴露 nodePort。**(C) 路由設計原則（寫入 gen.md 生成說明）**：推薦 Option B（API server 路由含 `/api` prefix，無需 Traefik stripPrefix middleware），原因：`kubectl port-forward` 直連時路徑一致，調試更直觀；admin nginx container 需要 SPA fallback 設定：`try_files $uri $uri/ /admin/index.html`，所有 `/admin/*` 請求返回 admin 的 `index.html`，由 client-side router 處理路由；admin 前端的 API 呼叫必須使用絕對路徑 `/api/...`（不得使用相對路徑）。 |
 | **目標檔案** | `templates/LOCAL_DEPLOY.md`（§2、§5、§10、§12）、`templates/LOCAL_DEPLOY.gen.md`（Ingress 生成規則、§4.4/§4.5/§18/§19） |
 | **影響範圍** | LOCAL_DEPLOY 兩件；間接影響 docker/admin/nginx.conf 的生成說明 |
-| **決策** | |
+| **決策** |可以 |
 
 ---
 
@@ -572,3 +572,59 @@
 10. M-39（LOCAL_DEPLOY Single-Port）— 可與 M-37 合併執行，依賴 has_admin_backend flag
 
 *版本：2026-05-02 v7（新增 M-38：BDD 九件套 Spring Modulith 覆蓋；M-39：LOCAL_DEPLOY Single-Port client+admin+API 統一 Port 80）*
+
+---
+
+## M-40
+
+| 欄位 | 內容 |
+|------|------|
+| **需求來源** | 新功能需求（2026-05-02）：CI/CD 工具選型 + 本地 Pipeline 模擬能力 |
+| **問題描述** | 目前 gendoc 所有 templates（EDD、ARCH、runbook、LOCAL_DEPLOY）均未涵蓋 CI/CD pipeline 工具設計與本地模擬。企業開發者在 PR 前無法在 local 環境執行完整 CI/CD pipeline dry-run，導致 pipeline 問題只能在 CI server 上才被發現，PR reject 率高、反饋週期長。具體缺失：(1) 無 CI/CD 工具選型指引（Jenkins / Tekton / ArgoCD）；(2) LOCAL_DEPLOY.md 無 Jenkins-on-k3s 安裝章節；(3) 無 `jenkinsfile-runner` 本地 dry-run 說明；(4) 無 Makefile 共享腳本模式（讓 local 和 CI 執行相同指令）；(5) 無獨立 CICD.md template。 |
+| **專家評估** | **需求完全合理，是企業工程文化的正確方向。** Survey 結果：Jenkins 仍是企業最大裝機量，`jenkinsfile-runner`（官方專案）可在本地單次執行 Jenkinsfile 無需啟動完整 server；Kubernetes plugin 讓 Jenkins on k3s 成為支援的模式（`ungerts/k3s-jenkins`、`deors/workshop-pipelines` 有 working reference）。現代替代方案 Tekton + ArgoCD 是 Kubernetes-native 方向，但 Jenkins 對企業遷移路徑友好。Screwdriver CD 僅 Yahoo/Verizon 系統使用，不適合本專案。業界最佳實踐：CI 和 local 使用「相同 Make targets」作為共享介面，避免 CI-as-snowflake 問題。 |
+| **建議怎麼改** | **(A) 新增 `templates/CICD.md`**（新 template）：(1) Document Control（CI 工具 `{{CI_TOOL}}`，預設 Jenkins；CD 工具 `{{CD_TOOL}}`，預設 ArgoCD）；(2) §1 Pipeline Architecture（Jenkins-on-k3s 架構圖：Jenkins server + Kubernetes Plugin + ephemeral agent pod）；(3) §2 Jenkinsfile 骨架（stages: Checkout → Build → Unit Test → Integration Test → Image Build → Deploy to Local K8s → Smoke Test）；(4) §3 Local Pipeline Dry-Run（`jenkinsfile-runner` 安裝 + `docker run jenkinsfile-runner` 指令）；(5) §4 Shared Make Targets（`make ci-build`、`make ci-test`、`make ci-deploy` — CI 和 local 共用，消除「本地 OK CI 炸掉」）；(6) §5 PR Gate（PR merge 前必跑的 pipeline stage 清單）。**(B) 新增 `templates/CICD.gen.md` + `templates/CICD.review.md`**（三件套）。**(C) `templates/LOCAL_DEPLOY.md` 新增 §20 CI/CD 本地模擬**：(1) Jenkins on k3s 安裝（Helm chart `jenkins/jenkins` + Kubernetes Plugin 設定）；(2) `jenkinsfile-runner` 安裝 + 本地 dry-run 指令；(3) 本地 pipeline 驗證指令（確認 agent pod 正常建立/銷毀）。**(D) `templates/EDD.md`**：CI/CD 工具欄位補充 `{{CI_TOOL}}`（Jenkins / Tekton）+ `{{CD_TOOL}}`（ArgoCD / Helm）及架構說明。**(E) `templates/LOCAL_DEPLOY.gen.md`**：§20 CI/CD 生成規則（根據 state.ci_tool 選擇 Jenkins 或 Tekton 的安裝說明）。 |
+| **目標檔案** | 新增：`templates/CICD.md`、`templates/CICD.gen.md`、`templates/CICD.review.md`；修改：`templates/LOCAL_DEPLOY.md`（新增 §20）、`templates/LOCAL_DEPLOY.gen.md`（§20 生成規則）、`templates/EDD.md`（CI/CD 工具欄位） |
+| **影響範圍** | 新增 3 個 template；修改 3 個現有 template；gendoc-auto SKILL.md 需加入 CICD step |
+| **工作量評估** | 大（需設計新 CICD 三件套） |
+| **決策** | 可以|
+
+---
+
+## M-41
+
+| 欄位 | 內容 |
+|------|------|
+| **需求來源** | 新功能需求（2026-05-02）：本地 K8s 密碼安全管理 — 不進 git、不用 .env、OS-level 安全存儲 + 每次重啟重生成 |
+| **問題描述** | 目前 LOCAL_DEPLOY.md 的 secret 處理方式存在安全隱患：(1) `k8s/overlays/local/secrets.env` 檔案若未加入 .gitignore 有進 git 風險；(2) 靜態密碼（如 DB password `secret`）在文件中明文標注，開發者容易複製到其他環境；(3) 無「每次重啟重生成密碼」機制，靜態密碼模式有規律可猜；(4) 不支援 macOS Keychain / Windows Credential Manager 存放固定憑證（如 registry token、OAuth secret）；(5) 雙平台（macOS / Windows）無對應的 bootstrap script。 |
+| **專家評估** | **需求完全合理，符合企業安全標準。** Survey 結果整理為三層設計：**層 1（Ephemeral 密碼，每次重生成）**：`openssl rand -hex 32 \| kubectl create secret --from-literal` 是業界最廣泛做法；`mittwald/kubernetes-secret-generator` 是最優雅的 in-cluster 方案（annotation 標記，controller 自動生成，無需 bootstrap script）。**層 2（固定憑證，OS Keychain 存儲）**：macOS `security` CLI + Windows PowerShell `CredentialManager` 可在 bootstrap script 中讀取，適合不能重生成的憑證（Docker Hub token、npm private registry token）。**層 3（企業 Password Manager）**：1Password `op inject` 或 Bitwarden Secrets Manager Operator 是有 password manager 的團隊的首選，1Password Kubernetes Operator 有第一方支援。注意：OS Keychain → K8s Secret 無成熟橋接工具，需要 DIY bootstrap script，onboarding 成本略高但可接受。每次重啟重生成的密碼讓靜態密碼模式消失，安全性顯著提升。 |
+| **建議怎麼改** | **(A) `templates/LOCAL_DEPLOY.md` 新增 §X Secret Bootstrap**（建議放在 §3 Prerequisites 後，§4 之前）：(1) 三層 secret 策略說明（Ephemeral / OS Keychain / Password Manager）；(2) 層 1 Ephemeral：`scripts/bootstrap-secrets.sh`（macOS/Linux）模板，使用 `openssl rand` 生成 DB_PASSWORD / REDIS_AUTH / JWT_SECRET / ADMIN_INIT_PASSWORD 並 `kubectl create secret`；`scripts/bootstrap-secrets.ps1`（Windows）等效 PowerShell 版本；(3) 層 2 OS Keychain：macOS Keychain 讀取指令（`security find-generic-password -w -s "{{PROJECT_SLUG}}-registry" -a "dev"`）+ Windows Credential Manager 讀取（`(Get-StoredCredential -Target "{{PROJECT_SLUG}}-registry").GetNetworkCredential().Password`）；適用場景：Docker Hub login、private npm/Maven registry token；(4) 重啟重生成規則：每次 `make k8s-clean`（namespace 刪除）或 `make secrets-rotate` 後必須重跑 bootstrap script；(5) mittwald/secret-generator 選項說明（in-cluster 自動生成，無需手動跑 script）；(6) 禁止規則：禁止 `.env` 進 git（`.gitignore` 必須包含 `*.env`, `secrets.env`, `.env.*`）。**(B) `templates/LOCAL_DEPLOY.gen.md`**：(1) Secret Bootstrap 生成規則（雙平台 bootstrap script 內容）；(2) Self-Check 加入：`[ ] 無 .env 檔案進 git（.gitignore 已包含 *.env 規則）`；(3) Quality Gate 加入：`Ephemeral 密碼 | bootstrap script 存在且使用 openssl rand（非靜態值）`。**(C) `templates/LOCAL_DEPLOY.review.md`**：(1) 加入 CRITICAL 審查項：「.env 或 secrets.env 進 git — Risk：密碼洩漏」；(2) 加入 HIGH 審查項：「靜態密碼（DB password = 'secret'）無重生成機制」。**(D) 新增 `scripts/bootstrap-secrets.sh` + `scripts/bootstrap-secrets.ps1` 模板說明**（不是真實 script，是 template 中說明 gen agent 應生成的 script 格式）。 |
+| **目標檔案** | 修改：`templates/LOCAL_DEPLOY.md`（新增 §X Secret Bootstrap）、`templates/LOCAL_DEPLOY.gen.md`（生成規則 + Self-Check + Quality Gate）、`templates/LOCAL_DEPLOY.review.md`（CRITICAL/HIGH 審查項）；間接：gen agent 應在目標專案生成 `scripts/bootstrap-secrets.sh` 和 `scripts/bootstrap-secrets.ps1` |
+| **影響範圍** | LOCAL_DEPLOY 三件套；間接影響所有使用 local K8s 的目標專案 |
+| **工作量評估** | 中（雙平台 bootstrap script 模板設計有細節） |
+| **決策** | 可以|
+
+---
+
+## M-42
+
+| 欄位 | 內容 |
+|------|------|
+| **需求來源** | 新功能需求（2026-05-02）：k9s 安裝納入 LOCAL_DEPLOY Prerequisites + Runbook 補充 k9s 操作指引 |
+| **問題描述** | 目前 LOCAL_DEPLOY.md §1 Prerequisites 和 runbook.md §7 Troubleshooting 均只提供 `kubectl` 指令，沒有 k9s 相關內容：(1) `make k9s` 指令已在 §6 Development Commands 出現（`k9s -n {{K8S_NAMESPACE}}-local`），但 §1 Prerequisites 沒有 k9s 安裝說明；(2) runbook.md §7 各診斷場景只有 `kubectl` 指令，無 k9s 等效操作；(3) 無 k9s 快速鍵參考章節供 on-call 工程師使用。 |
+| **專家評估** | **需求合理，工作量小，建議採用「kubectl 為主、k9s 為補充」模式。** Survey 結果：k9s 有 ~33,500 GitHub stars，廣泛使用於 SRE / 平台工程師，是事實上的標準互動式 K8s 工具。業界共識：kubectl 是 canonical（可腳本化、CI 環境、任何 terminal 均可用），k9s 是 power user 效率層（互動式 triage、on-call 快速診斷）。建議模式：runbook §7 各場景**保留 kubectl 指令為主**，每個場景末尾加入 k9s 等效快捷鍵作為「Quick Reference」方塊，不取代 kubectl 主指令。原因：kubectl 指令可直接 copy-paste 進腳本和 CI；k9s 操作依賴本地 terminal session 和特定按鍵綁定，不適合作為 runbook 唯一指令。 |
+| **建議怎麼改** | **(A) `templates/LOCAL_DEPLOY.md` §1 Prerequisites**：(1) 在工具清單加入 k9s：`k9s`（`brew install derailed/k9s/k9s` / `choco install k9s` / `scoop install k9s`）+ 版本要求（`≥ v0.32`）；(2) `make k9s` 指令已存在，確認 §6 指令說明保持一致。**(B) `templates/LOCAL_DEPLOY.md` 新增 §X k9s 快速操作參考**（建議放在 §11 Logs & Debugging 後）：常用操作對照表：進入特定 namespace（`:ns` 選擇）、過濾 Pod（`/` 搜尋）、查看 logs（`l`）、exec 進 container（`s`）、port-forward（`shift-f`）、查看資源（`:deploy`、`:pod`、`:svc`、`:cm`、`:secret`）、刪除資源（`ctrl-d`）、描述資源（`d`）、編輯資源（`e`）；附加 k9s skin / config 說明（`~/.config/k9s/`）。**(C) `templates/runbook.md` §7 各 troubleshooting 場景**：在每個 §7.X 場景的診斷指令段落末尾，加入固定格式的 k9s 等效方塊：`> **k9s 等效操作（互動式）**`，列出對應按鍵順序（例如 §7.1 API Server 5xx：`:pod` → `/{{API_APP_LABEL}}` 篩選 → `l` 查看 logs）。格式固定、簡短，不取代 kubectl 主指令。 |
+| **目標檔案** | 修改：`templates/LOCAL_DEPLOY.md`（§1 Prerequisites + 新增 k9s Quick Reference 章節）、`templates/runbook.md`（§7.1～§7.11 各場景加 k9s 等效方塊） |
+| **影響範圍** | LOCAL_DEPLOY.md、runbook.md；不影響 gen.md / review.md（k9s 是使用層，不影響生成規則） |
+| **工作量評估** | 小（格式固定，工作量可控） |
+| **決策** | 可以|
+
+---
+
+共 42 項修改（M-01 至 M-42），跨 30+ 個檔案。
+
+**M-40～M-42 修改優先順序建議（依依賴關係）**：
+1. M-42（k9s）— 最小，可獨立執行，不依賴其他 M 項
+2. M-41（Secret Bootstrap）— 中量，依賴 LOCAL_DEPLOY 現有結構，可在 M-42 後執行
+3. M-40（CI/CD）— 最大，需設計新 CICD 三件套，建議在 M-41/M-42 完成後執行
+
+*版本：2026-05-02 v8（新增 M-40：CI/CD Jenkins on k3s + 本地 Pipeline 模擬；M-41：Secret Bootstrap 雙平台 OS Keychain + Ephemeral 密碼；M-42：k9s 安裝 + Runbook k9s 操作指引）*

@@ -1779,3 +1779,195 @@ ls ~/.config/k9s/
 # §6 Development Commands 已提供
 make k9s   # 等同 k9s -n {{K8S_NAMESPACE}}-local
 ```
+
+---
+
+## 21. CI/CD 本地模擬（Jenkins on k3s）
+
+> 本節讓開發者在本機完整重現 CI/CD Pipeline，確保 `Jenkinsfile` 和 `make ci-*` targets 在 commit 前可驗證，避免 PR 被 pipeline 失敗 reject。
+
+### 21.1 Jenkins on k3s 安裝
+
+**前提**：Rancher Desktop 已執行（見 §1），k3s cluster 可用。
+
+```bash
+# 新增 Jenkins Helm repo
+helm repo add jenkins https://charts.jenkins.io
+helm repo update
+
+# 安裝 Jenkins（使用 k8s/jenkins/jenkins-values.yaml）
+kubectl create namespace ci
+helm install jenkins jenkins/jenkins \
+  --namespace ci \
+  --values k8s/jenkins/jenkins-values.yaml \
+  --version 5.1.x
+
+# 等待 Jenkins 就緒（約 2~3 分鐘）
+kubectl rollout status deployment/jenkins -n ci --timeout=300s
+
+# 取得初始密碼
+kubectl exec -n ci \
+  $(kubectl get pod -n ci -l app.kubernetes.io/name=jenkins -o name) \
+  -- cat /run/secrets/additional/chart-admin-password
+```
+
+**Port Forward 到本地**：
+```bash
+kubectl port-forward svc/jenkins -n ci 8080:8080
+# 開啟瀏覽器：http://localhost:8080
+# 帳號：admin  密碼：上方取得的密碼
+```
+
+### 21.2 Pipeline 設定（Multibranch Pipeline）
+
+1. New Item → Multibranch Pipeline → 命名 `{{PROJECT_SLUG}}`
+2. Branch Sources → Git → `{{REPO_URL}}`
+3. Credentials → 選擇 `git-credentials`（見 §21.4）
+4. Build Configuration → by Jenkinsfile → 路徑 `Jenkinsfile`
+5. Scan Now → 自動偵測所有 branch
+
+### 21.3 jenkinsfile-runner（快速本地 Dry-Run，無需 Jenkins Server）
+
+> 適合在 push 前快速驗證 `Jenkinsfile` 語法和邏輯，不需啟動完整 Jenkins。
+
+**安裝**：
+```bash
+# macOS / Linux（Homebrew）
+brew install jenkins-x/jx/jfr
+
+# 或直接下載 jar（版本 1.0-beta-33+）
+curl -Lo jenkinsfile-runner.jar \
+  https://github.com/jenkinsci/jenkinsfile-runner/releases/download/1.0-beta-33/jenkinsfile-runner-1.0-beta-33.jar
+
+# 驗證
+jfr version    # 或 java -jar jenkinsfile-runner.jar --version
+```
+
+**Dry-Run 執行**：
+```bash
+# 設定 mock secrets（避免 CI 憑證外洩）
+export REGISTRY_TOKEN="mock-token"
+export DB_PASSWORD="mock-db-password"
+export REDIS_AUTH="mock-redis-auth"
+export JWT_SECRET="mock-jwt-secret-64chars"
+
+# 執行 dry-run
+jfr run \
+  --file Jenkinsfile \
+  --workspace /tmp/jfr-workspace-{{PROJECT_SLUG}} \
+  --no-sandbox
+
+# 或使用 make target
+make ci-dry-run
+```
+
+**預期輸出**：
+```
+[Pipeline] Start of Pipeline
+[Pipeline] stage (Checkout)
+[Pipeline] stage (Build)
+...
+[Pipeline] End of Pipeline
+Finished: SUCCESS
+```
+
+### 21.4 CI 所需 Secrets 設定（Jenkins Credentials）
+
+```bash
+# Registry Token（用於 Image Push）
+kubectl create secret generic registry-credentials \
+  --from-literal=username={{REGISTRY_USER}} \
+  --from-literal=password={{REGISTRY_TOKEN}} \
+  -n ci
+
+# Git Credentials（SSH key 或 Personal Access Token）
+kubectl create secret generic git-credentials \
+  --from-literal=username={{GIT_USER}} \
+  --from-literal=password={{GIT_TOKEN}} \
+  -n ci
+
+# DB + Redis（從 §3.5 bootstrap-secrets.sh 讀取）
+kubectl create secret generic app-secrets \
+  --from-env-file=secrets.env \
+  -n ci
+
+# 確認所有 secrets 存在
+kubectl get secret -n ci
+```
+
+### 21.5 ArgoCD CD 層設定（GitOps）
+
+```bash
+# 安裝 ArgoCD（若尚未安裝）
+kubectl create namespace argocd
+kubectl apply -n argocd \
+  -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# 等待就緒
+kubectl rollout status deployment/argocd-server -n argocd --timeout=300s
+
+# Port Forward
+kubectl port-forward svc/argocd-server -n argocd 8443:443
+
+# 取得初始密碼
+kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath="{.data.password}" | base64 -d
+
+# 登入 CLI
+argocd login localhost:8443 --username admin --insecure
+
+# 建立 Application（對應 k8s/overlays/local）
+argocd app create {{PROJECT_SLUG}}-local \
+  --repo {{REPO_URL}} \
+  --path k8s/overlays/local \
+  --dest-server https://kubernetes.default.svc \
+  --dest-namespace {{K8S_NAMESPACE}}-local \
+  --sync-policy automated
+```
+
+### 21.6 Shared Make Targets（CI ↔ 本地對齊）
+
+| Target | 作用 | CI 呼叫 | 本地可重現 |
+|--------|------|---------|-----------|
+| `make ci-build` | 編譯 + package | Stage: Build | ✅ |
+| `make ci-test-unit` | 單元測試 | Stage: Unit Test | ✅ |
+| `make ci-test-integration` | 整合測試 | Stage: Integration Test | ✅（需 k3s 運行） |
+| `make ci-deploy` | 部署到 local k3s | Stage: Deploy | ✅ |
+| `make ci-smoke` | Smoke test | Stage: Smoke Test | ✅ |
+| `make ci-rollback` | 回滾到前一版本 | post { failure } | ✅ |
+| `make ci-dry-run` | jenkinsfile-runner | 手動觸發 | ✅ |
+
+> 確保 Makefile 中以上 7 個 targets 全部存在，CI 和本地使用完全相同的 target 名稱。
+
+### 21.7 PR Gate 驗證（Pre-Push Checklist）
+
+在 push 到 feature branch 之前，確認以下項目：
+
+```bash
+# 1. 所有 CI targets 本地通過
+make ci-build
+make ci-test-unit
+make ci-test-integration   # 需 k3s 運行
+
+# 2. Jenkinsfile dry-run 無錯誤
+make ci-dry-run
+
+# 3. Image 可本地 build（Kaniko 模擬）
+make ci-build-image        # 本地 docker build（CI 用 Kaniko）
+
+# 4. Deploy + Smoke 通過
+make ci-deploy && make ci-smoke
+
+# 全部通過後才 push
+git push origin feature/your-branch
+```
+
+### 21.8 常見問題排查
+
+| 問題 | 原因 | 解決 |
+|------|------|------|
+| `jenkinsfile-runner: command not found` | jfr 未安裝 | `brew install jenkins-x/jx/jfr` |
+| `Pipeline: No such DSL method 'kubernetes'` | Kubernetes plugin 未載入 | 確認 jenkins-values.yaml plugins 清單含 kubernetes plugin |
+| `ImagePullBackOff` in ci namespace | Registry credentials 未設定 | 執行 §21.4 registry-credentials |
+| `ArgoCD: App not synced` | Git commit 未 push 或 path 錯誤 | 確認 `spec.source.path: k8s/overlays/local` |
+| `make ci-test-integration` 失敗 | k3s 未運行 | 啟動 Rancher Desktop → 執行 §4 Step 4 setup |

@@ -160,7 +160,8 @@ Infrastructure Layer — Repository / Adapter（資料庫、外部 API 實作）
 | 認證 / 授權函式庫 | {{AUTH_LIB}} | {{AUTH_LIB_VERSION}} | {{REASON}}（e.g. Passport.js / Spring Security / python-jose）|
 | Container Runtime | Docker | {{DOCKER_VERSION}} | 標準化部署單元 |
 | 容器編排 | Kubernetes | {{K8S_VERSION}} | {{REASON}}（詳見 §3.5 部署環境規格）|
-| CI/CD 平台 | {{CICD}} | - | {{REASON}}（e.g. GitHub Actions / GitLab CI / Jenkins）|
+| CI 工具 | {{CI_TOOL}} | {{CI_TOOL_VERSION}} | {{REASON}}（預設：Jenkins on k3s；alt: Tekton + Tekton Dashboard / GitHub Actions / GitLab CI）|
+| CD 工具 | {{CD_TOOL}} | {{CD_TOOL_VERSION}} | {{REASON}}（預設：ArgoCD；alt: Flux CD）|
 | 單元測試框架 | {{UNIT_TEST_FRAMEWORK}} | {{UNIT_TEST_VERSION}} | {{REASON}}（e.g. Jest / pytest / Go test / JUnit 5）|
 | 整合 / E2E 測試框架 | {{INT_E2E_FRAMEWORK}} | {{INT_E2E_VERSION}} | {{REASON}}（e.g. Supertest / Playwright / Testcontainers）|
 | 前端語言（若有）| {{FRONTEND_LANG}} | {{FRONTEND_LANG_VERSION}} | {{REASON}}（純後端 API 服務填 N/A）|

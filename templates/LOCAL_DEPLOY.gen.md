@@ -647,3 +647,57 @@ if _has_admin:
 else:
     pass  # 不加入 Admin Portal 啟動說明
 ```
+
+---
+
+### Step 21：§21 CI/CD 本地模擬（Jenkins on k3s）
+
+**觸發條件**：EDD.md §3.4 CI_TOOL 欄位存在（非 N/A）且 CD_TOOL 欄位存在。若 EDD.md 未定義 CI/CD 工具，使用預設值（CI: Jenkins, CD: ArgoCD）並在文件備注「**預設值 — 請依實際情況更新**」。
+
+**必讀上游**（生成 §21 前）：
+- EDD.md §3.4：CI_TOOL、CD_TOOL、REGISTRY、REPO_URL、K8S_NAMESPACE
+- LOCAL_DEPLOY.md §6：確認 ci-build / ci-test-unit / ci-test-integration / ci-deploy / ci-smoke / ci-rollback / ci-dry-run 全部存在
+- LOCAL_DEPLOY.md §3.5：Secret Bootstrap 策略（確認 §21.4 CI secrets 分類正確）
+
+**§21.1 Jenkins on k3s 安裝**：
+- 若 EDD.md CI_TOOL = Jenkins：生成完整 helm install 指令
+- 若 EDD.md CI_TOOL = GitHub Actions 或 GitLab CI：將 §21 改為「CI 本地模擬（act runner）」，使用 `act` CLI 替代 jenkinsfile-runner
+- 若 EDD.md CI_TOOL = Tekton：將 §21 改為「Tekton local Pipeline 模擬」
+
+**§21.2 Pipeline 設定**：
+- `{{REPO_URL}}`：從 EDD.md §3.4 git repo URL 填入
+- `{{PROJECT_SLUG}}`：從 EDD.md 專案名稱（kebab-case）填入
+
+**§21.3 jenkinsfile-runner**：
+- 僅在 EDD.md CI_TOOL = Jenkins 時生成
+- `make ci-dry-run` target 必須與 LOCAL_DEPLOY.md §6 的 target 名稱一致
+
+**§21.4 CI Secrets**：
+- 讀取 LOCAL_DEPLOY.md §3.5 三層策略，確認 secret 分類：
+  - Ephemeral（openssl rand 生成）：DB_PASSWORD / REDIS_AUTH / ENCRYPTION_KEY / JWT_SECRET → 從 `secrets.env` 建立 k8s secret
+  - Fixed（OS Keychain / 手動設定）：REGISTRY_TOKEN / GIT_TOKEN → 從 kubectl create secret 直接指定
+  - in-cluster 生成（mittwald）：TLS / internal tokens → 不在 CI secrets 中列出
+
+**§21.5 ArgoCD CD 層**：
+- 若 EDD.md CD_TOOL ≠ ArgoCD，改為對應工具的安裝指令（Flux CD → `flux bootstrap`）
+- `{{REPO_URL}}` / `{{K8S_NAMESPACE}}` 從 EDD.md 填入
+
+**§21.6 Shared Make Targets 表格**：
+- 從 LOCAL_DEPLOY.md §6 讀取實際存在的 target，以確認欄位「本地可重現」的 ✅/❌ 狀態
+- 若某 target 不存在，標記 ❌ 並加入備注「需在 Makefile 補全」
+
+**§21.7 PR Gate Checklist**：
+- 指令中的 target 名稱必須與 §21.6 表格完全一致
+- `make ci-build-image`：若 ARCH.md 有 Dockerfile path，替換為正確路徑
+
+**§21.8 常見問題**：
+- `jenkinsfile-runner: command not found`：僅在 CI_TOOL=Jenkins 時保留此條目
+- 其他 CI 工具（act, Tekton）替換為對應工具的安裝問題
+
+**禁止**：
+- 不得保留任何 `{{PLACEHOLDER}}` 在 §21 輸出中
+- 不得生成 §21 時使用 Docker-in-Docker（DinD）相關指令
+
+**§21 Quality Gate**：
+- `grep -E '\{\{[A-Z_]+\}\}' docs/LOCAL_DEPLOY.md | grep "21\."` → 輸出為空
+- §21.6 表格中的 make targets 名稱與 §6 完全一致
