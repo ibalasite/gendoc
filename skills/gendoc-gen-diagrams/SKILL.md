@@ -6,7 +6,7 @@ description: |
   輸出至 docs/diagrams/（server-: use-case/class×3/object/sequence×N/comm/state×N/activity×N/component/deployment/er-diagram；
   frontend-: use-case/class×3/object/sequence×3/state×2/activity×3/component/deployment/communication）。
   另輸出 class-inventory.md（class→test file 對應表）。
-  conditions: docs/CICD.md 存在時額外生成 Step 2D — 5 張 CI/CD UML 圖（cicd-pipeline-sequence / cicd-pr-gate-activity / infra-local-topology / developer-workflow-activity / cicd-secret-flow）。
+  conditions: docs/CICD.md 存在時額外生成 Step 2D — 5 張 CI/CD UML 圖（cicd-pipeline-sequence / cicd-pr-gate-activity / infra-local-topology / developer-workflow-activity / cicd-secret-flow）。永遠生成 Step 2E-MODULITH — 2 張 Spring Modulith 圖（modulith-module-dependency / modulith-bc-isolation）。
   一律使用 Mermaid 語法，不依賴外部腳本。
   可獨立呼叫或由 gendoc-auto 自動呼叫。
 allowed-tools:
@@ -60,6 +60,7 @@ echo "Frontend UML：$( [[ "$_CLIENT_TYPE" != 'none' && "$_CLIENT_TYPE" != 'api-
 echo "Admin UML：$( [[ "$_HAS_ADMIN" == 'true' ]] && echo '✓ 將生成 Step 2C Admin UML（3 張）' || echo '✗ 跳過（has_admin_backend=false）' )"
 _HAS_CICD=$([ -f "${_DOCS_DIR}/CICD.md" ] && echo "yes" || echo "no")
 echo "CICD UML：$( [[ "$_HAS_CICD" == 'yes' ]] && echo '✓ 將生成 Step 2D CI/CD UML（5 張）' || echo '✗ 跳過（缺 CICD.md）' )"
+echo "Modulith UML：✓ 將生成 Step 2E-MODULITH 模組依賴圖（2 張，永遠執行）"
 ```
 
 ---
@@ -1283,6 +1284,80 @@ flowchart LR
 3. 若 CICD.md §8 Gitea 存在（`### 8.` 章節出現），在 `infra-local-topology.md` 中包含 Gitea node
 4. 若 CICD.md §8 不存在（使用外部 GitHub），在 `infra-local-topology.md` 中將 Gitea 改為 GitHub node
 5. 所有 Mermaid 圖必須可在 Mermaid live editor 正確渲染（無語法錯誤）
+
+---
+
+## Step 2E-MODULITH：生成 Spring Modulith 模組依賴圖（永遠執行）
+
+> **觸發條件**：永遠執行（Spring Modulith 是本系統的架構前提）。  
+> **來源**：`docs/ARCH.md §4 服務邊界表` 或 `docs/EDD.md §3.4 Bounded Context 清單`。
+
+```bash
+echo "[Step 2E-MODULITH] 生成 Spring Modulith 模組依賴圖..."
+mkdir -p "${_DIAGRAMS_DIR}/modulith"
+```
+
+### 2E-1：modulith-module-dependency.md — 模組依賴關係圖（DAG）
+
+**來源**：`docs/ARCH.md §4 服務邊界 / Bounded Context 表` + `docs/EDD.md §3.4` + `docs/EDD.md §3.6 Domain Events`
+
+**生成規則**：
+- 使用 `graph TD`（由上至下方向，反映 DAG 依賴方向）
+- 從 ARCH §4 或 EDD §3.4 提取所有 Bounded Context 名稱，每個 BC 為一個節點
+- 從 EDD §3.6 Domain Events 或 ARCH §4 提取跨 BC 依賴關係：
+  - 同步 Public API 呼叫 → 實線箭頭（`A --> B`）
+  - 非同步 Domain Event → 虛線箭頭（`A -.->|EventName| B`）
+- 每個 BC 節點標注：BC 名稱 + 主要責任（一句話）
+- 圖中不得出現循環依賴（HC-5 DAG 約束）；若發現循環，在節點旁標注 `⚠️ CIRCULAR`
+
+**最低標準**：
+- BC 節點數 = ARCH §4 中的 BC 數量（全部包含）
+- 每個已知的跨 BC 依賴均有對應箭頭
+- 圖例包含：實線 = Public API 呼叫；虛線 = Domain Event
+
+**範例輸出格式**：
+
+````markdown
+```mermaid
+graph TD
+    Member["member\n用戶身份與認證"]
+    Wallet["wallet\n錢包與交易"]
+    Game["game\n遊戲邏輯"]
+    Lobby["lobby\n大廳與推薦"]
+    Deposit["deposit\n入款與提款"]
+
+    Member -->|Public API| Wallet
+    Member -->|Public API| Deposit
+    Member -.->|"UserRegistered\n(Domain Event)"| Wallet
+    Wallet -.->|"DepositConfirmed\n(Domain Event)"| Game
+    Lobby -->|Public API| Game
+    Lobby -->|Public API| Member
+```
+````
+
+### 2E-2：modulith-bc-isolation.md — BC 邊界隔離圖
+
+**來源**：`docs/SCHEMA.md Document Control Owning BC` + `docs/ARCH.md §4`
+
+**生成規則**：
+- 使用 `graph LR`（左至右，顯示 BC 與其擁有的 Schema 邊界）
+- 每個 BC 為一個 subgraph，內含該 BC 的 DB Schema（資料表清單摘要）
+- 跨 BC 引用以紅色虛線表示（`style X stroke:#ff0000,stroke-dasharray: 5 5`），並標注「ID-only（no FK）」
+- 公共 API 介面以綠色實線表示，並標注介面名稱
+
+**最低標準**：
+- 每個 BC 一個 subgraph
+- 每個 BC 至少列出 1～3 個核心 table
+- 跨 BC ID-only 引用有明確標注
+
+完成後在 Summary 中加入：
+
+```
+Spring Modulith 圖（Step 2E-MODULITH，永遠執行）：
+    ✓/✗ docs/diagrams/modulith/modulith-module-dependency.md   （模組依賴關係 DAG）
+    ✓/✗ docs/diagrams/modulith/modulith-bc-isolation.md        （BC 邊界隔離圖）
+Modulith 圖合計：2 張
+```
 
 ---
 
