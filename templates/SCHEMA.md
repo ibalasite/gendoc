@@ -9,6 +9,7 @@
 | Status | Draft / In Review / Approved |
 | Classification | Internal / Confidential |
 | Owner | Database Architect / Data Engineering Lead |
+| **Owning Bounded Context / Service** | **{{BC_NAME}}**（對應 ARCH §4 / EDD §3.4；本 Schema 的唯一擁有服務） |
 | Created | {{YYYYMMDD}} |
 | Last Updated | {{YYYYMMDD}} |
 | Upstream EDD | [docs/EDD.md](docs/EDD.md) |
@@ -697,6 +698,39 @@ CREATE UNIQUE INDEX uq_user_email_active
   WHERE deleted_at IS NULL;
 ```
 
+### 9.5 跨 BC FK 禁止（Spring Modulith HC-1）
+
+> **HC-1 硬約束**：本 Schema 的 Tables **不得** DB-level FK 引用屬於其他 Bounded Context 的 Tables。  
+> 跨 BC 引用改為**應用層管理的 ID-only 策略**：僅儲存對方 BC 的業務 ID，不建立 DB-level FK。
+
+**判斷一個 FK 是否跨 BC：**
+1. 查看 Document Control 的「Owning BC / Service」— 這是本 Schema 的 BC
+2. 查看被引用 Table 所屬的 SCHEMA.md 的「Owning BC / Service」
+3. 若兩者不同 → 跨 BC FK，必須移除並改為 ID-only
+
+**ID-only 跨 BC 引用範例：**
+
+```sql
+-- ❌ 禁止：跨 BC DB-level FK
+ALTER TABLE wallet_transactions
+  ADD CONSTRAINT fk_member
+  FOREIGN KEY (member_id) REFERENCES member.users(id);
+
+-- ✅ 正確：ID-only，應用層負責一致性
+-- wallet.wallet_transactions.member_id BIGINT NOT NULL
+-- Cross-BC reference to member.users(id): enforced at application layer, no DB FK.
+COMMENT ON COLUMN wallet_transactions.member_id IS
+  'Cross-BC reference to member.users(id). Enforced at application layer, no DB FK (HC-1).';
+```
+
+**本 Schema 跨 BC 引用清單（必填）：**
+
+| Column | 引用的 BC | 引用的 Table | 說明 |
+|--------|----------|------------|------|
+| `{{column_name}}` | `{{target_bc}}` | `{{target_table}}(id)` | Application layer enforced |
+
+---
+
 ### 9.4 延遲約束（Deferred Constraints）
 
 用於解決循環外鍵或批次插入的順序問題：
@@ -1019,6 +1053,12 @@ SET search_path TO tenant_{{TENANT_SLUG}}, public;
 ### HA / Replication / Read-Write Split（必查）
 - [ ] Primary-Standby 或 Multi-Primary 複本架構已於 §10 或 EDD §3.6 說明，無單一寫入節點 SPOF
 - [ ] 讀寫分離策略已定義（哪些查詢走 Replica，Write 一律走 Primary）
+
+### Bounded Context 隔離（Spring Modulith HC-1，必查）
+- [ ] Document Control「Owning BC / Service」已填入具體服務名稱（非 placeholder）
+- [ ] 本 Schema 所有 Tables 均屬同一個 BC，無混入其他 BC 的 Table
+- [ ] 無跨 BC DB-level FK（§9.5 跨 BC 引用清單已填寫；若無跨 BC 引用，明確標注「無」）
+- [ ] 所有跨 BC 引用已改為 ID-only + 應用層一致性（§9.5 有對應 COMMENT 說明）
 - [ ] Replica Lag 可接受上限已定義（建議 ≤ 1s），並有 Lag 監控告警
 - [ ] 連線池（PgBouncer 等）已設定最大連線數，且高峰期不超過 DB max_connections 的 80%
 - [ ] Sharding / Partitioning 策略（§10）已定義，含 Shard Key 選擇依據與熱點分析

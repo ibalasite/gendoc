@@ -61,6 +61,18 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 
 ---
 
+## Step 0：Bounded Context 識別（Spring Modulith HC-1，生成任何 Table 前必須執行）
+
+1. 讀取 EDD §3.4 Schema Ownership Table 和 ARCH §4 服務邊界表，確認本 SCHEMA 文件的 Owning BC
+2. 填入 Document Control「Owning BC / Service」欄位（必填，對應 ARCH §4 的服務名稱）
+3. 列出本 Schema 擁有的 Tables（不得與其他 BC 的 SCHEMA 重複）
+4. 列出所有跨 BC 引用（引用其他 BC Table 的 ID 欄位）→ 填入 §9.5 跨 BC 引用清單
+5. **FK 驗證規則**：生成每條 `FOREIGN KEY` 前，確認引用的 Table 屬於同一 BC：
+   - 若引用 Table 屬同一 BC → 保留 DB-level FK
+   - 若引用 Table 屬其他 BC → **移除 DB-level FK**，改為 ID-only + `COMMENT ON COLUMN` 標注（見 §9.5 範例）
+
+---
+
 ## 文件結構規則
 
 生成內容必須涵蓋 `templates/SCHEMA.md` 的所有章節，包含：
@@ -263,6 +275,8 @@ $$ LANGUAGE plpgsql;
 - [ ] 若選擇 RLS：已提供 PostgreSQL RLS Policy SQL + app.current_tenant_id 使用說明
 - [ ] 若選擇 Schema-per-Tenant：已提供 Schema 建立腳本 + search_path 設定說明
 - [ ] §16 Schema Review Checklist 已生成
+- [ ] Document Control「Owning BC / Service」已填入具體服務名稱（HC-1，Step 0 必填）
+- [ ] §9.5 跨 BC 引用清單已填寫（若無跨 BC 引用，明確標注「無」）；所有跨 BC 引用已改為 ID-only，無跨 BC DB-level FK
 - [ ] §17 Data Retention & Lifecycle Policy：保留政策表（法規依據 + 保留期限）是否已定義？
 - [ ] §17 GDPR Right to Erasure：軟刪除匿名化 SQL + 非同步硬刪除任務是否已提供？
 - [ ] §17 Data Access Audit：`data_access_logs` 稽核表 DDL 是否已生成？
@@ -289,3 +303,4 @@ $$ LANGUAGE plpgsql;
 | 外鍵關係明確 | 所有跨表引用都有 FOREIGN KEY 或等效說明（NoSQL 需說明引用方式） | 補充缺失的關聯定義 |
 | ER 圖與表格一致 | ERD Mermaid 圖中的表格和欄位與下方文字定義一致 | 修正不一致之處 |
 | HA Replication 覆蓋 | §16 HA 核查清單 5 項全部回答（Replication/讀寫分離/Lag/連線池/Shard Key）| 補充缺失說明 |
+| BC 隔離（HC-1） | Document Control Owning BC 已填；§9.5 跨 BC 引用無 DB-level FK；§16 BC 隔離 4 項已全部通過 | 執行 Step 0，移除跨 BC FK，補充 §9.5 清單 |
