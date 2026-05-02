@@ -335,6 +335,15 @@ Feature: {{FEATURE_TITLE}}
 | 忘記密碼 → 重設 → 登入 | P1 | No | < 30 sec | AC-AUTH-002 |
 | 錯誤輸入 → 驗證錯誤顯示 | P2 | No | < 10 sec | AC-UX-001 |
 | 第三方 OAuth 登入（Google） | P2 | No | < 20 sec | AC-AUTH-003 |
+| **HA-001 Pod Kill 後服務恢復** | P0 | Yes | < 60 sec | EDD §12.2 HA-01 |
+| **HA-002 DB Failover 後操作正常** | P0 | Yes | < {{DB_FAILOVER_RTO}}m | EDD §12.2 HA-02 |
+| **HA-003 Redis 切換後 Session 有效** | P1 | No | < 30 sec | EDD §12.2 HA-03 |
+
+> **HA E2E 執行要求**：
+> - HA-001/HA-002 必須列入 Smoke Test（Yes），每次 pre-release 必須通過
+> - HA E2E 需在 Staging 環境（≥ 2 API replica、DB Primary+Standby 配置）執行，不可在 localhost 單進程環境執行
+> - HA-001 執行方式：`kubectl delete pod -l app=api --grace-period=0`，然後驗證流量路由至剩餘 Pod，並在 RTO 內重建完成
+> - HA-002 執行方式：觸發 DB Failover（雲端 console 或 `pg_ctl stop -m fast`），驗證應用層自動重連並在 RPO 範圍內無資料丟失
 
 #### Browser Matrix
 
