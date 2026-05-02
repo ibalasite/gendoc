@@ -142,7 +142,8 @@ except ImportError:
 # 這些 special_skill 步驟沒有獨立的 review loop
 SPECIAL = {
     "gendoc-gen-diagrams", "gendoc-align-check", "gendoc-align-fix",
-    "gendoc-gen-contracts", "gendoc-gen-mock", "gendoc-gen-prototype", "gendoc-gen-html"
+    "gendoc-gen-contracts", "gendoc-gen-mock", "gendoc-gen-prototype", "gendoc-gen-html",
+    "gendoc-gen-dryrun"
 }
 for s in pipe.get("steps", []):
     sid   = s["id"]

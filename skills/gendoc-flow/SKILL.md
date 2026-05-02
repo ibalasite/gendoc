@@ -867,11 +867,24 @@ Loop 設定：
 
 for round in 1..max_rounds:
 
+  [Step A-0 — Gate Check（僅 Round 1 執行，Round 2+ 僅在有 MECHANICAL findings 殘留時重跑）]
+  若 round == 1 且 {_CWD}/.gendoc-rules/{step.id}-rules.json 存在：
+    執行（bash）：
+      _GATE_OUT=$(bash tools/bin/gate-check.sh {step.id} {_PROJECT_DIR} 2>/dev/null || echo "[]")
+      _MECH_COUNT=$(echo "$_GATE_OUT" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
+    echo "[GATE] {step.id} Round {round}: MECHANICAL=${_MECH_COUNT}"
+    若 _MECH_COUNT > 0：
+      - 將 gate findings JSON 記錄為 mechanical_findings 變數
+      - 在 Step A Review 前，將 mechanical_findings 列為「額外 MECHANICAL findings（CRITICAL 級別，必須優先修復）」
+      - MECHANICAL findings 計入本輪 finding_total（等同 CRITICAL 嚴重度）
+  若 round > 1 且上輪有殘留 MECHANICAL findings：
+    重跑 gate-check.sh，確認是否已修復
+
   [Step A — Review]
   1. 讀取 {_TEMPLATE_DIR}/{TYPE}.review.md — 獲取所有 review items
   2. 讀取被審查的文件（{step.output} 或 {step.output_glob} 的所有檔案）
   3. 逐項執行每個 review item 的 Check，引用文件中的具體§章節
-  4. 統計 CRITICAL / HIGH / MEDIUM / LOW 各級 findings 數量
+  4. 統計 CRITICAL / HIGH / MEDIUM / LOW 各級 findings 數量；MECHANICAL findings 計入 CRITICAL
 
   [Step B — 判斷終止條件]（先判斷，但不跳過 Fix）：
   - finding_total == 0 → terminate=True，reason="PASSED — finding=0"
@@ -887,6 +900,7 @@ for round in 1..max_rounds:
 
   [Step D — Round Summary]（commit 之前輸出，每輪必須）：
   ┌─── {step.id} Review Round {round}/{max_rounds} ─────────────────────────────┐
+  │  Gate：   MECHANICAL=N（gate-check.sh）
   │  Review：CRITICAL=N HIGH=N MEDIUM=N LOW=N  Total=N
   │  Fix：   修復 N 個 / 殘留 N 個（本輪未解）
   │  本輪狀態：[✅ PASS | ⚠️  MAX | 🔄 CONT]  {terminate_reason if terminate else '繼續下一輪'}

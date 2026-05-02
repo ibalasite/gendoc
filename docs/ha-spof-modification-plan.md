@@ -100,7 +100,7 @@
 | **原段落** | `\| **Worker 副本數** \| 1 \| {{DEV_WORKER_REPLICAS}} \| {{STAGING_WORKER_REPLICAS}} \| {{PROD_WORKER_REPLICAS}}（HPA min–max）\|` |
 | **預計改成** | `\| **Worker 副本數** \| 2（冪等/競爭條件測試最低要求）\| {{DEV_WORKER_REPLICAS}} \| {{STAGING_WORKER_REPLICAS}} \| {{PROD_WORKER_REPLICAS}}（HPA min–max）\|` |
 | **影響範圍** | EDD.md 單行 |
-| **決策** | |
+| **決策** | 可以|
 
 ---
 
@@ -643,7 +643,7 @@
 | **影響範圍** | CICD 三件套（修改現有 M-40 產出）；LOCAL_DEPLOY 兩件（修改現有 M-39/M-41/M-42 產出）；pipeline.json；EDD.md；PRD.md；README.md |
 | **工作量評估** | 中（主要是在 M-40 基礎上擴充，設計已確定） |
 | **依賴關係** | 依賴 M-40（CICD 三件套已存在）；M-41（§3.5 Secret Bootstrap 提供 Gitea password 來源）；M-39（§21 LOCAL_DEPLOY CI/CD 節基礎結構）|
-| **決策** | |
+| **決策** |可以 |
 
 ---
 
@@ -673,7 +673,7 @@
 | **影響範圍** | 新增 3 個 template（DEVELOPER_GUIDE 三件套）；pipeline.json 新增 D21 step；PRD / README 已更新 |
 | **工作量評估** | 中（三件套設計明確，§1~§6 章節邊界清晰，主要工作是生成規則與審查標準的細節設計） |
 | **依賴關係** | 依賴 LOCAL_DEPLOY.md（§6 Make targets、§21 CI/CD 工具）；依賴 CICD.md（§2 Jenkinsfile stages、§4 Shared Make Targets、§8/§9 Local Developer Platform）；依賴 runbook.md（§7 各診斷場景，避免內容重複）；建議在 M-43 完成後執行（確認 Gitea / Make targets 設計定案） |
-| **決策** | |
+| **決策** | 可以|
 
 ---
 
@@ -702,7 +702,7 @@
 | **影響範圍** | 只影響 `/gendoc-gen-diagrams` skill 執行結果（新增 5 張圖至 `docs/diagrams/cicd/`）；不影響其他 skill；不影響任何 template |
 | **工作量評估** | 中（主要是撰寫 5 個圖的強制完整度標準，約 +150 行） |
 | **依賴關係** | 依賴 M-40（CICD.md 存在，2D 才觸發）；依賴 M-41（LOCAL_DEPLOY §3.5 Secret Bootstrap 是 cicd-secret-flow.md 的 Layer 1 來源）；依賴 M-43（§21.0 Local Developer Platform 架構是 infra-local-topology.md 的主要來源）；M-44 非必要依賴（developer-workflow-activity.md 有 DEVELOPER_GUIDE.md 時取最完整來源，否則從 CICD.md 推斷，不 block） |
-| **決策** | |
+| **決策** | 可以|
 
 ---
 
@@ -724,7 +724,7 @@
 | **影響範圍** | 直接：pipeline.json 排程與步驟定義；間接：`/gendoc-auto` 執行結果（D07b 移位後 class-inventory.md 正確；CICD/DEVELOPER_GUIDE 自動生成；CI/CD UML 圖在 CICD 後觸發）；`gendoc-config` 選單顯示（D18b/D19 順序正確）；`gendoc-align-check`（CICD + DEVELOPER_GUIDE 進入稽核範圍） |
 | **工作量評估** | 小（pipeline.json 是純 JSON 設定，只需精確編輯陣列順序和新增節點，無邏輯程式碼） |
 | **依賴關係** | 依賴 M-40（CICD 三件套存在，Fix-2 才有意義）；依賴 M-44（DEVELOPER_GUIDE 三件套存在，Fix-3 才能執行）；依賴 M-45（gendoc-gen-diagrams Step 2D 存在，Fix-4 才能執行）；**不依賴** M-43（pipeline 修復可獨立執行，M-43 Gitea 設計只影響 CICD.md 內容，不影響 pipeline 結構） |
-| **決策** | |
+| **決策** | 可以|
 
 ---
 
@@ -744,7 +744,7 @@
 | **影響範圍** | 所有 `/gendoc-auto` / `/gendoc-flow` 的 STEP_COMPLETE 信號匹配；`gendoc-config` 選單動態輸出（自動修復，因其讀 pipeline.json `id` 欄位）；`gendoc-repair` 的 D19-HTML hardcode 邏輯；`gendoc-flow` 的 legacy D-prefix fallback（清除死代碼）；git commit message 格式（commit_prefix）；state file `start_step` 欄位說明 |
 | **工作量評估** | 中（~120 處精準字串替換，最大風險是 gendoc-gen-mock 的 STEP_COMPLETE 信號和 gendoc-repair 的 Python 邏輯，需逐行確認替換正確）；完全可機械化（sed / python replace），無邏輯變更 |
 | **依賴關係** | **M-47 應與 M-46 合併執行（同一 PR）**：M-46 新增的 step ID（D15b-CICD 等）在 M-47 中直接使用語義 ID（CICD 等），避免 D-prefix 污染繼續；若分開執行必須先 M-47 後 M-46；不依賴 M-43/M-44/M-45 |
-| **決策** | |
+| **決策** |可以 |
 
 ---
 
@@ -784,7 +784,7 @@
 | **影響範圍** | 直接：pipeline 執行時間增加 1 個 DRYRUN step（預計 2-3 min，因純 grep 計算）；每個 step review-loop 第一個 round 前多執行一次 gate-check.sh（約 < 5s，純 bash）；`docs/MANIFEST.md` 成為新的 pipeline 輸出文件，D16-ALIGN 可稽核 MANIFEST.md 與實際生成文件的一致性；間接：review agent 的 finding 品質提升（MECHANICAL findings 提供確定性錨點，AI review 聚焦語意品質而非基礎完整性）；`gendoc-config` 的 max_rounds / stop_condition 約束自動涵蓋 MECHANICAL findings（因整合到同一 finding 清單）；git history 可追蹤每次 pipeline 執行的 MANIFEST.md 版本（鎖定當時的量化基線） |
 | **工作量評估** | 中大（共 5 個新文件 + 2 個修改）：`DRYRUN.gen.md` 需設計 ~30 個 step 的量化規則計算邏輯，最複雜；`gate-check.sh` 需覆蓋所有 output_files 的 6 種機械 check，中等複雜；`gendoc-flow` 修改需精確插入 gate_check 呼叫，風險最高（現有邏輯不得破壞）；總估計：3-5 個開發 sessions |
 | **依賴關係** | 依賴 M-47（step ID 統一語義化後，rule file 路徑 `.gendoc-rules/API-rules.json` 等才是正確格式）；依賴 M-46 Fix-1（UML step 移位後，DRYRUN 生成的 rule files 才反映正確的 step 執行順序）；不依賴 M-40/M-43/M-44/M-45（但若這些 step 已加入 pipeline，DRYRUN 應為它們也生成對應的 rule files）；**建議執行順序**：先完成 M-47 + M-46（pipeline 結構穩定），再設計 M-48 的 rule files（避免對 D-prefix ID 生成規則後又需重命名） |
-| **決策** | |
+| **決策** | 可以|
 
 ---
 
