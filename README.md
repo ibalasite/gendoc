@@ -23,7 +23,7 @@ Key capabilities:
 - **Implementation-ready UML (1:1 standard)** — `/gendoc-gen-diagrams` generates all 9 Server UML types + 16 Frontend UML types (Step 2B, auto-triggered when `client_type ≠ none` and `FRONTEND.md` exists) with enough precision that a developer can implement the entire system from diagrams alone: exact attribute types, full method signatures, enum values fully listed, cardinality + role labels on every relation, exact method names + typed params on every sequence arrow, `trigger [guard] / action` on every state transition (no `<br/>` in stateDiagram-v2), swimlanes per actor in activity diagrams, technology + version + port on every component/deployment node
 - **Cross-browser Mermaid enforcement** — all diagram-generating templates prohibit `<br/>` in `stateDiagram-v2` transition labels (Safari/Firefox break) and `sequenceDiagram` participant aliases; experimental charts (`pie` / `xychart-beta` / `bar`) are banned in favour of `graph TD` or HTML tables
 - **Pipeline integrity check** — P-15 verifies all expected steps have a record before marking complete
-- **5-way client engine routing** — `CLIENT_IMPL` (D10d) detects `CLIENT_ENGINE` from EDD §3.3 and generates engine-specific scene structure, asset loading, AudioManager, and VFX specs for Cocos Creator / Unity WebGL / React / Vue / HTML5; aliases `cocos`, `unity`, `react-impl`, `vue-impl` all resolve to CLIENT_IMPL
+- **5-way client engine routing** — `CLIENT_IMPL` detects `CLIENT_ENGINE` from EDD §3.3 and generates engine-specific scene structure, asset loading, AudioManager, and VFX specs for Cocos Creator / Unity WebGL / React / Vue / HTML5; aliases `cocos`, `unity`, `react-impl`, `vue-impl` all resolve to CLIENT_IMPL
 - **pipeline.json as single source of truth** — `gendoc-config` step picker, `gendoc-shared` STEP_SEQUENCE / STEP_ORDER / Review Loop list all read `pipeline.json` dynamically at runtime; adding a new pipeline step requires editing only `pipeline.json` — all skills auto-update
 - **Context-isolated review loops** — `gendoc-flow` Phase D-2 wraps each document's review→fix loop in an Agent subagent, preventing 12+ documents × 5 rounds of review output from bloating the main Claude context; results returned as compact REVIEW_LOOP_RESULT
 - **Centralized state file guard** — `gendoc-shared` is the single executable entry point for R-01 guard logic; `gendoc-config` is the sole creator of state files; `gendoc-auto` and `gendoc-flow` delegate via one-line Skill call
@@ -42,16 +42,16 @@ Key capabilities:
 | `gendoc` | `/gendoc <type>` | Generate any document type |
 | `reviewdoc` | `/reviewdoc <type>` | Review & iteratively fix any document |
 | `gendoc-auto` | `/gendoc-auto` | Full pipeline entry point: IDEA + BRD generation, then hands off to gendoc-flow |
-| `gendoc-flow` | `/gendoc-flow` | Template-driven orchestrator (D03–D19) with reliable breakpoint resume, P-14/P-15 |
+| `gendoc-flow` | `/gendoc-flow` | Template-driven orchestrator (PRD→HTML full pipeline) with reliable breakpoint resume, P-14/P-15 |
 | `gendoc-config` | `/gendoc-config` | Interactive two-level menu: configure client_type, has_admin_backend, review strategy, restart step; supports multi-edit loop with mandatory-field check (Step 4c) before save |
 | `gendoc-gen-dryrun` | `/gendoc-gen-dryrun` | Generate quantitative baseline MANIFEST.md + .gendoc-rules/*.json from EDD/PRD/ARCH — lock numbers that review loops enforce (D-DRYRUN) |
-| `gendoc-align-check` | `/gendoc-align-check` | Cross-document alignment scan (D16) |
+| `gendoc-align-check` | `/gendoc-align-check` | Cross-document alignment scan (ALIGN) |
 | `gendoc-align-fix` | `/gendoc-align-fix` | Auto-fix alignment issues |
-| `gendoc-gen-html` | `/gendoc-gen-html` | Generate HTML documentation site v3.0 (D19) — converts all docs/*.md + docs/diagrams/*.md to HTML pages; 3-section sidebar (文件 / Server UML / Frontend UML) |
-| `gendoc-gen-contracts` | `/gendoc-gen-contracts` | Generate machine-readable specs: OpenAPI 3.1, JSON Schema, Pact contracts, IaC (Helm/docker-compose), Seed Code skeleton (D17) |
-| `gendoc-gen-mock` | `/gendoc-gen-mock` | Generate FastAPI Mock Server from API.md — 1:1 endpoint mapping, realistic fake data, Windows/Mac ready, Postman-importable (D18; skipped for api-only) |
+| `gendoc-gen-html` | `/gendoc-gen-html` | Generate HTML documentation site v3.0 (HTML) — converts all docs/*.md + docs/diagrams/*.md to HTML pages; 3-section sidebar (文件 / Server UML / Frontend UML) |
+| `gendoc-gen-contracts` | `/gendoc-gen-contracts` | Generate machine-readable specs: OpenAPI 3.1, JSON Schema, Pact contracts, IaC (Helm/docker-compose), Seed Code skeleton (CONTRACTS) |
+| `gendoc-gen-mock` | `/gendoc-gen-mock` | Generate FastAPI Mock Server from API.md — 1:1 endpoint mapping, realistic fake data, Windows/Mac ready, Postman-importable (MOCK; skipped for api-only) |
 | `gendoc-gen-prototype` | `/gendoc-gen-prototype` | Interactive HTML prototype — UI flow (web/game) or API Explorer with mock engine (api-only) |
-| `gendoc-gen-diagrams` | `/gendoc-gen-diagrams` | Generate Server 9 UML types + Frontend 16 UML types (Step 2B, when client_type≠none+FRONTEND.md exists) + class-inventory.md (D07b); 30+ precision validation checks; enforces no `<br/>` in stateDiagram-v2 / sequenceDiagram; bans experimental charts (pie/xychart-beta/bar) |
+| `gendoc-gen-diagrams` | `/gendoc-gen-diagrams` | Generate Server 9 UML types + Frontend 16 UML types (UML) + class-inventory.md; 30+ precision validation checks; enforces no `<br/>` in stateDiagram-v2 / sequenceDiagram; bans experimental charts (pie/xychart-beta/bar) |
 | `gendoc-gen-client-bdd` | `/gendoc-gen-client-bdd` | Client-facing BDD feature files (web/game projects) |
 | `gendoc-repair` | `/gendoc-repair` | Diff completed_steps vs pipeline.json, list missing steps, and optionally resume gendoc-flow from the first gap |
 | `gendoc-rebuild-templates` | `/gendoc-rebuild-templates` | Rebuild all document templates from scratch |
@@ -179,13 +179,12 @@ templates/
 
 The **Iron Law**: no document is generated without reading both `TYPE.md` AND `TYPE.gen.md` first. Templates are the single source of truth — editing a template immediately changes behavior of all `/gendoc` and `/reviewdoc` calls.
 
-### Pipeline (D01–D19)
+### Pipeline
 
 ```mermaid
 flowchart TD
     INPUT([任意輸入\n文字 · URL · 圖片 · Repo]) --> AUTO
     subgraph AUTO["/gendoc-auto — 入口"]
-        direction LR
         G1["⚙ Gen IDEA\n資深 PM Expert"] --> R1["↻ Review + Fix Loop\nfinding = 0 → pass"]
         R1 --> G2["⚙ Gen BRD\n資深商業分析師"]
         G2 --> R2["↻ Review + Fix Loop"]
@@ -193,29 +192,24 @@ flowchart TD
     R2 -->|"finding = 0\nhandoff = true 寫入 state"| FLOW
     subgraph FLOW["/gendoc-flow — 每步驟 Gen ⚙ Review ↻ Fix ✎ Commit ↑"]
         subgraph REQ["需求層"]
-            direction LR
             NP["PRD"] --> NCO["CONSTANTS ★"] --> NPD["PDD ✦"] --> NVD["VDD ✦"]
         end
         subgraph DES["設計層"]
-            direction LR
             NED["EDD"] --> NAR["ARCH"] --> NDR["DRYRUN ★"] --> NAPI["API"] --> NSC["SCHEMA"] --> NFR["FRONTEND ✦"] --> NAU["AUDIO ✧"] --> NAN["ANIM ✧"] --> NCI["CLIENT_IMPL ✦"] --> NAIM["ADMIN_IMPL ◆"] --> NRS["RESOURCE ✦"]
         end
         subgraph UML_L["知識圖層"]
             NUML["UML ★\n9 Server + 16 Frontend"]
         end
         subgraph QA["品質層"]
-            direction LR
             NTP["test-plan"] --> NBS["BDD-server"] --> NBC["BDD-client ✦"] --> NRTM["RTM"]
         end
         subgraph OPS["運維層"]
-            direction LR
             NRB["runbook"] --> NLD["LOCAL_DEPLOY"] --> NCIC["CICD"] --> NDG["DEVELOPER_GUIDE"] --> NUC["UML-CICD ★"]
         end
         subgraph AUDIT["稽核層"]
             NAL["ALIGN ★"] --> NALF["ALIGN-FIX ★"] --> NALV["ALIGN-VERIFY ★"]
         end
         subgraph IMPL["實作層（docs/blueprint/）"]
-            direction LR
             NCT["CONTRACTS ★"] --> NMK["MOCK ★ ✦"] --> NPRT["PROTOTYPE ★ ✦"]
         end
         subgraph PUB["發布層"]

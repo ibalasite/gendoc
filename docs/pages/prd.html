@@ -372,19 +372,19 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
 <tr><th>分層</th><th>Skill 名稱</th><th>功能</th></tr>
 <tr><td><strong>入口層</strong></td><td><code>gendoc</code></td><td>快捷入口，自動判斷從 gendoc-auto 或 gendoc-flow 進入</td></tr>
 <tr><td></td><td><code>gendoc-auto</code></td><td>任意輸入→IDEA+BRD→移交 gendoc-flow</td></tr>
-<tr><td><strong>流水線層</strong></td><td><code>gendoc-flow</code></td><td>完整文件生成流水線（D03–D19），含 P-14/P-15</td></tr>
+<tr><td><strong>流水線層</strong></td><td><code>gendoc-flow</code></td><td>PRD→HTML 完整流水線，含 P-14/P-15</td></tr>
 <tr><td><strong>設定層</strong></td><td><code>gendoc-config</code></td><td>互動兩層選單：設定 client_type、has_admin_backend、Review 策略、重跑起點；循環修改，確認完成前 Step 4c 強制補問未設定的必填欄位</td></tr>
 <tr><td><strong>共用層</strong></td><td><code>gendoc-shared</code></td><td>共用邏輯參考（狀態管理、Review 策略、STEP_SEQUENCE）</td></tr>
 <tr><td><strong>更新層</strong></td><td><code>gendoc-update</code></td><td>版本自動更新（從 GitHub 拉取最新 skill）</td></tr>
 <tr><td><strong>特殊生成層</strong></td><td><code>gendoc-gen-diagrams</code></td><td>生成 9 大 UML 圖 + class-inventory.md（UML）；以及 5 張 CI/CD UML 圖（UML-CICD）</td></tr>
 <tr><td></td><td><code>gendoc-gen-dryrun</code></td><td>讀取 EDD/PRD/ARCH 生成量化基線 docs/MANIFEST.md + .gendoc-rules/*.json（DRYRUN）</td></tr>
-<tr><td></td><td><code>gendoc-gen-client-bdd</code></td><td>生成客戶端 BDD feature files（D12b，client_type≠api-only）</td></tr>
+<tr><td></td><td><code>gendoc-gen-client-bdd</code></td><td>生成客戶端 BDD feature files（BDD-client，client_type≠api-only）</td></tr>
 <tr><td></td><td><code>gendoc-gen-prototype</code></td><td>生成可互動 HTML 原型：UI 原型（web/game）或 API Explorer（api-only）</td></tr>
-<tr><td></td><td><code>gendoc-gen-contracts</code></td><td>提取機器可讀規格至 docs/blueprint/（OpenAPI/Schema/Pact/IaC/Seed Code，D17）</td></tr>
-<tr><td></td><td><code>gendoc-gen-mock</code></td><td>生成 FastAPI mock server + 擬真假資料 + 使用手冊（docs/blueprint/mock/，D18）</td></tr>
-<tr><td></td><td><code>gendoc-gen-html</code></td><td>生成靜態 HTML 文件網站（先呼叫 gen-readme，再轉換 MD→HTML，D19）</td></tr>
-<tr><td><strong>Review 層</strong></td><td><code>gendoc-align-check</code></td><td>四維度跨文件對齊審查（D16），輸出 ALIGN_REPORT.md</td></tr>
-<tr><td></td><td><code>gendoc-align-fix</code></td><td>自動修復對齊問題（D16-ALIGN-F）</td></tr>
+<tr><td></td><td><code>gendoc-gen-contracts</code></td><td>提取機器可讀規格至 docs/blueprint/（OpenAPI/Schema/Pact/IaC/Seed Code，CONTRACTS）</td></tr>
+<tr><td></td><td><code>gendoc-gen-mock</code></td><td>生成 FastAPI mock server + 擬真假資料 + 使用手冊（docs/blueprint/mock/，MOCK）</td></tr>
+<tr><td></td><td><code>gendoc-gen-html</code></td><td>生成靜態 HTML 文件網站（先呼叫 gen-readme，再轉換 MD→HTML，HTML）</td></tr>
+<tr><td><strong>Review 層</strong></td><td><code>gendoc-align-check</code></td><td>四維度跨文件對齊審查（ALIGN），輸出 ALIGN_REPORT.md</td></tr>
+<tr><td></td><td><code>gendoc-align-fix</code></td><td>自動修復對齊問題（ALIGN-FIX）</td></tr>
 <tr><td></td><td><code>reviewdoc</code></td><td>單一文件 Review + Fix Loop（任意 TYPE）</td></tr>
 <tr><td></td><td><code>reviewtemplate</code></td><td>模板三件套品質審查與修復 loop（TYPE.md + .gen.md + .review.md）</td></tr>
 <tr><td><strong>維護層</strong></td><td><code>gendoc-rebuild-templates</code></td><td>從頭重建所有文件模板（緊急修復用）</td></tr>
@@ -395,7 +395,6 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
 <div class="diagram-container"><pre class="mermaid">flowchart TD
     INPUT([任意輸入\n文字 · URL · 圖片 · Repo]) --&gt; AUTO
     subgraph AUTO[&quot;/gendoc-auto — 入口&quot;]
-        direction LR
         G1[&quot;⚙ Gen IDEA\n資深 PM Expert&quot;] --&gt; R1[&quot;↻ Review + Fix Loop\nfinding = 0 → pass\nfinding &gt; 0 → Fix → re-Review&quot;]
         R1 --&gt; G2[&quot;⚙ Gen BRD\n資深商業分析師&quot;]
         G2 --&gt; R2[&quot;↻ Review + Fix Loop&quot;]
@@ -404,29 +403,24 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
     subgraph FLOW[&quot;/gendoc-flow — 每步驟 Gen ⚙ Review ↻ Fix ✎ Commit ↑&quot;]
         direction TD
         subgraph REQ[&quot;需求層&quot;]
-            direction LR
             NP[&quot;PRD&quot;] --&gt; NCO[&quot;CONSTANTS ★&quot;] --&gt; NPD[&quot;PDD ✦&quot;] --&gt; NVD[&quot;VDD ✦&quot;]
         end
         subgraph DES[&quot;設計層&quot;]
-            direction LR
             NED[&quot;EDD&quot;] --&gt; NAR[&quot;ARCH&quot;] --&gt; NDR[&quot;DRYRUN ★&quot;] --&gt; NAPI[&quot;API&quot;] --&gt; NSC[&quot;SCHEMA&quot;] --&gt; NFR[&quot;FRONTEND ✦&quot;] --&gt; NAU[&quot;AUDIO ✧&quot;] --&gt; NAN[&quot;ANIM ✧&quot;] --&gt; NCI[&quot;CLIENT_IMPL ✦&quot;] --&gt; NAIM[&quot;ADMIN_IMPL ◆&quot;] --&gt; NRS[&quot;RESOURCE ✦&quot;]
         end
         subgraph UML_L[&quot;知識圖層&quot;]
             NUML[&quot;UML ★\n9 Server + 16 Frontend&quot;]
         end
         subgraph QA[&quot;品質層&quot;]
-            direction LR
             NTP[&quot;test-plan&quot;] --&gt; NBS[&quot;BDD-server&quot;] --&gt; NBC[&quot;BDD-client ✦&quot;] --&gt; NRTM[&quot;RTM&quot;]
         end
         subgraph OPS[&quot;運維層&quot;]
-            direction LR
             NRB[&quot;runbook&quot;] --&gt; NLD[&quot;LOCAL_DEPLOY&quot;] --&gt; NCIC[&quot;CICD&quot;] --&gt; NDG[&quot;DEVELOPER_GUIDE&quot;] --&gt; NUC[&quot;UML-CICD ★&quot;]
         end
         subgraph AUDIT[&quot;稽核層&quot;]
             NAL[&quot;ALIGN ★&quot;] --&gt; NALF[&quot;ALIGN-FIX ★&quot;] --&gt; NALV[&quot;ALIGN-VERIFY ★&quot;]
         end
         subgraph IMPL[&quot;實作層（docs/blueprint/）&quot;]
-            direction LR
             NCT[&quot;CONTRACTS ★&quot;] --&gt; NMK[&quot;MOCK ★ ✦&quot;] --&gt; NPRT[&quot;PROTOTYPE ★ ✦&quot;]
         end
         subgraph PUB[&quot;發布層&quot;]
@@ -491,9 +485,9 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
     L9b[&quot;L9b RUNBOOK.md&lt;br/&gt;&lt;small&gt;運維文件&lt;/small&gt;&quot;]
     L9c[&quot;L9c LOCAL_DEPLOY.md&lt;br/&gt;&lt;small&gt;本地部署&lt;/small&gt;&quot;]
     L10[&quot;L10 README.md&lt;br/&gt;&lt;small&gt;專案總覽&lt;/small&gt;&quot;]
-    AUDIT[&quot;稽核層&lt;br/&gt;D16 ALIGN_REPORT&quot;]
-    IMPL[&quot;實作層&lt;br/&gt;D17 docs/blueprint/contracts/ infra/ scaffold/&lt;br/&gt;D18 docs/blueprint/mock/&quot;]
-    PUB[&quot;發布層&lt;br/&gt;D19 docs/pages/&quot;]
+    AUDIT[&quot;稽核層&lt;br/&gt;ALIGN_REPORT&quot;]
+    IMPL[&quot;實作層&lt;br/&gt;docs/blueprint/contracts/&lt;br/&gt;docs/blueprint/mock/&quot;]
+    PUB[&quot;發布層&lt;br/&gt;docs/pages/&quot;]
 
     REQ --&gt; L0 --&gt; L1 --&gt; L2
     L2 --&gt; L3a --&gt; L35 --&gt; L4
@@ -609,7 +603,7 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
 <p><strong>斷點續行欄位</strong></p>
 <ul><li><code>completed_steps</code>：已完成步驟 ID 清單（review 通過，quality_status ≠ failed）</li><li><code>failed_steps</code>：quality_status=failed 的步驟 ID 清單（CRITICAL/HIGH 未清除，不計入 completed）</li><li><code>start_step</code>：斷點續行起始步驟 ID（與 pipeline.json step.id 完全一致）</li><li><code>review_progress</code>：每步驟 Review Loop 進度字典（P-02/P-04/P-05 Skip 判斷依據）</li></ul>
 <pre><code class="language-json">  {
-    &quot;D06-EDD&quot;: {
+    &quot;EDD&quot;: {
       &quot;rounds_done&quot;: 3,
       &quot;terminated&quot;: true,
       &quot;terminate_reason&quot;: &quot;zero_finding&quot;,
@@ -619,8 +613,8 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
   }</code></pre>
 <ul><li style="margin-left:1.0rem"><code>quality_status</code> 三態：<code>passed</code>（finding=0）/ <code>degraded</code>（僅 MEDIUM/LOW）/ <code>failed</code>（有 CRITICAL/HIGH）</li><li style="margin-left:1.0rem"><code>terminate_reason</code> 代碼：<code>zero_finding</code> / <code>tiered_clean</code> / <code>max_rounds</code> / <code>rapid_cap</code></li></ul>
 <p><strong>特殊步驟欄位</strong></p>
-<ul><li><code>special_completed</code>：D16-ALIGN / D16-ALIGN-F / D17-CONTRACTS / D18-MOCK / D19-HTML 完成旗標（比 file-exists 更可靠）</li></ul>
-<pre><code class="language-json">  { &quot;D16-ALIGN&quot;: true, &quot;D16-ALIGN-F&quot;: true, &quot;D17-CONTRACTS&quot;: true, &quot;D18-MOCK&quot;: true, &quot;D19-HTML&quot;: true }</code></pre>
+<ul><li><code>special_completed</code>：ALIGN / ALIGN-FIX / ALIGN-VERIFY / CONTRACTS / MOCK / PROTOTYPE / HTML 完成旗標（比 file-exists 更可靠）</li></ul>
+<pre><code class="language-json">  { &quot;ALIGN&quot;: true, &quot;ALIGN-FIX&quot;: true, &quot;ALIGN-VERIFY&quot;: true, &quot;CONTRACTS&quot;: true, &quot;MOCK&quot;: true, &quot;PROTOTYPE&quot;: true, &quot;HTML&quot;: true }</code></pre>
 <p><strong>版本與移交欄位</strong></p>
 <ul><li><code>pipeline_hash</code>：SHA256 of pipeline.json（P-11 版本漂移偵測）</li><li><code>handoff</code>：true（gendoc-auto → gendoc-flow 移交完成標記）</li><li><code>idea_review_passed</code> / <code>brd_review_passed</code>：IDEA/BRD Review Loop 通過旗標（P-01 skip guard）</li><li><code>skill_source</code>：<code>gendoc-auto</code>（防止跨套件誤用）</li></ul>
 <p><strong>專案配置欄位</strong></p>
@@ -679,23 +673,25 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
 <p>以下步驟不走 Gen/Review/Fix 三階段，而是直接呼叫 Skill tool：</p>
 <table>
 <tr><th>Step ID</th><th>special_skill</th><th>行為</th></tr>
-<tr><td>D16-ALIGN</td><td><code>gendoc-align-check</code></td><td>四維度跨文件對齊掃描，輸出 ALIGN_REPORT.md</td></tr>
-<tr><td>D16-ALIGN-F</td><td><code>gendoc-align-fix</code></td><td>依 ALIGN_REPORT.md 自動修復所有對齊問題（all layers），每條 fix verify 後 commit</td></tr>
-<tr><td>D17-CONTRACTS</td><td><code>gendoc-gen-contracts</code></td><td>從設計文件提取機器可讀規格：OpenAPI 3.1 YAML、JSON Schema、Pact contracts、Helm values.yaml、docker-compose.yml、Seed Code skeleton → <code>docs/blueprint/</code></td></tr>
-<tr><td>D18-MOCK</td><td><code>gendoc-gen-mock</code></td><td>生成 FastAPI mock server + 擬真假資料 JSON + MOCK_SERVER_GUIDE.md → <code>docs/blueprint/mock/</code>（整個目錄可帶走；client_type=api-only 跳過）</td></tr>
-<tr><td>D19-HTML</td><td><code>gendoc-gen-html</code></td><td>MD→HTML 轉換，先呼叫 gendoc-gen-readme，再生成 docs/pages/</td></tr>
+<tr><td>ALIGN</td><td><code>gendoc-align-check</code></td><td>四維度跨文件對齊掃描，輸出 ALIGN_REPORT.md</td></tr>
+<tr><td>ALIGN-FIX</td><td><code>gendoc-align-fix</code></td><td>依 ALIGN_REPORT.md 自動修復所有對齊問題（all layers），每條 fix verify 後 commit</td></tr>
+<tr><td>ALIGN-VERIFY</td><td><code>gendoc-align-check</code></td><td>ALIGN-FIX 後重新執行對齊掃描，確認修復效果</td></tr>
+<tr><td>CONTRACTS</td><td><code>gendoc-gen-contracts</code></td><td>從設計文件提取機器可讀規格：OpenAPI 3.1 YAML、JSON Schema、Pact contracts、Helm values.yaml、docker-compose.yml、Seed Code skeleton → <code>docs/blueprint/</code></td></tr>
+<tr><td>MOCK</td><td><code>gendoc-gen-mock</code></td><td>生成 FastAPI mock server + 擬真假資料 JSON + MOCK_SERVER_GUIDE.md → <code>docs/blueprint/mock/</code>（整個目錄可帶走；client_type=api-only 跳過）</td></tr>
+<tr><td>PROTOTYPE</td><td><code>gendoc-gen-prototype</code></td><td>依 PDD/FRONTEND/API.md 生成可點擊 HTML prototype（UI flow 或 API Explorer）→ <code>docs/pages/prototype/</code></td></tr>
+<tr><td>HTML</td><td><code>gendoc-gen-html</code></td><td>MD→HTML 轉換，生成 docs/pages/ 靜態文件站</td></tr>
 </table>
 <h4>多文件步驟（multi_file=true）</h4>
 <p>BDD-server（D12）和 BDD-client（D12b）生成多個 <code>.feature</code> 檔案而非單一 md：</p>
 <pre><code class="">BDD-server：
   Gen 讀 BDD-server.gen.md → 生成 features/*.feature（多個）
   Review 讀 BDD-server.review.md → 掃描 features/ 下所有 .feature
-  commit：test(gendoc)[D12-BDD-server]: gen — 生成 N 個 .feature 檔案
+  commit：test(gendoc)[BDD-server]: gen — 生成 N 個 .feature 檔案
 
 BDD-client：
   Gen 讀 BDD-client.gen.md → 生成 features/client/*.feature（多個）
   Review 讀 BDD-client.review.md → 掃描 features/client/ 下所有 .feature
-  commit：test(gendoc)[D12b-BDD-client]: gen — 生成 N 個 client .feature 檔案</code></pre>
+  commit：test(gendoc)[BDD-client]: gen — 生成 N 個 client .feature 檔案</code></pre>
 <hr>
 <h2>6. 功能需求</h2>
 <h3>6.1 多元輸入支援（F-01）</h3>
@@ -841,9 +837,9 @@ BDD-client：
 <tr><td><code>docs/RUNBOOK.md</code></td><td><code>runbook.md</code></td><td><code>runbook.gen.md</code></td><td>Layer 9</td><td>凌晨 3 點可直接執行，零前情提要</td></tr>
 <tr><td><code>docs/LOCAL_DEPLOY.md</code></td><td><code>LOCAL_DEPLOY.md</code></td><td><code>LOCAL_DEPLOY.gen.md</code></td><td>Layer 9</td><td>新進工程師 5 分鐘內完成本地環境</td></tr>
 <tr><td><code>docs/README.md</code></td><td><code>README.md</code></td><td><code>README.gen.md</code></td><td>Layer 10</td><td>安裝、快速開始、API 概覽</td></tr>
-<tr><td><code>docs/ALIGN_REPORT.md</code></td><td><code>ALIGN_REPORT.review.md</code></td><td>align-check skill</td><td>稽核層（D16）</td><td>跨文件不一致清單</td></tr>
-<tr><td><code>docs/blueprint/contracts/</code> <code>docs/blueprint/infra/</code> <code>docs/blueprint/scaffold/</code></td><td>—</td><td>gendoc-gen-contracts</td><td>實作層（D17）</td><td>OpenAPI 3.1 / JSON Schema / Pact / Helm / docker-compose / Seed Code</td></tr>
-<tr><td><code>docs/blueprint/mock/</code></td><td>—</td><td>gendoc-gen-mock</td><td>實作層（D18）</td><td>FastAPI main.py / data/*.json / requirements.txt / MOCK_SERVER_GUIDE.md（client_type≠api-only）</td></tr>
+<tr><td><code>docs/ALIGN_REPORT.md</code></td><td><code>ALIGN_REPORT.review.md</code></td><td>align-check skill</td><td>稽核層（ALIGN）</td><td>跨文件不一致清單</td></tr>
+<tr><td><code>docs/blueprint/contracts/</code> <code>docs/blueprint/infra/</code> <code>docs/blueprint/scaffold/</code></td><td>—</td><td>gendoc-gen-contracts</td><td>實作層（CONTRACTS）</td><td>OpenAPI 3.1 / JSON Schema / Pact / Helm / docker-compose / Seed Code</td></tr>
+<tr><td><code>docs/blueprint/mock/</code></td><td>—</td><td>gendoc-gen-mock</td><td>實作層（MOCK）</td><td>FastAPI main.py / data/*.json / requirements.txt / MOCK_SERVER_GUIDE.md（client_type≠api-only）</td></tr>
 <tr><td>—</td><td><code>UML-CLASS-GUIDE.md</code></td><td>靜態參考</td><td>—</td><td>Class Diagram 規範（不生成）</td></tr>
 <tr><td>—</td><td><code>pipeline.json</code></td><td>流水線定義</td><td>—</td><td>所有步驟順序、條件、輸出路徑的唯一來源</td></tr>
 </table>
@@ -853,14 +849,14 @@ BDD-client：
 <table>
 <tr><th>情境</th><th>建議 Skill</th><th>說明</th></tr>
 <tr><td>有新想法，從零開始</td><td><code>/gendoc</code> 或 <code>/gendoc-auto</code></td><td>自動從 IDEA 開始，生成完整藍圖</td></tr>
-<tr><td>已有 BRD，要繼續後續文件</td><td><code>/gendoc-flow</code></td><td>從 D03-PRD 開始，跑到 D19-HTML</td></tr>
+<tr><td>已有 BRD，要繼續後續文件</td><td><code>/gendoc-flow</code></td><td>從 PRD 開始，跑到 HTML</td></tr>
 <tr><td>想重跑某一步 / 換審查強度</td><td><code>/gendoc-config</code></td><td>互動式設定 start_step、review_strategy、client_type</td></tr>
 <tr><td>某份文件品質不佳，想重新審查</td><td><code>/reviewdoc TYPE</code></td><td>例：<code>/reviewdoc API</code> → API.md Review + Fix Loop</td></tr>
 <tr><td>模板三件套設計有問題</td><td><code>/reviewtemplate TYPE</code></td><td>例：<code>/reviewtemplate EDD</code> → 審查 EDD.md + EDD.gen.md + EDD.review.md</td></tr>
-<tr><td>跨文件不一致（術語/API/欄位）</td><td><code>/gendoc-flow</code>（從 D16-ALIGN）</td><td>或直接呼叫 gendoc-align-check</td></tr>
-<tr><td>需要 FastAPI mock server</td><td><code>/gendoc-flow</code>（從 D18-MOCK）</td><td>輸出至 docs/blueprint/mock/，可獨立帶走</td></tr>
-<tr><td>需要 OpenAPI / Pact 規格</td><td><code>/gendoc-flow</code>（從 D17-CONTRACTS）</td><td>輸出至 docs/blueprint/contracts/</td></tr>
-<tr><td>更新 HTML 文件站</td><td><code>/gendoc-flow</code>（從 D19-HTML）</td><td>或 <code>/gendoc-gen-html</code></td></tr>
+<tr><td>跨文件不一致（術語/API/欄位）</td><td><code>/gendoc-flow</code>（從 ALIGN）</td><td>或直接呼叫 gendoc-align-check</td></tr>
+<tr><td>需要 FastAPI mock server</td><td><code>/gendoc-flow</code>（從 MOCK）</td><td>輸出至 docs/blueprint/mock/，可獨立帶走</td></tr>
+<tr><td>需要 OpenAPI / Pact 規格</td><td><code>/gendoc-flow</code>（從 CONTRACTS）</td><td>輸出至 docs/blueprint/contracts/</td></tr>
+<tr><td>更新 HTML 文件站</td><td><code>/gendoc-flow</code>（從 HTML）</td><td>或 <code>/gendoc-gen-html</code></td></tr>
 <tr><td>想從某步重新開始而不清除文件</td><td><code>/gendoc-config</code> → 從某個 STEP 重新開始</td><td>保留已完成的其他文件</td></tr>
 <tr><td>安裝最新版 skill</td><td><code>/gendoc-update</code></td><td>從 GitHub 拉取最新版本</td></tr>
 </table>
@@ -874,20 +870,20 @@ BDD-client：
 
 # 方法 C：從現有 GitHub repo 逆向生成文件
 /gendoc-auto https://github.com/yourteam/your-app</code></pre>
-<p>gendoc-auto 完成後，gendoc-flow 自動接手，跑完 D03–D19，最終產出 GitHub Pages 文件站。</p>
+<p>gendoc-auto 完成後，gendoc-flow 自動接手，跑完 PRD→HTML，最終產出 GitHub Pages 文件站。</p>
 <hr>
 <h4>場景二：設定 Review 強度與專案類型</h4>
 <pre><code class="language-bash">/gendoc-config</code></pre>
 <p>互動選單：</p>
 <ul><li>選「重新跑全部流程」→ 選 <code>exhaustive</code>（關鍵系統，無限輪次直到 finding=0）</li><li>選「只更換審查強度」→ 選 <code>rapid</code>（小型文件，快速驗收）</li><li>選「手動設定 client_type」→ 選 <code>game</code>（遊戲專案，啟用 AUDIO + ANIM 步驟）</li></ul>
 <hr>
-<h4>場景三：已有 API 設計，從 D08 插入流水線</h4>
+<h4>場景三：已有 API 設計，從 API 插入流水線</h4>
 <pre><code class="language-bash">/gendoc-config
 # → 選「從某個 STEP 重新開始」
-# → 選「D08-API：API 設計文件生成」
+# → 選「API：API 設計文件生成」
 
 /gendoc-flow
-# 從 D08 開始，重新生成 API.md → SCHEMA.md → ... → D19-HTML</code></pre>
+# 從 API 開始，重新生成 API.md → SCHEMA.md → ... → HTML</code></pre>
 <hr>
 <h4>場景四：單獨重新審查某份文件</h4>
 <pre><code class="language-bash"># 審查 EDD.md（含 Review + Fix Loop，直到 finding=0 或達 max_rounds）
@@ -901,7 +897,7 @@ BDD-client：
 <hr>
 <h4>場景五：只需要 Mock Server（前端開發用）</h4>
 <pre><code class="language-bash">/gendoc-config
-# → 選「從某個 STEP 重新開始」→「D18-MOCK」
+# → 選「從某個 STEP 重新開始」→「MOCK」
 
 /gendoc-flow
 # 生成 docs/blueprint/mock/
@@ -926,7 +922,7 @@ uvicorn main:app --reload
 <hr>
 <h4>場景七：跨文件對齊掃描</h4>
 <pre><code class="language-bash">/gendoc-config
-# → 從 D16-ALIGN 重新開始
+# → 從 ALIGN 重新開始
 
 /gendoc-flow
 # gendoc-align-check 掃描四維度：
@@ -934,7 +930,7 @@ uvicorn main:app --reload
 #   - Schema 欄位與 API request/response 對齊
 #   - Test Plan 與 BDD Scenario 覆蓋對齊
 #   - RTM 追溯完整性
-# 輸出：docs/ALIGN_REPORT.md + 自動修復（D16-ALIGN-F）</code></pre>
+# 輸出：docs/ALIGN_REPORT.md + 自動修復（ALIGN-FIX）</code></pre>
 <h3>9.3 安裝</h3>
 <pre><code class="language-bash"># 克隆專案
 git clone https://github.com/ibalasite/gendoc.git ~/projects/gendoc
