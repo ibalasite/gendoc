@@ -419,7 +419,7 @@
 | **建議怎麼改** | (1) §3.4 Bounded Context 表格新增「Schema 擁有權」欄：列出每個 BC 擁有的具體 DB 表/Schema 名稱，並加入聲明：「任何其他 BC 不得直接存取本 BC 的 DB 表；跨 BC 資料存取只能透過 Public API 或 Domain Event」。(2) §4 模組設計章節新增「跨模組依賴 DAG 驗證」小節：要求填入所有模組間依賴箭頭並確認圖為 DAG（無循環），提供一個 Mermaid graph 範例框架。(3) §4.6 Domain Event 表格新增欄位：`event_schema_version`（格式 `v{N}`）、`topic_name`（Kafka/Bus topic 名稱）。 |
 | **目標檔案** | `templates/EDD.md`（§3.4、§4、§4.6） |
 | **影響範圍** | `templates/EDD.md` |
-| **決策** | |
+| **決策** | 可以|
 
 ---
 
@@ -431,7 +431,7 @@
 | **建議怎麼改** | (1) 移除 §3.4 生成規則中的「若有多服務」條件，改為「任何系統均必須生成 Bounded Context Map，並填入 Schema Ownership Table（每個 BC 擁有的具體表名）」。(2) §4.6 Domain Event 生成規則補充：每個事件必須填入 `event_schema_version`（初始值 `v1`）和 `topic_name`。(3) Self-Check Checklist 新增：`[ ] 每個 Bounded Context 的 Schema 擁有權已明確（具體表名，無跨 BC DB 直接存取）` 和 `[ ] 模組間依賴圖已驗證為 DAG（無循環依賴）`。 |
 | **目標檔案** | `templates/EDD.gen.md`（§3.4 生成規則、§4.6 生成規則、Self-Check Checklist） |
 | **影響範圍** | `templates/EDD.gen.md` |
-| **決策** | |
+| **決策** |可以|
 
 ---
 
@@ -443,7 +443,7 @@
 | **建議怎麼改** | 在現有審查項之後新增「Spring Modulith 微服務可拆解性」審查層（Layer N），含以下項目：(1) `[CRITICAL]` SM-01 — Schema 隔離：每個 BC 擁有且只擁有自己的 DB 表，§3.4 Schema Ownership Table 必須填寫具體表名，無兩個 BC 聲明擁有同一張表。Fix：補填 Schema Ownership Table，移除跨 BC FK。(2) `[HIGH]` SM-02 — 跨模組只透過 Public Interface：無直接跨 BC repository/DAO 呼叫路徑。Fix：改為透過目標 BC 的 API 端點或 Domain Event。(3) `[HIGH]` SM-03 — 依賴圖 DAG 驗證：模組間依賴已驗證無循環（附 Mermaid 圖或 DAG 聲明）。Fix：消除循環依賴，重新設計邊界。(4) `[HIGH]` SM-04 — Domain Event Schema 版本化：§4.6 所有 Event 均有 `event_schema_version` 和 `topic_name`。Fix：補齊版本欄位。(5) `[MEDIUM]` SM-05 — 無跨模組 Shared Mutable State：Redis key namespace 隔離，無跨 BC 全域可變物件。Fix：分配獨立 key prefix 給每個 BC。 |
 | **目標檔案** | `templates/EDD.review.md`（新增 Spring Modulith 審查層） |
 | **影響範圍** | `templates/EDD.review.md` |
-| **決策** | |
+| **決策** | 可以|
 
 ---
 
@@ -455,7 +455,7 @@
 | **建議怎麼改** | (A) **ARCH.md**：(1) §4 服務邊界表「擁有資料」欄下方加入明確聲明：「禁止跨服務直接存取他服務的 DB 表，所有跨服務資料存取必須透過 Public API 或 Domain Event（HC-1）」。(2) §15 Checklist 新增子節「微服務可拆解性（MD-01～MD-05）」：MD-01 每個服務 Schema 擁有權已明確（具體表名）、MD-02 跨服務通訊只透過 API 或 Event、MD-03 依賴圖已驗證為 DAG、MD-04 無跨服務 Shared Mutable State、MD-05 每個服務理論上可獨立部署（列出需要變更的接合點）。(B) **ARCH.gen.md**：Self-Check 新增 3 項（§4 Schema 擁有權具體表名、依賴圖 DAG 確認、§15 MD-01～MD-05 已生成）；Quality Gate 新增列：`BC 隔離 | §4 每服務具體擁有表名已填；§15 MD-01~05 均已回答 | 補充缺失項`。(C) **ARCH.review.md**：新增「Layer 5：微服務可拆解性」審查層，含：`[CRITICAL]` Schema 隔離、`[HIGH]` 跨服務只透過 Public Interface、`[HIGH]` 依賴圖 DAG、`[MEDIUM]` 無跨服務 Shared Mutable State（對應 HC-1～HC-4）。 |
 | **目標檔案** | `templates/ARCH.md`、`templates/ARCH.gen.md`、`templates/ARCH.review.md` |
 | **影響範圍** | ARCH 三件套 |
-| **決策** | |
+| **決策** | 可以|
 
 ---
 
@@ -467,7 +467,7 @@
 | **建議怎麼改** | (A) **SCHEMA.md**：(1) Document Control 表格新增欄位「Owning Bounded Context / Service」（必填，對應 ARCH §4）。(2) §1 Overview 新增「Schema Boundary Declaration」子節：本 Schema 的唯一擁有服務、外部不得直接 JOIN 的表清單。(3) §9 新增 §9.5「跨 BC FK 禁止」：明確規定 FK 不得引用其他 BC 的表，跨 BC 引用改為應用層管理的 ID-only 策略，加注：`-- Cross-BC reference: enforced at application layer, no DB FK.`。(4) §16 新增子節「Bounded Context 隔離」：本 Schema Owning BC 已標明、所有表屬同一 BC、無跨 BC DB-level FK、跨 BC 引用使用 ID-only。(B) **SCHEMA.gen.md**：生成規則第一步新增「Step 0 — Bounded Context 識別：讀取 EDD §3.4 和 ARCH §4，確認本 SCHEMA 的 Owning BC，填入 Document Control；列出不得被其他 Schema FK 引用的表清單」；Part 3 CREATE TABLE 生成規則補充「每條 FK 驗證引用表屬同一 BC，跨 BC 引用替換為 ID-only + 注釋」；Self-Check 新增 2 項；Quality Gate 新增「BC 隔離」列。 |
 | **目標檔案** | `templates/SCHEMA.md`、`templates/SCHEMA.gen.md` |
 | **影響範圍** | SCHEMA 兩件（review.md 若有也一併檢查） |
-| **決策** | |
+| **決策** |可以 |
 
 ---
 
@@ -479,7 +479,7 @@
 | **建議怎麼改** | (1) Document Control 表格新增「Owning Bounded Context / Service」欄位（必填）。(2) §1.1 設計原則新增「Service Encapsulation」：本 API 是其 Bounded Context 的唯一對外介面；其他服務不得直接存取本 BC 的 DB Schema；API Response 不得直接暴露 DB 欄位名稱作為穩定合約（必須有 DTO/View Model 層）。(3) §14 Checklist 新增子節「Bounded Context 封裝」：本 API 已標注 Owning BC、API Response 不直接暴露 DB 欄位、無端點依賴其他 BC 的 DB 表、若本服務獨立部署所有端點仍可正常運作。 |
 | **目標檔案** | `templates/API.md`（Document Control、§1.1、§14） |
 | **影響範圍** | `templates/API.md` |
-| **決策** | |
+| **決策** | 可以|
 
 ---
 
@@ -491,7 +491,7 @@
 | **建議怎麼改** | (1) 新增 §5.5「子系統分解（Bounded Context）」：表格欄位包含「子系統名 | 業務領域 | 擁有的業務規則 | 不擁有的業務規則 | 業務不變量（Invariant）」，要求填入所有子系統（如 member / wallet / deposit / lobby / game）及其業務邊界。(2) §8.3「技術約束」新增必填列：「子系統可拆解性（Spring Modulith HC-1～HC-5）」，說明業務層的跨子系統邊界原則。(3) §3.4 RTM 新增「Owning Subsystem」欄，確保每個業務目標對應一個具體子系統。 |
 | **目標檔案** | `templates/BRD.md`（§5.5 新增、§8.3 補充、§3.4 RTM 欄位） |
 | **影響範圍** | `templates/BRD.md` |
-| **決策** | |
+| **決策** | 可以|
 
 ---
 
@@ -503,7 +503,7 @@
 | **建議怎麼改** | (1) §3.2 Integration Tests 新增必填子節「Module Decomposability Tests」，含以下場景表格：(a) Schema 隔離測試 — 驗證子系統 A 的程式碼不執行子系統 B 的 Schema 的 SQL；(b) Consumer-Driven Contract Tests（Pact，**必要**，非可選）— 每個跨子系統 API pair 均有 Pact 合約測試；(c) Async Event Contract Tests — 每個 Domain Event 的 Producer/Consumer Schema 版本兼容性測試；(d) 單一子系統冷啟動測試 — 僅啟動一個子系統，驗證其全部端點可正常運作（其他子系統以 stub 取代）。(2) §1.4 Quality Gates 新增列：「Contract Test 通過率 100%（Merge 前必要）」和「跨 Schema SQL 違規 0」。(3) §2.1 In-Scope 新增「Module 可拆解性驗證」為必填 NFR 測試項。 |
 | **目標檔案** | `templates/test-plan.md`（§3.2 新增子節、§1.4 Quality Gates、§2.1） |
 | **影響範圍** | `templates/test-plan.md` |
-| **決策** | |
+| **決策** | 可以|
 
 ---
 
@@ -515,7 +515,7 @@
 | **建議怎麼改** | (1) 新增 §1.3「子系統邊界參考（Subsystem Boundary Reference）」：表格欄位包含「Bounded Context | K8s Deployment | Owning DB Schema | Public API Prefix | Event Topics」，列出所有子系統的操作邊界。(2) 新增 §4.X「子系統提取程序（Subsystem Extraction Procedure）」：從合部署切換到獨立部署的 step-by-step，含：新建 Namespace、部署子系統及其獨立 DB Schema、設定新 Ingress、更新 Service Discovery、對新端點執行合約測試、流量切換、從原部署移除。(3) §3.2 SLOs 補充：各子系統 Prometheus label 設計指引（`subsystem="member"` 等），使 SLO 可按子系統切片。(4) §7 Troubleshooting 新增場景「跨子系統 API 呼叫失敗」：症狀識別、診斷步驟、修復指引。 |
 | **目標檔案** | `templates/runbook.md`（§1.3 新增、§4.X 新增、§3.2 補充、§7 補充） |
 | **影響範圍** | `templates/runbook.md` |
-| **決策** | |
+| **決策** | 可以|
 
 ---
 
@@ -527,13 +527,39 @@
 | **建議怎麼改** | (1) 新增 §2.X「子系統分解地圖（Subsystem Decomposition Map）」：表格和圖，說明每個 K8s Deployment/Service 歸屬哪個 BC、其 Owning Schema、對外 API Prefix、Event Topics。(2) 新增 §4.X「單一子系統啟動（Single Subsystem Startup）」：說明如何只啟動單個 BC（例如 `make k8s-apply-wallet`），對應 `k8s/overlays/local-{subsystem}/` 的 Kustomize overlay 結構；其他子系統以 WireMock/msw stub 取代。(3) §6 Development Commands 新增每個子系統的 make target（`k8s-apply-{subsystem}`、`health-check-{subsystem}`、`logs-{subsystem}`）。(4) §14 Mock Services 新增「內部子系統 Stub」子節：當進行單一子系統開發時，如何用 WireMock 模擬其他子系統的 Public API。 |
 | **目標檔案** | `templates/LOCAL_DEPLOY.md`（§2.X 新增、§4.X 新增、§6 補充、§14 補充） |
 | **影響範圍** | `templates/LOCAL_DEPLOY.md` |
+| **決策** |可以 |
+
+---
+
+---
+
+## M-38
+
+| 欄位 | 內容 |
+|------|------|
+| **違規事由** | **BDD 九件套全部缺少 Spring Modulith 覆蓋。** 專家讀檔確認（2026-05-02）：`BDD.md`、`BDD-server.md`、`BDD-client.md` 及其對應 gen.md / review.md 共 9 個檔案，對 HC-1～HC-5 五條硬約束的覆蓋為零。具體缺失：(1) `BDD.md` §2 Feature File 命名規範以 domain 目錄組織，但沒有 Bounded Context 概念，無跨 BC 整合場景、無 Domain Event 合約測試場景；(2) `BDD-server.md` §5 Contract Testing 只覆蓋 HTTP 合約，無模組邊界驗證（HC-2）、無跨 BC 呼叫只透過 Public Interface 的場景；(3) `BDD.gen.md` Self-Check 22 項、`BDD-server.gen.md` Self-Check 16 項，均無 HC-1～HC-5 任何項目；(4) `BDD-server.review.md` Layer 3 Item 11 觸及 async operation（HC-3 邊緣）但只關心測試 Flaky，不驗證 Domain Event 合約；(5) 無任何「單一子系統冷啟動 BDD 情境」（僅啟動一個 BC 驗證其行為）；(6) 無 `@cross-module`、`@event-contract`、`@modulith` 等 tag，無對應生成規則。 |
+| **建議怎麼改** | **(A) BDD.md**：(1) §2 Feature File 命名規範新增「Spring Modulith 模組組織」：`features/{bounded-context}/{domain}/` 結構，每個 BC 有獨立目錄，從 ARCH §4 或 EDD §3.4 推導 BC 名稱。(2) §10 Tag Strategy 新增 tag 族群：`@modulith`（全部 BC 整合場景）、`@cross-module`（跨 BC 呼叫只透過 Public Interface 驗證）、`@event-contract`（Domain Event 生產者/消費者合約）、`@module-isolation`（單一子系統冷啟動）。(3) 新增 §18「Spring Modulith BDD 場景模板」：提供 Domain Event 合約場景的標準 Given/When/Then 格式：`Given [Module A] 狀態滿足觸發條件 / When [Event Name] 事件已發布 / Then [Module B] 的可觀測行為符合預期`；提供 HC-2 Public Interface 場景：`Given 模組 A 需要模組 B 的資料 / When 呼叫模組 B 的公開 API / Then 回傳符合合約的資料（無直接 DB cross-access）`。(4) §16 HA BDD Scenario Patterns 仿照格式，新增 §16.5「Module Decomposability Scenarios」。**(B) BDD-server.md**：(1) §3 Standard Feature File Template 新增 Cross-Module Contract 標記格式。(2) §5 Contract Testing 擴充為兩層：HTTP Contract（Pact，現有）+ Domain Event Contract（schema version 兼容性測試）。**(C) BDD.gen.md**：(1) 生成規則新增：從 ARCH §4 服務邊界表推導所有跨 BC dependency pair，每個 pair 至少生成一個 `@event-contract` 場景；(2) Self-Check 新增：`[ ] 每個跨 BC 依賴有對應的 @event-contract 場景`、`[ ] 每個 Bounded Context 有至少一個 @module-isolation 冷啟動場景`、`[ ] 無場景在模組 A 的 step 中直接操作模組 B 的 DB 資料（HC-1）`。**(D) BDD-server.gen.md**：(1) F-03 Step Definition Skeleton 新增 Event Contract test stub（Kafka consumer mock + schema validation）；(2) Self-Check 新增：`[ ] 跨模組呼叫場景驗證 step 指向 Public Service Interface（HC-2）`。**(E) BDD-server.review.md**：(1) Layer 3 新增審查項「Domain Event Contract — 有跨 BC 依賴時，是否有 @event-contract 場景覆蓋 Event Schema 版本（MEDIUM）」；(2) Layer 5 Upstream Alignment 新增「Bounded Context 覆蓋 — features/ 目錄結構是否對應 ARCH §4 的每個 BC（HIGH）」。 |
+| **目標檔案** | `templates/BDD.md`（§2、§10、新增 §18）、`templates/BDD-server.md`（§5）、`templates/BDD.gen.md`（生成規則、Self-Check）、`templates/BDD-server.gen.md`（F-03 skeleton、Self-Check）、`templates/BDD-server.review.md`（Layer 3、Layer 5） |
+| **影響範圍** | BDD 五件（BDD-client 三件為 UI 範疇，不需改動） |
 | **決策** | |
 
 ---
 
-共 37 項修改（M-01 至 M-37），跨 25+ 個檔案。
+## M-39
 
-**M-28～M-37 修改優先順序建議（依依賴關係）**：
+| 欄位 | 內容 |
+|------|------|
+| **違規事由** | **新需求**：LOCAL_DEPLOY 未整合 client（前端 UI）和 admin（後台管理介面）到同一個 k8s Ingress 對外 Port，導致無法用「一個 URL 分享測試環境」。專家讀檔確認：(1) `LOCAL_DEPLOY.md` §5 Service Reference 已有 `http://{{PROJECT_SLUG}}.local/` → web-app 和 `/api` → api-server，但 `admin-service` 不在 Ingress 規則中（`has_admin_backend=true` 條件區塊缺少 Ingress patch）；(2) §19 Docker Compose 明確標注「docker-compose 模式無 Ingress，各服務各自對外暴露 port，與 K8s 單一 port 80 不同」— 與單一 port 目標矛盾；(3) 無 admin SPA 路由的 nginx fallback 說明（admin 部署在 `/admin/` 路徑時，前端 router basename 和 vite build base 須一致設定，否則靜態資源全部 404）；(4) 無 admin 建置時 `base: '/admin/'` 的強制要求；(5) 無 single-port routing 驗證指令。**架構理由**：Ingress path-based routing（Traefik / k3s built-in）已是 k8s local dev 的標準模式，不需額外元件；docker-compose 側以 nginx reverse proxy container 達到同等效果，消除兩種啟動方式的 URL 差異，QA / 分享測試只需一個 URL。 |
+| **建議怎麼改** | **(A) templates/LOCAL_DEPLOY.md 骨架**：(1) §2 Architecture Overview 的 Ingress 圖加入 admin 路徑：`/admin → admin-service:80`（`has_admin_backend=true` 時）；(2) §5 Service Reference 表格加入 admin 行：`http://{{PROJECT_SLUG}}.local/admin/` 管理介面；(3) §10 Common Issues 加入兩個 admin 常見問題：「admin 靜態資源 404（未設 `base: '/admin/'`）」和「admin 頁面 refresh 404（nginx SPA fallback 未設定 `/admin/index.html`）」；(4) §12 Port Reference 的 Ingress 路徑表加入 admin 行。**(B) templates/LOCAL_DEPLOY.gen.md 生成規則**：(1) `has_admin_backend=true` 條件區塊新增 Ingress patch 段落，包含完整 Traefik Ingress YAML（`/admin` Prefix 規則）及 Traefik Middleware（如需 strip prefix 則生成，如 API server 自帶 `/api` prefix 則不需要）；(2) §4.4 Build Image 生成規則的 admin 段落加入建置約束：「admin 前端 image 必須以 `base: '/admin/'`（Vite）或等效框架設定建置，並加入驗證指令 `grep -q 'src="/admin/' ... index.html`」；(3) §4.5 Deployment 驗證步驟加入 admin 驗證：`curl http://{{PROJECT_SLUG}}.local/admin/` 回 200 且 SPA deep-link `curl http://{{PROJECT_SLUG}}.local/admin/login` 亦回 200；(4) §18 AI Quick Start Script 的驗證段落加入 admin 條件驗證；(5) §19 Docker Compose 生成規則重寫單一 Port 模式：移除「各服務各自對外暴露 port」敘述，改為「nginx proxy container 在 Port 80 提供統一入口」，生成 `docker/proxy/nginx.conf`（含 `/api`、`/admin`、`/` 三段 proxy_pass）；(6) §19 Docker Compose Iron Constraint 同步更新：`proxy` service 對外 ports 只有 `80:80`，各 backend service 不暴露 nodePort。**(C) 路由設計原則（寫入 gen.md 生成說明）**：推薦 Option B（API server 路由含 `/api` prefix，無需 Traefik stripPrefix middleware），原因：`kubectl port-forward` 直連時路徑一致，調試更直觀；admin nginx container 需要 SPA fallback 設定：`try_files $uri $uri/ /admin/index.html`，所有 `/admin/*` 請求返回 admin 的 `index.html`，由 client-side router 處理路由；admin 前端的 API 呼叫必須使用絕對路徑 `/api/...`（不得使用相對路徑）。 |
+| **目標檔案** | `templates/LOCAL_DEPLOY.md`（§2、§5、§10、§12）、`templates/LOCAL_DEPLOY.gen.md`（Ingress 生成規則、§4.4/§4.5/§18/§19） |
+| **影響範圍** | LOCAL_DEPLOY 兩件；間接影響 docker/admin/nginx.conf 的生成說明 |
+| **決策** | |
+
+---
+
+共 39 項修改（M-01 至 M-39），跨 28+ 個檔案。
+
+**M-28～M-39 修改優先順序建議（依依賴關係）**：
 1. M-28、M-29、M-30（EDD 三件套）— 最上游，其他文件依賴 EDD 的 BC 定義
 2. M-31（ARCH 三件套）— 依賴 EDD BC Map
 3. M-32（SCHEMA 兩件）— 依賴 EDD §3.4 Schema Ownership
@@ -542,5 +568,7 @@
 6. M-35（test-plan.md）— 依賴 EDD Domain Event + ARCH 邊界
 7. M-36（runbook.md）— 依賴 ARCH §4 + EDD §3.4
 8. M-37（LOCAL_DEPLOY.md）— 依賴 ARCH §4 + Subsystem Boundary Reference
+9. M-38（BDD 五件）— 依賴 ARCH §4 服務邊界（推導跨 BC dependency pair）
+10. M-39（LOCAL_DEPLOY Single-Port）— 可與 M-37 合併執行，依賴 has_admin_backend flag
 
-*版本：2026-05-02 v6（新增 M-28～M-37：Spring Modulith 微服務可拆解性 — 五條硬約束寫入 EDD/ARCH/SCHEMA/API/BRD/test-plan/runbook/LOCAL_DEPLOY template 層）*
+*版本：2026-05-02 v7（新增 M-38：BDD 九件套 Spring Modulith 覆蓋；M-39：LOCAL_DEPLOY Single-Port client+admin+API 統一 Port 80）*
