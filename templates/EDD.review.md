@@ -256,14 +256,14 @@ upstream-alignment:
 **Fix**: 將所有跨 BC 直接呼叫路徑改為目標 BC 的 Public API 或 Domain Event；更新 §4 模組設計依賴描述。
 
 #### [HIGH] SM-03 — 模組依賴圖含循環依賴（HC-5）
-**Check**: §4.3 跨模組依賴 DAG 是否已填寫且宣告「無循環依賴」？若 §4.3 缺失或存在循環（A → B → A），視為 HIGH。
-**Risk**: 循環依賴在獨立部署時造成啟動順序死鎖；BC 邊界設計不清晰。
-**Fix**: 補填 §4.3 DAG 圖；存在循環時提取共同依賴為 Shared Kernel BC，或將循環之一改為 Event-driven 方向。
+**Check**: §4.3 跨模組依賴 DAG 是否已填寫且宣告「無循環依賴」？是否包含 Spring Modulith `ApplicationModules.verify()` Java test skeleton（含 `@ApplicationModuleTest` 範例）？若 §4.3 缺失、存在循環（A → B → A）、或缺少 `verify()` skeleton，視為 HIGH。
+**Risk**: 循環依賴在獨立部署時造成啟動順序死鎖；缺少 `verify()` test skeleton 意味著 HC-5 違規無法被 CI 機械式攔截。
+**Fix**: 補填 §4.3 DAG 圖；存在循環時提取共同依賴為 Shared Kernel BC，或將循環之一改為 Event-driven 方向；補入 `ApplicationModules.verify()` Java test skeleton。
 
-#### [HIGH] SM-04 — Domain Event Schema 未版本化（HC-3）
-**Check**: §4.6 Domain Events 表格是否有 `event_schema_version`（初始 `v1`）和 `topic_name`（格式 `{bc}.{entity}.{type}`）欄位？任一缺失視為 HIGH。
-**Risk**: 無版本化無法安全地做 Event Schema 破壞性變更；`topic_name` 未標準化導致跨 BC Consumer 路由混亂。
-**Fix**: 在 §4.6 補充兩欄；建立版本升級原則（破壞性變更 → 遞增版號 + 短暫雙版本並存）。
+#### [HIGH] SM-04 — Domain Event Schema 未版本化或 §4.6.1 缺失（HC-3）
+**Check**: §4.6 Domain Events 表格是否有 `event_schema_version`（初始 `v1`）和 `topic_name`（格式 `{bc}.{entity}.{type}`）欄位？**§4.6.1 Domain Events 完整清單（6欄格式）是否存在？Consumer BC(s) 欄是否為具體 BC 名稱（非「其他服務」等模糊描述）？§4.5.2 Class Diagram 每個 `<<DomainEvent>>` class 在 §4.6.1 是否有對應行？** 任一缺失視為 HIGH。
+**Risk**: 無版本化無法安全地做 Event Schema 破壞性變更；缺少 §4.6.1 意味著 Cross-BC 消費關係不透明，HC-3 無法在 Design Review 中被驗證。
+**Fix**: 在 §4.6 補充兩欄；補入 §4.6.1（6欄格式）；確認所有 `<<DomainEvent>>` class 均有對應行；Consumer BC(s) 填入具體 BC 名稱。
 
 #### [MEDIUM] SM-05 — 跨模組共享可變狀態（HC-4）
 **Check**: §4 或 §7 設計中，是否有多個 BC 直接讀寫同一 Redis Key（無命名空間隔離），或全域可變物件跨 BC 存取？若有視為 MEDIUM。

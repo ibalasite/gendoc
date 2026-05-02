@@ -574,6 +574,33 @@ graph TD
 | 依賴圖為 DAG | {{CONFIRMED/NOT_CONFIRMED}} | {{若未確認，列出需要消除的循環}} |
 | 最長依賴鏈 | {{N}} 層 | {{e.g. GameBC → WalletBC → (leaf)}} |
 
+**Spring Modulith 自動化驗證（Test Skeleton）：**
+
+```java
+// 在 src/test/java 中加入以下測試，CI 自動驗證 DAG 約束
+@Test
+void verify_modulith_module_structure() {
+    // ApplicationModules.of() 掃描 Spring Modulith @ApplicationModule 邊界
+    ApplicationModules modules = ApplicationModules.of({{APPLICATION_CLASS}}.class);
+    // verify() 驗證：1) 無循環依賴 2) 無跨 BC Repository 直接呼叫 3) BC 邊界完整
+    // 若任何 HC-1~HC-5 約束違反，此處丟出 AssertionError（CI 阻斷 merge）
+    modules.verify();
+}
+
+// 各 BC 邊界測試（per-module isolation test）
+@ApplicationModuleTest
+class {{BC_NAME}}ModuleTest {
+    // 僅載入單一 BC 的 Spring context，確認無跨 BC 依賴滲漏
+    @Test
+    void module_is_self_contained(ApplicationModuleTestExecution execution) {
+        assertThat(execution.getModules().getModuleByName("{{bc_module_name}}"))
+            .isPresent();
+    }
+}
+```
+
+> **`ApplicationModules.verify()` 執行規則**：如果 `verify()` 拋出 `AssertionError`，代表 HC-5 循環依賴或 HC-1/HC-2 邊界違規已存在於程式碼中，CI pipeline 必須阻斷 merge。
+
 ---
 
 ### 4.5 UML 9 大圖（強制）/ UML 9 Diagrams (Mandatory)
@@ -1958,6 +1985,19 @@ Deployment Diagram 描述**軟體部署在哪些硬體 / 雲端節點上**，是
 
 > **`event_schema_version`**：格式 `v{N}`（初始值 `v1`），Schema 破壞性變更時遞增。訂閱者依此版本決定是否需要升級 Consumer。  
 > **`topic_name`**：格式 `{bc_name}.{entity_name}.{event_type}`，Kafka topic / Spring ApplicationEvent qualifier 統一命名空間，避免跨 BC 命名衝突。
+
+#### §4.6.1 Domain Events 完整清單（Cross-BC 消費關係）
+
+> 此表為 HC-3 可視化工具：列出所有跨 BC 消費的 Domain Event，確保每個 Event 的 Consumer BC(s) 明確記錄。
+> **生成規則**：每個在 §4.5.2 Class Diagram 中出現的 `<<DomainEvent>>` class，此表必須有對應行；Owning BC 與 Consumer BC(s) 必須是 §3.4 Schema Ownership Table 中的實際 BC 名稱。
+
+| Owning BC | Event Class Name | Trigger | Payload 主要欄位 | Consumer BC(s) | topic_name | event_schema_version |
+|-----------|-----------------|---------|----------------|----------------|-----------|---------------------|
+| {{BC_NAME_1}} | `{{EntityName}}Created` | {{ENTITY}} 建立成功後 | `id`, `created_at`, `{{field_a}}`, `{{field_b}}` | {{BC_NAME_2}}, {{BC_NAME_3}} | `{{bc_name_1}}.{{entity_name}}.created` | `v1` |
+| {{BC_NAME_2}} | `{{EntityName}}StatusChanged` | 狀態從 {{OLD}} → {{NEW}} | `id`, `old_status`, `new_status`, `reason` | {{BC_NAME_3}} | `{{bc_name_2}}.{{entity_name}}.status_changed` | `v1` |
+| {{BC_NAME_3}} | `{{EntityName}}Completed` | {{OPERATION}} 完成後 | `id`, `completed_at`, `{{result_field}}` | {{BC_NAME_1}}, {{BC_NAME_2}} | `{{bc_name_3}}.{{entity_name}}.completed` | `v1` |
+
+*（依系統實際設計填入所有跨 BC Domain Event；Consumer BC(s) 必須為具體 BC 名稱，不得填「其他服務」等模糊描述；Pure BC-internal Events 可省略）*
 
 ## 5. API Design
 <!-- 詳細 API spec 見 API.md；本節描述設計決策和關鍵端點 -->
