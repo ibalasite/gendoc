@@ -266,6 +266,26 @@ func TestUserService_CreateUser_ErrorWhenInvalidEmail(t *testing.T)
 | HA-INT-03 | DB 連線重連 | toxiproxy 斷開 DB 連線 5s 後恢復 | 應用層在連線恢復後自動重連，請求不丟失 |
 | HA-INT-04 | Circuit Breaker 觸發 | toxiproxy 注入 500ms 延遲到外部依賴 | CB 在閾值後開啟，回傳降級響應（非 5xx 崩潰）|
 
+#### Admin RBAC Boundary Test（當 `has_admin_backend=true` 時必填）
+
+> 若系統有管理後台，Admin RBAC 測試屬於 P0 Security 等級，必須覆蓋所有角色 × 操作的授權邊界。
+
+**角色 × 操作授權矩陣（依實際角色填入）：**
+
+| 角色 | 讀取 | 寫入 | 刪除 | 批次操作 | 匯出資料 | 使用者管理 |
+|------|------|------|------|---------|---------|---------|
+| super_admin | ✅ 200 | ✅ 200 | ✅ 200 | ✅ 200 | ✅ 200 | ✅ 200 |
+| operator | ✅ 200 | ✅ 200 | ❌ 403 | ✅ 200 | ❌ 403 | ❌ 403 |
+| viewer | ✅ 200 | ❌ 403 | ❌ 403 | ❌ 403 | ❌ 403 | ❌ 403 |
+| {{CUSTOM_ROLE}} | {{PERM}} | {{PERM}} | {{PERM}} | {{PERM}} | {{PERM}} | {{PERM}} |
+
+**必須涵蓋的測試項目：**
+- [ ] 水平越權：Admin A 不能存取或修改 Admin B 的私有資源（同角色跨帳號隔離）
+- [ ] 縱向越權：operator 呼叫 super_admin 專屬 API 得到 403（非 200 或 500）
+- [ ] Token 竄改：修改 JWT role 欄位不得影響後端授權結果（後端必須重新驗證 role）
+- [ ] 批次操作邊界：批次刪除 N 筆後，Audit Log 必須記錄完整操作（操作者、時間、影響筆數）
+- [ ] Session 逾時後操作：過期 Token 呼叫任何 admin API 得到 401
+
 #### Test Database 策略
 
 ```
