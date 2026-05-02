@@ -422,6 +422,63 @@ _HAS_ADMIN=$(python3 -c "import json; print(json.load(open('.gendoc-state.json')
 
 ---
 
+## §18 Spring Modulith BDD 生成步驟
+
+> **觸發條件**：永遠執行（Spring Modulith 是本系統的架構前提）。
+
+### 18.1 推導跨 BC Dependency Pair
+
+```bash
+# 從 ARCH §4 服務邊界表或 EDD §3.4 讀取所有 BC 清單
+# 識別跨 BC 依賴關係（Domain Event Publisher → Consumer）
+# 每對 (source_bc, target_bc) = 一個 dependency pair
+```
+
+1. 讀取 `docs/ARCH.md §4`（或 `docs/EDD.md §3.4`）：提取所有 Bounded Context 名稱及其相互依賴的 Domain Event 清單
+2. 建立 dependency pair 表：`{source_bc} --[{EventName}]--> {target_bc}`
+
+### 18.2 生成 Module Isolation 場景（HC-5 DAG 驗證）
+
+對每個 BC 生成一個冷啟動場景：
+
+```
+# features/{bc_name}/isolation/{bc_name}_cold_start.feature
+@modulith @module-isolation @p0 @api
+Feature: {BCName} 模組冷啟動隔離驗證
+  Scenario: 僅啟動 {BCName} 模組時能獨立運行
+    Given 僅啟動 {BCName} Bounded Context，其他 BC 以 stub 替代
+    When 執行 {BCName} 的核心業務操作
+    Then 業務流程完成，無任何對其他 BC 的直接 DB 存取錯誤
+    And 所有跨 BC 呼叫均透過 Public Interface 或 Mock Event Bus
+```
+
+### 18.3 生成 Domain Event Contract 場景（HC-3 驗證）
+
+對每個跨 BC dependency pair 生成 2 個場景：
+
+1. **Producer Contract**（`features/cross-module/event/{event_name_snake}_producer.feature`）：
+   - `@event-contract @modulith @p0 @api`
+   - 驗證觸發動作 → 正確發布 Event → Schema Version 合規
+
+2. **Consumer Contract**（`features/cross-module/event/{event_name_snake}_consumer.feature`）：
+   - `@event-contract @modulith @p0 @api`
+   - 驗證接收 Event → 業務狀態更新 → 無直接 DB 跨 BC 存取
+
+### 18.4 生成 Cross-Module Public Interface 場景（HC-2 驗證）
+
+對每個跨 BC HTTP 呼叫生成一個場景（`features/cross-module/api/{source_bc}_calls_{target_bc}.feature`）：
+- `@cross-module @modulith @p1 @api`
+- When 步驟呼叫 `{TargetBC}` 的 Public REST API，不直接操作其 Repository
+
+### 18.4 驗收標準
+
+- `@modulith @module-isolation` Scenario 數量 = BC 數量（每個 BC ≥ 1）
+- `@event-contract` Scenario 數量 = dependency pair 數量 × 2（Producer + Consumer）
+- `@cross-module` Scenario 數量 ≥ dependency pair 數量
+- 所有以上 Scenario 存入 `features/cross-module/` 或 `features/{bc}/isolation/` 目錄
+
+---
+
 ## 推斷規則
 
 ### Feature 推斷
@@ -465,6 +522,11 @@ _HAS_ADMIN=$(python3 -c "import json; print(json.load(open('.gendoc-state.json')
 - [ ] §15 Mutation Testing：高風險核心業務模組是否已配置 Stryker/mutmut，目標 Mutation Score ≥70%？
 - [ ] §15 弱測試模式：確認生成的測試避免「只驗證有呼叫」的弱斷言（使用具體 expect 值）？
 - [ ] 所有 `[UPSTREAM_CONFLICT]` 標記均已處理或說明
+- [ ] Feature 目錄結構使用 `features/{bounded-context}/{domain}/` 兩層路徑（HC-1 合規）
+- [ ] 每個跨 BC 依賴（來自 ARCH §4）有對應的 `@event-contract` 場景（Producer + Consumer 各一）
+- [ ] 每個 Bounded Context 有至少一個 `@module-isolation` 冷啟動驗證場景（HC-5 DAG 驗證）
+- [ ] 無 Scenario 在模組 A 的 step 中直接操作模組 B 的 DB 資料（HC-1 違規）
+- [ ] 所有 `@cross-module` 場景的 When 步驟指向對方 BC 的 Public Service Interface，不直接呼叫其 Repository（HC-2 合規）
 
 ---
 

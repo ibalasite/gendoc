@@ -199,6 +199,10 @@ Feature: {{功能名稱（與 PRD 功能標題一致）}}
 
 ## 5. Contract Testing Template
 
+Contract Testing 分為兩層，必須同時覆蓋：
+
+### 5.1 HTTP Contract（REST / GraphQL）
+
 每個 API.md Endpoint 的 Contract Scenario 結構：
 
 ```gherkin
@@ -212,6 +216,56 @@ Feature: {{功能名稱（與 PRD 功能標題一致）}}
 ```
 
 注意：Contract Scenario 的 Then 步驟需驗證回應結構，但使用業務語言（「回應包含有效 Token」而非「回應 access_token 欄位不為空」）。
+
+### 5.2 Domain Event Contract（跨 BC 事件合約）
+
+> **Spring Modulith HC-3 要求**：跨 BC 通訊必須透過 Domain Event；Event Schema 版本相容性必須以 BDD 場景明確驗證。
+
+每個跨 BC Domain Event 必須有對應的生產者（Producer）和消費者（Consumer）合約測試：
+
+**Producer Contract Scenario：**
+
+```gherkin
+# features/cross-module/event/{{event_name}}_producer_contract.feature
+# 來源：EDD §3.6 Domain Events
+
+@event-contract @modulith @p0 @api
+Feature: {{EventName}} 生產者事件合約
+  作為 {{SourceBC}} Bounded Context 的生產者
+  我希望發布符合合約的 {{EventName}} 事件
+  以便 {{TargetBC}} 等消費者能正確處理
+
+  Scenario: {{觸發動作}} 時發布合規的 {{EventName}} 事件
+    Given {{SourceBC}} 的前置業務狀態
+    When {{觸發動作}} 已完成
+    Then 系統應發布 {{EventName}} 事件
+    And 事件 payload 包含必要欄位：{{field_1}}、{{field_2}}
+    And 事件 schema version 符合 {{version}}（向後相容）
+    And 事件 topic 名稱為 {{topic_name}}
+```
+
+**Consumer Contract Scenario：**
+
+```gherkin
+@event-contract @modulith @p0 @api
+Feature: {{EventName}} 消費者事件合約
+  作為 {{TargetBC}} Bounded Context 的消費者
+  我希望能正確處理 {{EventName}} 事件
+  以便業務狀態保持一致
+
+  Scenario: 接收合規的 {{EventName}} 事件後更新業務狀態
+    Given {{TargetBC}} 處於初始狀態
+    When 系統接收到符合合約的 {{EventName}} 事件（schema v{{version}}）
+    Then {{TargetBC}} 業務狀態應更新為 {{expected_state}}
+    And 無需呼叫 {{SourceBC}} 的任何 HTTP API
+    And 無直接存取 {{SourceBC}} 的 DB（HC-1 合規）
+```
+
+**Domain Event Contract 生成規則**：
+- 從 ARCH §4 或 EDD §3.6 識別所有跨 BC Domain Event 清單
+- 每個 Event 生成 1 個 Producer Scenario + 1 個 Consumer Scenario
+- `@event-contract` + `@modulith` 兩個 tag 必填
+- Step Definition 使用 Kafka consumer mock + schema validation stub
 
 ---
 

@@ -65,21 +65,30 @@ Scenario 的 `When` 步驟 = API 呼叫；`Then` 步驟 = API 回應驗收。
 
 ### 2.1 Path Pattern
 
+**Spring Modulith 兩層目錄結構（HC-1 合規）：**
+
 ```
-features/{{domain}}/{{resource}}_{{action}}.feature
+features/{bounded-context}/{domain}/{resource}_{action}.feature
 ```
+
+- `{bounded-context}`：從 ARCH §4 或 EDD §3.4 推導的 BC 名稱（如 `member`、`wallet`、`game`）
+- `{domain}`：BC 內的領域子模組（如 `auth`、`account`、`payment`）
+- `{resource}_{action}`：資源名稱 + 動作（如 `user_login`、`order_create`）
+
+> **舊式單層路徑（`features/{domain}/`）已棄用**。所有新 Feature File 必須使用兩層路徑以反映 Bounded Context 邊界。
 
 ### 2.2 Naming Examples
 
-| PRD 功能 | Domain | File Path |
-|---------|--------|-----------|
-| 使用者登入 | auth | `features/auth/user_login.feature` |
-| 使用者註冊 | auth | `features/auth/user_registration.feature` |
-| 訂單建立 | orders | `features/orders/order_create.feature` |
-| 訂單查詢 | orders | `features/orders/order_list.feature` |
-| 商品搜尋 | catalog | `features/catalog/product_search.feature` |
-| 購物車結帳 | checkout | `features/checkout/cart_checkout.feature` |
-| 密碼重設 | auth | `features/auth/password_reset.feature` |
+| PRD 功能 | Bounded Context | Domain | File Path（兩層） |
+|---------|----------------|--------|-----------------|
+| 使用者登入 | member | auth | `features/member/auth/user_login.feature` |
+| 使用者註冊 | member | auth | `features/member/auth/user_registration.feature` |
+| 訂單建立 | order | order | `features/order/order/order_create.feature` |
+| 訂單查詢 | order | order | `features/order/order/order_list.feature` |
+| 商品搜尋 | catalog | product | `features/catalog/product/product_search.feature` |
+| 購物車結帳 | checkout | cart | `features/checkout/cart/cart_checkout.feature` |
+| 密碼重設 | member | auth | `features/member/auth/password_reset.feature` |
+| 跨 BC 事件契約 | （跨模組）| event | `features/cross-module/event/wallet_credit_event_contract.feature` |
 
 ### 2.3 Tag Taxonomy
 
@@ -103,7 +112,7 @@ features/{{domain}}/{{resource}}_{{action}}.feature
 以下為完整 feature file 結構，涵蓋所有 Gherkin 元素。實際生成時以 PRD AC 為準進行填充。
 
 ```gherkin
-# features/{{domain}}/{{resource}}_{{action}}.feature
+# features/{{bounded-context}}/{{domain}}/{{resource}}_{{action}}.feature
 # 來源：PRD §{{FEATURE_NAME}}，AC-1～AC-N
 # DOC-ID: BDD-{{PROJECT_SLUG}}-{{YYYYMMDD}}
 
@@ -655,7 +664,7 @@ Background:
 | `- [ ] AC-N（正常流程）` | 正常路徑 `Scenario` |
 | `- [ ] AC-N（錯誤流程）` | 錯誤路徑 `Scenario` |
 | `- [ ] AC-N（邊界條件）` | `Scenario Outline` + `Examples` |
-| 功能模組分類 | `features/<domain>/` 子目錄 |
+| 功能模組分類 | `features/<bounded-context>/<domain>/` 兩層子目錄（BC 名稱從 ARCH §4 推導） |
 | PRD Priority（P0/P1/P2） | `@p0` / `@p1` / `@p2` tag |
 
 ## Appendix B — 生成完成確認清單
