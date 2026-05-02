@@ -195,6 +195,19 @@ graph LR
 | {{BC_UPSTREAM}} | {{BC_DOWNSTREAM}} | Customer/Supplier | {{EXPLANATION}} |
 | {{BC_1}} | {{BC_2}} | Anti-corruption Layer | {{EXPLANATION}} |
 
+**Schema 擁有權（Schema Ownership Table）：**
+
+| Bounded Context | 擁有的 DB Schema / Tables | 對外 Public Interface |
+|----------------|--------------------------|----------------------|
+| {{BC_NAME_1}} | `{{schema_1}}`: `{{table_a}}`, `{{table_b}}` | REST API `/api/v1/{{bc1}}/` |
+| {{BC_NAME_2}} | `{{schema_2}}`: `{{table_c}}`, `{{table_d}}` | REST API `/api/v1/{{bc2}}/` |
+| {{BC_NAME_3}} | `{{schema_3}}`: `{{table_e}}` | Domain Event `{{EventName}}` |
+
+> **HC-1 硬約束（Spring Modulith）**：任何其他 BC 不得直接存取本 BC 的 DB Schema 或 Tables。跨 BC 資料存取只能透過：  
+> (1) 該 BC 提供的 Public REST/gRPC API，或  
+> (2) 該 BC 發布的 Domain Event。  
+> **禁止**跨 BC 的 DB-level JOIN 或 Repository/DAO 直接引用。
+
 ---
 
 ### 3.5 部署環境規格（Deployment Environment Matrix）
@@ -527,6 +540,38 @@ graph LR
 ### 4.2 {{MODULE_NAME_2}}
 
 （同上結構）
+
+---
+
+### 4.3 跨模組依賴 DAG 驗證（HC-5）
+
+> **HC-5 硬約束（Spring Modulith）**：所有模組間依賴必須構成有向無環圖（DAG）。任何循環依賴（Circular Dependency）均為設計缺陷，需在 Review 前消除。
+
+**模組依賴圖（填入所有模組間依賴箭頭）：**
+
+```mermaid
+graph TD
+    MemberBC["member BC"]
+    WalletBC["wallet BC"]
+    DepositBC["deposit BC"]
+    LobbyBC["lobby BC"]
+    GameBC["game BC"]
+
+    %% 依賴方向：A --> B 表示 A 依賴 B（A 呼叫 B 的 Public API 或訂閱 B 的 Event）
+    %% 填入本系統實際的跨 BC 依賴關係
+    DepositBC -->|"Event: DepositConfirmed"| WalletBC
+    GameBC -->|"API: wallet balance check"| WalletBC
+    LobbyBC -->|"API: member auth verify"| MemberBC
+    GameBC -->|"API: member session"| MemberBC
+```
+
+**DAG 驗證宣告：**
+
+| 驗證項目 | 結果 | 說明 |
+|---------|------|------|
+| 是否存在循環依賴 | {{YES/NO}} | {{若有，列出循環路徑}} |
+| 依賴圖為 DAG | {{CONFIRMED/NOT_CONFIRMED}} | {{若未確認，列出需要消除的循環}} |
+| 最長依賴鏈 | {{N}} 層 | {{e.g. GameBC → WalletBC → (leaf)}} |
 
 ---
 
@@ -1904,11 +1949,14 @@ Deployment Diagram 描述**軟體部署在哪些硬體 / 雲端節點上**，是
 
 ### 4.6 Domain Events（領域事件）
 
-| 事件名稱 | 觸發時機 | Payload | 訂閱者 | 冪等保證 |
-|---------|---------|---------|--------|---------|
-| `{{EntityName}}Created` | {{ENTITY}} 建立成功後 | `{id, created_at, {{fields}}}` | {{SUBSCRIBERS}} | 是（event_id dedup）|
-| `{{EntityName}}StatusChanged` | 狀態從 {{OLD}} 轉換至 {{NEW}} | `{id, old_status, new_status, reason}` | {{SUBSCRIBERS}} | 是 |
-| `{{EntityName}}Deleted` | {{ENTITY}} 軟刪除後 | `{id, deleted_at, deleted_by}` | {{SUBSCRIBERS}} | 是 |
+| 事件名稱 | Owning BC | 觸發時機 | Payload | 訂閱者 | 冪等保證 | `event_schema_version` | `topic_name` |
+|---------|----------|---------|---------|--------|---------|----------------------|-------------|
+| `{{EntityName}}Created` | {{BC_NAME}} | {{ENTITY}} 建立成功後 | `{id, created_at, {{fields}}}` | {{SUBSCRIBERS}} | 是（event_id dedup）| `v1` | `{{bc_name}}.{{entity_name}}.created` |
+| `{{EntityName}}StatusChanged` | {{BC_NAME}} | 狀態從 {{OLD}} 轉換至 {{NEW}} | `{id, old_status, new_status, reason}` | {{SUBSCRIBERS}} | 是 | `v1` | `{{bc_name}}.{{entity_name}}.status_changed` |
+| `{{EntityName}}Deleted` | {{BC_NAME}} | {{ENTITY}} 軟刪除後 | `{id, deleted_at, deleted_by}` | {{SUBSCRIBERS}} | 是 | `v1` | `{{bc_name}}.{{entity_name}}.deleted` |
+
+> **`event_schema_version`**：格式 `v{N}`（初始值 `v1`），Schema 破壞性變更時遞增。訂閱者依此版本決定是否需要升級 Consumer。  
+> **`topic_name`**：格式 `{bc_name}.{entity_name}.{event_type}`，Kafka topic / Spring ApplicationEvent qualifier 統一命名空間，避免跨 BC 命名衝突。
 
 ## 5. API Design
 <!-- 詳細 API spec 見 API.md；本節描述設計決策和關鍵端點 -->
