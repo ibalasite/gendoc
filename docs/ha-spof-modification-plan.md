@@ -354,7 +354,7 @@
 | **建議怎麼改** | 在 runbook.gen.md 的 Step 4（On-Call SOP 生成）與 Step 6（Capacity Scaling 生成）中，各新增一條 **Iron Constraint**，明確寫：「任何 kubectl scale / replicas 指令，數值不得低於 2；若上游 EDD §3.7 有定義最小副本數，以 EDD 為準但不得低於 2」。同步在 Quality Gate 表格新增一行：`All replicas ≥ 2｜runbook 中所有 replicas 數值 ≥ 2｜掃描全文，任何 replicas=1 視為不合格` |
 | **目標檔案** | `templates/runbook.gen.md`（Step 4 + Step 6 + Quality Gate 表格） |
 | **影響範圍** | `templates/runbook.gen.md` |
-| **決策** | |
+| **決策** |可以 |
 
 ---
 
@@ -366,7 +366,7 @@
 | **建議怎麼改** | 在 EDD.md §12.2 的表格中，保留 placeholder 欄位（允許專案自訂），但在其前方增加「標準最小場景集」示範行（以 HTML 注釋或斜體標注為「範例，請依專案調整」），涵蓋：(1) API Pod kill（chaoskube）、(2) DB Primary Failover（pg_ctl stop / failover trigger）、(3) Redis Sentinel 主節點斷線、(4) 單 Region 全斷（Regional Failover 模擬）。同步在 EDD.gen.md 的 §12 生成步驟中，要求 AI 至少填入上述 4 個場景（可從 EDD §3.6 BCP 設計推導 RTO/RPO 對應的混沌場景）。 |
 | **目標檔案** | `templates/EDD.md`（§12.2 表格前新增示範行）、`templates/EDD.gen.md`（§12 生成規則新增「至少填 4 個場景」要求） |
 | **影響範圍** | `templates/EDD.md`、`templates/EDD.gen.md` |
-| **決策** | |
+| **決策** | 可以|
 
 ---
 
@@ -378,7 +378,7 @@
 | **建議怎麼改** | 在 LOCAL_DEPLOY.gen.md Step 2（K8s Deployment 生成）與 Step 3（docker-compose 生成）中，各新增明確約束：「api-server Deployment 的 spec.replicas 不得低於 2；worker Deployment 的 spec.replicas 不得低於 2；若生成 docker-compose，services.api.deploy.replicas 不得低於 2」。同時在 Step 2/3 後新增「副本數驗證指令」範例（`kubectl get pods` 或 `docker compose ps`），讓 LOCAL_DEPLOY 文件本身就包含驗證步驟。 |
 | **目標檔案** | `templates/LOCAL_DEPLOY.gen.md`（Step 2 + Step 3 各新增 Iron Constraint） |
 | **影響範圍** | `templates/LOCAL_DEPLOY.gen.md` |
-| **決策** | |
+| **決策** | 可以|
 
 ---
 
@@ -390,10 +390,157 @@
 | **建議怎麼改** | 將 ARCH.review.md #14 的 Check 描述改為：「§10.2 Phase 演進路徑是否以 HA 基線為起點（Phase 1 即已 ≥ 2 replica + DB Primary+Standby），而非從單體或單副本出發？若 Phase 1 描述為 Modular Monolith 或 single pod，視為 HIGH 違規。」同時升級此審查項的嚴重度為 HIGH（原為 MEDIUM），並在 Fix 指引中明確引導修改者參考 M-03 的 Phase 演進表改法。 |
 | **目標檔案** | `templates/ARCH.review.md`（審查項 #14） |
 | **影響範圍** | `templates/ARCH.review.md` |
-| **決策** | |
+| **決策** |可以 |
 
 ---
 
 共 27 項修改（M-01 至 M-27），跨 20+ 個檔案。
 
 *版本：2026-05-02 v5（新增 M-24~M-27：計劃外發現 — runbook.gen.md 副本約束、EDD §12.2 場景範例、LOCAL_DEPLOY.gen.md Step 層級約束、ARCH.review.md #14 矛盾修正）*
+
+---
+
+## 新需求：Spring Modulith — 微服務可拆解性（M-28 至 M-36）
+
+**背景**：使用者確認採用 Spring Modulith 架構模式。各子系統（member / wallet / deposit / lobby / game 等）從 Day 1 以 Bounded Context 為邊界設計，可合部署（最小 HA 成本），也可獨立拆出 Scale（最大擴展彈性）。五條硬約束（HC-1～HC-5）已寫入 CLAUDE.md、docs/PRD.md §7.6、README.md。以下 M-28～M-36 為 template 層面的對應修改，待決策後執行。
+
+**已完成（不需決策）**：
+- CLAUDE.md：已加入第 6 條核心原則（Spring Modulith 五條硬約束）
+- docs/PRD.md：已在 §7.6 加入 Spring Modulith 原則區塊與影響清單
+- README.md：已加入 Design Principles 段落
+
+---
+
+## M-28
+
+| 欄位 | 內容 |
+|------|------|
+| **違規事由** | `templates/EDD.md` §3.4 Bounded Context 表格無 Schema 擁有權欄位，無跨 BC 存取禁止宣告；§4 模組設計無跨模組依賴 DAG 驗證欄位；§4.6 Domain Event 表格無 `event_schema_version`、`topic_name` 欄位。根據 HC-1（跨 BC 禁止直接 DB 存取）和 HC-5（依賴圖為 DAG）的要求，EDD.md 結構上缺少承載這些約束的欄位。 |
+| **建議怎麼改** | (1) §3.4 Bounded Context 表格新增「Schema 擁有權」欄：列出每個 BC 擁有的具體 DB 表/Schema 名稱，並加入聲明：「任何其他 BC 不得直接存取本 BC 的 DB 表；跨 BC 資料存取只能透過 Public API 或 Domain Event」。(2) §4 模組設計章節新增「跨模組依賴 DAG 驗證」小節：要求填入所有模組間依賴箭頭並確認圖為 DAG（無循環），提供一個 Mermaid graph 範例框架。(3) §4.6 Domain Event 表格新增欄位：`event_schema_version`（格式 `v{N}`）、`topic_name`（Kafka/Bus topic 名稱）。 |
+| **目標檔案** | `templates/EDD.md`（§3.4、§4、§4.6） |
+| **影響範圍** | `templates/EDD.md` |
+| **決策** | |
+
+---
+
+## M-29
+
+| 欄位 | 內容 |
+|------|------|
+| **違規事由** | `templates/EDD.gen.md` §3.4 生成規則有「若有多服務」的條件保護，意即單體部署時 Bounded Context 圖可選填，與 Spring Modulith「Day 1 即需要 BC 邊界」原則相矛盾。Self-Check Checklist 無「每個 BC Schema 擁有權已明確」項目，無「模組依賴圖為 DAG」項目。 |
+| **建議怎麼改** | (1) 移除 §3.4 生成規則中的「若有多服務」條件，改為「任何系統均必須生成 Bounded Context Map，並填入 Schema Ownership Table（每個 BC 擁有的具體表名）」。(2) §4.6 Domain Event 生成規則補充：每個事件必須填入 `event_schema_version`（初始值 `v1`）和 `topic_name`。(3) Self-Check Checklist 新增：`[ ] 每個 Bounded Context 的 Schema 擁有權已明確（具體表名，無跨 BC DB 直接存取）` 和 `[ ] 模組間依賴圖已驗證為 DAG（無循環依賴）`。 |
+| **目標檔案** | `templates/EDD.gen.md`（§3.4 生成規則、§4.6 生成規則、Self-Check Checklist） |
+| **影響範圍** | `templates/EDD.gen.md` |
+| **決策** | |
+
+---
+
+## M-30
+
+| 欄位 | 內容 |
+|------|------|
+| **違規事由** | `templates/EDD.review.md` 審查項 #9「DDD Bounded Context 未定義」嚴重度僅 MEDIUM，且無 Schema 隔離審查項（HC-1 缺失）、無跨模組呼叫只透過公開介面審查項（HC-2 缺失）、無 DAG 驗證審查項（HC-5 缺失）、無跨模組 Shared Mutable State 審查項（HC-4 缺失）。 |
+| **建議怎麼改** | 在現有審查項之後新增「Spring Modulith 微服務可拆解性」審查層（Layer N），含以下項目：(1) `[CRITICAL]` SM-01 — Schema 隔離：每個 BC 擁有且只擁有自己的 DB 表，§3.4 Schema Ownership Table 必須填寫具體表名，無兩個 BC 聲明擁有同一張表。Fix：補填 Schema Ownership Table，移除跨 BC FK。(2) `[HIGH]` SM-02 — 跨模組只透過 Public Interface：無直接跨 BC repository/DAO 呼叫路徑。Fix：改為透過目標 BC 的 API 端點或 Domain Event。(3) `[HIGH]` SM-03 — 依賴圖 DAG 驗證：模組間依賴已驗證無循環（附 Mermaid 圖或 DAG 聲明）。Fix：消除循環依賴，重新設計邊界。(4) `[HIGH]` SM-04 — Domain Event Schema 版本化：§4.6 所有 Event 均有 `event_schema_version` 和 `topic_name`。Fix：補齊版本欄位。(5) `[MEDIUM]` SM-05 — 無跨模組 Shared Mutable State：Redis key namespace 隔離，無跨 BC 全域可變物件。Fix：分配獨立 key prefix 給每個 BC。 |
+| **目標檔案** | `templates/EDD.review.md`（新增 Spring Modulith 審查層） |
+| **影響範圍** | `templates/EDD.review.md` |
+| **決策** | |
+
+---
+
+## M-31
+
+| 欄位 | 內容 |
+|------|------|
+| **違規事由** | `templates/ARCH.md` §15 Architecture Review Checklist 無 Microservice Decomposability 子節；§4 服務邊界表的「擁有資料」欄為自由文字，無強制填寫具體表名的規則，且無「禁止跨 BC 直接 DB 存取」的明確聲明。`templates/ARCH.gen.md` Self-Check Checklist 27 項無任何 Decomposability 項目；Quality Gate 6 行無 Schema 隔離閘。`templates/ARCH.review.md` 無 Schema 隔離審查項、無 DAG 審查項、無 Shared Mutable State 審查項。 |
+| **建議怎麼改** | (A) **ARCH.md**：(1) §4 服務邊界表「擁有資料」欄下方加入明確聲明：「禁止跨服務直接存取他服務的 DB 表，所有跨服務資料存取必須透過 Public API 或 Domain Event（HC-1）」。(2) §15 Checklist 新增子節「微服務可拆解性（MD-01～MD-05）」：MD-01 每個服務 Schema 擁有權已明確（具體表名）、MD-02 跨服務通訊只透過 API 或 Event、MD-03 依賴圖已驗證為 DAG、MD-04 無跨服務 Shared Mutable State、MD-05 每個服務理論上可獨立部署（列出需要變更的接合點）。(B) **ARCH.gen.md**：Self-Check 新增 3 項（§4 Schema 擁有權具體表名、依賴圖 DAG 確認、§15 MD-01～MD-05 已生成）；Quality Gate 新增列：`BC 隔離 | §4 每服務具體擁有表名已填；§15 MD-01~05 均已回答 | 補充缺失項`。(C) **ARCH.review.md**：新增「Layer 5：微服務可拆解性」審查層，含：`[CRITICAL]` Schema 隔離、`[HIGH]` 跨服務只透過 Public Interface、`[HIGH]` 依賴圖 DAG、`[MEDIUM]` 無跨服務 Shared Mutable State（對應 HC-1～HC-4）。 |
+| **目標檔案** | `templates/ARCH.md`、`templates/ARCH.gen.md`、`templates/ARCH.review.md` |
+| **影響範圍** | ARCH 三件套 |
+| **決策** | |
+
+---
+
+## M-32
+
+| 欄位 | 內容 |
+|------|------|
+| **違規事由** | `templates/SCHEMA.md` Document Control 無「Owning Bounded Context」欄位；§9 資料完整性約束無跨 BC FK 禁止規則；§16 Schema Review Checklist 無任何 BC 隔離審查項。`templates/SCHEMA.gen.md` 無「Step 0 — Bounded Context 識別」步驟；生成 FK 約束時無跨 BC FK 偵測與阻止規則；Self-Check 和 Quality Gate 無 BC 隔離項。 |
+| **建議怎麼改** | (A) **SCHEMA.md**：(1) Document Control 表格新增欄位「Owning Bounded Context / Service」（必填，對應 ARCH §4）。(2) §1 Overview 新增「Schema Boundary Declaration」子節：本 Schema 的唯一擁有服務、外部不得直接 JOIN 的表清單。(3) §9 新增 §9.5「跨 BC FK 禁止」：明確規定 FK 不得引用其他 BC 的表，跨 BC 引用改為應用層管理的 ID-only 策略，加注：`-- Cross-BC reference: enforced at application layer, no DB FK.`。(4) §16 新增子節「Bounded Context 隔離」：本 Schema Owning BC 已標明、所有表屬同一 BC、無跨 BC DB-level FK、跨 BC 引用使用 ID-only。(B) **SCHEMA.gen.md**：生成規則第一步新增「Step 0 — Bounded Context 識別：讀取 EDD §3.4 和 ARCH §4，確認本 SCHEMA 的 Owning BC，填入 Document Control；列出不得被其他 Schema FK 引用的表清單」；Part 3 CREATE TABLE 生成規則補充「每條 FK 驗證引用表屬同一 BC，跨 BC 引用替換為 ID-only + 注釋」；Self-Check 新增 2 項；Quality Gate 新增「BC 隔離」列。 |
+| **目標檔案** | `templates/SCHEMA.md`、`templates/SCHEMA.gen.md` |
+| **影響範圍** | SCHEMA 兩件（review.md 若有也一併檢查） |
+| **決策** | |
+
+---
+
+## M-33
+
+| 欄位 | 內容 |
+|------|------|
+| **違規事由** | `templates/API.md` Document Control 無「Owning Bounded Context」欄位；§1.1 設計原則無「Service Encapsulation」原則（禁止 API Response 直接暴露 DB 欄位名）；§14 API Review Checklist 無任何 BC 封裝審查項。若各子系統（member / wallet 等）的 API 文件不宣告歸屬 BC，審查者無法確認 API 是否真正封裝了邊界。 |
+| **建議怎麼改** | (1) Document Control 表格新增「Owning Bounded Context / Service」欄位（必填）。(2) §1.1 設計原則新增「Service Encapsulation」：本 API 是其 Bounded Context 的唯一對外介面；其他服務不得直接存取本 BC 的 DB Schema；API Response 不得直接暴露 DB 欄位名稱作為穩定合約（必須有 DTO/View Model 層）。(3) §14 Checklist 新增子節「Bounded Context 封裝」：本 API 已標注 Owning BC、API Response 不直接暴露 DB 欄位、無端點依賴其他 BC 的 DB 表、若本服務獨立部署所有端點仍可正常運作。 |
+| **目標檔案** | `templates/API.md`（Document Control、§1.1、§14） |
+| **影響範圍** | `templates/API.md` |
+| **決策** | |
+
+---
+
+## M-34
+
+| 欄位 | 內容 |
+|------|------|
+| **違規事由** | `templates/BRD.md` §5「Proposed Solution」為平坦清單，無子系統（Bounded Context）業務邊界定義；§8.3「技術約束」無 HC-1～HC-5 硬約束的業務層聲明；RTM §3.4 無「Owning Subsystem」欄位，無法將業務目標追溯到具體子系統。 |
+| **建議怎麼改** | (1) 新增 §5.5「子系統分解（Bounded Context）」：表格欄位包含「子系統名 | 業務領域 | 擁有的業務規則 | 不擁有的業務規則 | 業務不變量（Invariant）」，要求填入所有子系統（如 member / wallet / deposit / lobby / game）及其業務邊界。(2) §8.3「技術約束」新增必填列：「子系統可拆解性（Spring Modulith HC-1～HC-5）」，說明業務層的跨子系統邊界原則。(3) §3.4 RTM 新增「Owning Subsystem」欄，確保每個業務目標對應一個具體子系統。 |
+| **目標檔案** | `templates/BRD.md`（§5.5 新增、§8.3 補充、§3.4 RTM 欄位） |
+| **影響範圍** | `templates/BRD.md` |
+| **決策** | |
+
+---
+
+## M-35
+
+| 欄位 | 內容 |
+|------|------|
+| **違規事由** | `templates/test-plan.md` §3.2 Integration Tests 僅有一行「Service Boundary」描述，Contract Testing（Pact）為可選項而非必要閘；無 Schema 隔離測試、無 DAG 驗證測試、無單一子系統冷啟動測試、無 Async Event Contract 測試。§1.4 Quality Gates 無「合約測試通過率 100%」或「跨 Schema SQL 違規 0」的條件。 |
+| **建議怎麼改** | (1) §3.2 Integration Tests 新增必填子節「Module Decomposability Tests」，含以下場景表格：(a) Schema 隔離測試 — 驗證子系統 A 的程式碼不執行子系統 B 的 Schema 的 SQL；(b) Consumer-Driven Contract Tests（Pact，**必要**，非可選）— 每個跨子系統 API pair 均有 Pact 合約測試；(c) Async Event Contract Tests — 每個 Domain Event 的 Producer/Consumer Schema 版本兼容性測試；(d) 單一子系統冷啟動測試 — 僅啟動一個子系統，驗證其全部端點可正常運作（其他子系統以 stub 取代）。(2) §1.4 Quality Gates 新增列：「Contract Test 通過率 100%（Merge 前必要）」和「跨 Schema SQL 違規 0」。(3) §2.1 In-Scope 新增「Module 可拆解性驗證」為必填 NFR 測試項。 |
+| **目標檔案** | `templates/test-plan.md`（§3.2 新增子節、§1.4 Quality Gates、§2.1） |
+| **影響範圍** | `templates/test-plan.md` |
+| **決策** | |
+
+---
+
+## M-36
+
+| 欄位 | 內容 |
+|------|------|
+| **違規事由** | `templates/runbook.md` 從單一服務視角撰寫，無子系統邊界定義（每個 K8s Deployment 歸屬哪個 BC）；§4 Deployment Procedures 無「子系統提取程序」（從合部署到獨立部署的操作步驟）；§3.2 SLOs 無子系統層級的可觀測性指引；§7 Troubleshooting 無「跨子系統 API 呼叫失敗」場景。 |
+| **建議怎麼改** | (1) 新增 §1.3「子系統邊界參考（Subsystem Boundary Reference）」：表格欄位包含「Bounded Context | K8s Deployment | Owning DB Schema | Public API Prefix | Event Topics」，列出所有子系統的操作邊界。(2) 新增 §4.X「子系統提取程序（Subsystem Extraction Procedure）」：從合部署切換到獨立部署的 step-by-step，含：新建 Namespace、部署子系統及其獨立 DB Schema、設定新 Ingress、更新 Service Discovery、對新端點執行合約測試、流量切換、從原部署移除。(3) §3.2 SLOs 補充：各子系統 Prometheus label 設計指引（`subsystem="member"` 等），使 SLO 可按子系統切片。(4) §7 Troubleshooting 新增場景「跨子系統 API 呼叫失敗」：症狀識別、診斷步驟、修復指引。 |
+| **目標檔案** | `templates/runbook.md`（§1.3 新增、§4.X 新增、§3.2 補充、§7 補充） |
+| **影響範圍** | `templates/runbook.md` |
+| **決策** | |
+
+---
+
+## M-37
+
+| 欄位 | 內容 |
+|------|------|
+| **違規事由** | `templates/LOCAL_DEPLOY.md` 假設所有子系統一起啟動（`make k8s-apply` 套用全部 overlay），無「單一子系統啟動」模式；無子系統分解地圖（哪些 K8s 資源屬於哪個 BC）；無各子系統的 Kustomize overlay 設計；§14 Mock Services 只覆蓋第三方外部服務，無對「缺席子系統」的 stub 指引。 |
+| **建議怎麼改** | (1) 新增 §2.X「子系統分解地圖（Subsystem Decomposition Map）」：表格和圖，說明每個 K8s Deployment/Service 歸屬哪個 BC、其 Owning Schema、對外 API Prefix、Event Topics。(2) 新增 §4.X「單一子系統啟動（Single Subsystem Startup）」：說明如何只啟動單個 BC（例如 `make k8s-apply-wallet`），對應 `k8s/overlays/local-{subsystem}/` 的 Kustomize overlay 結構；其他子系統以 WireMock/msw stub 取代。(3) §6 Development Commands 新增每個子系統的 make target（`k8s-apply-{subsystem}`、`health-check-{subsystem}`、`logs-{subsystem}`）。(4) §14 Mock Services 新增「內部子系統 Stub」子節：當進行單一子系統開發時，如何用 WireMock 模擬其他子系統的 Public API。 |
+| **目標檔案** | `templates/LOCAL_DEPLOY.md`（§2.X 新增、§4.X 新增、§6 補充、§14 補充） |
+| **影響範圍** | `templates/LOCAL_DEPLOY.md` |
+| **決策** | |
+
+---
+
+共 37 項修改（M-01 至 M-37），跨 25+ 個檔案。
+
+**M-28～M-37 修改優先順序建議（依依賴關係）**：
+1. M-28、M-29、M-30（EDD 三件套）— 最上游，其他文件依賴 EDD 的 BC 定義
+2. M-31（ARCH 三件套）— 依賴 EDD BC Map
+3. M-32（SCHEMA 兩件）— 依賴 EDD §3.4 Schema Ownership
+4. M-33（API.md）— 依賴 ARCH §4 服務邊界
+5. M-34（BRD.md）— 業務層定義，可與 M-28 並行
+6. M-35（test-plan.md）— 依賴 EDD Domain Event + ARCH 邊界
+7. M-36（runbook.md）— 依賴 ARCH §4 + EDD §3.4
+8. M-37（LOCAL_DEPLOY.md）— 依賴 ARCH §4 + Subsystem Boundary Reference
+
+*版本：2026-05-02 v6（新增 M-28～M-37：Spring Modulith 微服務可拆解性 — 五條硬約束寫入 EDD/ARCH/SCHEMA/API/BRD/test-plan/runbook/LOCAL_DEPLOY template 層）*

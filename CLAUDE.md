@@ -63,6 +63,50 @@ PreToolUse hook 已封鎖此行為。
 
 ---
 
+## 目標系統架構原則（gendoc 生成的所有文件必須遵守）
+
+gendoc 生成的文件描述的目標系統，**從設計第一天起就只有一種架構**：可橫向擴展、零單點故障、支援 BCP。
+
+### 核心原則
+
+1. **沒有「小中大規模」選項**  
+   架構只有一種，差別只在最小啟動 server 數。不得在任何文件或 skill 中出現小規模/中規模/大規模的選項或分支邏輯。
+
+2. **成本 = 消除 SPOF 的最小 server 數**  
+   成本估算的起點是「每個元件消除 SPOF 所需的最少副本數」，例如：  
+   - API Server：≥ 2 replica  
+   - DB：Primary + Standby  
+   - Redis：Sentinel 或 Cluster（≥ 3 nodes）  
+   流量增加時以水平 scale 解決，不是換規模。
+
+3. **HA/SCALE/SPOF/BCP 是設計前提，不是選項**  
+   這四項是架構設計的前提條件，不需要使用者選擇。任何讓使用者「選擇是否需要 HA」的設計都是錯的。
+
+4. **Local 環境必須支援小 HA**  
+   本地開發環境（LOCAL_DEPLOY）也必須能跑 ≥ 2 replica API server，因為 HA 的程式寫法與單台不同（shared state、pub/sub、distributed lock、session 存放位置等），local 有 SPOF 就無法測試 HA 程式是否正確。
+
+5. **所有下游文件必須 follow EDD 的 HA 設計**  
+   EDD 定義 HA/SCALE/SPOF 設計原則後，ARCH、runbook、LOCAL_DEPLOY、test-plan、API、SCHEMA 等所有文件都必須遵循，且 review checklist 必須包含 HA/SCALE/SPOF 驗證項目。
+
+6. **微服務可拆解性（Microservice Decomposability）是架構設計前提**  
+   採用 **Spring Modulith** 架構模式：各子系統（例如 member / wallet / deposit / lobby / game）從 Day 1 即以 Bounded Context 為邊界設計，可合部署（最小 HA 成本）、也可獨立拆出 SCALE（最大擴展彈性）。  
+   五條硬約束（缺一不可）：  
+   - **無跨模組 DB 直接存取**：每個 BC 擁有且只擁有自己的 DB Schema；跨 BC 資料存取只能透過對方的 Public API 或 Domain Event。  
+   - **跨模組只透過 Public Interface 通訊**：禁止直接呼叫其他模組的內部 class / function / repository。  
+   - **跨模組通訊事件驅動（Async）**：Domain Event 在合部署時走 in-process bus，拆出後改 Kafka/RabbitMQ，程式碼不需改變。  
+   - **無跨模組 Shared Mutable State**：Redis key namespace 隔離；Session/Cache 不跨模組共享可變物件。  
+   - **模組依賴圖為 DAG（有向無環圖）**：任何循環依賴（A→B→A）均不可拆分，設計時必須消除。  
+   文獻依據：Martin Fowler "MonolithFirst"（2015）、Sam Newman《Monolith to Microservices》（O'Reilly 2019）、Spring Modulith（2022）。
+
+### Claude 執行 gendoc 時的強制行為
+
+- **不得**在任何 skill 中詢問使用者「要不要 HA」或「選擇規模大小」
+- **不得**生成單副本部署設計（MIN_POD_COUNT < 2）
+- **必須**在所有 review checklist 中包含 HA/SCALE/SPOF 驗證項目
+- **必須**確認 LOCAL_DEPLOY 支援 ≥ 2 API replica
+
+---
+
 ## 這個工具是給所有人用的
 
 gendoc 的目標是讓任何人 clone + setup 後就能用，不依賴作者本機的任何狀態。

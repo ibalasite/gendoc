@@ -141,6 +141,28 @@ Manual update: `/gendoc-upgrade` or `~/.claude/skills/gendoc/setup upgrade`
 
 ---
 
+## Design Principles
+
+gendoc enforces two non-negotiable architectural principles on all generated documents:
+
+**1. HA / SCALE / SPOF / BCP from Day One**  
+Every generated system has ≥ 2 replicas at minimum. There is no "small" or "single-instance" mode. Cost is the minimum number of servers required to eliminate all single points of failure.
+
+**2. Spring Modulith — Microservice Decomposability**  
+All subsystems (e.g. member / wallet / deposit / lobby / game) are designed as Bounded Contexts from Day 1. They can be deployed together (minimum HA cost) or independently extracted as microservices (maximum scale). Five hard constraints apply to every generated design:
+
+| # | Constraint |
+|---|---|
+| HC-1 | No cross-module DB table access — each BC owns its schema exclusively |
+| HC-2 | Cross-module calls only via Public Interface (no internal class calls) |
+| HC-3 | Async event-driven inter-module communication (in-process → message broker without code change) |
+| HC-4 | No shared mutable state across module boundaries |
+| HC-5 | Module dependency graph must be a DAG (no circular dependencies) |
+
+References: Martin Fowler "MonolithFirst" (2015) · Sam Newman *Monolith to Microservices* (O'Reilly 2019) · Spring Modulith (spring.io, 2022)
+
+---
+
 ## Template Architecture
 
 ```

@@ -931,6 +931,78 @@ Review finding 的嚴重等級涵蓋：
 | BDD-server（features/） | 每個 PRD P0 AC 有 Server Gherkin Scenario；6 種 HTTP 錯誤碼（401/403/404/409/422/429）全部覆蓋；無任何 UI 步驟 |
 | BDD-client（features/client/） | 每個 P0 Screen 有 E2E Scenario；含 happy path、error flow、auth guard；無後端邏輯驗證 |
 
+### 7.6 目標系統架構原則（生成文件強制遵守）
+
+gendoc 所生成的所有文件，其描述的目標系統必須遵守以下架構原則。這些原則是設計前提，不是選項，不得讓使用者選擇是否採用。
+
+**核心原則：Design for HA / SCALE / BCP from Day One**
+
+| 原則 | 說明 |
+|------|------|
+| **零 SPOF（Zero Single Point of Failure）** | 每個元件都必須有備援。任何單一 instance 失敗不得導致服務中斷。 |
+| **水平可擴展（Horizontal Scale）** | 流量增加以增加 replica 解決，不是升級單機規格（scale up）。架構設計必須支援無狀態或共享狀態。 |
+| **高可用（HA）** | 服務可用性設計目標 ≥ 99.9%。Multi-AZ 或 Multi-Region 部署為標準，不是可選項。 |
+| **業務持續（BCP）** | 任何元件（DB、Cache、Queue、Storage）都必須有 Failover 策略和 RTO/RPO 定義。 |
+
+**成本模型：最小啟動成本 ≠ 最小架構**
+
+- 成本估算的基準是「消除所有 SPOF 所需的最少 server 數」
+- 不得以「節省成本」為理由設計 SPOF
+- 流量成長 → 水平 scale 解決，成本線性增長，不需要重新設計架構
+
+**最小 Replica 要求**
+
+| 元件 | 最小副本數 | 說明 |
+|------|-----------|------|
+| API Server | ≥ 2 | 消除 SPOF，支援滾動更新 |
+| Worker / Scheduler | ≥ 2 | 消除 SPOF，支援冪等處理 |
+| DB（PostgreSQL）| Primary + 1 Standby | 消除 SPOF，支援 Failover |
+| Cache（Redis）| ≥ 3 nodes（Sentinel 或 Cluster）| 消除 SPOF |
+| Message Queue | ≥ 3 nodes | 消除 SPOF |
+| Object Storage | Cross-region replication | 消除 AZ 級故障 |
+
+**Local 環境（LOCAL_DEPLOY）也必須支援小 HA**
+
+HA 的程式寫法與單台不同（session 存放、distributed lock、pub/sub、WebSocket 狀態），若 local 只跑單 pod，開發者無法測試 HA 程式邏輯是否正確。LOCAL_DEPLOY 必須支援 API Server ≥ 2 replica。
+
+**對文件生成的影響**
+
+- EDD：必須定義各元件 minimum replica 數、分散式設計模式、零 SPOF 驗證
+- ARCH：架構圖必須呈現 HA 拓撲，必須有 SPOF 識別與消除說明
+- runbook：MIN_POD_COUNT ≥ 2，不得設計為可配置為 1
+- LOCAL_DEPLOY：API server 必須支援 ≥ 2 replica 本地測試
+- 所有 review checklist：必須包含 HA / SCALE / SPOF 驗證項目
+
+**核心原則：Spring Modulith — 微服務可拆解性（Microservice Decomposability）**
+
+| 維度 | 內容 |
+|------|------|
+| 架構模式 | Spring Modulith（Modular Monolith with Microservice-Ready Boundaries） |
+| 設計目標 | 各子系統（member / wallet / deposit / lobby / game 等）可合部署（最小 HA 成本），也可獨立拆出 Scale（最大擴展彈性） |
+| 適用時機 | 所有多子系統設計；客戶端類型不限（game / web / api-only） |
+| 文獻依據 | Martin Fowler "MonolithFirst"（2015）；Sam Newman《Monolith to Microservices》O'Reilly 2019；Spring Modulith（spring.io，2022） |
+
+**五條硬約束（Five Hard Constraints）— 缺一不可**
+
+| # | 約束 | 違反後果 |
+|---|------|---------|
+| HC-1 | 無跨模組 DB 直接存取：每個 Bounded Context 擁有且只擁有自己的 DB Schema，跨 BC 存取只能透過 Public API 或 Domain Event | 無法按 Schema 邊界切割，DB 成為提取障礙 |
+| HC-2 | 跨模組只透過 Public Interface：禁止直接呼叫其他模組的 internal class / function / repository | 提取時需重寫所有呼叫路徑 |
+| HC-3 | 跨模組通訊事件驅動（Async）：Domain Event 合部署時走 in-process bus，拆出後切 Kafka/RabbitMQ，程式碼不變 | 強耦合；拆出後需改程式碼 |
+| HC-4 | 無跨模組 Shared Mutable State：Redis key namespace 隔離；無跨 BC 共享可變物件 | 跨服務 Cache 一致性問題；拆出後需分別管理 State |
+| HC-5 | 模組依賴圖為 DAG：任何循環依賴（A→B→A）設計時必須消除 | 循環依賴無法拆分為獨立服務 |
+
+**對文件生成的影響**
+
+- EDD：§3.4 Bounded Context 必須含 Schema 擁有權清單；§4 模組間依賴必須驗證為 DAG；§4.6 Domain Event 必須含版本化 Schema
+- ARCH：§4 服務邊界表必須列出每個 BC 擁有的具體 DB 表名；§15 Checklist 必須包含 Decomposability MD-01～MD-05
+- SCHEMA：每份 SCHEMA 文件必須宣告 Owning Bounded Context；禁止跨 BC 的 DB-level FOREIGN KEY
+- API：每份 API 文件必須宣告 Owning Bounded Context；端點不得依賴其他 BC 的 DB 表
+- test-plan：必須含 Module Decomposability Tests（合約測試、Schema 隔離測試、DAG 驗證）
+- runbook：必須含 Subsystem Boundary Reference 和 Subsystem Extraction Procedure
+- LOCAL_DEPLOY：必須支援 Single Subsystem Startup（獨立子系統啟動驗證）
+- 所有 review checklist：必須包含 HC-1～HC-5 驗證項目
+
 ---
 
 ## 8. 模板系統
