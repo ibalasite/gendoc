@@ -13,6 +13,7 @@ upstream-docs:
   recommended:
     - BDD.md
     - test-plan.md
+    - SCHEMA.md  # DB migration strategy (used in ci-deploy target)
 ---
 
 # CI/CD Pipeline Design Document — {{PROJECT_NAME}}
@@ -330,9 +331,12 @@ JWT_SECRET=ci-mock-jwt-secret-not-real-64chars
 REGISTRY_TOKEN=ci-mock-token
 EOF
 
-# 確認 mock-secrets 已加入 .gitignore（真實 secrets，非 mock 格式）
+# ci/mock-secrets/env 是 mock 假值，可以進版控供其他開發者參考
+# 若需儲存真實 secret，命名為 ci/mock-secrets/env.real（已被 .gitignore 保護）
 echo "ci/mock-secrets/*.real" >> .gitignore
 ```
+
+> **說明**：`ci/mock-secrets/env` 存放本地 dry-run 用的假值（mock 格式），可以進版控；真實憑證請使用 `.real` 後綴（如 `ci/mock-secrets/env.real`）並已加入 `.gitignore` 保護，不會進入 git 歷史。
 
 ---
 
@@ -458,6 +462,12 @@ make k8s-apply && make ci-test-integration
 
 # 4. 選配：模擬完整 Pipeline
 make ci-dry-run
+
+# 5. 確認 Jenkinsfile 無裸 placeholder
+grep -E '\{\{[A-Z_]+\}\}' Jenkinsfile && echo "⚠️ 有 placeholder 未替換" || echo "✅ 無裸 placeholder"
+
+# 6. 確認 §10 所有 secret 引用無明文
+grep -E 'password\s*=\s*[^${\[]' Jenkinsfile Makefile && echo "⚠️ 發現潛在明文 credential" || echo "✅ 無明文 credential"
 ```
 
 ---
@@ -500,12 +510,14 @@ controller:
       memory: "2Gi"
   javaOpts: "-Xmx1500m"
   installPlugins:
-    - kubernetes:latest
-    - git:latest
-    - workflow-aggregator:latest
-    - github:latest
-    - blueocean:latest
-    - configuration-as-code:latest
+    - kubernetes:4267.v45f5cba_2047d
+    - git:5.2.2
+    - workflow-aggregator:600.vb_57cdd26fdd7
+    - github:1.40.0
+    - blueocean:1.27.14
+    - configuration-as-code:1836.vccda_4a_122a_a_e
+    - kaniko:1.1.0
+    # 所有 plugin 均應鎖定版本；定期執行 `jenkins-plugin-cli --list-plugins` 確認版本更新
 
 agent:
   enabled: true
@@ -711,8 +723,10 @@ resources:
 Gitea → Jenkins Webhook URL（ClusterIP 直連，不需 Ingress）：
 
 ```
-http://jenkins.ci.svc.cluster.local:8080/gitea-webhook/post
+http://jenkins.{{K8S_NAMESPACE}}-jenkins.svc.cluster.local:8080/gitea-webhook/post
 ```
+
+> 注意：URL 中的 namespace 部分為 `{{K8S_NAMESPACE}}-jenkins`（與 §6 Jenkins 安裝 namespace 相同），不得使用硬編碼的 `ci`。
 
 在 Gitea 倉庫 Settings → Webhooks → Add Webhook → Gitea，填入上述 URL，Secret 使用 Jenkins 的 webhook token。
 
@@ -739,21 +753,21 @@ spec:
 
 ```makefile
 # ── Dev-Tools 管理 ────────────────────────────────
-dev-tools-install:  ## 安裝 Gitea + Jenkins + ArgoCD 到 dev-tools / ci / argocd namespace
+dev-tools-install:  ## 安裝 Gitea + Jenkins + ArgoCD 到 dev-tools / $(K8S_NAMESPACE)-jenkins / argocd namespace
 	kubectl create namespace dev-tools --dry-run=client -o yaml | kubectl apply -f -
-	kubectl create namespace ci --dry-run=client -o yaml | kubectl apply -f -
+	kubectl create namespace $(K8S_NAMESPACE)-jenkins --dry-run=client -o yaml | kubectl apply -f -
 	helm upgrade --install gitea gitea-charts/gitea -n dev-tools -f k8s/dev-tools/gitea-values.yaml --wait
-	helm upgrade --install jenkins jenkins/jenkins -n ci -f k8s/ci/jenkins-values.yaml --wait
+	helm upgrade --install jenkins jenkins/jenkins -n $(K8S_NAMESPACE)-jenkins -f ci/jenkins-values.yaml --wait
 	kubectl apply -n argocd -f k8s/argocd/app-local.yaml
 
 dev-tools-status:   ## 檢查 dev-tools 所有元件狀態
 	kubectl get pods -n dev-tools
-	kubectl get pods -n ci
+	kubectl get pods -n $(K8S_NAMESPACE)-jenkins
 	kubectl get pods -n argocd
 
 dev-tools-forward:  ## Port-forward dev-tools（背景執行）
 	kubectl port-forward -n dev-tools svc/gitea 3000:3000 &
-	kubectl port-forward -n ci svc/jenkins 8080:8080 &
+	kubectl port-forward -n $(K8S_NAMESPACE)-jenkins svc/jenkins 8080:8080 &
 	kubectl port-forward -n argocd svc/argocd-server 8443:443 &
 	@echo "Gitea:   http://localhost:3000"
 	@echo "Jenkins: http://localhost:8080"
@@ -761,7 +775,7 @@ dev-tools-forward:  ## Port-forward dev-tools（背景執行）
 
 dev-tools-clean:    ## 卸載 dev-tools（保留資料 PVC）
 	helm uninstall gitea -n dev-tools || true
-	helm uninstall jenkins -n ci || true
+	helm uninstall jenkins -n $(K8S_NAMESPACE)-jenkins || true
 
 ci-setup-credentials:  ## 設定 CI 所需的 K8s Secrets（見 §10 Secret 表格）
 	@echo "請執行 LOCAL_DEPLOY.md §21.4 中的 bootstrap-secrets 腳本"
@@ -784,7 +798,7 @@ ci-setup-credentials:  ## 設定 CI 所需的 K8s Secrets（見 §10 Secret 表�
 
 ## §11 Observability
 
-### 9.1 Pipeline Metrics（Prometheus）
+### 11.1 Pipeline Metrics（Prometheus）
 
 ```yaml
 # Jenkins Prometheus plugin 自動暴露以下 metrics
@@ -794,7 +808,7 @@ jenkins_builds_success_build_total
 jenkins_jobs_building_duration_milliseconds_summary
 ```
 
-### 9.2 Build Notification
+### 11.2 Build Notification
 
 | 事件 | 通知方式 | 通知目標 |
 |------|---------|---------|

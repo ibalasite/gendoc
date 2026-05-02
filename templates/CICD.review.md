@@ -15,17 +15,35 @@ quality-bar:
   - No hardcoded secrets anywhere in document
   - §8 Gitea uses ClusterIP service type (not NodePort/LoadBalancer)
   - §9 has all 5 dev-tools make targets (dev-tools-install / dev-tools-status / dev-tools-forward / dev-tools-clean / ci-setup-credentials)
+  - §8.4 Webhook URL uses {{K8S_NAMESPACE}}-jenkins namespace (not hardcoded 'ci')
 upstream-alignment:
   - EDD.md §3.4 CI_TOOL / CD_TOOL / K8s cluster / registry matches §6 Jenkins + §7 ArgoCD
   - LOCAL_DEPLOY.md §6 Make targets matches §4 Shared Make Targets
-  - LOCAL_DEPLOY.md §3.5 Secret Bootstrap matches §8 Secret location table
+  - LOCAL_DEPLOY.md §3.5 Secret Bootstrap matches §10 Secret location table
+  - ARCH.md §3 Tech Stack (build tool) matches §1 Agent Pod image
+  - SCHEMA.md DB migration tooling matches §4 ci-deploy target migration command (if SCHEMA.md exists)
 ---
 
 # CICD.review.md — CI/CD Pipeline 文件審查標準
 
 ---
 
-## Layer 1：Pipeline 結構完整性（共 4 項）
+## Layer 0：品質門（共 1 項）
+
+### [CRITICAL] R-00：CICD.md 含裸 Placeholder
+
+**Check**：執行以下指令，確認輸出為空：
+```bash
+grep -E '\{\{[A-Z_]+\}\}' docs/CICD.md
+```
+
+**Risk**：任何殘留 `{{PLACEHOLDER}}` 代表文件生成不完整——操作者無法直接執行文件中的指令，且可能將 placeholder 誤帶入 Jenkinsfile 或 K8s YAML 造成部署失敗。
+
+**Fix**：對每個找到的 `{{PLACEHOLDER}}`，返回對應上游文件補填具體值（來源優先順序：EDD.md §3.4 → ARCH.md §3 → LOCAL_DEPLOY.md）。
+
+---
+
+## Layer 1：Pipeline 結構完整性（共 5 項）
 
 ### [CRITICAL] R-01：§2 Jenkinsfile 缺少必要 Stage
 
@@ -84,6 +102,21 @@ container('kaniko') {
 
 ---
 
+### [HIGH] R-19：§6 Jenkins 安裝 namespace 與 §9 dev-tools Makefile namespace 不一致
+
+**Check**：確認以下五處 namespace 均使用 `{{K8S_NAMESPACE}}-jenkins` 格式（非硬編碼 `ci`）：
+1. §6.1 Helm 安裝指令的 `-n` 參數
+2. §6.3 RBAC YAML 的 `metadata.namespace` 欄位
+3. §6.4 Registry credentials 建立指令的 `-n` 參數
+4. §9 dev-tools-install target 中 Jenkins Helm 安裝的 `-n` 參數
+5. §8.4 Webhook URL 中 ClusterIP 位址的 namespace 片段（`jenkins.{{K8S_NAMESPACE}}-jenkins.svc.cluster.local`）
+
+**Risk**：namespace 不一致導致 Kubernetes Plugin 在執行 CI pipeline 時找不到 agent pod，pipeline 100% 失敗，且錯誤訊息不直觀（`no agent pod available in namespace ci`），診斷耗時。此外，§8.4 Webhook URL 若使用硬編碼 `ci` namespace，Gitea 推送時 webhook 請求會發往不存在的 service，導致所有 push-triggered pipeline 靜默失敗。
+
+**Fix**：統一將五處 namespace 改為 `$(K8S_NAMESPACE)-jenkins`（Makefile）或 `{{K8S_NAMESPACE}}-jenkins`（YAML/URL），確保所有引用在 placeholder 替換後指向相同的 namespace。§8.4 Webhook URL 正確格式為 `http://jenkins.{{K8S_NAMESPACE}}-jenkins.svc.cluster.local:8080/gitea-webhook/post`。
+
+---
+
 ## Layer 2：Secret 安全性（共 4 項）
 
 ### [CRITICAL] R-05：CICD.md 中存在 Hardcoded Secret 值
@@ -96,9 +129,9 @@ container('kaniko') {
 
 ---
 
-### [HIGH] R-06：§8 Secret Location Table 與 LOCAL_DEPLOY.md §3.5 不一致
+### [HIGH] R-06：§10 Secret Location Table 與 LOCAL_DEPLOY.md §3.5 不一致
 
-**Check**：比對 §8 Secret Location 表格與 LOCAL_DEPLOY.md §3.5 的三層策略（Ephemeral / OS Keychain / mittwald）。確認每個 Secret 的儲存類型標注正確。
+**Check**：比對 §10 Secret Location 表格與 LOCAL_DEPLOY.md §3.5 的三層策略（Ephemeral / OS Keychain / mittwald）。確認每個 Secret 的儲存類型標注正確。
 
 **Risk**：Secret 類型誤標導致 CI 操作員使用錯誤的 credential 管理方式，可能將 fixed credentials 寫入 ephemeral storage → 環境重啟後遺失。
 
@@ -117,7 +150,9 @@ container('kaniko') {
 
 **Risk**：過寬的 RBAC → CI agent pod 若被 compromised，攻擊者可存取整個 cluster 的 secret。
 
-**Fix**：將 ClusterRole 改為 namespace-scoped Role（`kind: Role`），限制在 `ci` namespace 內。
+**Fix（依環境）**：
+- **Local / Dev 環境**：允許使用 ClusterRole=cluster-admin，但 §6.3 備注必須明確標注「LOCAL ONLY — Production 禁止 cluster-admin」。
+- **Staging / Production 環境**：必須改為 namespace-scoped Role（`kind: Role`），限定在 `{{K8S_NAMESPACE}}-jenkins` namespace 內，僅授予 `pods`、`pods/exec`、`pods/log` 的 get/list/watch/create/update/patch/delete 權限。確認 §6.3 中有兩份獨立的 YAML 分別對應兩個環境。
 
 ---
 
@@ -128,6 +163,12 @@ container('kaniko') {
 **Risk**：dry-run 缺少 mock secret → 本地測試通過但 CI 失敗（因 secret binding 異常）。
 
 **Fix**：從 §2 Jenkinsfile 逐行掃描 `credentials('...')` 呼叫，每個 credential-id 都在 §3 加入對應的 `--env CREDENTIAL_ID=mock-value`。
+
+```bash
+# 列出 Jenkinsfile 所有 credentials() 呼叫
+grep -E "credentials\(|env\.SECRET" Jenkinsfile | grep -oP "'[^']+'" | sort -u
+# 確認每個 credential-id 都在 §3 mock-secrets/env 中有對應 mock 值
+```
 
 ---
 
@@ -150,6 +191,16 @@ container('kaniko') {
 **Risk**：ArgoCD 同步到錯誤 namespace → 部署成功但服務不在預期位置，smoke test 找不到服務。
 
 **Fix**：統一從 EDD.md §3.4 K8S_NAMESPACE 取值，填入 §1 namespace 欄和 §7 `spec.destination.namespace`。
+
+---
+
+### [MEDIUM] R-18：§4 ci-deploy target 中的 DB migration 指令與 SCHEMA.md 不符
+
+**Check**：若 SCHEMA.md 存在，確認 §4 Makefile 中 `ci-deploy` target 使用的 DB migration 指令（Flyway / Liquibase / alembic）與 SCHEMA.md 定義的 migration tooling 一致。
+
+**Risk**：migration 指令不一致 → CD 部署時執行錯誤的 migration 工具，輕則失敗，重則資料損壞。
+
+**Fix**：讀取 SCHEMA.md，確認 migration tool（Flyway / Liquibase / alembic / 其他），更新 §4 ci-deploy target 的 migration 指令與 config flags（如 `flyway migrate` vs `liquibase update`）。若 SCHEMA.md 不存在，此項標注 N/A。
 
 ---
 
@@ -179,13 +230,13 @@ container('kaniko') {
 
 ---
 
-### [LOW] R-13：§9 Observability metrics endpoint 與 ARCH.md 不符
+### [LOW] R-13：§11.1 Observability metrics endpoint 與 ARCH.md 不符
 
-**Check**：§9 Prometheus metrics 清單中的 endpoint path（如 `/actuator/prometheus`）是否與 ARCH.md §7（Observability）一致。
+**Check**：§11.1 Prometheus metrics 清單中的 endpoint path（如 `/actuator/prometheus`）是否與 ARCH.md §7（Observability）一致。確認 §11 metrics endpoint path 與 ARCH.md 定義一致。
 
 **Risk**：endpoint path 錯誤 → Prometheus 抓不到 metrics，alert rules 靜默失效。
 
-**Fix**：讀取 ARCH.md §7 或 LOCAL_DEPLOY.md §18（若有 Monitoring 章節），更新 §9 metrics endpoint path。
+**Fix**：讀取 ARCH.md §7 或 LOCAL_DEPLOY.md §18（若有 Monitoring 章節），更新 §11.1 metrics endpoint path。
 
 ---
 
@@ -228,7 +279,17 @@ service:
 
 **Risk**：缺少任何 target → 開發者無法透過標準化命令設定本地 CI 平台，導致每個人各自手動操作，環境一致性無法保證；新進工程師第一天無法自助完成 dev-tools 安裝。
 
-**Fix**：從 §9 骨架補全缺少的 target，並確認 target 名稱與文件 §8 的說明一致。
+**Fix**：從 §9 骨架補全缺少的 target，並確認 target 名稱與文件 §8 的說明一致。同時確認：dev-tools-install 中 Jenkins 的 `-n` 參數使用 `$(K8S_NAMESPACE)-jenkins`（非硬編碼 `ci`）；Gitea 的 `-n` 參數使用 `dev-tools`。
+
+---
+
+### [MEDIUM] R-17：§11.2 Build Notification channel 含裸 Placeholder
+
+**Check**：確認 §11.2 Build Notification 表格的三個 channel 欄位（SLACK_CI_CHANNEL / ONCALL_SLACK_CHANNEL / DEPLOY_SLACK_CHANNEL）均已填入實際 channel 名稱，無殘留 `{{PLACEHOLDER}}`。
+
+**Risk**：channel 名稱為空 → Slack 通知靜默失效；CI build 失敗無人收到通知，MTTR 上升。
+
+**Fix**：讀取 EDD.md §3.4 Slack 相關欄位，填入對應 channel 名稱（格式：`#channel-name`）。若 EDD.md 未指定，使用 `#ci-alerts-{project-slug}` / `#oncall-{project-slug}` / `#deploy-{project-slug}` 並加備注「待確認 channel 名稱」。
 
 ---
 
@@ -236,8 +297,8 @@ service:
 
 | 級別 | 數量要求 |
 |------|---------|
-| CRITICAL | 0（所有 R-01/R-02/R-05/R-09 必須全數修復） |
-| HIGH | 0（首次生成）；後續迭代允許 ≤ 1（需附風險說明）；R-14/R-15 需全數修復 |
+| CRITICAL | 0（所有 R-00/R-01/R-02/R-05/R-09 必須全數修復） |
+| HIGH | 0（首次生成）；後續迭代允許 ≤ 1（需附風險說明）；R-14/R-15/R-19 需全數修復 |
 | MEDIUM | ≤ 2 |
 | LOW | 不限 |
 

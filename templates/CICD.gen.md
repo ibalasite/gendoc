@@ -17,13 +17,14 @@ upstream-docs:
     - test-plan.md    # Test scope (determines unit/integration stage breakdown)
 output-paths:
   - docs/CICD.md
+  - k8s/argocd/app-local.yaml（§8.5，LOCAL 環境專用；若目標專案不含 LOCAL_DEPLOY 環境則可省略）
 quality-bar:
   - All {{PLACEHOLDER}} values replaced — zero bare placeholders in output
   - §2 Jenkinsfile compiles (no Groovy syntax errors in pipeline block)
   - §3 jenkinsfile-runner dry-run command matches §2 Jenkinsfile path exactly
   - §4 Make targets match LOCAL_DEPLOY.md §6 exactly (ci-build / ci-test-unit / ci-test-integration / ci-deploy / ci-smoke / ci-rollback)
   - §5 required-status-checks list matches §4 stage names exactly
-  - §6 Jenkins on k3s namespace matches §1 Agent Pod namespace
+  - §6 Jenkins namespace 五處一致：§1 Agent Pod namespace 表格、§6.3 RBAC YAML metadata.namespace、§6.4 kubectl create secret -n 參數、§9 dev-tools-install Jenkins Helm 安裝 -n 參數、§8.4 Webhook URL namespace 片段，均為 {{K8S_NAMESPACE}}-jenkins（無裸 {{ 符號）
   - §8 Gitea Helm chart uses ClusterIP service type (not NodePort/LoadBalancer)
   - §8 adminPassword uses {{GITEA_ADMIN_PASSWORD}} placeholder (not hardcoded plaintext)
   - §9 Makefile dev-tools targets include all 5 required targets (dev-tools-install / dev-tools-status / dev-tools-forward / dev-tools-clean / ci-setup-credentials)
@@ -44,6 +45,22 @@ quality-bar:
 
 ---
 
+## §0 CI_TOOL 偵測規則
+
+讀取 EDD.md §3.4 CI_TOOL 欄位，依以下規則分流：
+
+| CI_TOOL 值 | 對應生成分支 |
+|------------|------------|
+| Jenkins（預設）| 使用骨架完整 Jenkinsfile + §3 jenkinsfile-runner dry-run |
+| GitHub Actions | §2 改為 `.github/workflows/ci.yml` 骨架；§3 改為 `act` local runner |
+| GitLab CI | §2 改為 `.gitlab-ci.yml` 骨架；§3 改為 `gitlab-runner exec` |
+
+**若 EDD.md 未指定 CI_TOOL**：預設填 Jenkins，在 Document Control 備注「**預設值 — 請依實際情況更新**」，並繼續使用 Jenkins 骨架。
+
+本 gen.md 骨架（Step 2~11）預設 CI_TOOL=Jenkins。若偵測到其他 CI_TOOL，Step 2/3/4/5/7 的指令和骨架需對應替換；其餘步驟（Step 1、Step 6、Step 8~11）保持不變。
+
+---
+
 ## 必讀上游鏈
 
 生成前必須讀取以下文件（不得跳過）：
@@ -55,6 +72,20 @@ quality-bar:
 | LOCAL_DEPLOY.md | §3.5 Secret Bootstrap、§6 Make Targets、§21 CI/CD Local Simulation | §3 Dry-Run、§4 Shared Make Targets |
 | SCHEMA.md（若存在）| DB migration tooling（Flyway / Liquibase / alembic）| §4 ci-deploy target |
 | test-plan.md（若存在）| Unit / Integration / E2E 測試範圍切分 | §2 Jenkinsfile stages |
+
+---
+
+## 上游衝突偵測規則
+
+生成前掃描以下衝突，發現時在文件頂部加入 ⚠️ 警告：
+
+| 衝突類型 | 偵測方式 | 處理規則 |
+|---------|---------|---------|
+| §4 Make target 名稱與 LOCAL_DEPLOY.md §6 不符 | 比對兩處 target 清單 | 以 LOCAL_DEPLOY.md §6 為準；在 §4 備注「需同步更新 LOCAL_DEPLOY.md §6」 |
+| §5 required-status-checks 與 §4 stage 名稱不符 | 比對兩處清單 | 以 §4 stage 名稱為準，更新 §5 YAML |
+| Document Control CI_TOOL 與 EDD.md §3.4 不符 | 讀取 EDD.md §3.4 比對 | 以 EDD.md 為準；若 EDD 未指定，使用 Jenkins 並加備注 |
+| §1 namespace 與 §6 namespace 不符 | 比對 §1 Agent Pod 表格與 §6.3 RBAC YAML | 統一使用 `{{K8S_NAMESPACE}}-jenkins` |
+| §8.4 Webhook URL namespace 與 §6 Jenkins namespace 不符 | 比對 §8.4 Webhook URL 中的 namespace 片段（`jenkins.<namespace>.svc.cluster.local`）與 §6 Jenkins 安裝 namespace | 統一使用 `{{K8S_NAMESPACE}}-jenkins`；禁止使用硬編碼的 `ci` |
 
 ---
 
@@ -82,7 +113,7 @@ quality-bar:
 從 EDD.md / ARCH.md 提取系統名稱填入 Mermaid 圖的 node 標籤（`{{PROJECT_SLUG}}-ci` 等）。
 
 **Agent Pod 設計表格**：
-- namespace：`ci`（固定）
+- namespace：`{{K8S_NAMESPACE}}-jenkins`（從 EDD.md §3.4 K8S_NAMESPACE 填入後加 `-jenkins`）
 - image：根據 ARCH.md §3 的 Build Tool 填入（Maven → `maven:3.9-eclipse-temurin-21`；Gradle + Java → `gradle:8-jdk21`；Node → `node:22-alpine`；Python → `python:3.12-slim`）
 - CPU request / limit：`500m / 2`（固定）
 - Memory request / limit：`1Gi / 4Gi`（固定）
@@ -100,7 +131,6 @@ quality-bar:
 | `{{PROJECT_SLUG}}` | EDD.md 專案名稱（kebab-case） |
 | `{{K8S_NAMESPACE}}` | EDD.md / LOCAL_DEPLOY.md §2 namespace 定義 |
 | `{{REGISTRY}}` | Document Control REGISTRY 欄 |
-| `{{K8S_CLUSTER_URL}}` | ARCH.md §5 / LOCAL_DEPLOY.md cluster config |
 | `agent.yaml image` | ARCH.md §3 Build Tool → 對應 image（見 Step 2） |
 | `make ci-*` targets | LOCAL_DEPLOY.md §6 確認 target 名稱完全一致 |
 
@@ -127,7 +157,7 @@ quality-bar:
 ```bash
 jenkinsfile-runner -p /usr/share/jenkins/ref/plugins \
   -w /tmp/jfr-workspace \
-  -f Jenkinsfile   # ← 必須與 §2 中 agent 使用的路徑相同
+  --file /workspace/Jenkinsfile   # ← 必須與 §2 中 agent 使用的路徑相同
 ```
 
 **Mock secrets 清單** — 讀取 EDD.md §3.4 所有 {{PLACEHOLDER}} secret 欄位，列出 `--env` 參數：
@@ -159,30 +189,31 @@ ci-deploy:
 ```yaml
 required-status-checks:
   contexts:
-    - Build
-    - Unit Test
-    - Integration Test
-    - Image Build
+    - jenkins/build
+    - jenkins/unit-test
+    - jenkins/integration-test
+    - jenkins/image-build
 ```
+
+**注意**：`contexts` 中的名稱格式必須與 Jenkinsfile 中 `githubNotify context:` 設定的值一致；若使用 Jenkins GitHub Plugin 預設值，格式通常為 `jenkins/{stage-name}`（如 `jenkins/build`）——請參考 CICD.md §5.2 骨架的格式為準。
 
 **branch-protection.yml** 中的 `repository`、`branch` 欄位：
 - 從 EDD.md / ARCH.md 的 git repo / branch strategy 填入
 
 **開發者 Pre-PR Checklist**：
-- 保留骨架的 8 項檢查，不得刪減
-- 若 test-plan.md 存在且有 BDD feature files，加入第 9 項：「BDD feature files 通過（`make ci-test-bdd`）」
+- 保留 §5.3 骨架所有指令步驟，不得刪減
+- 若 test-plan.md 存在且有 BDD feature files，加入第 7 項：`make ci-test-bdd`
 
 ---
 
 ### Step 7：§6 Jenkins on k3s
 
 **Helm values（jenkins-values.yaml）**：
-- `jenkins.master.image.tag`：固定 `lts-jdk21`
-- `jenkins.master.resources`：CPU `500m / 2`、Memory `2Gi / 4Gi`
-- `plugins` 清單：必須包含 `kubernetes:4267.v45f5cba_2047d`、`workflow-aggregator:600.vb_57cdd26fdd7`、`git:5.2.2`、`kaniko:1.1.0`
+- jenkins-values.yaml 依 CICD.md §6.2 骨架生成，controller 區塊的 resources 規格：CPU `500m / 2`、Memory `2Gi / 4Gi`
+- `plugins` 清單：必須包含 `kubernetes:4267.v45f5cba_2047d`、`workflow-aggregator:600.vb_57cdd26fdd7`、`git:5.2.2`、`kaniko:1.1.0`；骨架中所有 plugin 均需使用具體版本號（非 :latest）；版本號從 CICD.md §6.2 骨架清單取得，不得自行添加或修改版本號
 
 **RBAC ServiceAccount**：
-- namespace：`ci`（與 §1 Agent Pod namespace 一致）
+- namespace：`{{K8S_NAMESPACE}}-jenkins`（與 §1 Agent Pod namespace 一致）
 - `verbs: [get, list, watch, create, update, patch, delete]` for `pods`, `pods/exec`, `pods/log`
 
 **Registry credentials secret**：
@@ -191,9 +222,9 @@ kubectl create secret docker-registry registry-credentials \
   --docker-server={{REGISTRY}} \
   --docker-username={{REGISTRY_USER}} \
   --docker-password={{REGISTRY_TOKEN}} \
-  -n ci
+  -n {{K8S_NAMESPACE}}-jenkins
 ```
-其中 `{{REGISTRY}}` 從 Document Control REGISTRY 欄取得。
+其中 `{{REGISTRY}}` 從 Document Control REGISTRY 欄取得；`{{K8S_NAMESPACE}}` 從 Document Control K8S_NAMESPACE 欄位取值。
 
 ---
 
@@ -229,6 +260,11 @@ kubectl create secret docker-registry registry-credentials \
 - `spec.source.repoURL`：填入 `http://gitea.dev-tools.svc.cluster.local:3000/dev/{{PROJECT_SLUG}}.git`（替換 PROJECT_SLUG）
 - `spec.destination.namespace`：填入 `{{K8S_NAMESPACE}}-local`（替換 K8S_NAMESPACE）
 
+**§8.4 Webhook URL namespace 替換規則**：
+- Webhook URL 格式為 `http://jenkins.{{K8S_NAMESPACE}}-jenkins.svc.cluster.local:8080/gitea-webhook/post`
+- 替換 `{{K8S_NAMESPACE}}` 為實際專案 namespace 值（來自 EDD.md §3.4）
+- 禁止輸出硬編碼的 `jenkins.ci.svc.cluster.local`；namespace 片段必須與 §6 Jenkins 安裝 namespace 一致
+
 **Port 分離原則驗證**：確認 App Ingress port 80 與 dev-tools ports（3000/8080/8443）無衝突。
 
 ---
@@ -260,6 +296,12 @@ kubectl create secret docker-registry registry-credentials \
 - 讀取 ARCH.md §7（若有 Observability 章節）確認 metrics endpoint 路徑
 - 若 ARCH.md 未定義，使用骨架預設值（`/actuator/prometheus` for Spring Boot）
 
+**§11.2 Build Notification 表格填充規則**：
+- `{{SLACK_CI_CHANNEL}}`：從 EDD.md §3.4 Slack 欄位讀取；若無，填 `#ci-alerts-{{PROJECT_SLUG}}`（加備注「需確認 Slack channel 名稱」）
+- `{{ONCALL_SLACK_CHANNEL}}`：從 EDD.md §3.4 Oncall 欄位讀取；若無，填 `#oncall-{{PROJECT_SLUG}}`
+- `{{DEPLOY_SLACK_CHANNEL}}`：從 EDD.md §3.4 Deploy 通知欄位讀取；若無，填 `#deploy-{{PROJECT_SLUG}}`
+- channel 名稱必須從 EDD.md §3.4 Slack 相關欄位讀取後填入（如 `#ci-alerts-myapp`）；若 EDD.md 未指定，填入 `#ci-alerts-{{PROJECT_SLUG}}` 格式的衍生 placeholder 並加備注「待確認」。禁止填入與專案無關的通用名稱（如 `#ci`、`#alerts`）。
+
 ---
 
 ## Quality Gate（生成後自我檢查）
@@ -272,12 +314,13 @@ kubectl create secret docker-registry registry-credentials \
 | §2 Jenkinsfile 結構完整 | 人工確認有 7 stages + post block | 無缺漏 |
 | §4 Make targets 對齊 | 比對 LOCAL_DEPLOY.md §6 | 7 個 targets 完全匹配 |
 | §5 PR Gate stages 一致 | 比對 §4 stage 名稱 | 完全一致 |
-| §6 RBAC namespace 一致 | 比對 §1 Agent Pod namespace | 均為 `ci` |
+| §6 namespace 五處一致 | 比對 §1/§6.3/§6.4/§9/§8.4 | §1 Agent Pod 表格 namespace === §6.3 RBAC YAML metadata.namespace === §6.4 kubectl create secret -n 參數 === §9 dev-tools-install Jenkins Helm -n 參數 === §8.4 Webhook URL namespace 片段（五處均為 {{K8S_NAMESPACE}}-jenkins，且均無裸 {{ 符號）|
 | §3 dry-run path 正確 | 比對 §2 Jenkinsfile path | 路徑一致 |
 | Secret 無明文 | 確認無 hardcoded password 值 | 全用 `${SECRET}` 引用 |
 | §8 Gitea service type | 確認 gitea-values.yaml `service.type: ClusterIP` | 非 NodePort / LoadBalancer |
 | §8 adminPassword 無明文 | 確認 `{{GITEA_ADMIN_PASSWORD}}` placeholder 存在 | 非任何靜態密碼字串 |
 | §9 dev-tools targets 完整 | 確認 5 個必要 target 均存在 | dev-tools-install / dev-tools-status / dev-tools-forward / dev-tools-clean / ci-setup-credentials |
+| §8.4 Webhook URL namespace 正確 | `grep 'jenkins\..*-jenkins\.svc\.cluster\.local' docs/CICD.md` | URL 含 `{{K8S_NAMESPACE}}-jenkins`，不含硬編碼 `ci` |
 
 **若任一項不通過 → 立即修正，不得產出含錯誤的文件。**
 
