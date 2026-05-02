@@ -92,6 +92,7 @@ graph TB
     Dev -->|Ingress / port-forward| Ingress
     Ingress -->|/| Web
     Ingress -->|/api| API
+    Ingress -->|"/admin (has_admin_backend=true)"| Admin["admin-service\nDeployment\n:{{ADMIN_PORT}}"]
     Dev -->|kubectl port-forward| DB
     Dev -->|kubectl port-forward| Storage
     Dev -->|kubectl port-forward| Mail
@@ -997,6 +998,8 @@ make k8s-restart-all
 | Rancher Desktop K8s 未啟動 | `kubectl: connection refused` | k3s 服務未運行 | 開啟 Rancher Desktop GUI，進入 **Kubernetes** 頁面確認已啟用並等待 Ready |
 | nerdctl build 失敗（network）| Build 時 `npm install` 連線失敗 | containerd 沙箱 DNS 問題 | 嘗試 `nerdctl build --network=host ...`；或重啟 Rancher Desktop |
 | 舊 ConfigMap 未更新 | 修改 configmap 後服務行為未變 | Pod 未重啟，仍用舊版設定 | `make k8s-restart-all` |
+| Admin 靜態資源 404（has_admin_backend=true）| `curl http://{{PROJECT_SLUG}}.local/admin/` 回 404 或靜態資源（.js/.css）回 404 | Admin 前端未設定 `base: '/admin/'`，打包後的 asset path 以 `/` 為根，導致 Ingress 路由錯誤 | 確認 `vite.config.js` 含 `base: '/admin/'`（Vite）或 `PUBLIC_URL=/admin`（CRA）；重新建置 image 並重新部署：`make image-build-admin && make k8s-deploy-admin` |
+| Admin 頁面 Refresh 後 404（has_admin_backend=true）| 直接訪問 admin 子頁面（如 `/admin/users`）回 404 | admin-service nginx 未設定 SPA fallback，重新整理時 nginx 找不到該靜態路徑 | 確認 admin container 的 `nginx.conf` 含 `try_files $uri $uri/ /admin/index.html;`（SPA deep-link fallback）；參考 §5 nginx.conf 範例 |
 
 ---
 

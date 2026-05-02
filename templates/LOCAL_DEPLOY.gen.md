@@ -197,6 +197,16 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
   - Cocos Creator → multi-stage（node + cocos CLI build → build/web-mobile/ → nginx serve）
   - Unity WebGL → 單 stage COPY（Unity build 產出 → nginx serve）+ 必須說明「需先在 Unity Editor 完成 Build，輸出至 Assets/Builds/WebGL/」
   - 純後端（N/A）→ 無 web Dockerfile 說明，整個段落標記「純後端服務，無前端 image」
+- **has_admin_backend=true 時，Admin Frontend Build 強制約束（必須寫入文件）**：
+  ```
+  # Admin 前端打包時 base path 必須與 Ingress /admin 路徑一致
+  # vite.config.ts（Vite）：
+  export default defineConfig({ base: '/admin/' })
+  # 或 CRA：PUBLIC_URL=/admin
+
+  # 打包驗證指令（確認 asset path 含 /admin/ 前綴）：
+  grep -q 'src="/admin/' dist/index.html && echo "OK: base path correct" || echo "ERROR: missing /admin/ base"
+  ```
 
 **§4.5 部署所有 K8s 資源**：
 
@@ -647,6 +657,48 @@ if _has_admin:
 else:
     pass  # 不加入 Admin Portal 啟動說明
 ```
+
+**has_admin_backend=true 時必須生成的 Traefik Ingress YAML（k8s/overlays/local/ingress-patch.yaml）**：
+
+```yaml
+# k8s/overlays/local/ingress-patch.yaml — Admin Ingress patch（has_admin_backend=true 時生成）
+# Traefik (k3s 內建) path-based routing — Option B: API server 自帶 /api prefix，無需 stripPrefix
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{PROJECT_SLUG}}-ingress
+  namespace: {{K8S_NAMESPACE}}-local
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+    - host: {{PROJECT_SLUG}}.local
+      http:
+        paths:
+          - path: /admin
+            pathType: Prefix
+            backend:
+              service:
+                name: admin-service
+                port:
+                  number: 80
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api-server
+                port:
+                  number: {{API_PORT}}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web-app
+                port:
+                  number: {{WEB_PORT}}
+```
+
+> **路由順序原則**：Traefik 以最長前綴優先匹配，因此 `/admin` 和 `/api` 必須排在 `/` 之前。Admin service 內建 nginx 必須配置 SPA fallback（`try_files $uri $uri/ /admin/index.html;`）以支援 deep-link reload。
 
 ---
 
