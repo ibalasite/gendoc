@@ -28,6 +28,7 @@ Key capabilities:
 - **Context-isolated review loops** — `gendoc-flow` Phase D-2 wraps each document's review→fix loop in an Agent subagent, preventing 12+ documents × 5 rounds of review output from bloating the main Claude context; results returned as compact REVIEW_LOOP_RESULT
 - **Centralized state file guard** — `gendoc-shared` is the single executable entry point for R-01 guard logic; `gendoc-config` is the sole creator of state files; `gendoc-auto` and `gendoc-flow` delegate via one-line Skill call
 - **Uniform review loops** — IDEA and BRD review loops in `gendoc-auto` use the same Phase D-2 pattern as `gendoc-flow`: main Claude directly drives Review→Fix→Round Summary→Commit per round with full output visibility
+- **Local Developer Platform (Production Parity)** — `/gendoc cicd` generates a complete CI/CD platform design: Gitea (local git server, Port 3000) + Jenkins on k3s (CI, Port 8080) + ArgoCD (CD GitOps, Port 8443); dev-tool ports are fully separate from the app's single Port 80; `make dev-tools-up` starts everything in one command; non-developers can run the full pipeline without knowing Kubernetes; local environment uses the exact same toolchain as production (only scale and TLS differ) — compliant with 12-Factor App #10 Dev/Prod Parity
 - **Auto-update via SessionStart hook** — harness-enforced, LLM-independent, runs in background
 - **Windows native support** — Python-based hook for Windows, bash for macOS/Linux
 
@@ -57,10 +58,11 @@ Key capabilities:
 
 ### Supported Document Types
 
-`idea` · `brd` · `prd` · `pdd` · `vdd` · `edd` · `arch` · `api` · `schema` · `frontend` · `audio` · `anim` · `client-impl` · `test-plan` · `bdd` · `rtm` · `runbook` · `local-deploy` · `readme` · `contracts` · `mock`
+`idea` · `brd` · `prd` · `pdd` · `vdd` · `edd` · `arch` · `api` · `schema` · `frontend` · `audio` · `anim` · `client-impl` · `test-plan` · `bdd` · `rtm` · `runbook` · `local-deploy` · `cicd` · `readme` · `contracts` · `mock`
 
 > `audio` and `anim` are only generated for `client_type=game` projects (games, HTML5 game engines).
 > `client-impl` is generated for any project with a client (`client_type ≠ api-only`). Aliases: `cocos`, `unity`, `react-impl`, `vue-impl`, `client_impl`.
+> `cicd` generates the full CI/CD pipeline design document — Jenkinsfile skeleton, Shared Make Targets, PR Gate, Jenkins on k3s, ArgoCD GitOps, **Local Developer Platform** (Gitea + production parity).
 
 ---
 

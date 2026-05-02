@@ -628,3 +628,33 @@
 3. M-40（CI/CD）— 最大，需設計新 CICD 三件套，建議在 M-41/M-42 完成後執行
 
 *版本：2026-05-02 v8（新增 M-40：CI/CD Jenkins on k3s + 本地 Pipeline 模擬；M-41：Secret Bootstrap 雙平台 OS Keychain + Ephemeral 密碼；M-42：k9s 安裝 + Runbook k9s 操作指引）*
+
+---
+
+## M-43
+
+| 欄位 | 內容 |
+|------|------|
+| **需求來源** | 新功能需求（2026-05-02）：Local Developer Platform — Gitea 本地 git server + Production Parity + 非開發者可用的完整 CI/CD flow |
+| **問題描述** | M-40 實作的 CICD.md / LOCAL_DEPLOY.md §21 假設遠端 git server（GitHub / GitLab）存在，導致以下缺口：(1) **無遠端 source 無法使用 Jenkins**：開發者若無 GitHub 帳號或無法存取 remote，Jenkins Multibranch Pipeline 無 SCM source 可配置，整個 CI 流程無法啟動；(2) **jenkinsfile-runner dry-run 只能驗證語法邏輯**，無法測試 Kubernetes agent pod 的實際執行（因為 dry-run 不啟動 Jenkins server），無法驗證 ephemeral pod 建立/銷毀；(3) **無標準化 dev tools UI 存取方式**：Jenkins（Port 8080）、ArgoCD（Port 8443）已有，但無 Gitea（Port 3000），且三者均無 Makefile 統一入口（`make jenkins-ui` 等），非開發者無法使用；(4) **開發工具 port 與應用 port 80 的域分離未明確文件化**，新進人員不清楚為何 Port 3000/8080/8443 與 Port 80 可同時開著；(5) **Production Parity 原則未落地**：CICD.md 未明確說明「本地與生產使用相同工具鏈」，導致文件使用者誤以為本地是「簡化版」而非「縮小版」。 |
+| **專家評估** | **需求完全合理，對齊業界最高標準。** 評估依據：(A) **12-Factor App #10 Dev/Prod Parity**（Heroku，2011）：本地環境與生產環境越相似，部署失敗率越低。本設計：本地 = k3s + Jenkins + ArgoCD + Gitea；生產 = EKS/GKE + Jenkins + ArgoCD + GitHub/Gitea，差異只有規模和 TLS，完全符合 Parity 原則。(B) **Platform Engineering / Internal Developer Platform（IDP）設計目標**（Spotify Backstage 2020、Google Paved Road、Netflix DevProd）：把 CI/CD 複雜性封裝在 `make` targets 裡，開發者只需知道指令名稱，不需了解底層工具。本設計的 `make dev-tools-up` / `make gitea-ui` 等正是 IDP 的本地實現。(C) **Gitea 技術可行性**：Gitea 單 pod，< 200MB RAM，helm chart 成熟，Jenkins Git plugin 支援 `http://gitea.dev-tools.svc.cluster.local:3000` URL，Webhook 支援（Jenkins 收到 push event 自動觸發），完全可在 k3s 執行。(D) **Port 域分離設計正確性**：應用域（Port 80，Traefik Ingress，面向使用者/QA/AI 測試）vs 開發工具域（Port 3000/8080/8443，`kubectl port-forward`，面向開發者），兩者生命週期不同、受眾不同、設計目的不同，分開是正確的 Separation of Concerns。業界從未見過把 Jenkins 塞進 `/jenkins` path 的企業實作。(E) **非開發者可用性**：Makefile target 是公認的「最小門檻抽象層」，任何懂 terminal 的人都能執行 `make dev-tools-up`，不需要懂 Helm、k8s、Jenkins。 |
+| **建議怎麼改** | **(A) `templates/CICD.md` 新增兩個章節（插入現有 §8 Security 之前，重新編號）**：**新 §8 Local Developer Platform**：(1) 架構圖（`dev-tools` namespace 包含 Gitea pod + Jenkins pod；`argocd` namespace 包含 ArgoCD；`{{K8S_NAMESPACE}}-local` 包含應用服務；Port 域對照表：應用域 Port 80 vs 開發工具域 Port 3000/8080/8443）；(2) Gitea 安裝（`helm install gitea gitea-charts/gitea -n dev-tools`，含 `gitea-values.yaml`：adminUser/adminPassword、service ClusterIP、persistence 256Mi、resources request 100m/128Mi limit 500m/512Mi）；(3) Gitea → Jenkins Webhook 設定步驟（Gitea: Settings → Webhooks → Jenkins URL `http://jenkins.ci.svc.cluster.local:8080/gitea-webhook/post`；Jenkins: Gitea plugin 設定 SCM URL 指向本地 Gitea）；(4) ArgoCD 以本地 Gitea 為 source（`spec.source.repoURL: http://gitea.dev-tools.svc.cluster.local:3000/dev/{{PROJECT_SLUG}}.git`）；(5) **Gitea 首次推送 workflow**（`git remote add local http://localhost:3000/dev/{{PROJECT_SLUG}}.git` → `git push local main`）；**新 §9 Makefile dev-tools targets**：完整 Makefile 實作（`dev-tools-up`：helm install gitea + jenkins + argocd，等待所有 pod ready；`dev-tools-status`：`kubectl get pods -n dev-tools -n argocd`；`gitea-ui`：port-forward + 印出 URL；`jenkins-ui`：port-forward + 印出 URL；`argocd-ui`：port-forward + 印出 URL + 取得初始密碼；`dev-tools-down`：helm uninstall；`dev-tools-logs`：stern -n dev-tools）；**(B) `templates/CICD.gen.md` 新增 Step 8-9 生成規則**：(1) §8 Gitea values 中的 `adminPassword` 必須從 `LOCAL_DEPLOY.md §3.5` bootstrap-secrets.sh 取得（ephemeral 生成，`openssl rand -hex 16`）；(2) Gitea SCM URL 格式：`http://gitea.dev-tools.svc.cluster.local:3000/dev/{{PROJECT_SLUG}}.git`；(3) §9 Make targets 的 `dev-tools-up` 必須包含 readiness wait（`kubectl rollout status -n dev-tools`）；(4) `gitea-ui` / `jenkins-ui` / `argocd-ui` 各自必須印出 URL 和預設帳號提示；**(C) `templates/CICD.review.md` 新增審查項**（Layer 2）：(1) **[CRITICAL] R-X：§8 Gitea SCM URL 使用 `localhost` 而非 cluster DNS** — Risk：Jenkins pod 內無法解析 localhost → CI pipeline 每次 checkout 失敗；Fix：改為 `http://gitea.dev-tools.svc.cluster.local:3000`；(2) **[HIGH] R-X：§9 `dev-tools-up` 缺少 readiness wait** — Risk：後續指令在 pod 未 ready 時執行 → 隨機失敗；Fix：加入 `kubectl rollout status`；(3) **[MEDIUM] R-X：`argocd-ui` target 未印出初始密碼取得方式** — Risk：第一次登入找不到密碼；Fix：補 `kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath=...`；**(D) `templates/LOCAL_DEPLOY.md §21` 擴充（在現有 §21.1 Jenkins 之前插入）**：**新 §21.0 Local Developer Platform 架構**：(1) 全平台架構圖（ASCII art 版，含四個 namespace：dev-tools / argocd / myapp-local / kube-system；Port 對照表：80/3000/8080/8443 各自的用途和受眾）；(2) Port 域說明（為何應用 Port 80 和開發工具 Port 3000/8080/8443 可同時開著、不衝突）；(3) **非開發者 4 步 onboarding**：`make dev-tools-up`（啟動所有工具）→ `git remote add local http://localhost:3000/dev/{{PROJECT_SLUG}}.git` + `git push local main`（推送到本地 Gitea）→ 開瀏覽器 http://localhost:8080（看 Jenkins 自動觸發）→ 開瀏覽器 https://localhost:8443（看 ArgoCD sync）；(4) Production 對照表（本地 vs 生產的工具對應，差異只有 scale 和 TLS）；**(E) `templates/LOCAL_DEPLOY.gen.md §21` 更新**：新增 §21.0 生成規則（Gitea adminPassword 從 §3.5 bootstrap-secrets.sh 取；Gitea SCM URL 用 cluster DNS；非開發者 onboarding 步驟必須 < 5 行指令）；**(F) `templates/pipeline.json` 新增 D20-CICD step**：在 D19-HTML 之後加入 `{"id": "D20-CICD", "name": "CICD", "template": "templates/CICD.md", "gen_md": "templates/CICD.gen.md", "review_md": "templates/CICD.review.md"}`；**(G) `templates/EDD.md` §3.4 Gitea 欄位**：在 CI 工具 / CD 工具之後加入「本地 Git Server」欄位：`{{LOCAL_GIT_SERVER}}`（預設 Gitea，alt: none 若有 remote）；**(H) `docs/PRD.md` v2.8 changelog + LOCAL_DEPLOY 標準 #6 擴充（已完成）**；**(I) `README.md` 更新**：新增 `cicd` 至 Supported Document Types；新增 Local Developer Platform 至 Key capabilities（已完成）。 |
+| **目標檔案** | 修改：`templates/CICD.md`（新增 §8 Local Developer Platform + §9 Makefile targets，舊 §8/§9 重新編號）、`templates/CICD.gen.md`（Step 8-9 生成規則）、`templates/CICD.review.md`（新增 3 項審查）、`templates/LOCAL_DEPLOY.md`（§21.0 Local Developer Platform 架構）、`templates/LOCAL_DEPLOY.gen.md`（§21.0 生成規則）；新增/修改：`templates/pipeline.json`（D20-CICD step）、`templates/EDD.md`（§3.4 本地 Git Server 欄位）；已更新：`docs/PRD.md`（v2.8 changelog + 標準 #6）、`README.md`（capabilities + 文件類型）。 |
+| **影響範圍** | CICD 三件套（修改現有 M-40 產出）；LOCAL_DEPLOY 兩件（修改現有 M-39/M-41/M-42 產出）；pipeline.json；EDD.md；PRD.md；README.md |
+| **工作量評估** | 中（主要是在 M-40 基礎上擴充，設計已確定） |
+| **依賴關係** | 依賴 M-40（CICD 三件套已存在）；M-41（§3.5 Secret Bootstrap 提供 Gitea password 來源）；M-39（§21 LOCAL_DEPLOY CI/CD 節基礎結構）|
+| **決策** | |
+
+---
+
+共 43 項修改（M-01 至 M-43），跨 32+ 個檔案。
+
+**M-43 執行優先順序建議**：
+1. 先確認 M-40 已完成（CICD 三件套已存在）✅
+2. 修改 CICD.md（新增 §8 Local Developer Platform + §9 Makefile targets）
+3. 更新 CICD.gen.md + CICD.review.md（對應生成規則 + 審查項）
+4. 更新 LOCAL_DEPLOY.md §21.0 + LOCAL_DEPLOY.gen.md §21.0
+5. 更新 pipeline.json（D20-CICD）
+6. 更新 EDD.md（§3.4 本地 Git Server 欄位）
+
+*版本：2026-05-02 v9（新增 M-43：Local Developer Platform — Gitea + Production Parity + 非開發者可用 CI/CD + Port 域分離設計文件化）*
