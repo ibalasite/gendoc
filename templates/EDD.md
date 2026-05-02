@@ -2473,14 +2473,22 @@ DB max_connections 設定 = {{TOTAL_CONNECTIONS}} × 1.2 = {{DB_MAX_CONN}}
 | E2E Test | {{E2E_FRAMEWORK}} | P0 User Flow | Pre-deploy |
 | Performance Test | k6 / Locust | API 延遲 + 壓測 | Pre-release |
 | Security Scan | SAST + DAST | 已知漏洞 | Every commit |
+| HA / Failover Test | chaoskube + toxiproxy | Pod kill / DB Failover / 網路分區 | Pre-release |
 
 ### 12.2 測試重點場景
 
+**業務場景（依 AC 填入）：**
 - [ ] {{TEST_SCENARIO_1}}（對應 AC-{{N}}）
 - [ ] {{TEST_SCENARIO_2}}（邊界值：{{BOUNDARY}}）
 - [ ] {{TEST_SCENARIO_3}}（並發場景：N 個請求同時到達）
 - [ ] {{TEST_SCENARIO_4}}（外部服務失敗 → Circuit Breaker 觸發）
 - [ ] {{TEST_SCENARIO_5}}（資料量：{{LARGE_DATASET}} 筆）
+
+**標準 HA 驗證場景（必須包含，依系統規模調整期望值）：**
+- [ ] **HA-01 API Pod Kill**：`chaoskube --labels app=api` 隨機 Kill 1 個 API Pod → 驗證：(1) K8s 在 {{POD_RECOVERY_TIME}}s 內重建 Pod；(2) 其他 Pod 承接流量，P99 延遲不超過 SLO 的 2 倍；(3) 用戶無 HTTP 5xx 可見錯誤（滾動更新期間的 0 downtime）
+- [ ] **HA-02 DB Primary Failover**：停止 DB Primary（`pg_ctl stop -m fast` 或 cloud failover API）→ 驗證：(1) Standby 在 {{DB_FAILOVER_RTO}} 分鐘內提升為新 Primary；(2) 應用層在 failover 後自動重連（connection pool 的 reconnect 邏輯）；(3) 寫入資料在 RPO 範圍內不丟失
+- [ ] **HA-03 Redis Sentinel 主節點斷線**：停止 Redis Master → 驗證：(1) Sentinel 選出新 Master；(2) 應用層在 {{REDIS_FAILOVER_TIMEOUT}}s 內完成切換；(3) Cache Miss 期間服務降級正常（非 500）
+- [ ] **HA-04 Region Failover 模擬**（若為 Multi-Region）：模擬 Region A 全斷（停止 Region A 所有 API Pod）→ 驗證：(1) Global LB 在 {{REGION_FAILOVER_RTO}} 分鐘內將流量全切至 Region B；(2) Region B 的 API 可正常服務讀取請求；(3) 寫入暫停或路由至 Region B 升級後的 Primary
 
 ### 12.3 Chaos Engineering（混沌工程）
 
