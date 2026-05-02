@@ -346,6 +346,92 @@ PY
 
 ---
 
+## Step 1.6：DRYRUN 三態偵測 + 上游就緒度 + 基線過時檢查
+
+**[AI 指令]** 執行以下 bash，偵測 DRYRUN 狀態並擷取三個變數：`_DRYRUN_STATUS`、`_UPSTREAM_READY`、`_DRYRUN_STALE`。
+
+```bash
+# ── DRYRUN 三態偵測 ──
+_DRYRUN_IN_COMPLETED=$(python3 -c "
+import json
+d = json.load(open('$_STATE_FILE', encoding='utf-8'))
+print('true' if 'DRYRUN' in d.get('completed_steps', []) else 'false')
+" 2>/dev/null || echo "false")
+
+_RULES_COUNT=$(ls "$_CWD/.gendoc-rules/"*.json 2>/dev/null | wc -l | tr -d ' ')
+
+# 偵測 DRYRUN 是否使用了預設值（MANIFEST.md 含 ⚠️ 預設值 或 used_defaults=true）
+_DRYRUN_USED_DEFAULTS="false"
+if [[ -f "$_CWD/docs/MANIFEST.md" ]]; then
+  grep -qE '預設值|used_defaults.*true' "$_CWD/docs/MANIFEST.md" 2>/dev/null \
+    && _DRYRUN_USED_DEFAULTS="true"
+fi
+
+if [[ "$_DRYRUN_IN_COMPLETED" == "false" ]]; then
+  _DRYRUN_STATUS="NONE"
+elif [[ "$_DRYRUN_USED_DEFAULTS" == "true" ]]; then
+  _DRYRUN_STATUS="DEFAULTS"
+else
+  _DRYRUN_STATUS="OK"
+fi
+
+echo "[repair] DRYRUN_STATUS: $_DRYRUN_STATUS  rules_files: $_RULES_COUNT  used_defaults: $_DRYRUN_USED_DEFAULTS"
+echo "DRYRUN_STATUS:$_DRYRUN_STATUS"
+echo "DRYRUN_RULES_COUNT:$_RULES_COUNT"
+
+# ── DRYRUN 上游就緒度預檢 ──
+_ENTITY_COUNT=$(grep -c '^\s*class ' "$_CWD/docs/EDD.md" 2>/dev/null || echo "0")
+_US_COUNT=$(grep -cE '^(## |### )US-' "$_CWD/docs/PRD.md" 2>/dev/null || echo "0")
+_ARCH_LAYER_COUNT=$(grep -c '^| [A-Za-z]' "$_CWD/docs/ARCH.md" 2>/dev/null || echo "0")
+
+_UPSTREAM_READY="true"
+[[ "$_ENTITY_COUNT" -lt 3 ]] && _UPSTREAM_READY="false"
+[[ "$_US_COUNT"     -lt 3 ]] && _UPSTREAM_READY="false"
+[[ "$_ARCH_LAYER_COUNT" -lt 4 ]] && _UPSTREAM_READY="false"
+
+echo "UPSTREAM_READY:$_UPSTREAM_READY"
+
+if [[ "$_UPSTREAM_READY" == "false" ]]; then
+  echo ""
+  echo "⚠️  DRYRUN 上游文件就緒度不足（執行後品質基線可能偏鬆）："
+  [[ "$_ENTITY_COUNT"    -lt 3 ]] && echo "    EDD：entity 定義 ${_ENTITY_COUNT} 個（建議 ≥ 3）"
+  [[ "$_US_COUNT"        -lt 3 ]] && echo "    PRD：US-* 標題 ${_US_COUNT} 個（建議 ≥ 3）"
+  [[ "$_ARCH_LAYER_COUNT" -lt 4 ]] && echo "    ARCH：Tech Stack 行 ${_ARCH_LAYER_COUNT} 個（建議 ≥ 4）"
+fi
+
+# ── DRYRUN 基線過時偵測（git 時間戳比對）──
+_DRYRUN_STALE="false"
+if [[ "$_DRYRUN_STATUS" != "NONE" ]] && [[ -d "$_CWD/.gendoc-rules" ]] && git -C "$_CWD" rev-parse --git-dir &>/dev/null; then
+  _UPSTREAM_TS=$(git -C "$_CWD" log -1 --format="%at" -- \
+    docs/EDD.md docs/PRD.md docs/ARCH.md 2>/dev/null || echo "0")
+  _RULES_TS=$(git -C "$_CWD" log -1 --format="%at" -- \
+    .gendoc-rules/ 2>/dev/null || echo "0")
+  if [[ "$_UPSTREAM_TS" != "0" ]] && [[ "$_RULES_TS" != "0" ]] \
+     && [[ "$_UPSTREAM_TS" -gt "$_RULES_TS" ]]; then
+    _DRYRUN_STALE="true"
+    _UPSTREAM_DATE=$(git -C "$_CWD" log -1 --format="%ai" -- \
+      docs/EDD.md docs/PRD.md docs/ARCH.md 2>/dev/null || echo "?")
+    _RULES_DATE=$(git -C "$_CWD" log -1 --format="%ai" -- \
+      .gendoc-rules/ 2>/dev/null || echo "?")
+    echo ""
+    echo "⚠️  DRYRUN 基線可能過時："
+    echo "    上游文件（EDD/PRD/ARCH）最新修改：$_UPSTREAM_DATE"
+    echo "    .gendoc-rules/ 最後更新        ：$_RULES_DATE"
+    echo "    建議重新執行 /gendoc-gen-dryrun 更新品質基線"
+  fi
+fi
+
+echo "DRYRUN_STALE:$_DRYRUN_STALE"
+```
+
+**[AI 指令]** 從輸出中擷取：
+- `_DRYRUN_STATUS`：`DRYRUN_STATUS:xxx` 行的 xxx（`NONE` / `DEFAULTS` / `OK`）
+- `_DRYRUN_RULES_COUNT`：`DRYRUN_RULES_COUNT:N` 行的 N
+- `_UPSTREAM_READY`：`UPSTREAM_READY:true|false` 行的值
+- `_DRYRUN_STALE`：`DRYRUN_STALE:true|false` 行的值
+
+---
+
 ## Step 2：若無缺漏且語意完整 → 結束
 
 若 `_MISSING_COUNT == 0` 且 `_SEMANTIC_COUNT == 0`：
