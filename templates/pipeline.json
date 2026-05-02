@@ -179,6 +179,17 @@
       "note": "Admin 後台實作規格（預設技術棧：Vue3 + Element Plus + Vite）。包含：RBAC 架構、Component 規範、路由設計、API 串接、Pinia Store、部署配置。上游：EDD（§3.3 _ADMIN_FRAMEWORK, §5.5 RBAC 模型）+ ARCH + API + SCHEMA。觸發條件：has_admin_backend=true（在 gendoc-auto Session Config 中設定）。"
     },
     {
+      "id": "D10f-RESOURCE",
+      "type": "RESOURCE",
+      "layer": "設計層",
+      "output": ["docs/RESOURCE.md"],
+      "multi_file": false,
+      "condition": "client_type != none",
+      "handled_by": "gendoc-flow",
+      "commit_prefix": "docs(gendoc)[D10f-RESOURCE]",
+      "note": "AI 資產生產訂單：從 VDD.md（必讀）、ANIM.md（若存在）、AUDIO.md（若存在）推導出需要哪些具體資產檔案，生成包含 ID/檔名/type/source_tool/prompt/dimensions/file_size_budget/status/output_path/description 的結構化清單。設計師確認 prompt 後即可送入 AI 工具（Midjourney/Suno/ElevenLabs 等）執行生產。觸發條件：client_type != none（有前端/客戶端的專案）。"
+    },
+    {
       "id": "D11-test-plan",
       "type": "test-plan",
       "layer": "品質層",

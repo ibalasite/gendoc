@@ -1,17 +1,19 @@
 ---
 reviewer-roles:
-  - "Technical Artist / 技術美術：審查動畫（§3）、視覺資源（§5）、3D 模型（§7）規格是否符合目標引擎和平台要求"
-  - "Audio Engineer / 音效工程師：審查音效（§4）的格式、取樣率、大小限制是否合理"
-  - "Frontend Performance Engineer / 效能工程師：審查效能預算（§10）是否符合平台限制，總包體是否可接受"
-  - "IP/Legal Reviewer / 智財法務：審查字型（§6）授權是否合法，資源來源是否合規"
-quality-bar: "所有資源類型（ANIM/AUDIO/VDD/FONT）均有規格說明或明確略過聲明；§10 效能預算所有數值均有填寫；§6 字型授權欄位均非空白；§2 引擎選型與 FRONTEND.md 一致；無裸 placeholder"
+  - "Asset Production Planner / 資產生產規劃師：主審 §1 VDD 視覺資產覆蓋完整性、§2 ANIM 動態資產覆蓋完整性、§3 AUDIO 音效資產覆蓋完整性"
+  - "Performance Budget Auditor / 效能預算審查員：主審所有 file_size_budget 欄位，確認數值符合平台限制（手遊 ≤ 2MB/texture、Web ≤ 200KB/image、BGM ≤ 5MB、SFX ≤ 500KB）"
+  - "AI Prompt Quality Reviewer / AI Prompt 品質審查員：主審 prompt 欄位是否有具體且可用的生成提示詞，確認非 needed 狀態的資產均有 prompt"
+quality-bar: "VDD §4 所有角色有 RES-IMG 行；ANIM SKEL/VFX 所有項目有 RES-ANIM 行（若存在）；所有 file_size_budget 符合平台限制；非 needed 狀態資產的 prompt 非空白；output_path 與 repo 結構一致；無裸 placeholder"
 upstream-alignment:
-  - "FRONTEND.md §2 client_engine → RESOURCE.md §2 引擎一致性"
-  - "EDD.md §10 效能規格 → RESOURCE.md §10 效能預算數值來源"
-  - "PDD.md §4/§5/§6 → RESOURCE.md §3/§4/§5/§6 資源對應"
+  - "VDD.md §4 角色清單 → RESOURCE.md §1 RES-IMG 行（一對一對應）"
+  - "VDD.md §5 UI 視覺系統 → RESOURCE.md §1 UI 場景 RES-IMG 行"
+  - "ANIM.md §2 SKEL-xxx 清單 → RESOURCE.md §2 RES-ANIM 行（一對一對應，若 ANIM.md 存在）"
+  - "ANIM.md §5 VFX-xxx 清單 → RESOURCE.md §2 RES-ANIM 行（type=particle，若存在）"
+  - "AUDIO.md §2 BGM-xxx 清單 → RESOURCE.md §3 RES-BGM 行（若 AUDIO.md 存在）"
+  - "AUDIO.md §3 SFX-xxx 清單 → RESOURCE.md §3 RES-SFX 行（若 AUDIO.md 存在）"
 ---
 
-# RESOURCE.review.md — Frontend / Client Resource List 審查標準
+# RESOURCE.review.md — AI 資產生產訂單審查標準
 
 ---
 
@@ -19,10 +21,9 @@ upstream-alignment:
 
 | 角色 | 審查重點 |
 |------|---------|
-| Technical Artist | §2（引擎一致）、§3（動畫規格）、§5（視覺規格）、§7（3D 模型規格）|
-| Audio Engineer | §4（音效規格）、§10（Audio 效能預算）|
-| Performance Engineer | §10（整體效能預算）、§5.1（壓縮格式）、總包體限制 |
-| IP/Legal | §6（字型授權）、資源來源合規性 |
+| Asset Production Planner | §1（VDD 角色 + UI 覆蓋）、§2（ANIM SKEL/VFX 覆蓋）、§3（AUDIO BGM/SFX 覆蓋）|
+| Performance Budget Auditor | 所有行的 file_size_budget 欄位（§1/§2/§3）|
+| AI Prompt Quality Reviewer | 所有行的 prompt 欄位（§1/§2/§3）|
 
 ---
 
@@ -30,105 +31,113 @@ upstream-alignment:
 
 | # | 嚴重度 | 審查點 | 涉及章節 |
 |---|--------|--------|---------|
-| 01 | CRITICAL | §2 引擎選型與 FRONTEND.md 不一致 | §2 |
-| 02 | CRITICAL | §6 字型授權欄位空白或 TBD | §6 |
-| 03 | CRITICAL | §10 效能預算缺失或全為 TBD | §10 |
-| 04 | CRITICAL | 有裸 placeholder（`{{...}}`）未替換 | 全文 |
-| 05 | HIGH | 資源類型（ANIM/AUDIO/VDD/FONT）缺少任一且無略過說明 | §3-§6 |
-| 06 | HIGH | §10 總包體超過平台限制（iOS ≤ 200MB / Android ≤ 150MB）| §10 |
-| 07 | HIGH | 壓縮格式未依目標平台填入（全用通用 PNG / WAV）| §5.1, §4.2 |
-| 08 | HIGH | 資源清單優先級或狀態欄位空白 | §3.3, §4.3, §5.2 等 |
-| 09 | MEDIUM | 動畫格式與目標引擎不相容 | §3.1 |
-| 10 | MEDIUM | 資源 ID 有重複（ANIM-001 出現兩次）| §3.3, §4.3 等 |
-| 11 | MEDIUM | §11 命名規則與清單資源實際命名不符 | §11, §3-§9 |
-| 12 | LOW | 命名規則僅列前綴，未提供完整範例 | §11 |
+| 01 | CRITICAL | VDD §4 角色缺少 RES-IMG 行 | §1 |
+| 02 | CRITICAL | ANIM SKEL/VFX 項目缺少 RES-ANIM 行 | §2 |
+| 03 | CRITICAL | file_size_budget 空白或超過平台限制 | §1/§2/§3 |
+| 04 | HIGH | prompt 欄位空白（非 needed 狀態） | §1/§2/§3 |
+| 05 | HIGH | output_path 與 repo 目錄結構不一致 | §1/§2/§3 |
+| 06 | MEDIUM | ID 有重複（同前綴 ID 出現兩次） | 全文 |
+| 07 | MEDIUM | 有裸 placeholder（`{{...}}`）未替換 | 全文 |
+| 08 | LOW | source_tool 欄位空白（status=needed 除外） | §1/§2/§3 |
 
 ---
 
-### Layer 1: 引擎一致性與上游對齊（由 Technical Artist 主審，共 2 項）
+### Layer 1: VDD 視覺資產覆蓋完整性（CRITICAL）
 
-#### [CRITICAL] 01 — §2 引擎選型與 FRONTEND.md 不一致
-**Check**: RESOURCE.md §2 中的 `client_engine` 是否與 `docs/FRONTEND.md §2 技術選型` 或 `.gendoc-state.json` 的 `client_engine` 欄位完全一致？若不一致視為 CRITICAL（引擎不同 → 資源格式全部錯誤）。
-**Risk**: 引擎不一致會導致所有資源格式選型錯誤（如 Unity 用 `.skel` 但 Cocos 需要 `.json`；Web 需要 WebP 但 Unity PC 需要 BC7）。工程師按此文件準備資源後發現格式不相容，需要全部重新轉換，延誤 2-4 週。
-**Fix**: 讀取 FRONTEND.md §2 或 state 文件，將 §2 的引擎名稱 + 版本更正為與上游一致。同步更新 §3/§4/§5 的格式選型（因為格式依賴引擎）。
+#### [CRITICAL] 01 — VDD §4 角色設計缺少 RES-IMG 行
 
-#### [HIGH] 02 — §2 資源系統關鍵欄位缺失
-**Check**: §2 表格中，`ASSET_MANAGEMENT`（資源管理方式）、`ASSET_BASE_PATH`（資源路徑）是否已填入具體值（非 placeholder 或「待確認」）？
-**Risk**: 工程師不知道資源放在哪裡 → 每人自行決定路徑 → 路徑不一致導致打包失敗 / 找不到資源。
-**Fix**: 依引擎選型查表（Unity→Addressables/Assets/，Cocos→Bundle/assets/，Web→CDN/public/assets/）填入具體值。
+**Check**：讀取 `docs/VDD.md §4 角色設計`，列出所有角色（hero、NPC、monster 等）。逐一確認 RESOURCE.md §1 是否有對應的 `RES-IMG-xxx` 行。任何 VDD §4 角色沒有對應 RES-IMG 行視為 CRITICAL。
+
+**Risk**：缺少資產清單的角色在開發後期才被發現遺漏，設計師需要臨時插單生成，影響 milestone 交付；且 prompt 無版本控制，後期補做的資產與已有資產風格不一致。
+
+**Fix**：對照 VDD §4 角色清單，在 RESOURCE.md §1 補充缺失角色的 RES-IMG 行。每個角色至少有：idle 狀態立繪（若為 2D）或 T-Pose 渲染圖（若為 3D）。依 VDD 風格描述生成第一版 prompt。
 
 ---
 
-### Layer 2: 字型授權與合規（由 IP/Legal 主審，共 2 項）
+### Layer 2: ANIM 動態資產覆蓋完整性（CRITICAL）
 
-#### [CRITICAL] 02 — §6 字型授權欄位空白或 TBD
-**Check**: §6 字型清單中每個字型的「授權」欄位是否已填寫具體授權類型（OFL / 商業授權 / 嵌入允許 / 自製）？任一欄位為空白、「待確認」、TBD 視為 CRITICAL。
-**Risk**: 使用未確認授權的字型進行商業發行 → 版權侵權風險。部分商業字型明確禁止在應用程式中嵌入（如 Helvetica Neue 系列），若使用可能面臨法律責任和應用程式下架。
-**Fix**: 確認每個字型的授權條款後填入。優先使用 OFL（SIL Open Font License）字型（如 Noto Sans / Inter / Source Han Sans）；商業字型確認授權書後填入「商業授權（含嵌入）」。
+#### [CRITICAL] 02 — ANIM.md SKEL/VFX 項目缺少 RES-ANIM 行
 
-#### [MEDIUM] 03 — 資源來源欄位未追蹤
-**Check**: §3-§9 資源清單是否有「來源」欄位或說明（自製 / 第三方 / 授權購買 / 免費 CC0）？缺少來源追蹤視為 MEDIUM。
-**Risk**: 無法追蹤第三方資源的授權狀態；若使用了有版權的素材（如付費音效庫的試聽版），可能在發行時被要求下架。
-**Fix**: 在資源清單中增加「來源」欄位，標注每個資源的獲取方式（自製/Freesound/Adobe Stock/Unity Asset Store/etc）和授權類型。
+**Check**：若 `docs/ANIM.md` 存在，讀取其 `§2 骨骼動畫清單`（SKEL-xxx）和 `§5 粒子特效清單`（VFX-xxx）。逐一確認 RESOURCE.md §2 是否有對應的 `RES-ANIM-xxx` 行。任何 SKEL-xxx 或 VFX-xxx 沒有對應 RES-ANIM 行視為 CRITICAL。
 
----
+若 ANIM.md 不存在，確認 §2 有明確的「略過說明」→ 不視為 CRITICAL。
 
-### Layer 3: 效能預算（由 Performance Engineer 主審，共 3 項）
+**Risk**：動畫資產（骨骼動畫源檔、粒子貼圖）是開發最長的資產，若規劃遺漏，在整合測試前才被發現，將造成 2-4 週的延誤。
 
-#### [CRITICAL] 03 — §10 效能預算缺失或全為 TBD
-**Check**: §10 效能預算表格中，是否所有資源類型（Texture / Audio / Animation / 3D Mesh / 總包體）均有具體的記憶體上限和包體大小上限？任何欄位為 TBD / 空白 / placeholder 視為 CRITICAL。
-**Risk**: 沒有效能預算，美術人員無量化標準，可能產出超規格資源（如 4K 貼圖 × 100 張 = 包體爆炸）；直到打包完成才發現體積超出平台限制，需要全部重新處理。
-**Fix**: 依 `EDD.md §10`（效能規格）和目標平台的資料（iOS App Store ≤ 200MB OTA，Android Play ≤ 150MB，Web 首次載入 ≤ 5MB）填入具體數字。
-
-#### [HIGH] 04 — 總包體超過平台限制
-**Check**: §10「總包體（初始下載）」的值是否超過目標平台的應用程式大小限制？iOS > 200MB 或 Android > 150MB 視為 HIGH。
-**Risk**: App Store / Google Play 對超過大小限制的應用程式有特殊要求（iOS 需要 Wi-Fi 提示，Android 需要 APK Expansion Packs），可能影響下載轉換率和用戶體驗。
-**Fix**: 識別最大的資源類型，採用更積極的壓縮（提高 ASTC 壓縮比、降低音效取樣率、對 BGM 使用串流）或將資源改為按需下載（CDN + Dynamic Loading）。
-
-#### [HIGH] 05 — 壓縮格式未依目標平台填入
-**Check**: §5.1 壓縮格式是否依目標平台填入（iOS → ASTC，Android → ETC2 / ASTC，Web → WebP，PC → BC7）？若所有平台均填「PNG」或格式欄為空視為 HIGH。
-**Risk**: 使用未壓縮 PNG 的貼圖佔用 GPU 記憶體約為 ASTC 的 4-8 倍；行動端記憶體溢出（OOM）會導致應用程式崩潰。
-**Fix**: 依目標平台選擇對應的 GPU 壓縮格式；若需多平台支援，使用引擎的自動壓縮功能（Unity Texture Override / Cocos Platform Specific Override）。
+**Fix**：對照 ANIM.md 的 SKEL-xxx / VFX-xxx 清單，在 RESOURCE.md §2 補充缺失的 RES-ANIM 行。骨骼動畫 `type=animation`，粒子特效 `type=particle`。
 
 ---
 
-### Layer 4: 資源規格完整性（由 Technical Artist 主審，共 4 項）
+### Layer 3: 效能預算（CRITICAL）
 
-#### [CRITICAL] 04 — 有裸 placeholder 未替換
-**Check**: 全文是否有任何未替換的 `{{...}}` placeholder（如 `{{ANIM_001_NAME}}`、`{{CLIENT_ENGINE}}`）？任何未替換的 placeholder 視為 CRITICAL。
-**Risk**: 工程師或美術依據此文件準備資源時，看到 placeholder 不知道實際規格，各自猜測填入，導致資源規格不一致。
-**Fix**: 逐節掃描，所有 `{{...}}` placeholder 替換為具體值或「略過」說明。
+#### [CRITICAL] 03 — file_size_budget 空白或超過平台限制
 
-#### [HIGH] 05 — 資源類型缺少且無略過說明
-**Check**: §3（動畫）、§4（音效）、§5（視覺）、§6（字型）四個章節是否均有內容？若某章節既無資源清單，也無「本專案無 XXX 資源需求，略過本節」的說明，視為 HIGH（可能是生成時漏掉）。
-**Risk**: 審查者和工程師無法判斷是「確認不需要」還是「生成時漏掉了」，導致重複確認工作。
-**Fix**: 為缺失章節補充資源清單（若有需求）或填入明確的略過聲明。
+**Check**：逐行掃描 §1/§2/§3 所有資產行的 `file_size_budget` 欄位。以下任一情況視為 CRITICAL：
+- 欄位為空白、TBD、或 placeholder（`{{...}}`）
+- 圖片資產（type=image）超過：手遊 > 2 MB / Web > 200 KB
+- 音樂資產（type=bgm）超過：> 5 MB
+- 音效資產（type=sfx）超過：> 500 KB
+- 動畫資產（type=animation）超過：> 2 MB per animation file
 
-#### [HIGH] 06 — 資源清單優先級或狀態欄位空白
-**Check**: §3.3、§4.3、§5.2、§5.3、§7.2 等資源清單表格中，每行是否均有填寫「優先級」（P0/P1/P2/P3）和「狀態」（TODO/In Progress/Done）？任一為空白視為 HIGH。
-**Risk**: 沒有優先級，美術人員不知道先做哪些資源；沒有狀態，PM 無法追蹤資源進度，可能在 milestone 前才發現關鍵資源未完成。
-**Fix**: 所有資源依 PRD 功能優先級填入 P0/P1/P2/P3；初始狀態統一填 TODO。
+**Risk**：無效能預算上限時，設計師生成高解析度資產（如 4K PNG × 50 張），最終打包後發現 App 超過平台大小限制（iOS OTA ≤ 200MB）或首屏載入超時（Web FCP > 3s），需全部重新生成並壓縮。
 
-#### [MEDIUM] 07 — 動畫格式與目標引擎不相容
-**Check**: §3.1 動畫工具 / 格式是否與 §2 引擎選型相容？（如 Unity 用 Spine 格式 `.skel` 是合法的，但如果 §2 是 Cocos Creator 但 §3 填 `.anim`（Unity 格式）則不相容）
-**Risk**: 格式不相容的動畫資源無法被引擎載入，需要整批轉換，可能延誤 1-2 週。
-**Fix**: 查表（RESOURCE.gen.md 引擎 → 動畫格式對照）後修正格式選型。
+**Fix**：依目標平台填入具體數值：
+- 手遊（iOS/Android）圖片：`≤ 2 MB`；UI 圖示：`≤ 200 KB`
+- Web 圖片：`≤ 200 KB`（關鍵路徑）/ `≤ 1 MB`（懶加載）
+- BGM：`≤ 5 MB`；SFX：`≤ 500 KB`；VO：`≤ 1 MB`
+- 動畫 source（.skel/.json）：`≤ 2 MB`；粒子貼圖：`≤ 512 KB`
 
 ---
 
-### Layer 5: 清單完整性（由 Technical Artist 通盤審查，共 3 項）
+### Layer 4: Prompt 品質（HIGH）
 
-#### [MEDIUM] 08 — 資源 ID 有重複
-**Check**: 同類型的資源 ID 是否有重複（如 `ANIM-001` 出現兩次）？任何同類型重複 ID 視為 MEDIUM。
-**Risk**: 重複 ID 會在資源管理工具（Addressables / Bundle）中造成衝突，可能載入錯誤資源或資源載入失敗。
-**Fix**: 重新編號衝突的 ID，確保同類型 ID 順序連續無重複。
+#### [HIGH] 04 — prompt 欄位空白（非 needed 狀態）
 
-#### [MEDIUM] 09 — §11 命名規則與清單資源命名不符
-**Check**: §11 命名規則中定義的前綴（如 `anim_`），是否與 §3.3 動畫清單中的資源命名一致？若清單中有 `char_hero_idle.skel`（缺少 `anim_` 前綴）視為 MEDIUM。
-**Risk**: 命名規則不一致導致工程師在實際命名時產生困惑，各自遵循不同規則，後期重命名成本高。
-**Fix**: 統一補充前綴，確保所有清單資源命名符合 §11 定義的規則。
+**Check**：逐行掃描 §1/§2/§3 所有資產行。若 `status` 為 `prompt_ready`、`generating`、`generated`、`approved`，則 `prompt` 欄位必須非空白。若 `status=needed` 則允許 prompt 空白。任何非 needed 狀態的 prompt 空白視為 HIGH。
 
-#### [LOW] 10 — §11 命名規則範例不完整
-**Check**: §11 中每個前綴是否都有提供完整的命名範例（包含前綴 + 功能描述 + 序號 + 副檔名）？
-**Risk**: 若僅有前綴無範例，不同美術人員對「如何組合」的理解不同，導致實際命名千奇百怪。
-**Fix**: 補充每個前綴的完整命名範例（如 `anim_char_hero_idle.skel`、`sfx_btn_click_001.wav`）。
+**Risk**：設計師拿到清單後，發現 prompt 是空的，需要自己撰寫提示詞，失去 AI 輔助規劃的效益；且不同設計師撰寫的 prompt 風格不一致，生成結果無法保持視覺連貫性。
+
+**Fix**：依 VDD 的視覺風格描述，為每個非 needed 狀態的資產補充具體 prompt。英文為主（Midjourney/DALL-E/Suno 均優先支援英文）。格式參考 RESOURCE.gen.md 的「常用 AI 工具與 Prompt 格式速查」表。
+
+---
+
+### Layer 5: 交付路徑（HIGH）
+
+#### [HIGH] 05 — output_path 與 repo 目錄結構不一致
+
+**Check**：抽查 §1/§2/§3 中至少 20% 的 output_path，確認路徑格式是否與實際 repo 目錄結構一致。典型不一致案例：
+- 使用 `src/assets/` 但 repo 實際根目錄為 `assets/`
+- 使用 Windows 反斜線路徑（`assets\images\hero.png`）
+- 路徑不含副檔名（`assets/images/hero` 而非 `assets/images/hero.png`）
+
+**Risk**：路徑不一致導致工程師整合時需要手動修正每個路徑，且若已有 CI/CD 自動複製腳本依賴此路徑，會觸發 404 或找不到資源。
+
+**Fix**：確認 repo 根目錄的資源存放規範（通常在 EDD §3 或 ARCH §8 有定義），統一更正所有 output_path 的格式。
+
+---
+
+### Layer 6: 清單完整性（MEDIUM / LOW）
+
+#### [MEDIUM] 06 — 資產 ID 有重複
+
+**Check**：同前綴的 ID 是否有重複（如 `RES-IMG-001` 出現兩次）？任何同前綴重複 ID 視為 MEDIUM。
+
+**Risk**：重複 ID 在資產管理工具中造成混淆，工程師加載資源時可能加載錯誤版本。
+
+**Fix**：重新編號衝突 ID，確保同前綴 ID 順序連續無重複（RES-IMG-001, 002, 003...）。
+
+#### [MEDIUM] 07 — 有裸 placeholder 未替換
+
+**Check**：全文是否有任何未替換的 `{{...}}` placeholder（如 `{{IMG_001_FILENAME}}`）？除 template 範例行外，任何未替換的 placeholder 視為 MEDIUM。
+
+**Risk**：工程師或設計師拿到含 placeholder 的清單，不知道實際規格，各自猜測填入，導致資產規格不一致。
+
+**Fix**：逐行掃描，所有 `{{...}}` placeholder 替換為具體值或「N/A — 委外製作」等明確說明。
+
+#### [LOW] 08 — source_tool 欄位空白（非 needed 狀態）
+
+**Check**：若 `status` 不是 `needed`，`source_tool` 欄位是否已填入具體工具名稱？空白視為 LOW。
+
+**Risk**：設計師不知道用哪個工具生成，可能選擇不適合該資產類型的工具（如用 DALL-E 生成需要 loop-friendly 的 BGM → 工具完全不適用）。
+
+**Fix**：依資產類型填入推薦工具。圖片 → Midjourney v6；BGM → Suno v3 / Udio；SFX → ElevenLabs SFX / Freesound；動畫 → 委外製作 / Spine Animate。
