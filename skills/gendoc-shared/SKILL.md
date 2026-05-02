@@ -413,7 +413,7 @@ function _spawn_agent_with_retry(prompt, step_id, max_retries=3):
 
 ```
 ║  ⚠️  FAILED STEP：                                        ║
-║    - D11-test-plan（Test Plan 生成）：連續 3 次 Agent 失敗  ║
+║    - test-plan（Test Plan 生成）：連續 3 次 Agent 失敗  ║
 ║    → 建議手動執行或重跑：/gendoc-flow                       ║
 ```
 
@@ -460,9 +460,9 @@ PY
 
 ```
 [gendoc 進度] ████████████░░░░░░░░  12/22 STEP
-   ✅ D01-IDEA ～ D09-SCHEMA 完成
-   🔄 D10-FRONTEND 執行中...
-   ⏳ D10b-AUDIO ～ D19-HTML 待執行
+   ✅ IDEA ～ SCHEMA 完成
+   🔄 FRONTEND 執行中...
+   ⏳ AUDIO ～ HTML 待執行
 ```
 
 ---
@@ -610,14 +610,14 @@ STEP_COMPLETE: {step_id}
 
 範例：
 ```
-D03-PRD 完成：PRD 生成
+PRD 完成：PRD 生成
 Commit：abc1234
 重點：
   - 生成 8 條 User Story
   - 每條 US 含 3-5 個 AC
   - 非功能需求涵蓋效能、安全、可用性
 
-STEP_COMPLETE: D03-PRD
+STEP_COMPLETE: PRD
 ```
 
 ### 失敗信號
@@ -629,9 +629,9 @@ ERROR: {錯誤描述}
 
 範例：
 ```
-STEP_FAILED: D11-test-plan
+STEP_FAILED: test-plan
 ERROR: Test Plan 生成過程中發現上游 RTM 結構不符（class-inventory.md 不存在）
-建議：先執行 D07b-UML 生成 class-inventory.md 後重試
+建議：先執行 UML 生成 class-inventory.md 後重試
 ```
 
 ### 主 Claude 解析邏輯
@@ -657,7 +657,7 @@ def parse_agent_result(agent_output, expected_step):
 
 - 必須在 Agent 回傳文字的**最後 5 行**內
 - 格式嚴格：`STEP_COMPLETE: {step_id}`（冒號後一個空格，然後 STEP ID）
-- STEP ID 與 `templates/pipeline.json` 中定義的 `id` 欄位一致（D-prefix 格式，如 `"D01-IDEA"`、`"D07b-UML"`、`"D17-CONTRACTS"`）
+- STEP ID 與 `templates/pipeline.json` 中定義的 `id` 欄位一致（semantic ID 格式，無數字前綴，如 `"IDEA"`、`"UML"`、`"CONTRACTS"`）
 
 ---
 
@@ -707,7 +707,7 @@ d['conflict_resolutions'].append({
 
 ```json
 {
-  "step": "D07-ARCH",
+  "step": "ARCH",
   "conflict": "PRD §2 說最大 1000 用戶，BRD §3 說最大 500 用戶",
   "resolved_by": "PRD",
   "resolved_value": "最大 1000 用戶（PRD 更新版本，較 BRD 更嚴格）"
@@ -837,11 +837,11 @@ echo "[PRE-COMMIT] ✅ Placeholder 掃描通過（0 個裸 placeholder）"
 ### 範例（與 pipeline.json commit_prefix 一致）
 
 ```
-docs(gendoc)[D03-PRD]: generate — PRD 含 8 US / 32 AC（Review 通過）
-docs(gendoc)[D06-EDD]: review — EDD 3 輪，0 CRITICAL 剩餘
-test(gendoc)[D12-BDD-server]: generate — Server BDD 12 feature files
-docs(gendoc)[D16-ALIGN]: align — 跨文件對齊掃描通過，0 CRITICAL
-feat(gendoc)[D17-CONTRACTS]: generate — OpenAPI 3.1 + JSON Schema + Pact + IaC + Seed Code
+docs(gendoc)[PRD]: generate — PRD 含 8 US / 32 AC（Review 通過）
+docs(gendoc)[EDD]: review — EDD 3 輪，0 CRITICAL 剩餘
+test(gendoc)[BDD-server]: generate — Server BDD 12 feature files
+docs(gendoc)[ALIGN]: align — 跨文件對齊掃描通過，0 CRITICAL
+feat(gendoc)[CONTRACTS]: generate — OpenAPI 3.1 + JSON Schema + Pact + IaC + Seed Code
 ```
 
 ---
@@ -919,7 +919,7 @@ json.dump(d,open(f,'w'),ensure_ascii=False,indent=2)
 
 ## §13 shared-start-step【已棄用】
 
-> ⚠️ **DEPRECATED**：`gendoc_start_step` 已廢棄，請改用 state file 的 `start_step`（格式 D01-IDEA 至 D19-HTML）。
+> ⚠️ **DEPRECATED**：`gendoc_start_step` 已廢棄，請改用 state file 的 `start_step`（格式 IDEA 至 HTML（語義 ID，無數字前綴））。
 
 ---
 
@@ -1012,7 +1012,7 @@ def detect_client_type(combined_text: str) -> str:
 | `brd_review_passed` | bool | BRD Review Loop 已通過 |
 | `handoff` | bool | 已移交下游 skill |
 | `handoff_source` | string | `gendoc-auto` |
-| `start_step` | string | gendoc-flow step ID，格式 D01-IDEA 至 D19-HTML，或 "0" 表示從頭開始 |
+| `start_step` | string | gendoc-flow step ID，格式 IDEA 至 HTML（語義 ID，無數字前綴），或 "0" 表示從頭開始 |
 | `q1_users` | string | Q1 主要使用者澄清結果 |
 | `q2_painpoint` | string | Q2 核心痛點澄清結果 |
 | `q3_constraints` | string | Q3 技術限制澄清結果 |

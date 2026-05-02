@@ -1,6 +1,6 @@
 {
-  "version": "3.0",
-  "description": "gendoc 文件流水線定義 v3.0 — 唯一真相來源（Single Source of Truth）。新增文件類型只需在此加 step + 建立三件套 template，不需改任何 skill。",
+  "version": "3.1",
+  "description": "gendoc 文件流水線定義 v3.1 — 唯一真相來源（Single Source of Truth）。步驟執行順序由陣列位置決定，step id 為語義識別符（無數字前綴）。新增文件類型只需在此加 step + 建立三件套 template，不需改任何 skill。",
   "condition_syntax": {
     "always": "永遠執行",
     "client_type != none": "有前台客戶端時執行（web/game）",
@@ -10,89 +10,174 @@
   },
   "steps": [
     {
-      "id": "D01-IDEA",
+      "id": "IDEA",
       "type": "IDEA",
       "layer": "需求層",
       "output": ["docs/IDEA.md"],
       "multi_file": false,
       "condition": "always",
       "handled_by": "gendoc-auto",
-      "commit_prefix": "docs(gendoc)[D01-IDEA]"
+      "commit_prefix": "docs(gendoc)[IDEA]"
     },
     {
-      "id": "D02-BRD",
+      "id": "BRD",
       "type": "BRD",
       "layer": "需求層",
       "output": ["docs/BRD.md"],
       "multi_file": false,
       "condition": "always",
       "handled_by": "gendoc-auto",
-      "commit_prefix": "docs(gendoc)[D02-BRD]"
+      "commit_prefix": "docs(gendoc)[BRD]"
     },
     {
-      "id": "D03-PRD",
+      "id": "PRD",
       "type": "PRD",
       "layer": "需求層",
       "output": ["docs/PRD.md"],
       "multi_file": false,
       "condition": "always",
       "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D03-PRD]"
+      "commit_prefix": "docs(gendoc)[PRD]"
     },
     {
-      "id": "D03.5-CONSTANTS",
+      "id": "CONSTANTS",
       "type": "CONSTANTS",
       "layer": "需求層",
       "output": ["docs/CONSTANTS.md"],
       "multi_file": false,
       "condition": "always",
       "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D03.5-CONSTANTS]",
+      "commit_prefix": "docs(gendoc)[CONSTANTS]",
       "note": "從 PRD 提取所有關鍵業務數值（倍率、閾值、SLO、RTP、rate-limit 等）到 docs/CONSTANTS.md（並同步輸出 docs/constants.json）。下游所有文件（EDD/BDD/test-plan/runbook）生成時必須讀取此文件並引用，確保跨文件數值一致性。這是 AI 可實作性的核心機制。"
     },
     {
-      "id": "D04-PDD",
+      "id": "PDD",
       "type": "PDD",
       "layer": "需求層",
       "output": ["docs/PDD.md"],
       "multi_file": false,
       "condition": "client_type != none",
       "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D04-PDD]"
+      "commit_prefix": "docs(gendoc)[PDD]"
     },
     {
-      "id": "D05-VDD",
+      "id": "VDD",
       "type": "VDD",
       "layer": "設計層",
       "output": ["docs/VDD.md"],
       "multi_file": false,
       "condition": "client_type != none",
       "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D05-VDD]"
+      "commit_prefix": "docs(gendoc)[VDD]"
     },
     {
-      "id": "D06-EDD",
+      "id": "EDD",
       "type": "EDD",
       "layer": "設計層",
       "output": ["docs/EDD.md"],
       "multi_file": false,
       "condition": "always",
       "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D06-EDD]",
+      "commit_prefix": "docs(gendoc)[EDD]",
       "note": "EDD 生成採用三 subagent 多 pass 架構（見 EDD.gen.md）：Pass-A 生成 §1-§8，Pass-B 生成 §4.5 UML，Pass-C 生成 §9-§21。三個 pass 均輸出到同一個 docs/EDD.md，review loop 在全部完成後執行。"
     },
     {
-      "id": "D07-ARCH",
+      "id": "ARCH",
       "type": "ARCH",
       "layer": "設計層",
       "output": ["docs/ARCH.md"],
       "multi_file": false,
       "condition": "always",
       "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D07-ARCH]"
+      "commit_prefix": "docs(gendoc)[ARCH]"
     },
     {
-      "id": "D07b-UML",
+      "id": "API",
+      "type": "API",
+      "layer": "設計層",
+      "output": ["docs/API.md"],
+      "multi_file": false,
+      "condition": "always",
+      "handled_by": "gendoc-flow",
+      "commit_prefix": "docs(gendoc)[API]"
+    },
+    {
+      "id": "SCHEMA",
+      "type": "SCHEMA",
+      "layer": "設計層",
+      "output": ["docs/SCHEMA.md"],
+      "multi_file": false,
+      "condition": "always",
+      "handled_by": "gendoc-flow",
+      "commit_prefix": "docs(gendoc)[SCHEMA]"
+    },
+    {
+      "id": "FRONTEND",
+      "type": "FRONTEND",
+      "layer": "設計層",
+      "output": ["docs/FRONTEND.md"],
+      "multi_file": false,
+      "condition": "client_type != none",
+      "handled_by": "gendoc-flow",
+      "commit_prefix": "docs(gendoc)[FRONTEND]"
+    },
+    {
+      "id": "AUDIO",
+      "type": "AUDIO",
+      "layer": "設計層",
+      "output": ["docs/AUDIO.md"],
+      "multi_file": false,
+      "condition": "client_type == game",
+      "handled_by": "gendoc-flow",
+      "commit_prefix": "docs(gendoc)[AUDIO]",
+      "note": "音效設計文件：BGM/SFX/VO 清單、音效觸發邏輯、引擎設定（Cocos/Unity/HTML5 Web Audio）、資產規格、效能預算"
+    },
+    {
+      "id": "ANIM",
+      "type": "ANIM",
+      "layer": "設計層",
+      "output": ["docs/ANIM.md"],
+      "multi_file": false,
+      "condition": "client_type == game",
+      "handled_by": "gendoc-flow",
+      "commit_prefix": "docs(gendoc)[ANIM]",
+      "note": "動畫特效設計文件：骨骼動畫/幀動畫/Tween/粒子/Shader、引擎設定（Cocos/Unity/HTML5 PixiJS）、效能預算與 LOD 策略"
+    },
+    {
+      "id": "CLIENT_IMPL",
+      "type": "CLIENT_IMPL",
+      "layer": "設計層",
+      "output": ["docs/CLIENT_IMPL.md"],
+      "multi_file": false,
+      "condition": "client_type != none",
+      "handled_by": "gendoc-flow",
+      "commit_prefix": "docs(gendoc)[CLIENT_IMPL]",
+      "note": "客戶端實作規格書：依 EDD §3.3 偵測引擎（Cocos Creator / Unity WebGL / React / Vue / HTML5），自動展開對應的場景結構、資源載入策略、動畫觸發規格、AudioManager 架構、VFX 整合規格。上游：EDD + VDD + ANIM + AUDIO。"
+    },
+    {
+      "id": "ADMIN_IMPL",
+      "type": "ADMIN_IMPL",
+      "layer": "設計層",
+      "output": ["docs/ADMIN_IMPL.md"],
+      "multi_file": false,
+      "condition": "has_admin_backend",
+      "handled_by": "gendoc-flow",
+      "commit_prefix": "docs(gendoc)[ADMIN_IMPL]",
+      "note": "Admin 後台實作規格（預設技術棧：Vue3 + Element Plus + Vite）。包含：RBAC 架構、Component 規範、路由設計、API 串接、Pinia Store、部署配置。上游：EDD（§3.3 _ADMIN_FRAMEWORK, §5.5 RBAC 模型）+ ARCH + API + SCHEMA。觸發條件：has_admin_backend=true（在 gendoc-auto Session Config 中設定）。"
+    },
+    {
+      "id": "RESOURCE",
+      "type": "RESOURCE",
+      "layer": "設計層",
+      "output": ["docs/RESOURCE.md"],
+      "multi_file": false,
+      "condition": "client_type != none",
+      "handled_by": "gendoc-flow",
+      "commit_prefix": "docs(gendoc)[RESOURCE]",
+      "note": "AI 資產生產訂單：從 VDD.md（必讀）、ANIM.md（若存在）、AUDIO.md（若存在）推導出需要哪些具體資產檔案，生成包含 ID/檔名/type/source_tool/prompt/dimensions/file_size_budget/status/output_path/description 的結構化清單。設計師確認 prompt 後即可送入 AI 工具（Midjourney/Suno/ElevenLabs 等）執行生產。觸發條件：client_type != none（有前端/客戶端的專案）。"
+    },
+    {
+      "id": "UML",
       "type": "UML",
       "layer": "設計層",
       "output": ["docs/diagrams/"],
@@ -101,106 +186,21 @@
       "condition": "always",
       "special_skill": "gendoc-gen-diagrams",
       "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D07b-UML]",
-      "note": "特殊步驟：呼叫 gendoc-gen-diagrams skill，生成 9 大 UML 圖 + class-inventory.md。不走標準 gen→review 流程。class-inventory.md 供 D11-test-plan 和 D13-RTM 讀取。has_admin_backend=true 時額外生成 3 張 Admin 圖（RBAC Entity Diagram / Admin Login Sequence / Admin-Server C4 Container）。"
+      "commit_prefix": "docs(gendoc)[UML]",
+      "note": "特殊步驟：呼叫 gendoc-gen-diagrams skill，生成 9 大 UML 圖 + class-inventory.md。排在所有設計文件（API/SCHEMA/FRONTEND/AUDIO/ANIM/CLIENT_IMPL/ADMIN_IMPL/RESOURCE）之後，確保所有上游文件已存在。class-inventory.md 供 test-plan 和 RTM 讀取。has_admin_backend=true 時額外生成 3 張 Admin 圖（RBAC Entity Diagram / Admin Login Sequence / Admin-Server C4 Container）。"
     },
     {
-      "id": "D08-API",
-      "type": "API",
-      "layer": "設計層",
-      "output": ["docs/API.md"],
-      "multi_file": false,
-      "condition": "always",
-      "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D08-API]"
-    },
-    {
-      "id": "D09-SCHEMA",
-      "type": "SCHEMA",
-      "layer": "設計層",
-      "output": ["docs/SCHEMA.md"],
-      "multi_file": false,
-      "condition": "always",
-      "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D09-SCHEMA]"
-    },
-    {
-      "id": "D10-FRONTEND",
-      "type": "FRONTEND",
-      "layer": "設計層",
-      "output": ["docs/FRONTEND.md"],
-      "multi_file": false,
-      "condition": "client_type != none",
-      "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D10-FRONTEND]"
-    },
-    {
-      "id": "D10b-AUDIO",
-      "type": "AUDIO",
-      "layer": "設計層",
-      "output": ["docs/AUDIO.md"],
-      "multi_file": false,
-      "condition": "client_type == game",
-      "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D10b-AUDIO]",
-      "note": "音效設計文件：BGM/SFX/VO 清單、音效觸發邏輯、引擎設定（Cocos/Unity/HTML5 Web Audio）、資產規格、效能預算"
-    },
-    {
-      "id": "D10c-ANIM",
-      "type": "ANIM",
-      "layer": "設計層",
-      "output": ["docs/ANIM.md"],
-      "multi_file": false,
-      "condition": "client_type == game",
-      "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D10c-ANIM]",
-      "note": "動畫特效設計文件：骨骼動畫/幀動畫/Tween/粒子/Shader、引擎設定（Cocos/Unity/HTML5 PixiJS）、效能預算與 LOD 策略"
-    },
-    {
-      "id": "D10d-CLIENT_IMPL",
-      "type": "CLIENT_IMPL",
-      "layer": "設計層",
-      "output": ["docs/CLIENT_IMPL.md"],
-      "multi_file": false,
-      "condition": "client_type != none",
-      "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D10d-CLIENT_IMPL]",
-      "note": "客戶端實作規格書：依 EDD §3.3 偵測引擎（Cocos Creator / Unity WebGL / React / Vue / HTML5），自動展開對應的場景結構、資源載入策略、動畫觸發規格、AudioManager 架構、VFX 整合規格。上游：EDD + VDD + ANIM + AUDIO。"
-    },
-    {
-      "id": "D10e-ADMIN_IMPL",
-      "type": "ADMIN_IMPL",
-      "layer": "設計層",
-      "output": ["docs/ADMIN_IMPL.md"],
-      "multi_file": false,
-      "condition": "has_admin_backend",
-      "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D10e-ADMIN_IMPL]",
-      "note": "Admin 後台實作規格（預設技術棧：Vue3 + Element Plus + Vite）。包含：RBAC 架構、Component 規範、路由設計、API 串接、Pinia Store、部署配置。上游：EDD（§3.3 _ADMIN_FRAMEWORK, §5.5 RBAC 模型）+ ARCH + API + SCHEMA。觸發條件：has_admin_backend=true（在 gendoc-auto Session Config 中設定）。"
-    },
-    {
-      "id": "D10f-RESOURCE",
-      "type": "RESOURCE",
-      "layer": "設計層",
-      "output": ["docs/RESOURCE.md"],
-      "multi_file": false,
-      "condition": "client_type != none",
-      "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D10f-RESOURCE]",
-      "note": "AI 資產生產訂單：從 VDD.md（必讀）、ANIM.md（若存在）、AUDIO.md（若存在）推導出需要哪些具體資產檔案，生成包含 ID/檔名/type/source_tool/prompt/dimensions/file_size_budget/status/output_path/description 的結構化清單。設計師確認 prompt 後即可送入 AI 工具（Midjourney/Suno/ElevenLabs 等）執行生產。觸發條件：client_type != none（有前端/客戶端的專案）。"
-    },
-    {
-      "id": "D11-test-plan",
+      "id": "test-plan",
       "type": "test-plan",
       "layer": "品質層",
       "output": ["docs/test-plan.md"],
       "multi_file": false,
       "condition": "always",
       "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D11-test-plan]"
+      "commit_prefix": "docs(gendoc)[test-plan]"
     },
     {
-      "id": "D12-BDD-server",
+      "id": "BDD-server",
       "type": "BDD-server",
       "layer": "品質層",
       "output": ["features/"],
@@ -208,11 +208,11 @@
       "multi_file": true,
       "condition": "always",
       "handled_by": "gendoc-flow",
-      "commit_prefix": "test(gendoc)[D12-BDD-server]",
+      "commit_prefix": "test(gendoc)[BDD-server]",
       "note": "BDD-server.gen.md 指示生成多個 .feature 檔案 + step definitions skeleton；BDD-server.review.md 審查所有 features/*.feature（含上游 PRD/CONSTANTS 數值對照）"
     },
     {
-      "id": "D12b-BDD-client",
+      "id": "BDD-client",
       "type": "BDD-client",
       "layer": "品質層",
       "output": ["features/client/"],
@@ -220,42 +220,77 @@
       "multi_file": true,
       "condition": "client_type != none",
       "handled_by": "gendoc-flow",
-      "commit_prefix": "test(gendoc)[D12b-BDD-client]",
+      "commit_prefix": "test(gendoc)[BDD-client]",
       "note": "BDD-client.gen.md 指示生成多個 .feature 檔案 + step definitions skeleton；BDD-client.review.md 審查所有 features/client/*.feature（含上游 PRD/CONSTANTS 數值對照）。has_admin_backend=true 時含 Admin RBAC BDD scenarios（login/permission/audit）。"
     },
     {
-      "id": "D13-RTM",
+      "id": "RTM",
       "type": "RTM",
       "layer": "品質層",
       "output": ["docs/RTM.md"],
       "multi_file": false,
       "condition": "always",
       "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D13-RTM]"
+      "commit_prefix": "docs(gendoc)[RTM]"
     },
     {
-      "id": "D14-runbook",
+      "id": "runbook",
       "type": "runbook",
       "layer": "運維層",
       "output": ["docs/runbook.md"],
       "multi_file": false,
       "condition": "always",
       "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D14-runbook]"
+      "commit_prefix": "docs(gendoc)[runbook]"
     },
     {
-      "id": "D15-LOCAL_DEPLOY",
+      "id": "LOCAL_DEPLOY",
       "type": "LOCAL_DEPLOY",
       "layer": "運維層",
       "output": ["docs/LOCAL_DEPLOY.md"],
       "multi_file": false,
       "condition": "always",
       "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D15-LOCAL_DEPLOY]",
+      "commit_prefix": "docs(gendoc)[LOCAL_DEPLOY]",
       "note": "LOCAL_DEPLOY.gen.md 要求生成後自動執行 docker/sandbox 驗證，確認所有命令可成功執行"
     },
     {
-      "id": "D16-ALIGN",
+      "id": "CICD",
+      "type": "CICD",
+      "layer": "運維層",
+      "output": ["docs/CICD.md"],
+      "multi_file": false,
+      "condition": "always",
+      "handled_by": "gendoc-flow",
+      "commit_prefix": "docs(gendoc)[CICD]",
+      "note": "CI/CD Pipeline 設計文件。上游：EDD.md（CI_TOOL/CD_TOOL）、ARCH.md（Tech Stack）、LOCAL_DEPLOY.md（Make targets/Secret Bootstrap）。排在 LOCAL_DEPLOY 之後，確保 §4 Make targets 可從 LOCAL_DEPLOY.md §6 讀取。"
+    },
+    {
+      "id": "DEVELOPER_GUIDE",
+      "type": "DEVELOPER_GUIDE",
+      "layer": "運維層",
+      "output": ["docs/DEVELOPER_GUIDE.md"],
+      "multi_file": false,
+      "condition": "always",
+      "handled_by": "gendoc-flow",
+      "commit_prefix": "docs(gendoc)[DEVELOPER_GUIDE]",
+      "note": "開發者日常操作指南（非初次建置）。上游：LOCAL_DEPLOY.md（§6 Make targets）、CICD.md（§4 Shared Make Targets、§8 Gitea）、runbook.md（incident 邊界）。排在 CICD 之後確保 CICD.md 存在可讀取。"
+    },
+    {
+      "id": "UML-CICD",
+      "type": "UML-CICD",
+      "layer": "運維層",
+      "output": ["docs/diagrams/"],
+      "output_glob": "docs/diagrams/cicd-*.md",
+      "multi_file": true,
+      "condition": "always",
+      "special_skill": "gendoc-gen-diagrams",
+      "handled_by": "gendoc-flow",
+      "commit_prefix": "docs(gendoc)[UML-CICD]",
+      "note": "特殊步驟：呼叫 gendoc-gen-diagrams skill 的 Step 2D，生成 5 張 CI/CD UML 圖（cicd-pipeline-sequence / cicd-pr-gate-activity / infra-local-topology / developer-workflow-activity / cicd-secret-flow）。排在 CICD 和 DEVELOPER_GUIDE 之後，確保 CICD.md 存在可作為 Step 2D 的上游。"
+    },
+    {
+      "id": "ALIGN",
       "type": "ALIGN",
       "layer": "稽核層",
       "output": ["docs/ALIGN_REPORT.md"],
@@ -263,23 +298,23 @@
       "condition": "always",
       "special_skill": "gendoc-align-check",
       "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D16-ALIGN]",
-      "note": "特殊步驟：呼叫 gendoc-align-check skill，不走標準 gen→review 流程"
+      "commit_prefix": "docs(gendoc)[ALIGN]",
+      "note": "特殊步驟：呼叫 gendoc-align-check skill，不走標準 gen→review 流程。覆蓋範圍包含 CICD.md（§4 Make targets vs LOCAL_DEPLOY.md §6）和 DEVELOPER_GUIDE.md（§2 Jenkins log path vs CICD.md §2 Jenkinsfile stage 名稱）。"
     },
     {
-      "id": "D16-ALIGN-F",
-      "type": "ALIGN-F",
+      "id": "ALIGN-FIX",
+      "type": "ALIGN-FIX",
       "layer": "稽核層",
       "output": ["docs/ALIGN_REPORT.md"],
       "multi_file": false,
       "condition": "always",
       "special_skill": "gendoc-align-fix",
       "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D16-ALIGN-F]",
-      "note": "特殊步驟：依 ALIGN_REPORT.md 自動修復對齊問題（all layers），每條 fix verify 後 commit。緊接 D16-ALIGN 執行。完成後必須觸發 D16b-ALIGN-VERIFY 重新驗證。"
+      "commit_prefix": "docs(gendoc)[ALIGN-FIX]",
+      "note": "特殊步驟：依 ALIGN_REPORT.md 自動修復對齊問題（all layers），每條 fix verify 後 commit。緊接 ALIGN 執行。完成後必須觸發 ALIGN-VERIFY 重新驗證。"
     },
     {
-      "id": "D16b-ALIGN-VERIFY",
+      "id": "ALIGN-VERIFY",
       "type": "ALIGN-VERIFY",
       "layer": "稽核層",
       "output": ["docs/ALIGN_REPORT.md"],
@@ -287,11 +322,11 @@
       "condition": "always",
       "special_skill": "gendoc-align-check",
       "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D16b-ALIGN-VERIFY]",
-      "note": "特殊步驟：D16-ALIGN-F 修復完成後重新執行 gendoc-align-check，更新 ALIGN_REPORT.md 為修復後狀態，確認修復效果。若仍有 CRITICAL/HIGH 問題，繼續修復直到清零。"
+      "commit_prefix": "docs(gendoc)[ALIGN-VERIFY]",
+      "note": "特殊步驟：ALIGN-FIX 修復完成後重新執行 gendoc-align-check，更新 ALIGN_REPORT.md 為修復後狀態，確認修復效果。若仍有 CRITICAL/HIGH 問題，繼續修復直到清零。"
     },
     {
-      "id": "D17-CONTRACTS",
+      "id": "CONTRACTS",
       "type": "CONTRACTS",
       "layer": "實作層",
       "output": ["docs/blueprint/contracts/", "docs/blueprint/infra/", "docs/blueprint/scaffold/"],
@@ -300,11 +335,11 @@
       "condition": "always",
       "special_skill": "gendoc-gen-contracts",
       "handled_by": "gendoc-flow",
-      "commit_prefix": "feat(gendoc)[D17-CONTRACTS]",
+      "commit_prefix": "feat(gendoc)[CONTRACTS]",
       "note": "特殊步驟：從生成文件提取機器可讀規格（OpenAPI YAML, JSON Schema, Pact, IaC, Seed Code）。輸出集中於 docs/blueprint/ 目錄。生成後自動執行 openapi-spec-validator 驗證及 path 數量對齊檢查。has_admin_backend=true 時額外輸出 admin-api.yaml + rbac-seed.json + admin-seed.json。"
     },
     {
-      "id": "D18-MOCK",
+      "id": "MOCK",
       "type": "MOCK",
       "layer": "實作層",
       "output": ["docs/blueprint/mock/"],
@@ -313,11 +348,11 @@
       "condition": "client_type != api-only",
       "special_skill": "gendoc-gen-mock",
       "handled_by": "gendoc-flow",
-      "commit_prefix": "feat(gendoc)[D18-MOCK]",
+      "commit_prefix": "feat(gendoc)[MOCK]",
       "note": "特殊步驟：呼叫 gendoc-gen-mock skill，生成 FastAPI mock server + 擬真假資料 + frontend 使用手冊。生成後自動執行 python main.py --check 確認可啟動。整個 docs/blueprint/mock/ 目錄可獨立帶走使用。"
     },
     {
-      "id": "D20-PROTOTYPE",
+      "id": "PROTOTYPE",
       "type": "PROTOTYPE",
       "layer": "實作層",
       "output": ["docs/pages/prototype/"],
@@ -325,11 +360,11 @@
       "condition": "client_type != api-only",
       "special_skill": "gendoc-gen-prototype",
       "handled_by": "gendoc-flow",
-      "commit_prefix": "feat(gendoc)[D20-PROTOTYPE]",
-      "note": "特殊步驟：呼叫 gendoc-gen-prototype skill，依 PDD/FRONTEND/API.md 生成可點擊的 HTML prototype（UI 流程展示）+ API explorer（交互式 API 文件）。輸出至 docs/pages/prototype/，由 D19-HTML 的 gen_html.py 自動連結到 sidebar。has_admin_backend=true 時額外生成 admin portal prototype 頁面（login/dashboard/user-list/role-management/audit-log）。"
+      "commit_prefix": "feat(gendoc)[PROTOTYPE]",
+      "note": "特殊步驟：呼叫 gendoc-gen-prototype skill，依 PDD/FRONTEND/API.md 生成可點擊的 HTML prototype（UI 流程展示）+ API explorer（交互式 API 文件）。輸出至 docs/pages/prototype/，由 HTML 的 gen_html.py 自動連結到 sidebar。has_admin_backend=true 時額外生成 admin portal prototype 頁面（login/dashboard/user-list/role-management/audit-log）。"
     },
     {
-      "id": "D19-HTML",
+      "id": "HTML",
       "type": "HTML",
       "layer": "稽核層",
       "output": ["docs/pages/"],
@@ -337,7 +372,7 @@
       "condition": "always",
       "special_skill": "gendoc-gen-html",
       "handled_by": "gendoc-flow",
-      "commit_prefix": "docs(gendoc)[D19-HTML]",
+      "commit_prefix": "docs(gendoc)[HTML]",
       "note": "特殊步驟：呼叫 gendoc-gen-html skill，不走標準 gen→review 流程。Step 1-B 開頭偵測並刪除舊版 generate_site.py（若存在），強制使用 gen_html.py。"
     }
   ]

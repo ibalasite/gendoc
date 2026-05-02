@@ -7,7 +7,7 @@ description: |
   3. Pact Consumer Contract（docs/blueprint/contracts/pact/*.json）
   4. IaC 模板（docs/blueprint/infra/helm/values.yaml 或 docker-compose.yml + network-policy）
   5. Seed Code Skeleton（docs/blueprint/scaffold/src/）
-  呼叫時機：gendoc-flow D17-CONTRACTS 步驟（所有文件完成後）；或用戶手動執行
+  呼叫時機：gendoc-flow CONTRACTS 步驟（所有文件完成後）；或用戶手動執行
 allowed-tools:
   - Read
   - Write

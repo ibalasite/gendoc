@@ -280,7 +280,7 @@ for step in steps:
 import glob
 server_features = glob.glob(os.path.join(cwd, "features", "*.feature"))
 if not server_features:
-    findings.append("[HIGH] MISSING: features/*.feature (BDD-server, step=D12-BDD-server)")
+    findings.append("[HIGH] MISSING: features/*.feature (BDD-server, step=BDD-server)")
 else:
     ok_count += 1
     print(f"[OK] features/ — {len(server_features)} .feature file(s)")

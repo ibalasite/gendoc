@@ -216,7 +216,7 @@ Pie Chart 使用計算後的真實數字，不保留 `{{...}}` 佔位符。
 - 若 EDD 已有測試描述，可填 `IN_PROGRESS`
 - 不得假設任何 Test 為 `PASS` 狀態（必須等實際執行後更新）
 
-**Status 自動升級規則（在 D13-RTM 生成時執行）：**
+**Status 自動升級規則（在 RTM 生成時執行）：**
 
 生成 RTM 時，若以下條件同時成立，則將對應列的 Status 從 `DRAFT` 升級為 `IMPLEMENTED`：
 
@@ -231,7 +231,7 @@ Pie Chart 使用計算後的真實數字，不保留 `{{...}}` 佔位符。
 若 Design + Code ref → `IN_REVIEW`
 若全部為空 → 保留 `DRAFT`
 
-**D13-RTM 生成步驟要求**：在有 ARCH/API/EDD/test-plan 的情況下，必須嘗試填入 Design/Code/Test ref，不可留「待填」或「N/A」。
+**RTM 生成步驟要求**：在有 ARCH/API/EDD/test-plan 的情況下，必須嘗試填入 Design/Code/Test ref，不可留「待填」或「N/A」。
 
 **Class/Method 佔位符處理：**
 - 若 EDD 無 Class Diagram，Class 欄填 `{{ClassName}}（待 EDD §6 補充）`，標記 `[UPSTREAM_CONFLICT]`

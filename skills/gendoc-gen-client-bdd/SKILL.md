@@ -3,7 +3,7 @@ name: gendoc-gen-client-bdd
 description: |
   Client 端 BDD Feature Files 生成 — 智能路由：
   Web/HTML5 → 讀取 {_TEMPLATE_DIR}/BDD-client.gen.md + BDD-client.review.md
-  執行 Gen → Review → Fix 三專家迴圈（與 gendoc-flow D12b 行為完全一致）。
+  執行 Gen → Review → Fix 三專家迴圈（與 gendoc-flow BDD-client 行為完全一致）。
   Unity → Unity Test Framework BDD scenarios（C# NUnit）。
   Cocos → Jest TypeScript BDD（features/client/ + tests/cocos/）。
   可由 gendoc-auto / gendoc-flow 自動呼叫，或獨立手動呼叫。
@@ -20,7 +20,7 @@ allowed-tools:
 # gendoc-gen-client-bdd — Client 端 BDD Feature 生成（智能路由）
 
 依 `client_type` 路由到對應的生成策略：
-- **Web / HTML5**：委派給 `{_TEMPLATE_DIR}/BDD-client.gen.md` 規則（3-expert pattern，與 pipeline D12b 行為一致）
+- **Web / HTML5**：委派給 `{_TEMPLATE_DIR}/BDD-client.gen.md` 規則（3-expert pattern，與 pipeline BDD-client 行為一致）
 - **Unity / Cocos**：使用平台專屬生成邏輯
 
 ---
@@ -108,7 +108,7 @@ esac
 
 **條件**：`_ROUTE == "template"`
 
-此路徑與 `gendoc-flow D12b-BDD-client` 行為完全一致，確保手動呼叫與 pipeline 輸出相同。
+此路徑與 `gendoc-flow BDD-client` 行為完全一致，確保手動呼叫與 pipeline 輸出相同。
 
 ### 2A-1：讀取 Gen Template
 
@@ -162,7 +162,7 @@ GEN_RESULT: {"files":[...], "scenarios_total": N, "prd_ac_covered": M}
 ```bash
 git add features/client/
 _FILE_COUNT=$(find features/client -name "*.feature" 2>/dev/null | wc -l | tr -d ' ')
-git commit -m "test(gendoc)[D12b]: gen BDD-client — ${_FILE_COUNT} feature files (client_type=${_CLIENT_TYPE})"
+git commit -m "test(gendoc)[BDD-client]: gen BDD-client — ${_FILE_COUNT} feature files (client_type=${_CLIENT_TYPE})"
 ```
 
 ### 2A-4：Review → Fix → Commit 迴圈
@@ -245,9 +245,9 @@ FIX_RESULT: {"fixed":N,"unfixed":N,"unfixed_ids":["F2"],"summary":"..."}
 ```bash
 git add features/client/
 if [[ $finding_total -eq 0 ]]; then
-  git commit -m "test(gendoc)[D12b]: review-r${round} — PASS (0 findings)"
+  git commit -m "test(gendoc)[BDD-client]: review-r${round} — PASS (0 findings)"
 else
-  git commit -m "test(gendoc)[D12b]: review-r${round} — fix ${fixed}/${finding_total} findings"
+  git commit -m "test(gendoc)[BDD-client]: review-r${round} — fix ${fixed}/${finding_total} findings"
 fi
 ```
 
@@ -261,7 +261,7 @@ if terminate:
 ### 2A-5：輸出生成摘要
 
 ```
-Client BDD 已生成（Template-Driven，與 pipeline D12b 一致）：
+Client BDD 已生成（Template-Driven，與 pipeline BDD-client 一致）：
   client_type：{_CLIENT_TYPE}
   Feature Files：{N} 個（features/client/）
   Scenarios 總計：{M} 個
@@ -346,7 +346,7 @@ spawn Agent（角色：Unity BDD 審查員）審查生成結果：
 
 ```bash
 git add tests/unity/bdd/
-git commit -m "test(gendoc)[D12b]: gen BDD-client (Unity) — $(ls tests/unity/bdd/*.cs 2>/dev/null | wc -l | tr -d ' ') test files"
+git commit -m "test(gendoc)[BDD-client]: gen BDD-client (Unity) — $(ls tests/unity/bdd/*.cs 2>/dev/null | wc -l | tr -d ' ') test files"
 ```
 
 輸出摘要：
@@ -413,7 +413,7 @@ spawn Agent（角色：Cocos BDD 審查員）審查：
 git add features/client/ tests/cocos/
 _F=$(find features/client -name "*.feature" 2>/dev/null | wc -l | tr -d ' ')
 _T=$(find tests/cocos -name "*.test.ts" 2>/dev/null | wc -l | tr -d ' ')
-git commit -m "test(gendoc)[D12b]: gen BDD-client (Cocos) — ${_F} features / ${_T} jest tests"
+git commit -m "test(gendoc)[BDD-client]: gen BDD-client (Cocos) — ${_F} features / ${_T} jest tests"
 ```
 
 輸出摘要：

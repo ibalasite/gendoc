@@ -251,15 +251,15 @@ for sid in sorted(completed):
                     })
                     break
 
-# Special: D19-HTML — index.html 必存在 + ≥ 3 個 .html
-if "D19-HTML" in completed:
+# Special: HTML — index.html 必存在 + ≥ 3 個 .html
+if "HTML" in completed:
     pages_dir  = cwd / "docs/pages"
     html_count = len(list(pages_dir.glob("*.html"))) if pages_dir.exists() else 0
     index_ok   = (pages_dir / "index.html").exists()
     if not index_ok or html_count < 3:
-        if not any(x["id"] == "D19-HTML" for x in incomplete):
+        if not any(x["id"] == "HTML" for x in incomplete):
             incomplete.append({
-                "id":       "D19-HTML",
+                "id":       "HTML",
                 "expected": "docs/pages/index.html + ≥3 .html",
                 "reason":   f"HTML 頁面不足（共 {html_count} 個）",
                 "severity": "MEDIUM",

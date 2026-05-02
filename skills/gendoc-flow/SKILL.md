@@ -221,7 +221,7 @@ import json, os
 f = '${_STATE_FILE}'
 d = json.load(open(f))
 d['client_type'] = '${_CLIENT_TYPE}'
-d['client_type_source'] = 'auto'   # P-14：標記為自動偵測，允許 D03-PRD 後重新驗證
+d['client_type_source'] = 'auto'   # P-14：標記為自動偵測，允許 PRD 後重新驗證
 tmp = f + '.tmp'
 with open(tmp, 'w', encoding='utf-8') as fp:
     json.dump(d, fp, indent=2, ensure_ascii=False)
@@ -308,7 +308,7 @@ if [[ "$_IDEA_OK" == "true" && "$_BRD_OK" == "true" ]]; then
 elif [[ "$_IDEA_OK" == "false" && "$_BRD_OK" == "true" ]]; then
   echo "[Check] Mode B — 僅 BRD.md（無 IDEA.md），以 BRD 作為最高層需求來源繼續"
   echo "        [注意] 下游 Gen Agent 讀取 BRD.md 替代 IDEA.md 作為核心背景，文件品質可能略低"
-  echo "        [提示] 若日後補充 IDEA.md，可從 D03-PRD 重跑以充分利用 IDEA 背景"
+  echo "        [提示] 若日後補充 IDEA.md，可從 PRD 重跑以充分利用 IDEA 背景"
 else
   echo "[錯誤] docs/BRD.md 不存在或為空——這是 gendoc-flow 唯一必要文件。"
   echo "       情境 1：自備 BRD：手動建立 docs/BRD.md 後呼叫 /gendoc-flow"
@@ -366,7 +366,7 @@ completed = _COMPLETED.split(",")
 # start_step 支援：
 #   "0" 或空字串 → 從頭開始
 #   "EDD" → 從 EDD 節點開始（新格式，無數字前綴）
-#   "D06-EDD" → 舊格式，仍相容（匹配 id 或去掉前綴後匹配）
+#   "EDD" → 從 EDD 節點開始
 def _should_skip_before_start(step_id, step_idx, start_step):
     if not start_step or start_step == "0":
         return False  # 從頭開始
@@ -484,12 +484,12 @@ for step_idx, step in enumerate(pipeline):
     execute_step(step, skip_gen=_skip_gen_only, resume_from_round=_resume_from_round)
     update_state_completed(step["id"])
 
-    # ── P-14：D03-PRD 完成後「只驗證」client_type，不覆寫 ──────────
+    # ── P-14：PRD 完成後「只驗證」client_type，不覆寫 ──────────
     # 設計原則：client_type 一旦在 Step 0-C 偵測並進入流水線，就不再變更。
     # 理由：mid-pipeline 變更 client_type 會導致流水線非冪等（同一輸入第一次跑 api-only，
     #       第二次跑 game），違反自動化可靠性。
     # 若真的需要改 client_type，用 /gendoc-config 手動設定後重跑。
-    if step["id"] in ("PRD", "D03-PRD"):
+    if step["id"] == "PRD":
         _CLIENT_TYPE_CHECK = python3_detect_client_type()  # 重跑偵測腳本（只用於驗證）
         if _CLIENT_TYPE_CHECK != _CLIENT_TYPE:
             print(f"[P-14] ⚠️  PRD 偵測到不同 client_type 線索：{_CLIENT_TYPE_CHECK}（當前鎖定：{_CLIENT_TYPE}）")
@@ -579,13 +579,13 @@ def python3_extract_client_engine():
 - P-14 設計為**只驗證，不更新**：無論 client_type_source 為何，P-14 不覆寫 client_type
 - 若 PRD 偵測到不同線索，只輸出警告，流水線繼續以原 client_type 執行
 - 若使用者希望根據 PRD 內容更新 client_type，請執行 /gendoc-config 手動設定後重跑
-- 若 D03-PRD 是被 skip（P-02/P-05 resume），P-14 仍執行（PRD 已存在，可讀取）
+- 若 PRD 是被 skip（P-02/P-05 resume），P-14 仍執行（PRD 已存在，可讀取）
 
-    # ── P-15：D06-EDD 完成後提取並鎖定 lang_stack ──────────
+    # ── P-15：EDD 完成後提取並鎖定 lang_stack ──────────
     # 理由：EDD §語言/框架 決定的技術棧必須寫入 state 並鎖定，
     #       確保後續 test-plan、BDD、runbook、LOCAL_DEPLOY 使用相同技術棧，
     #       不因不同 AI 自行推斷而產生不同結果。
-    if step["id"] in ("EDD", "D06-EDD"):
+    if step["id"] == "EDD":
         _lang_stack_current = state.get("lang_stack", "")
         _lang_stack_locked  = state.get("lang_stack_locked", False)
         if not _lang_stack_locked:
@@ -604,11 +604,11 @@ def python3_extract_client_engine():
         else:
             print(f"[P-15] ⏭️  lang_stack 已鎖定（{_lang_stack_current}），跳過提取")
 
-    # ── P-15-B：D06-EDD 完成後提取並鎖定 client_engine ──────────
+    # ── P-15-B：EDD 完成後提取並鎖定 client_engine ──────────
     # 理由：EDD §3.3 客戶端引擎 決定後續 LOCAL_DEPLOY 的 build pipeline 策略
     #       （Unity WebGL / Cocos / web 各有不同 Dockerfile 和 inner loop 指令），
     #       必須鎖定至 state 供 LOCAL_DEPLOY.gen.md 讀取，避免 gen agent 自行猜測。
-    if step["id"] in ("EDD", "D06-EDD"):
+    if step["id"] == "EDD":
         _client_engine_locked = state.get("client_engine_locked", False)
         if not _client_engine_locked:
             _client_engine_new = python3_extract_client_engine()
@@ -658,23 +658,23 @@ if step.get("special_skill"):
 等待完成後執行以下步驟（順序不可改）：
 ```
 
-**[Fix-B] D07b-UML 完成後立即執行前端 UML 完整度驗證（其他特殊步驟跳過此區塊）：**
+**[Fix-B] UML 完成後立即執行前端 UML 完整度驗證（其他特殊步驟跳過此區塊）：**
 
 ```bash
-# Fix-B：僅 D07b-UML 執行此驗證
-if [[ "${step_id}" == "UML" || "${step_id}" == "D07b-UML" ]]; then
+# Fix-B：僅 UML 執行此驗證
+if [[ "${step_id}" == "UML" ]]; then
   _CT=$(python3 -c "import json; d=json.load(open('${_STATE_FILE}')); print(d.get('client_type','none'))" 2>/dev/null || echo "none")
   _FRONTEND_MD=$([ -f "docs/FRONTEND.md" ] && echo "yes" || echo "no")
 
   if [[ "$_CT" != "api-only" && "$_CT" != "none" && "$_FRONTEND_MD" == "yes" ]]; then
     _FE_COUNT=$(ls docs/diagrams/frontend-*.md 2>/dev/null | wc -l | tr -d ' ')
     if [[ "$_FE_COUNT" -lt "10" ]]; then
-      echo "[Fix-B] ⚠️  D07b-UML 前端 UML 不足（${_FE_COUNT}/16，需 ≥ 10）"
+      echo "[Fix-B] ⚠️  UML 前端 UML 不足（${_FE_COUNT}/16，需 ≥ 10）"
       echo "[Fix-B] 清除殘檔，重新呼叫 gendoc-gen-diagrams（第 1 次重試）..."
       rm -f docs/diagrams/frontend-*.md 2>/dev/null || true
       _FIX_B_RETRY="true"
     else
-      echo "[Fix-B] ✅ D07b-UML 前端 UML 驗證通過：${_FE_COUNT} 個 frontend-*.md"
+      echo "[Fix-B] ✅ UML 前端 UML 驗證通過：${_FE_COUNT} 個 frontend-*.md"
       _FIX_B_RETRY="false"
     fi
   else
@@ -1442,10 +1442,10 @@ print(total)
 # BDD-server
 _BDD_COUNT=$(ls features/*.feature 2>/dev/null | wc -l | tr -d ' ')
 git add features/
-git commit -m "test(gendoc)[D12-BDD-server]: gen — 生成 ${_BDD_COUNT} 個 .feature 檔案"
+git commit -m "test(gendoc)[BDD-server]: gen — 生成 ${_BDD_COUNT} 個 .feature 檔案"
 
 # BDD-client
 _BDD_C_COUNT=$(ls features/client/*.feature 2>/dev/null | wc -l | tr -d ' ')
 git add features/client/
-git commit -m "test(gendoc)[D12b-BDD-client]: gen — 生成 ${_BDD_C_COUNT} 個 client .feature 檔案"
+git commit -m "test(gendoc)[BDD-client]: gen — 生成 ${_BDD_C_COUNT} 個 client .feature 檔案"
 ```
