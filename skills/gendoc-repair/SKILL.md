@@ -346,6 +346,118 @@ PY
 
 ---
 
+## Step 1.5b：品質門檻驗證（rules.json）
+
+若 `.gendoc-rules/` 存在，對已完成步驟驗 rules.json 品質門檻。若 DRYRUN 未跑（無 `.gendoc-rules/`），靜默跳過此區塊。
+
+```bash
+python3 - "$_PIPELINE" "$_STATE_FILE" "$_CWD" <<'PY'
+import json, re, sys
+from pathlib import Path
+
+pipeline_file = sys.argv[1]
+state_file    = sys.argv[2]
+cwd           = Path(sys.argv[3])
+rules_dir     = cwd / ".gendoc-rules"
+
+if not rules_dir.exists():
+    print("\n[Step 1.5b] .gendoc-rules/ 不存在，跳過品質門檻驗證（DRYRUN 未執行）")
+    print("QUALITY_FAIL_COUNT:0")
+    sys.exit(0)
+
+state     = json.load(open(state_file, encoding="utf-8"))
+completed = set(state.get("completed_steps", []))
+
+quality_fails = []
+
+PLACEHOLDER_RE = re.compile(r'\{\{[A-Z_]+\}\}')
+
+for sid in sorted(completed):
+    rules_file = rules_dir / f"{sid}-rules.json"
+    if not rules_file.exists():
+        continue
+    try:
+        rules = json.load(open(rules_file, encoding="utf-8"))
+    except Exception:
+        continue
+
+    for spec in rules.get("output_files", []):
+        path_str = spec.get("path", "")
+        if not path_str:
+            continue
+        doc_path = cwd / path_str
+        if not doc_path.exists():
+            continue  # 檔案不存在由 Step 1.5 處理，這裡只驗品質
+
+        try:
+            content = doc_path.read_text(encoding="utf-8")
+        except Exception:
+            continue
+
+        # 驗 min_h2_sections
+        min_h2 = spec.get("min_h2_sections", 0)
+        if min_h2:
+            actual_h2 = len(re.findall(r'^## ', content, re.MULTILINE))
+            if actual_h2 < min_h2:
+                quality_fails.append({
+                    "id": sid,
+                    "check": "min_h2_sections",
+                    "detail": f"有 {actual_h2} 個 ## 標題，需 ≥ {min_h2}",
+                    "severity": "QUALITY_FAIL",
+                })
+                continue  # 一個 step 只報一次
+
+        # 驗 required_sections
+        for section in spec.get("required_sections", []):
+            if section.lower() not in content.lower():
+                quality_fails.append({
+                    "id": sid,
+                    "check": "required_sections",
+                    "detail": f"缺少必要章節：{section}",
+                    "severity": "QUALITY_FAIL",
+                })
+                break
+
+        # 驗 no_placeholder_strings
+        for rule in rules.get("anti_fake_rules", []):
+            if rule.get("type") == "no_placeholder_strings":
+                pattern = rule.get("pattern", r'\{\{[A-Z_]+\}\}')
+                if re.search(pattern, content):
+                    quality_fails.append({
+                        "id": sid,
+                        "check": "no_placeholder_strings",
+                        "detail": f"文件含未填充的 placeholder（pattern: {pattern}）",
+                        "severity": "QUALITY_FAIL",
+                    })
+                    break
+
+print(f"\n{'='*70}")
+print(f"  品質門檻驗證（rules.json Gate Check）")
+print(f"  rules_dir  : {rules_dir}")
+print(f"  QUALITY_FAIL 步驟數：{len(quality_fails)}")
+print(f"{'='*70}\n")
+
+print(f"QUALITY_FAIL_COUNT:{len(quality_fails)}")
+
+if quality_fails:
+    print(f"{'ID':<28} {'Check':<25} {'Detail'}")
+    print(f"{'-'*28} {'-'*25} {'-'*35}")
+    for item in quality_fails:
+        print(f"{item['id']:<28} {item['check']:<25} {item['detail']}")
+    print()
+    for item in quality_fails:
+        print(f"QUALITY_FAIL:{item['id']}")
+else:
+    print("✅ 所有已完成步驟通過 rules.json 品質門檻驗證")
+PY
+```
+
+**[AI 指令]** 從輸出中擷取：
+- `_QUALITY_FAIL_COUNT`：`QUALITY_FAIL_COUNT:N` 行的 N
+- `_QUALITY_FAIL_IDS`：所有 `QUALITY_FAIL:xxx` 行的 xxx，以逗號串接
+
+---
+
 ## Step 1.6：DRYRUN 三態偵測 + 上游就緒度 + 基線過時檢查
 
 **[AI 指令]** 執行以下 bash，偵測 DRYRUN 狀態並擷取三個變數：`_DRYRUN_STATUS`、`_UPSTREAM_READY`、`_DRYRUN_STALE`。
