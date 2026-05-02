@@ -178,3 +178,27 @@ upstream-alignment:
 **Check**: 是否有 `{{PLACEHOLDER}}` 格式未替換的空白佔位符（元件名稱、域名、IP CIDR、SLA 數字等）？逐一列出位置（章節）。
 **Risk**: 裸 placeholder 使 ARCH 文件無法直接用於 Infrastructure 配置或架構溝通，DevOps 工程師需要人工詢問架構師填寫缺漏值，降低文件可信度。
 **Fix**: 替換所有裸 placeholder 為真實值（域名 / IP CIDR / 元件名稱）；若部署細節尚未確定，改為 `（待確認：描述說明）` 格式。
+
+---
+
+### Layer 5B: 微服務可拆解性（Spring Modulith HC-1～HC-4，由 Software Architect 主審，共 4 項）
+
+#### [CRITICAL] AM-01 — Schema 隔離缺失（HC-1）
+**Check**: §4 服務邊界表的「擁有資料」欄是否填入具體 DB Schema / Table 名稱（非模糊描述如「自身資料」「業務資料」）？是否有任何兩個服務聲明擁有同一 Table？§4 邊界原則是否包含跨服務 DB 存取禁止宣告？任一缺失視為 CRITICAL。
+**Risk**: 無具體 Schema Ownership 宣告，工程師默認可以跨服務 JOIN，形成隱性 Schema 耦合；BC 提取時 DB Migration 必然失敗。
+**Fix**: 補填 §4 表格「擁有資料」欄為具體 Table 清單；確認 §4 邊界原則含 HC-1 禁止宣告；識別並移除所有跨服務 DB-level FK。
+
+#### [HIGH] AM-02 — 跨服務通訊路徑未明確（HC-2）
+**Check**: §4 或 §5 通訊模式是否明確說明所有跨服務通訊只透過 Public API 或 Domain Event？是否有設計允許直接呼叫其他服務的 Repository 或 DAO？若有直接呼叫視為 HIGH。
+**Risk**: 未明確禁止跨服務 Repository 直接呼叫，開發者在實作時會取最短路徑（直接 Import），導致編譯期耦合。
+**Fix**: 在 §4 邊界原則或 §5 通訊模式明確標注 HC-2；識別並列出所有需要重設計為 API/Event 的直接呼叫路徑。
+
+#### [HIGH] AM-03 — 服務間依賴未驗證 DAG（HC-5）
+**Check**: 是否有服務間依賴圖（來自 §4、§5 或 EDD §4.3）？是否宣告圖為 DAG（無循環依賴）？若無依賴圖或存在循環，視為 HIGH。
+**Risk**: 循環依賴（A depends on B depends on A）在服務提取時造成啟動順序死鎖；也暗示 BC 邊界設計有根本問題。
+**Fix**: 生成跨服務依賴 Mermaid 圖；識別循環並重設計：提取 Shared Kernel 或將某個方向改為 Domain Event。
+
+#### [MEDIUM] AM-04 — 無跨服務共享可變狀態說明（HC-4）
+**Check**: §4 或 §7（快取設計）是否說明各服務的 Redis Key Namespace（如 `member:*`、`wallet:*`）？是否有全域可變物件跨服務邊界存取的設計？若有或未說明，視為 MEDIUM。
+**Risk**: 未隔離 Redis Namespace 導致服務提取後快取操作相互干擾（FLUSH 影響全域）。
+**Fix**: 在 §7 或 §4 補充各服務的 Redis Key Prefix 設計；列出需要遷移隔離的現有 Key。

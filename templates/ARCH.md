@@ -291,9 +291,10 @@ sequenceDiagram
 | {{SERVICE_C}} | {{SERVICE_C_RESPONSIBILITY}} | {{SERVICE_C_BOUNDARY}} | {{SERVICE_C_DATA}} | {{SERVICE_C_API}} |
 | Notification Service | 郵件 / SMS / Push 通知 | 純輸出，不擁有業務狀態 | 通知 log | Webhook / Event |
 
-**邊界原則：**
+**邊界原則（Spring Modulith HC-1）：**
 
-- 每個服務擁有且只擁有自己的資料庫 schema；跨服務資料存取透過 API 或 Event 進行
+- 每個服務擁有且只擁有自己的資料庫 Schema；**擁有資料欄必須填入具體 Schema / Table 名稱**（非「自身資料」等模糊描述）
+- **禁止跨服務直接存取他服務的 DB Table**，所有跨服務資料存取必須透過 Public API 端點或 Domain Event（HC-1）
 - 避免分散式交易；優先使用 Saga Pattern 或最終一致性
 - 服務間不共享 ORM Entity 或 Domain Object
 
@@ -1092,6 +1093,14 @@ ADR-ID：ADR-002
 - [ ] **G-03** 所有外部依賴均已列入依賴地圖，SLA 與 Fallback 已評估
 - [ ] **G-04** 技術棧選型符合組織標準，或有書面豁免申請
 - [ ] **G-05** 容量規劃已更新，預估資源需求已與 FinOps 確認成本
+
+### 微服務可拆解性（Decomposability，Spring Modulith HC-1～HC-5）
+
+- [ ] **MD-01** 每個服務的 Schema 擁有權已明確：§4 表格「擁有資料」欄填入具體 Schema / Table 名稱，無兩個服務聲明擁有同一 Table
+- [ ] **MD-02** 跨服務通訊只透過 Public API 端點或 Domain Event，無直接跨服務 Repository/DAO 呼叫
+- [ ] **MD-03** 服務間依賴圖已驗證為 DAG（無循環依賴），DAG 圖或聲明已附於文件中
+- [ ] **MD-04** 無跨服務共享可變狀態：Redis Key 有 namespace 隔離（如 `member:*`、`wallet:*`），無全域可變物件跨服務存取
+- [ ] **MD-05** 每個服務理論上可獨立部署：已識別並列出獨立部署時需要調整的接合點（DB Migration 順序、Service Discovery 更新、Ingress 規則變更等）
 
 ---
 

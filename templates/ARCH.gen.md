@@ -421,6 +421,9 @@ Closed ──(錯誤率 > 閾值)──► Open ──(等待 Timeout)──► 
 - [ ] §12 Observability Architecture：Metrics / Tracing / Logging 三支柱是否已定義？
 - [ ] §14 ADR 至少 1 個完整 ADR 條目（含 Context/Decision/Consequences）
 - [ ] §15 Architecture Review Checklist 已生成（12 個 NFR 均已驗證）
+- [ ] §4「擁有資料」欄已填入具體 Schema / Table 名稱（Spring Modulith HC-1），無模糊描述或 placeholder
+- [ ] §4.3（或 EDD §4.3）跨服務依賴圖已驗證為 DAG（無循環依賴），DAG 確認已附於文件
+- [ ] §15 MD-01～MD-05（微服務可拆解性）均已填入具體回答（非空）
 - [ ] §16 FinOps Cost Optimization：成本分配 Tag 策略（Environment/Service/Team）是否已定義？
 - [ ] §16 月度 FinOps Review：成本預算警報規則（80%/100%/120% 閾值）是否已設定？
 - [ ] §18 Admin Portal 架構（has_admin_backend 條件）：若 true，C4 Admin Container 圖 + RBAC 架構 + 安全補充均已填寫
@@ -459,3 +462,4 @@ else:
 | 上游術語對齊 | 模組名稱、服務名稱與 EDD §模組拆解 一致 | 以 EDD 為權威來源修正 |
 | UML 圖完整 | §10 Engineering Diagrams 包含 Class/Sequence/State/ER/Component/Deployment 等至少 6 大圖 | 補充缺失的 Mermaid 圖表 |
 | FinOps 章節存在 | 有 §FinOps 或 §成本估算，且包含至少一個具體費用數字（非 TBD） | 根據 state.q4_scale 估算後填入 |
+| BC 隔離（HC-1） | §4 每個服務「擁有資料」欄有具體 Table 名稱；§15 MD-01～MD-05 均已回答 | 補充缺失的 Schema Ownership 和 MD-01～MD-05 回答 |
