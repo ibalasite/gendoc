@@ -1371,7 +1371,7 @@ else:
   │  → 執行 /gendoc-align-check 做最終跨文件對齊掃描
   │  → 或直接進入程式碼實作階段
   └ 若需要 HTML 文件網站：
-     → /gendoc-gen-html 已由 D19 自動完成，瀏覽 docs/pages/index.html
+     → /gendoc-gen-html 已由 HTML step 自動完成，瀏覽 docs/pages/index.html
 ```
 
 ```python

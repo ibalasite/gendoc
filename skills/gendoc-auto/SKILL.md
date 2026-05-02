@@ -1200,7 +1200,7 @@ for step_id in ['IDEA', 'BRD', 'handoff']:
         completed.append(step_id)
 d['completed_steps'] = completed
 json.dump(d, open(f,'w'), ensure_ascii=False, indent=2)
-print('[state] handoff state 已寫入（D01+D02 標記完成）')
+print('[state] handoff state 已寫入（IDEA+BRD 標記完成）')
 "
 ```
 
