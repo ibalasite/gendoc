@@ -123,6 +123,22 @@ graph TB
 
 > **K8s manifest 位置：** `k8s/overlays/local/`（Kustomize）或 `helm/values-local.yaml`（Helm）。
 
+### 2.1 Bounded Context 子系統拆解對照（Spring Modulith HC-1）
+
+本地環境以 **Modular Monolith** 方式部署，所有 BC（Bounded Context）共用同一個 api-server Deployment。  
+各 BC 在 **程式碼層** 已完全隔離（HC-1 Schema Ownership、HC-2 Public Interface），  
+可隨時將任一 BC 獨立拉出為微服務（見 §4.5 單一子系統啟動驗證）。
+
+| BC（子系統）| Spring Module Path | 擁有的 DB Schema | Public API Prefix | 發布的 Event Topics |
+|------------|-------------------|-----------------|-------------------|-------------------|
+| member | `com.{{PROJECT_SLUG}}.member` | `{{PROJECT_SLUG}}_member` | `/api/v*/members` | `member.account.*` |
+| wallet | `com.{{PROJECT_SLUG}}.wallet` | `{{PROJECT_SLUG}}_wallet` | `/api/v*/wallets` | `wallet.balance.*` |
+| deposit | `com.{{PROJECT_SLUG}}.deposit` | `{{PROJECT_SLUG}}_deposit` | `/api/v*/deposits` | `deposit.transaction.*` |
+| lobby | `com.{{PROJECT_SLUG}}.lobby` | `{{PROJECT_SLUG}}_lobby` | `/api/v*/lobby` | `lobby.session.*` |
+| game | `com.{{PROJECT_SLUG}}.game` | `{{PROJECT_SLUG}}_game` | `/api/v*/games` | `game.round.*` |
+
+> 若子系統不同，請對照 EDD §3.4 Bounded Context Map 更新此表。
+
 ---
 
 ## 3. Quick Start（5 分鐘上手）
@@ -343,6 +359,48 @@ redis-cli ping
 # Expected: PONG
 ```
 
+### 4.8 單一子系統獨立啟動驗證（Spring Modulith Decomposability Test）
+
+此步驟驗證每個 Bounded Context 可以在其他 BC 完全不運行的情況下獨立冷啟動，  
+這是確認微服務可拆解性（HC-2 / HC-4）的本地快速驗證手段。
+
+> **何時執行：** (1) 新增跨 BC 依賴前 (2) 每週架構守護 CI (3) BC 提取前的可行性確認
+
+```bash
+# 啟動基礎設施（DB、Redis）但不啟動其他 BC 的 API
+make k8s-apply-infra        # 僅部署 postgres, redis, minio, mailpit
+
+# 啟動單一 BC（其他 BC 以 WireMock stub 替代）
+make k8s-apply-bc BC=member
+# 等同：
+# kubectl apply -k k8s/overlays/local-bc-member/
+# （此 overlay 只包含 member BC Deployment + 其依賴 BC 的 WireMock stub）
+
+# 驗證 member BC 獨立健康
+curl -s http://{{PROJECT_SLUG}}.local/api/health | jq '.subsystems.member'
+# Expected: {"status":"up","schema":"{{PROJECT_SLUG}}_member"}
+
+# 執行單一 BC 的整合測試（其他 BC 為 stub）
+make test-integration-bc BC=member
+# Expected: 所有 member BC 測試通過；跨 BC 呼叫命中 WireMock stub（HTTP 200 mock response）
+
+# 清理
+make k8s-delete-bc BC=member
+```
+
+**各 BC 獨立啟動指令對照：**
+
+| BC | 啟動指令 | Stub 替代的其他 BC | 健康檢查 URL |
+|----|---------|-------------------|------------|
+| member | `make k8s-apply-bc BC=member` | wallet, deposit, lobby, game | `/api/health?bc=member` |
+| wallet | `make k8s-apply-bc BC=wallet` | member, deposit, lobby, game | `/api/health?bc=wallet` |
+| deposit | `make k8s-apply-bc BC=deposit` | member, wallet, lobby, game | `/api/health?bc=deposit` |
+| lobby | `make k8s-apply-bc BC=lobby` | member, wallet, game | `/api/health?bc=lobby` |
+| game | `make k8s-apply-bc BC=game` | member, wallet, lobby | `/api/health?bc=game` |
+
+> **Stub 設定位置：** `k8s/overlays/local-bc-<bc_name>/wiremock-<dep_bc>.yaml`  
+> WireMock mapping 格式：`src/test/resources/wiremock/<dep_bc>/**/*.json`（與 Pact Consumer test 共用 stub 定義）
+
 ---
 
 ## 5. Service Reference
@@ -412,6 +470,19 @@ redis-cli ping
 | `make test-integration` | `kubectl exec -it deploy/api-server -n {{K8S_NAMESPACE}}-local -- {{TEST_INTEGRATION_CMD}}` |
 | `make test-e2e` | 執行 E2E test（Playwright）— 等同 `npx playwright test --base-url http://{{PROJECT_SLUG}}.local` |
 | `make lint` | Lint 全部原始碼 — 等同 `{{LINT_CMD}}`（由專案定義，如 `eslint .` / `flake8` / `golangci-lint run`）|
+
+### 子系統隔離測試（Spring Modulith HC-1/HC-2）
+
+| 指令 | 說明 |
+|------|------|
+| `make k8s-apply-infra` | 只啟動基礎設施（DB / Redis），不啟動任何 BC |
+| `make k8s-apply-bc BC=<bc_name>` | 啟動指定 BC，其他 BC 以 WireMock stub 替代（見 §4.8）|
+| `make k8s-delete-bc BC=<bc_name>` | 移除指定 BC 的 K8s 資源 |
+| `make test-integration-bc BC=<bc_name>` | 執行指定 BC 的整合測試（其他 BC 為 stub）|
+| `make test-pact-consumer` | 執行所有 Pact Consumer 測試（記錄 interaction）|
+| `make test-pact-provider BC=<bc_name>` | 執行指定 BC 的 Pact Provider 驗證 |
+| `make test-schema-isolation` | 執行跨 BC SQL 違規掃描（HC-1）— 應輸出 `cross_bc_queries: 0` |
+| `make dag-check` | 驗證 Spring Modulith 模組依賴 DAG 無循環（HC-5）— 等同 `./mvnw test -Dtest=ModulithDAGTest` |
 
 ---
 
@@ -746,6 +817,88 @@ https://{{PROJECT_SLUG}}.local/auth/callback
 | SMS（Twilio）| Log mock | — | 輸出到 api-server stdout |
 | OAuth Provider | MockOAuth2Server（可選）| `mock-oauth:8080` | 在 k8s/overlays/local/ 啟用 |
 | {{CUSTOM_SERVICE}} | {{MOCK_TOOL}} | `{{MOCK_SERVICE_DNS}}` | {{DESCRIPTION}} |
+
+### 14.1 跨 BC 內部 Stub（Spring Modulith HC-2 驗證）
+
+當只開發某個 BC 時，其他 BC 的 Public API 以 **WireMock stub** 替代，  
+確保開發者不需要啟動全部子系統、同時確保程式碼只透過 Public API 呼叫（HC-2）。
+
+**WireMock stub 設定方式：**
+
+```
+src/test/resources/wiremock/
+  member/
+    get-member-by-id.json      ← stub: GET /api/v1/members/{id}
+    member-login.json          ← stub: POST /api/v1/members/login
+  wallet/
+    get-balance.json           ← stub: GET /api/v1/wallets/{memberId}/balance
+    deduct.json                ← stub: POST /api/v1/wallets/deduct
+  deposit/
+    create-deposit.json        ← stub: POST /api/v1/deposits
+  ...
+```
+
+**WireMock stub 範本（`get-member-by-id.json`）：**
+
+```json
+{
+  "request": {
+    "method": "GET",
+    "urlPathPattern": "/api/v1/members/([0-9]+)"
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": {
+      "id": "{{request.pathSegments.2}}",
+      "username": "stub_user",
+      "status": "ACTIVE"
+    }
+  }
+}
+```
+
+**K8s WireMock Deployment（`k8s/overlays/local-bc-<bc_name>/wiremock-<dep_bc>.yaml`）：**
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wiremock-<dep_bc>
+  namespace: {{K8S_NAMESPACE}}-local
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: wiremock
+          image: wiremock/wiremock:3.x
+          args:
+            - --root-dir=/home/wiremock
+            - --port=8080
+          volumeMounts:
+            - name: stubs
+              mountPath: /home/wiremock/mappings
+      volumes:
+        - name: stubs
+          configMap:
+            name: wiremock-<dep_bc>-stubs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: <dep_bc>-svc          # 與正式 service 同名，呼叫方零配置切換
+  namespace: {{K8S_NAMESPACE}}-local
+spec:
+  selector:
+    app: wiremock-<dep_bc>
+  ports:
+    - port: {{DEP_BC_PORT}}
+      targetPort: 8080
+```
+
+> **重要：** WireMock Service 名稱必須與正式 BC Service 相同（`<dep_bc>-svc`），  
+> 呼叫方程式碼不需任何修改即可在 stub / 真實 BC 之間切換（HC-2 的 Public API 封裝效益）。
 
 ---
 
