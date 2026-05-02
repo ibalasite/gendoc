@@ -1,7 +1,7 @@
 ---
 name: gendoc-repair
-description: Pipeline diff + backfill — 比對專案 completed_steps 與 pipeline.json 的差異，列出缺漏步驟，並選擇性地從第一個缺漏步驟啟動 gendoc-flow 補跑
-version: 1.0.0
+description: Phase-aware backfill — 把不完整的目標專案補到與 gendoc-auto + gendoc-flow 從頭執行完全一致的狀態。分三區 diff（Phase A / DRYRUN Gate / Phase B）、DRYRUN 三態偵測、rules.json 品質驗證、兩階段補跑模式。
+version: 2.0.0
 allowed-tools:
   - Read
   - Write
@@ -12,12 +12,20 @@ allowed-tools:
   - AskUserQuestion
 ---
 
-# gendoc-repair — Pipeline Diff & Backfill
+# gendoc-repair — Phase-Aware Backfill
 
 ```
 Input:   當前目錄的 .gendoc-state-*.json（或 .gendoc-state.json）
-Output:  缺漏步驟表格 + 可選的 gendoc-flow 補跑
-Purpose: 讓老專案在 pipeline.json 新增步驟後能夠補跑，不需手動查詢
+Output:  三區 diff 報告 + DRYRUN 狀態 + 品質驗證 + 可選的補跑
+Purpose: 把任何不完整的目標專案補到與 gendoc-auto + gendoc-flow 從頭執行完全一致的狀態
+```
+
+Pipeline 相位邊界：
+```
+Phase A（內容層）                 Gate           Phase B（技術文件層）
+IDEA BRD PRD CONSTANTS ... ARCH → DRYRUN → API SCHEMA ... HTML
+                                      ↑
+                         讀 EDD/PRD/ARCH → .gendoc-rules/*.json
 ```
 
 ---
@@ -88,9 +96,9 @@ fi
 
 ---
 
-## Step 1：Pipeline Diff 分析
+## Step 1：Pipeline Diff 分析（Phase-Aware）
 
-**[AI 指令]** 用 Python 計算差異，產出 diff 表格：
+**[AI 指令]** 用 Python 計算差異，分三區輸出：Phase A（pre-DRYRUN）、DRYRUN Gate、Phase B（post-DRYRUN）：
 
 ```bash
 python3 - "$_PIPELINE" "$_STATE_FILE" <<'PY'
@@ -102,11 +110,11 @@ state_file    = sys.argv[2]
 pipe  = json.load(open(pipeline_file, encoding="utf-8"))
 state = json.load(open(state_file, encoding="utf-8"))
 
-completed = set(state.get("completed_steps", []))
+completed   = set(state.get("completed_steps", []))
 client_type = state.get("client_type", "unknown")
 has_admin   = bool(state.get("has_admin_backend", False))
 
-all_steps  = []
+all_steps = []
 # 支援 top-level steps（v2.x）和 phases（舊格式）兩種 pipeline 格式
 if "steps" in pipe:
     raw_steps = [(s, s.get("layer") or "?") for s in pipe["steps"]]
@@ -137,41 +145,88 @@ for step, phase_name in raw_steps:
         continue
     all_steps.append({
         "id":    sid,
-        "phase": phase_name,
+        "layer": phase_name,
         "name":  step.get("name", step.get("type", "")),
         "type":  step.get("type", "standard"),
     })
 
-missing  = [s for s in all_steps if s["id"] not in completed]
-present  = [s for s in all_steps if s["id"] in completed]
+# ── Phase boundary: split on DRYRUN ──
+dryrun_idx   = next((i for i, s in enumerate(all_steps) if s["id"] == "DRYRUN"), None)
+if dryrun_idx is not None:
+    phase_a_all = all_steps[:dryrun_idx]
+    phase_b_all = all_steps[dryrun_idx + 1:]
+    dryrun_done = "DRYRUN" in completed
+else:
+    phase_a_all = all_steps
+    phase_b_all = []
+    dryrun_done = False
 
+phase_a_missing = [s for s in phase_a_all if s["id"] not in completed]
+phase_b_missing = [s for s in phase_b_all if s["id"] not in completed]
+all_missing     = [s for s in all_steps   if s["id"] not in completed]
+all_present     = [s for s in all_steps   if s["id"] in completed]
+
+# ── Header ──
 print(f"\n{'='*70}")
-print(f"  Pipeline Diff 報告")
-print(f"  pipeline        : {pipeline_file.split('/')[-1]}")
-print(f"  client_type     : {client_type}")
+print(f"  Pipeline Diff 報告（Phase-Aware）")
+print(f"  pipeline         : {pipeline_file.split('/')[-1]}")
+print(f"  client_type      : {client_type}")
 print(f"  has_admin_backend: {has_admin}")
-print(f"  total steps: {len(all_steps)}")
-print(f"  completed  : {len(present)}")
-print(f"  missing    : {len(missing)}")
+print(f"  total steps      : {len(all_steps)}")
+print(f"  completed        : {len(all_present)}")
+print(f"  missing          : {len(all_missing)}")
 print(f"{'='*70}\n")
 
-if missing:
-    print(f"{'ID':<28} {'Phase':<20} {'Name':<30}")
-    print(f"{'-'*28} {'-'*20} {'-'*30}")
-    for s in missing:
-        print(f"{s['id']:<28} {s['phase']:<20} {s['name']:<30}")
-    print(f"\n第一個缺漏步驟：{missing[0]['id']}")
-    print(f"MISSING_COUNT:{len(missing)}")
-    print(f"FIRST_MISSING:{missing[0]['id']}")
-else:
+# ── Phase A ──
+a_sym = "✅ 完整" if not phase_a_missing else f"⚠️  缺 {len(phase_a_missing)} 個"
+print(f"Phase A（內容層 — pre-DRYRUN）：{a_sym}")
+if phase_a_missing:
+    print(f"  {'ID':<26} {'Layer':<22} {'Name'}")
+    print(f"  {'-'*26} {'-'*22} {'-'*28}")
+    for s in phase_a_missing:
+        print(f"  {s['id']:<26} {s['layer']:<22} {s['name']}")
+
+# ── DRYRUN Gate ──
+if dryrun_idx is not None:
+    gate_sym = "✅ 已完成" if dryrun_done else "❌ 未執行"
+    print(f"\nDRYRUN Gate（量化基線校準）：{gate_sym}")
+
+# ── Phase B ──
+b_sym = "✅ 完整" if not phase_b_missing else f"⚠️  缺 {len(phase_b_missing)} 個"
+print(f"\nPhase B（技術文件層 — post-DRYRUN）：{b_sym}")
+if phase_b_missing:
+    print(f"  {'ID':<26} {'Layer':<22} {'Name'}")
+    print(f"  {'-'*26} {'-'*22} {'-'*28}")
+    for s in phase_b_missing:
+        print(f"  {s['id']:<26} {s['layer']:<22} {s['name']}")
+
+# ── Machine-readable markers ──
+first_missing = all_missing[0]["id"]      if all_missing      else ""
+first_phase_a = phase_a_missing[0]["id"]  if phase_a_missing  else ""
+first_phase_b = phase_b_missing[0]["id"]  if phase_b_missing  else ""
+
+print(f"\nMISSING_COUNT:{len(all_missing)}")
+print(f"FIRST_MISSING:{first_missing}")
+print(f"PHASE_A_MISSING_COUNT:{len(phase_a_missing)}")
+print(f"PHASE_B_MISSING_COUNT:{len(phase_b_missing)}")
+print(f"DRYRUN_GATE_DONE:{'true' if dryrun_done else 'false'}")
+if first_phase_a:
+    print(f"FIRST_PHASE_A:{first_phase_a}")
+if first_phase_b:
+    print(f"FIRST_PHASE_B:{first_phase_b}")
+if not all_missing:
     print("✅ 所有 pipeline 步驟已完成，無需補跑。")
-    print("MISSING_COUNT:0")
 PY
 ```
 
 **[AI 指令]** 從輸出中擷取：
 - `_MISSING_COUNT`：`MISSING_COUNT:N` 行的 N
 - `_FIRST_MISSING`：`FIRST_MISSING:xxx` 行的 xxx
+- `_PHASE_A_MISSING_COUNT`：`PHASE_A_MISSING_COUNT:N` 行的 N
+- `_PHASE_B_MISSING_COUNT`：`PHASE_B_MISSING_COUNT:N` 行的 N
+- `_DRYRUN_GATE_DONE`：`DRYRUN_GATE_DONE:true|false` 行的值
+- `_FIRST_PHASE_A`：`FIRST_PHASE_A:xxx` 行的 xxx（可能不存在）
+- `_FIRST_PHASE_B`：`FIRST_PHASE_B:xxx` 行的 xxx（可能不存在）
 
 ---
 
