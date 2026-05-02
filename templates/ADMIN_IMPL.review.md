@@ -12,6 +12,7 @@ reviewer-roles:
   - name: Deployment Reviewer
     scope: §15 部署配置、Nginx 規則、環境變數
 quality-bar:
+  - "§1 Admin Portal 概覽：系統定位已填入（非 placeholder），§1.3 角色表格已依 EDD §5.5-A 完整填入（無 {{role_name}} 殘留）"
   - "§2 技術棧版本表：所有依賴有明確版本號，無 latest 或空版本"
   - "§3 目錄結構完整，包含 admin/ 子目錄 + views/layout/store/utils"
   - "§4 路由表：全部功能頁面有路由 + 權限 + 元件"
@@ -24,6 +25,8 @@ quality-bar:
   - "§11 共用組件：SearchableTable 和 AuditLogDetail 均有 Props TypeScript 型別定義"
   - "§14 效能目標有具體數值（bundle < 150KB gzipped，首屏 < 2s），無殘留 {{N}} placeholder"
   - "§15 部署：env 變數 + Nginx /admin/ 路由規則"
+  - "§12 圖表整合：若 PRD 有圖表需求，圖表類型表格已填入具體名稱和更新策略；若無需求，已填入『本專案 Dashboard 無圖表需求，略過此節』，無殘留 placeholder"
+  - "§13 國際化：若專案多語言，語言代碼表格已填入完整語言清單；若單語言，已填入『本專案單語言，略過此節』，無殘留 {{其他語言}} placeholder"
   - "全文無 {{PLACEHOLDER}} / TODO 空欄"
   - "§0 DOC-ID 格式為 ADMIN-{PROJECT_SLUG}-{YYYYMMDD}，已填入實際 PROJECT_SLUG 和日期（非保留靜態字串）。"
 upstream-alignment:
@@ -33,6 +36,7 @@ upstream-alignment:
   - "SCHEMA.md RBAC tables：§5 實作與 Schema 欄位一致"
   - "ARCH.md Admin Portal 容器：部署位置與技術棧與 §2 一致"
   - "CONSTANTS.md Token TTL 等常數：§5.4 Token 有效期數值引用一致"
+  - "PRD.md Admin 功能段落：§7.x 業務功能頁和 §7.2 KPI Cards 覆蓋 PRD 需求"
 ---
 
 # ADMIN_IMPL.review.md — Admin 後台實作規格審查標準
@@ -157,15 +161,15 @@ upstream-alignment:
 
 ---
 
-### HI-10（原 ME-10）：§6 Layout 子項結構不完整
+### HI-07：§6 Layout 子項結構不完整
 
 **Check**: §6 是否包含 HeaderBar / SidebarMenu / BreadCrumb / Content 四個子項？各子項是否有具體規格？  
 **Risk**: §6 子項是全站所有頁面的基礎架構，任一子項缺失影響所有功能交付。開發者各自解釋 Header 和 Sidebar 的行為，導致全站 UI 不統一。  
-**Fix**: 補充缺失子項，參考 gen.md Step 7 的四子項清單（HeaderBar：用戶資訊 + 通知 + 登出；SidebarMenu：動態路由 + 折疊 + 高亮；BreadCrumb：根據路由自動生成；Content 區域：max-width + padding 規範）。若任一子項缺失，視為與 gen.md Quality Gate 第 6 項衝突，應作為 HIGH 問題處理。
+**Fix**: 補充缺失子項，參考 gen.md Step 7 的四子項清單（HeaderBar：用戶資訊 + 通知 + 登出；SidebarMenu：動態路由 + 折疊 + 高亮；BreadCrumb：根據路由自動生成；Content 區域：max-width + padding 規範）。若任一子項缺失，視為與 gen.md Quality Gate §6.1 結構項衝突，應作為 HIGH 問題處理。
 
 ---
 
-### HI-07：上游文件引用正確性
+### HI-08：上游文件引用正確性
 
 **Check**: §0 文件資訊表中的上游文件引用（EDD、API、SCHEMA）是否均存在且路徑正確？具體確認：
 1. `EDD.md` 已存在且包含 §3.3 + §5.5-A 段落
@@ -179,7 +183,7 @@ upstream-alignment:
 
 ---
 
-### HI-08：密碼欄位不得在列表頁顯示
+### HI-09：密碼欄位不得在列表頁顯示
 
 **Check**: §7 使用者管理列表頁的欄位說明中，是否明確排除密碼（password/password_hash）欄位？確認：
 1. §7.3 使用者列表欄位清單中無 password / password_hash 項目
@@ -190,7 +194,7 @@ upstream-alignment:
 
 ---
 
-### HI-09：危險操作必須有二次確認
+### HI-10：危險操作必須有二次確認
 
 **Check**: §10 Element Plus 規範或各頁面規格中，是否明確要求刪除、批量停用、角色移除等危險操作需要 `ElMessageBox.confirm` 二次確認？確認：
 1. §10.3 有明確的二次確認規範（含 ElMessageBox 程式碼範例）
@@ -295,6 +299,17 @@ upstream-alignment:
 
 ---
 
+### ME-10：§15.1 Vite Build 設定缺少開發代理配置
+
+**Check**: `ADMIN_IMPL.md §15.1` 的 `vite.config.ts` 是否包含 `server.proxy` 開發代理配置（避免 local 開發時 CORS）？確認：
+1. `server.proxy` 區塊存在，且代理 `/api` 路徑
+2. `proxy target` 指向 backend 服務埠（非前端自身的 localhost:3000 或類似埠）
+
+**Risk**: 缺少 `server.proxy` 配置時，local 開發環境的 `/api` 請求直接打到前端開發伺服器，瀏覽器因 CORS 政策拒絕請求，導致開發期間 API 呼叫全部失敗，無法本機聯調後端。  
+**Fix**: 在 `§15.1 vite.config.ts` 的 `defineConfig` 中補充 `server.proxy` 區塊，將 `/api` 代理至 `http://localhost:{{PORT}}`（即 backend 服務埠），並設定 `changeOrigin: true`。
+
+---
+
 ## LOW 級別（建議改善 — 可選）
 
 ### LO-01：§12 圖表整合缺少響應式 resize 說明
@@ -323,9 +338,9 @@ upstream-alignment:
 
 ### LO-04：§16 Self-Check Checklist 不完整
 
-**Check**: `ADMIN_IMPL.md §16` 的 checkbox list 是否包含至少 10 個可驗證項目（含 §15 環境變數/Nginx 配置驗證，以及 §2 依賴版本號驗證）？  
+**Check**: `ADMIN_IMPL.md §16` 的 checkbox list 是否包含至少 12 個可驗證項目，且涵蓋 gen.md Step 17 第 11-13 項的驗收主題（§1 角色 placeholder 驗證、§6.1 四子項驗證、§5.1 Permission 對應驗證）？  
 **Risk**: Self-Check 項目不足，生成後驗證不完整，可能遺漏關鍵缺陷。  
-**Fix**: 確認 `ADMIN_IMPL.md §16` checkbox list 完整覆蓋：§2 版本表 / 目錄結構 / 路由 / RBAC / 頁面規格 / API / Store / 效能 / §15 部署配置 / placeholder，共 10 項。
+**Fix**: 確認 `ADMIN_IMPL.md §16` checkbox list 完整覆蓋：§0 Admin 技術棧（來自 EDD §3.3）/ §2 依賴版本表 / §5.1 角色清單 EDD 對應 / §5.1 Permission API 對應 / §7 所有頁面有 API endpoint / §8.2 API endpoint 數量對應 / §9 三個 Pinia Store / CONSTANTS.md 數值引用 / §15.1 Vite Build / §15.2‑§15.3 環境變數 + Nginx / placeholder / §1.1 系統定位與角色表格 / §6.1 Layout 三區與四功能子項，共 13 項；並確認其驗收範疇涵蓋 gen.md Step 17 第 11 項（§1 角色 placeholder 驗證）、第 12 項（§6.1 四功能子項 ASCII 圖與文字說明驗證）及第 13 項（§5.1 Permission 清單與 API.md 對應驗證）。
 
 ---
 
@@ -389,7 +404,7 @@ upstream-alignment:
 
 ## 安全審查（強制項）
 
-針對 Admin Portal 的特殊安全性要求，額外補充說明如下。CR-06（Token 存儲安全）已收錄於主 CRITICAL 章節，HI-08（密碼欄位顯示）及 HI-09（危險操作二次確認）已收錄於主 HIGH 章節，ME-07（CSRF Token Header）及 ME-08（XSS Sanitize）已收錄於主 MEDIUM 章節，此處不再重複列出。
+針對 Admin Portal 的特殊安全性要求，額外補充說明如下。CR-06（Token 存儲安全）已收錄於主 CRITICAL 章節，HI-09（密碼欄位顯示）及 HI-10（危險操作二次確認）已收錄於主 HIGH 章節，ME-07（CSRF Token Header）及 ME-08（XSS Sanitize）已收錄於主 MEDIUM 章節，此處不再重複列出。
 
 ## 審查完成輸出格式
 

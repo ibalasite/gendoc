@@ -14,7 +14,7 @@ upstream-docs:
   required:
     - path: docs/EDD.md
       sections: "§3.3 + §5.5 + §3.1"
-      purpose: "_ADMIN_FRAMEWORK 技術棧 + RBAC 模型 + 角色定義"
+      purpose: "§3.3：_ADMIN_FRAMEWORK 技術棧；§5.5：Admin RBAC 角色與 Permission 定義（優先使用）；§3.1（備用）：若 §5.5 無角色定義時，從系統角色章節推導業務角色，注意 §3.1 描述的是技術角色（如 backend-service），不得將技術角色誤認為 Admin 使用者角色。"
     - path: docs/ARCH.md
       sections: "Admin Portal 容器"
       purpose: "C4 Container 圖 + Admin Portal 服務部署位置"
@@ -46,13 +46,15 @@ quality-bar:
   - "§3 目錄結構完整，包含 admin/ 子目錄 + views/layout/store/utils"
   - "§4 路由表涵蓋所有 admin 功能頁面（不含 placeholder）"
   - "§5 RBAC 完整：Role/Permission 定義 + PermissionGuard 實作 + Token 管理"
-  - "§6.1 主 Layout 結構涵蓋四個功能區域（HeaderBar / SidebarMenu / BreadCrumb / Content），在 §6.1 ASCII 圖和文字說明中體現各區域規格"
+  - "§6.1 主 Layout 結構：ASCII 框線圖維持三區（Header / Sidebar / Content Area）；§6.1 文字說明另行描述 HeaderBar / SidebarMenu / BreadCrumb / Content 四個功能子項（BreadCrumb 作為 Content Area 的子項），無殘留 placeholder。"
   - "§7 頁面規格：login/dashboard/user-mgmt/role-mgmt/audit-log 全部有欄位或操作說明"
   - "§8 API 整合：baseURL、interceptor、所有 /admin/* endpoint 對應表"
   - "§9 三個 Pinia Store（authStore/permissionStore/userStore）有完整 state + actions"
   - "§10 Element Plus 規範：Table 三狀態 + Form 驗證規則 + ElMessageBox 確認範例均存在"
   - "§11 共用組件：SearchableTable 和 AuditLogDetail 均有 Props TypeScript 型別定義"
   - "§14 效能目標：bundle size 有具體數值（如 150KB gzipped），首屏時間有明確毫秒數（如 2000ms），全文無任何 {{N}} 格式的未替換佔位符。"
+  - "§12 圖表整合：若 PRD 有圖表需求，圖表類型表格已填入具體名稱和更新策略；若無需求，已填入「本專案 Dashboard 無圖表需求，略過此節」，無殘留 placeholder。"
+  - "§13 國際化：若專案多語言，語言代碼表格已填入完整語言清單；若單語言，已填入「本專案單語言，略過此節」，無殘留 {{其他語言}} placeholder。"
   - "§15 部署配置：env 變數 + Nginx /admin 路由規則"
   - "禁止保留任何 {{PLACEHOLDER}} 或 TODO 空欄"
 condition: has_admin_backend
@@ -179,7 +181,7 @@ TECH_DEFAULTS = {
 - 核心功能模組清單（用戶管理、角色管理、業務管理、稽核日誌等）
 - 後台設計核心原則
 
-若 PRD 無明確 Admin section，依 EDD §3.1 角色定義推導出合理的 Admin 功能集。
+Admin 業務角色優先從 EDD §5.5 讀取。若 PRD 無明確 Admin section，且 EDD §5.5 亦無角色定義，方可依 EDD §3.1 推導，但需注意 EDD §3.1 描述的是技術角色（如 backend-service、worker），**不得**將技術角色誤認為 Admin 使用者角色（如 super_admin、operator）。
 
 ---
 
@@ -258,10 +260,10 @@ admin/
 
 依 EDD §5.5 和 SCHEMA 的 Role/Permission 表生成：
 
-### 6.1 角色定義表
+### Step 6.A：生成骨架 §5.1
 完整列出每個 Role 的中文名稱、英文 code、可操作 Permissions 清單。
 
-### 6.2 Permission Guard 實作
+### Step 6.B：生成骨架 §5.2 Permission Guard 實作
 
 ```typescript
 // composables/usePermission.ts（Vue Composition API 慣用風格，與骨架 §5.2 一致）
@@ -287,11 +289,7 @@ export const permissionDirective = {
 }
 ```
 
-### 6.3 Token 管理
-
-從 CONSTANTS.md 讀取 Token 有效期常數（若不存在則使用合理預設：access=15min, refresh=7days）。
-
-### 6.4 動態選單生成策略
+### Step 6.C：生成骨架 §5.3 動態選單策略
 
 依據 PRD.md 或 EDD §5.5 判斷 Admin 角色結構，選擇 §5.3 的選單生成方式：
 
@@ -303,16 +301,20 @@ export const permissionDirective = {
 2. 填入選擇理由（一句話，說明依據）
 3. 若選 `server-driven`，確認 §8 對應表中存在 `GET /admin/menu`（或同功能端點），若缺失須補充
 
+### Step 6.D：生成骨架 §5.4 Token 管理
+
+從 CONSTANTS.md 讀取 Token 有效期常數（若不存在則使用合理預設：access=15min, refresh=7days）。
+
 ---
 
 ## Step 7：生成 §6 Layout 系統
 
-§6.1 必須包含 ASCII 或 Markdown 框線圖，呈現 Header / Sidebar / Content 三區域的視覺佈局，格式參考骨架 §6.1。
+§6.1 必須包含 ASCII 或 Markdown 框線圖，**維持三區結構**（Header / Sidebar / Content Area）的視覺佈局，格式參考骨架 §6.1。**不得**在 ASCII 圖中強行新增第四個視覺區塊；BreadCrumb 屬於 Content Area 的子元素，在 ASCII 圖中以 Content Area 的內部標示體現即可。
 
-接著，§6.1 中對以下四個功能區域分別提供具體規格說明：
+接著，**在 §6.1 的文字說明部分**（ASCII 圖下方）對以下四個功能子項分別提供具體規格說明：
 - HeaderBar：用戶資訊 + 通知 + 登出
 - SidebarMenu：動態路由 + 折疊功能 + 高亮當前路由
-- BreadCrumb：根據路由自動生成
+- BreadCrumb：根據路由自動生成（Content Area 子元素）
 - Content 區域：max-width + padding 規範
 
 §6.2 Sidebar 規格：記錄展開寬度（預設 260px）/ 收合寬度（64px）/ 收合後行為（icon + Tooltip 顯示選單名稱）/ 選中樣式（從 VDD 或 PDD 讀取色彩方案；若無，使用預設 accent 色左邊框 + 淡背景）。
@@ -360,7 +362,7 @@ export const permissionDirective = {
 
 ## Step 9：生成 §8 API 整合
 
-### 9.1 Axios 配置
+### Step 9.A：Axios 配置
 
 ```typescript
 const request = axios.create({
@@ -373,7 +375,7 @@ const request = axios.create({
 
 > **CONSTANTS.md 讀取指引**：`timeout` 值應從 `docs/CONSTANTS.md` 讀取 `ADMIN_API_TIMEOUT_MS` 常數（若存在）。若 CONSTANTS.md 無此欄位，使用預設值 `10000`（10 秒），並在生成的 §8.1 程式碼中以行內註解說明來源（如 `// ADMIN_API_TIMEOUT_MS，來自 CONSTANTS.md，預設 10000ms`）。生成的程式碼中，`ADMIN_API_TIMEOUT_MS` 應以 `const ADMIN_API_TIMEOUT_MS = {值} // 來自 CONSTANTS.md` 的形式在 `api/http.ts` 頂部宣告，不得直接使用未宣告的識別符。
 
-### 9.2 Admin Endpoint 對應表
+### Step 9.B：Admin Endpoint 對應表
 
 掃描 `docs/API.md` 所有 `/admin/*` 路徑，生成對應表：
 
@@ -428,6 +430,8 @@ const request = axios.create({
 
 ## Step 13：生成 §12 圖表整合（可選）
 
+§12 的圖表初始化範例必須涵蓋 §7.2 中所有已定義的圖表類型；若 §7.2 標注為「本專案 Dashboard 無圖表需求，略過此欄」，§12 同樣標注「本專案 Dashboard 無圖表需求，略過此節」。
+
 若 PRD Dashboard 需要數據圖表：
 - ECharts 5.x 按需引入配置
 - 常用圖表類型（折線圖/柱狀圖/餅圖）的初始化範例
@@ -457,20 +461,21 @@ const request = axios.create({
   { path: '/admin/users', component: () => import('@/views/UserList.vue') }
   ```
 - Vite bundle 分析命令：`npm run build -- --report`
-- 關鍵頁面首屏時間目標（< 2s in 3G）
+- 關鍵頁面首屏時間目標：從 CONSTANTS.md 讀取 ADMIN_FCP_TARGET_MS 常數（若存在）；若 CONSTANTS.md 無此欄位，使用預設值 2000（2 秒），並在生成的 §14 中以行內註解說明來源（如 `// 首屏目標：< 2000ms in 3G，預設值`）
 
 ---
 
 ## Step 16：生成 §15 部署配置
 
-### 16.1 Vite 生產配置
+### Step 16.A：Vite 生產配置
 
 必須包含：
 - `base: '/admin/'`（若部署在子路徑）
 - `build.outDir: 'dist/admin'`
-- `server.proxy` 配置（開發時代理 /admin/api → backend）
+- `build.rollupOptions.output.manualChunks` vendor 切割設定（如 vendor-vue / vendor-element）
+- `server.proxy` 配置（開發時代理 /api → backend）
 
-### 16.2 環境變數
+### Step 16.B：環境變數
 
 依骨架 §15.2 格式，生成三欄表格（變數名 | Development 值 | Production 值），列出 VITE_API_BASE_URL 和 VITE_ADMIN_PATH，Development 填 localhost 值，Production 填對應的生產值或說明：
 
@@ -479,15 +484,17 @@ const request = axios.create({
 | `VITE_API_BASE_URL` | `http://localhost:{PORT}/api` | `/api`（Nginx 反代） |
 | `VITE_ADMIN_PATH` | `/admin` | `/admin` |
 
-### 16.3 Nginx 路由規則
+### Step 16.C：Nginx 路由規則
 
 ```nginx
 location /admin/ {
-  root /var/www;
+  root /usr/share/nginx/html;
   try_files $uri $uri/ /admin/index.html;
 }
 location /api/admin/ {
-  proxy_pass http://backend:8080/;
+  proxy_pass http://backend:{{PORT}}/api/admin/;
+  proxy_set_header Authorization $http_authorization;
+  proxy_set_header Host $host;
 }
 ```
 
@@ -512,10 +519,11 @@ location /api/admin/ {
 | 6 | §8 Axios 配置有 baseURL + request interceptor（Token 注入）+ response interceptor（401/403 處理）說明 | ✅/❌ |
 | 7 | §8 /admin/* endpoint 對應表完整            | ✅/❌ |
 | 8 | §9 三個 Pinia Store 有 state+actions       | ✅/❌ |
-| 9 | §15 部署：env 變數 + Nginx 配置            | ✅/❌ |
+| 9a | §15.1 Vite Build：base='/admin/'、outDir 已填入、manualChunks vendor 切割已設定、server.proxy 代理 /api 已設定（非 placeholder） | ✅/❌ |
+| 9b | §15.2/§15.3 環境變數 + Nginx：VITE_API_BASE_URL 已填入；Nginx /admin/ try_files 已設定 | ✅/❌ |
 | 10 | 全文無 {{PLACEHOLDER}} / TODO 空欄        | ✅/❌ |
 | 11 | §1 Admin Portal 概覽：系統定位 + 使用者角色已依 EDD §5.5-A 填入，無 placeholder | ✅/❌ |
-| 12 | §6.1 主 Layout 結構涵蓋四個功能區域（HeaderBar / SidebarMenu / BreadCrumb / Content），在 §6.1 ASCII 圖和文字說明中體現各區域規格（非 placeholder） | ✅/❌ |
+| 12 | §6.1 主 Layout 結構：ASCII 框線圖維持三區（Header / Sidebar / Content Area）；§6.1 文字說明涵蓋 HeaderBar / SidebarMenu / BreadCrumb / Content 四個功能子項（BreadCrumb 為 Content Area 子元素），無 placeholder | ✅/❌ |
 | 13 | §5.1 Permission 清單與 API.md /admin/* endpoint 一對一對應 | ✅/❌ |
 ```
 
@@ -532,12 +540,14 @@ location /api/admin/ {
 ✅ §1 Admin Portal 概覽：系統定位 + 使用者角色已依 EDD §5.5-A 填入，無 placeholder
 ✅ 路由表：每個路由有 path + component + 權限 + 說明
 ✅ RBAC：Role 定義 + Permission Guard 程式碼 + Token 管理
-✅ §6.1 主 Layout 結構涵蓋四個功能區域（HeaderBar / SidebarMenu / BreadCrumb / Content），在 §6.1 ASCII 圖和文字說明中體現各區域規格（非 placeholder）
+✅ §6.1 主 Layout 結構：ASCII 框線圖維持三區（Header / Sidebar / Content Area）；§6.1 文字說明部分涵蓋 HeaderBar / SidebarMenu / BreadCrumb / Content 四個功能子項（BreadCrumb 為 Content Area 子元素），均無 placeholder
 ✅ API 對應表：所有 /admin/* endpoint 均已列出
 ✅ Pinia：authStore + permissionStore + userStore 三個 Store 完整
-✅ 部署：Nginx /admin/ try_files + env 變數清單
+✅ 部署：Nginx /admin/ try_files + env 變數清單 + Vite build base/outDir/manualChunks 已設定 + server.proxy /api 代理已設定
+✅ §12 圖表整合：若 PRD 有圖表需求，圖表類型表格已填入具體名稱和更新策略；若無需求，已填入「本專案 Dashboard 無圖表需求，略過此節」，無殘留 placeholder
+✅ §13 國際化：若專案多語言，語言代碼表格已填入完整語言清單；若單語言，已填入「本專案單語言，略過此節」，無殘留 {{其他語言}} placeholder
 ✅ §14 效能目標：bundle size 有具體數值（< 150KB gzipped）+ 首屏時間（< 2s）+ 無殘留 {{N}} placeholder
-✅ Self-Check Checklist 全部通過（13/13）（Step 17 = AI 生成時自查（13 項）；骨架 §16 = 開發者交付前驗收自查（10 項））
+✅ Self-Check Checklist 全部通過（14/14）（Step 17 = AI 生成時自查（14 項，#9 拆分為 9a/9b）；骨架 §16 = 開發者交付前驗收自查（13 項））
 ```
 
 ---

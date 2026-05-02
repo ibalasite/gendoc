@@ -548,16 +548,30 @@ npx vite-bundle-visualizer
 
 目標：主 bundle < `{{150}}` KB gzipped（來自 CONSTANTS.md 或專案約定）。
 
+### §14.3 首屏時間目標
+
+| 目標 | 數值 | 來源 |
+|------|------|------|
+| 關鍵頁面首屏時間（FCP） | {{ADMIN_FCP_TARGET_MS}}ms | CONSTANTS.md ADMIN_FCP_TARGET_MS（預設 2000ms） |
+
 ---
 
 ## §15 部署配置
 
-### §15.1 Vite Build 設定
+### §15.1 Vite 設定（Build + Dev Proxy）
 
 ```typescript
 // vite.config.ts
 export default defineConfig({
   base: '/admin/',
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:{{PORT}}',
+        changeOrigin: true
+      }
+    }
+  },
   build: {
     outDir: 'dist/admin',
     rollupOptions: {
@@ -593,6 +607,7 @@ location /admin/ {
 location /api/admin/ {
   proxy_pass http://backend:{{PORT}}/api/admin/;
   proxy_set_header Authorization $http_authorization;
+  proxy_set_header Host $host;
 }
 ```
 
@@ -604,9 +619,12 @@ location /api/admin/ {
 - [ ] §0 Admin 技術棧欄位已填入（_ADMIN_FRAMEWORK 來自 EDD §3.3，非 placeholder）
 - [ ] §5.1 角色清單與 EDD §5.5-A 完全對應（無遺漏）
 - [ ] §5.1 Permission 清單與 API.md /admin/* endpoint 一對一對應
-- [ ] §7.1-7.5 所有頁面均有對應的 API endpoint
+- [ ] §7.1-7.5 以及 §7.x 所有業務功能頁均有對應的 API endpoint（包含路徑與 HTTP Method）
 - [ ] §8.2 API Endpoints 數量與 API.md /admin/* 路由數量相符
 - [ ] §9 所有 Pinia Store 已完整定義（無 placeholder）
 - [ ] CONSTANTS.md 中的數值已被正確引用（timeout / pageSize 等）
-- [ ] §15 環境變數（VITE_API_BASE_URL）與 Nginx /admin/ try_files 已正確配置（非 placeholder）
+- [ ] §15.1 Vite 設定：base='/admin/'、outDir 已填入、manualChunks vendor 切割已設定、server.proxy 代理 /api 已設定（非 placeholder）
+- [ ] §15.2/§15.3 環境變數 + Nginx：VITE_API_BASE_URL 已填入；Nginx /admin/ try_files 已設定
 - [ ] 無殘留 `{{PLACEHOLDER}}` 格式的未填內容
+- [ ] §1.1 系統定位已填入（非 placeholder），§1.3 角色表格已依 EDD §5.5-A 完整填入（無 {{role_name}} 殘留）
+- [ ] §6.1 主 Layout：ASCII 框線圖維持三區（Header / Sidebar / Content Area）；文字說明涵蓋 HeaderBar / SidebarMenu / BreadCrumb / Content 四個功能子項
