@@ -25,7 +25,7 @@
 | `[x]` | ANIM | ✅✅✅ | finding=0，2輪，7個findings全修復 |
 | `[x]` | CLIENT_IMPL | ✅✅✅ | finding=0，5輪，28個findings全修復 |
 | `[x]` | ADMIN_IMPL | ✅✅✅ | finding=0（fix後），5輪，MAX_ROUNDS，最終2LOW全修復 |
-| `[ ]` | RESOURCE | ✅✅✅ | |
+| `[x]` | RESOURCE | ✅✅✅ | finding=0（fix後），5輪，MAX_ROUNDS，最終4 MEDIUM/LOW全修復 |
 | `[ ]` | CICD | ✅✅✅ | |
 | `[ ]` | DEVELOPER_GUIDE | ✅✅✅ | |
 
@@ -57,3 +57,4 @@
 | ANIM | 2026-05-02 | 7 | 0 | 2b01803 |
 | CLIENT_IMPL | 2026-05-02 | 9 | 0 | f1fea52 |
 | ADMIN_IMPL | 2026-05-02 | 11 | 0 | 4d57e0b |
+| RESOURCE | 2026-05-02 | 23 | 0 | (pending) |

@@ -35,7 +35,7 @@ last-updated: "{{LAST_UPDATED_DATE}}"
 | `檔名` | 最終交付檔案名稱（含副檔名，如 `hero_idle.png`） |
 | `type` | `image` / `animation` / `particle` / `shader` / `bgm` / `sfx` / `vo` / `video` / `font` |
 | `source_tool` | 生成工具（Midjourney v6 / DALL-E 3 / Stable Diffusion XL / Suno v3 / Udio / ElevenLabs / 手繪委外 / 購買授權）|
-| `prompt` | 直接可用的生成提示詞（語言依 source_tool 決定，英文為主）|
+| `prompt` | 直接可用的生成提示詞（語言依 source_tool 決定，英文為主）。**type=shader 的 prompt 描述視覺效果（非圖像生成 prompt），可參考 ShaderGraph 效果名稱**。|
 | `dimensions` | 圖片用 WxH px；音效用秒數；動畫用「幀數×fps」|
 | `file_size_budget` | 效能預算上限（如 ≤ 200 KB、≤ 2 MB）|
 | `status` | `needed` / `prompt_ready` / `generating` / `generated` / `approved` / `rejected` |
@@ -68,6 +68,7 @@ last-updated: "{{LAST_UPDATED_DATE}}"
 |----|------|------|------------|--------|-----------|-----------------|--------|-------------|-------------|
 | RES-ANIM-001 | {{ANIM_001_FILENAME}} | animation | {{ANIM_001_TOOL}} | {{ANIM_001_PROMPT}} | {{ANIM_001_DIMENSIONS}} | {{ANIM_001_BUDGET}} | needed | {{ANIM_001_PATH}} | {{ANIM_001_DESC}} |
 | RES-ANIM-002 | {{ANIM_002_FILENAME}} | particle | {{ANIM_002_TOOL}} | {{ANIM_002_PROMPT}} | {{ANIM_002_DIMENSIONS}} | {{ANIM_002_BUDGET}} | needed | {{ANIM_002_PATH}} | {{ANIM_002_DESC}} |
+| RES-SHADER-001 | {{SHADER_001_FILENAME}} | shader | Unity ShaderGraph / Shadertoy | dissolve transition shader, edge glow with noise UV distortion, expose alpha mask parameter | N/A | {{SHADER_001_BUDGET}} | needed | {{SHADER_001_PATH}} | {{SHADER_001_DESC}} |
 | {{RES_ANIM_ID}} | {{FILENAME}} | {{ANIM_TYPE}} | {{TOOL}} | {{PROMPT}} | {{DIMENSIONS}} | {{BUDGET}} | needed | {{PATH}} | {{DESC}} |
 
 <!-- 生成規則：ANIM.md 的每個 SKEL-xxx → 對應一個 animation 資產行；每個 VFX-xxx → 對應一個 particle 資產行；若無 ANIM.md，填入「本專案無動態資產需求，略過本節」。 -->
@@ -97,7 +98,35 @@ last-updated: "{{LAST_UPDATED_DATE}}"
 - [ ] §2 ANIM 動態資產：ANIM.md 所有 VFX-xxx 均有對應 RES-ANIM 行（若 ANIM.md 存在）
 - [ ] §3 AUDIO 音效資產：AUDIO.md 所有 BGM-xxx 均有對應 RES-BGM 行（若 AUDIO.md 存在）
 - [ ] §3 AUDIO 音效資產：AUDIO.md 所有 SFX-xxx 均有對應 RES-SFX 行（若 AUDIO.md 存在）
+- [ ] §3 AUDIO 語音資產：AUDIO.md 所有 VO 項目均有對應 RES-VO 行（若 AUDIO.md 含 VO 清單）
 - [ ] 所有 `file_size_budget` 欄位有具體數值（非空白），符合平台限制（手遊 ≤ 2MB/texture，Web ≤ 200KB/image）
 - [ ] 所有 `prompt` 欄位：`prompt_ready` / `generating` / `generated` / `approved` 狀態的資產 prompt 非空白
 - [ ] 所有 `output_path` 與實際 repo 目錄結構一致
 - [ ] 無裸 placeholder（`{{...}}`）殘留（除本 template 範例行外）
+- [ ] §5 授權管理：所有 §1/§2/§3 資產 ID 均在 §5 有對應授權記錄
+- [ ] §5 授權管理：purchased / commissioned 資產已填入 license_ref（授權證明或合約編號）
+
+---
+
+## §5 授權與來源管理（License & Source Tracking）
+
+> **用途**：記錄每個資產的授權類型與來源參考，供法務審查與合規使用。  
+> 適用於 §1 VDD 視覺資產、§2 ANIM 動態資產、§3 AUDIO 音效資產所有類型。
+
+| ID | 檔名 | license_type | license_ref | 備註 |
+|----|------|-------------|------------|------|
+| RES-IMG-001 | hero_idle.png | AI-generated | https://docs.midjourney.com/docs/terms-of-service | §1 主角立繪，Midjourney v6 生成 |
+| RES-ANIM-001 | hero_idle.skel | commissioned | CONTRACT-001 | §2 骨骼動畫委外製作，合約編號 CONTRACT-001 |
+| RES-BGM-001 | bgm_main_theme.ogg | purchased | PO-2024-001 | §3 主題曲購買授權，採購單號 PO-2024-001 |
+| {{RES_ID}} | {{FILENAME}} | {{LICENSE_TYPE}} | {{LICENSE_REF}} | {{NOTES}} |
+
+**license_type 常用值**：
+- `AI-generated` — AI 工具生成，版權歸屬依各工具授權條款
+- `CC0` — 公有領域，無限制使用
+- `CC-BY` — 創用 CC 姓名標示
+- `CC-BY-SA` — 創用 CC 姓名標示-相同方式分享
+- `purchased` — 購買授權（需附授權證明）
+- `commissioned` — 委外製作（需附委外合約）
+- `internal` — 自製原創，版權歸屬公司
+
+<!-- 生成規則：從 §1/§2/§3 的每個資產行擷取 ID 和檔名，依 source_tool 推導 license_type（AI 工具生成 → AI-generated；Freesound CC0 → CC0；購買 → purchased；委外 → commissioned；ElevenLabs SFX / TTS 生成 → AI-generated；人聲錄音委外 → commissioned；Azure TTS → AI-generated；自製 / 公司自有 / Spine 自製 / DragonBones 自製 → internal）。 -->

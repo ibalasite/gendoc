@@ -3,14 +3,17 @@ reviewer-roles:
   - "Asset Production Planner / 資產生產規劃師：主審 §1 VDD 視覺資產覆蓋完整性、§2 ANIM 動態資產覆蓋完整性、§3 AUDIO 音效資產覆蓋完整性"
   - "Performance Budget Auditor / 效能預算審查員：主審所有 file_size_budget 欄位，確認數值符合平台限制（手遊 ≤ 2MB/texture、Web ≤ 200KB/image、BGM ≤ 5MB、SFX ≤ 500KB）"
   - "AI Prompt Quality Reviewer / AI Prompt 品質審查員：主審 prompt 欄位是否有具體且可用的生成提示詞，確認非 needed 狀態的資產均有 prompt"
-quality-bar: "VDD §4 所有角色有 RES-IMG 行；ANIM SKEL/VFX 所有項目有 RES-ANIM 行（若存在）；所有 file_size_budget 符合平台限制；非 needed 狀態資產的 prompt 非空白；output_path 與 repo 結構一致；無裸 placeholder"
+quality-bar: "VDD §4 所有角色有 RES-IMG 行；ANIM SKEL/VFX 所有項目有 RES-ANIM 行（若存在）；所有 file_size_budget 符合平台限制；非 needed 狀態資產的 prompt 非空白；output_path 與 repo 結構一致；無裸 placeholder；§5 授權章節涵蓋 §1/§2/§3 所有資產 ID，license_type 非空白"
 upstream-alignment:
   - "VDD.md §4 角色清單 → RESOURCE.md §1 RES-IMG 行（一對一對應）"
   - "VDD.md §5 UI 視覺系統 → RESOURCE.md §1 UI 場景 RES-IMG 行"
+  - "VDD.md §6 場景/背景設計 → RESOURCE.md §1 RES-IMG 行（若 §6 存在）"
   - "ANIM.md §2 SKEL-xxx 清單 → RESOURCE.md §2 RES-ANIM 行（一對一對應，若 ANIM.md 存在）"
   - "ANIM.md §5 VFX-xxx 清單 → RESOURCE.md §2 RES-ANIM 行（type=particle，若存在）"
   - "AUDIO.md §2 BGM-xxx 清單 → RESOURCE.md §3 RES-BGM 行（若 AUDIO.md 存在）"
   - "AUDIO.md §3 SFX-xxx 清單 → RESOURCE.md §3 RES-SFX 行（若 AUDIO.md 存在）"
+  - "AUDIO.md VO 清單 → RESOURCE.md §3 RES-VO 行（若有 VO）"
+  - "RESOURCE.md §1/§2/§3 所有資產行 → RESOURCE.md §5 授權與來源管理（每個資產 ID 均有對應授權記錄）"
 ---
 
 # RESOURCE.review.md — AI 資產生產訂單審查標準
@@ -33,12 +36,15 @@ upstream-alignment:
 |---|--------|--------|---------|
 | 01 | CRITICAL | VDD §4 角色缺少 RES-IMG 行 | §1 |
 | 02 | CRITICAL | ANIM SKEL/VFX 項目缺少 RES-ANIM 行 | §2 |
-| 03 | CRITICAL | file_size_budget 空白或超過平台限制 | §1/§2/§3 |
-| 04 | HIGH | prompt 欄位空白（非 needed 狀態） | §1/§2/§3 |
-| 05 | HIGH | output_path 與 repo 目錄結構不一致 | §1/§2/§3 |
-| 06 | MEDIUM | ID 有重複（同前綴 ID 出現兩次） | 全文 |
-| 07 | MEDIUM | 有裸 placeholder（`{{...}}`）未替換 | 全文 |
-| 08 | LOW | source_tool 欄位空白（status=needed 除外） | §1/§2/§3 |
+| 03 | CRITICAL | AUDIO BGM/SFX/VO 缺少對應 RES 行 | §3 |
+| 04 | CRITICAL | file_size_budget 空白或超過平台限制 | §1/§2/§3 |
+| 05 | HIGH | prompt 欄位空白（非 needed 狀態） | §1/§2/§3 |
+| 06 | HIGH | output_path 與 repo 目錄結構不一致 | §1/§2/§3 |
+| 07 | MEDIUM | ID 有重複（同前綴 ID 出現兩次） | 全文 |
+| 08 | HIGH | 有裸 placeholder（`{{...}}`）未替換（file_size_budget 除外） | 全文 |
+| 09 | LOW | source_tool 欄位空白（status=needed 除外） | §1/§2/§3 |
+| 10 | MEDIUM | §5 授權章節不完整（資產 ID 缺少授權記錄或 license_type 空白）| §5 |
+| 11 | LOW | §4 Checklist 中 N/A 後綴套用是否正確（ANIM.md / AUDIO.md 不存在時）| §4 |
 
 ---
 
@@ -68,9 +74,23 @@ upstream-alignment:
 
 ---
 
-### Layer 3: 效能預算（CRITICAL）
+### Layer 3: AUDIO 音效資產覆蓋完整性（CRITICAL）
 
-#### [CRITICAL] 03 — file_size_budget 空白或超過平台限制
+#### [CRITICAL] 03 — AUDIO BGM/SFX/VO 覆蓋驗證
+
+**Check**：若 `docs/AUDIO.md` 存在，讀取其 BGM 清單（BGM-xxx）、SFX 清單（SFX-xxx）及 VO 清單（若有）。逐一確認 RESOURCE.md §3 是否有對應的 `RES-BGM-xxx`、`RES-SFX-xxx`、`RES-VO-xxx` 行。任何 BGM-xxx、SFX-xxx 或 VO 項目沒有對應 RES 行視為 CRITICAL。
+
+若 AUDIO.md 不存在，確認 §3 有明確的「略過說明」→ 不視為 CRITICAL。
+
+**Risk**：音效資產（BGM、SFX、VO）缺漏規劃時，開發後期才發現需要額外委外製作或 AI 生成，造成 1-3 週延誤；且後期補做的音效在品質和風格上難以與既有資產保持一致，影響玩家沉浸感。
+
+**Fix**：對照 AUDIO.md 的 BGM-xxx / SFX-xxx / VO 清單，在 RESOURCE.md §3 補充缺失的 RES-BGM / RES-SFX / RES-VO 行。依 RESOURCE.gen.md Step 3 的欄位規則填入 source_tool、prompt、dimensions、file_size_budget。
+
+---
+
+### Layer 4: 效能預算（CRITICAL）
+
+#### [CRITICAL] 04 — file_size_budget 空白或超過平台限制
 
 **Check**：逐行掃描 §1/§2/§3 所有資產行的 `file_size_budget` 欄位。以下任一情況視為 CRITICAL：
 - 欄位為空白、TBD、或 placeholder（`{{...}}`）
@@ -81,6 +101,8 @@ upstream-alignment:
 
 **Risk**：無效能預算上限時，設計師生成高解析度資產（如 4K PNG × 50 張），最終打包後發現 App 超過平台大小限制（iOS OTA ≤ 200MB）或首屏載入超時（Web FCP > 3s），需全部重新生成並壓縮。
 
+> **Note**: `file_size_budget` 超限直接影響平台上架資格和遊戲載入時間，屬業務關鍵問題，故列為 CRITICAL。
+
 **Fix**：依目標平台填入具體數值：
 - 手遊（iOS/Android）圖片：`≤ 2 MB`；UI 圖示：`≤ 200 KB`
 - Web 圖片：`≤ 200 KB`（關鍵路徑）/ `≤ 1 MB`（懶加載）
@@ -89,9 +111,9 @@ upstream-alignment:
 
 ---
 
-### Layer 4: Prompt 品質（HIGH）
+### Layer 5: Prompt 品質（HIGH）
 
-#### [HIGH] 04 — prompt 欄位空白（非 needed 狀態）
+#### [HIGH] 05 — prompt 欄位空白（非 needed 狀態）
 
 **Check**：逐行掃描 §1/§2/§3 所有資產行。若 `status` 為 `prompt_ready`、`generating`、`generated`、`approved`，則 `prompt` 欄位必須非空白。若 `status=needed` 則允許 prompt 空白。任何非 needed 狀態的 prompt 空白視為 HIGH。
 
@@ -101,9 +123,9 @@ upstream-alignment:
 
 ---
 
-### Layer 5: 交付路徑（HIGH）
+### Layer 6: 交付路徑（HIGH）
 
-#### [HIGH] 05 — output_path 與 repo 目錄結構不一致
+#### [HIGH] 06 — output_path 與 repo 目錄結構不一致
 
 **Check**：抽查 §1/§2/§3 中至少 20% 的 output_path，確認路徑格式是否與實際 repo 目錄結構一致。典型不一致案例：
 - 使用 `src/assets/` 但 repo 實際根目錄為 `assets/`
@@ -116,9 +138,9 @@ upstream-alignment:
 
 ---
 
-### Layer 6: 清單完整性（MEDIUM / LOW）
+### Layer 7: 清單完整性（HIGH / MEDIUM / LOW）
 
-#### [MEDIUM] 06 — 資產 ID 有重複
+#### [MEDIUM] 07 — 資產 ID 有重複
 
 **Check**：同前綴的 ID 是否有重複（如 `RES-IMG-001` 出現兩次）？任何同前綴重複 ID 視為 MEDIUM。
 
@@ -126,18 +148,51 @@ upstream-alignment:
 
 **Fix**：重新編號衝突 ID，確保同前綴 ID 順序連續無重複（RES-IMG-001, 002, 003...）。
 
-#### [MEDIUM] 07 — 有裸 placeholder 未替換
+#### [HIGH] 08 — 有裸 placeholder 未替換
 
-**Check**：全文是否有任何未替換的 `{{...}}` placeholder（如 `{{IMG_001_FILENAME}}`）？除 template 範例行外，任何未替換的 placeholder 視為 MEDIUM。
+**Check**：全文是否有任何未替換的 `{{...}}` placeholder（如 `{{IMG_001_FILENAME}}`）？除 template 範例行外，任何未替換的 placeholder 視為 HIGH。**注意**：`file_size_budget` 欄位的 placeholder 已由審查項目 04（CRITICAL）以更高優先級涵蓋；本項目 08 掃描時應報告除 `file_size_budget` 之外的裸 placeholder 殘留（如 `prompt`、`output_path`、`檔名` 等欄位含 `{{...}}`），這些欄位的 placeholder 嚴重影響資產的可用性。
 
-**Risk**：工程師或設計師拿到含 placeholder 的清單，不知道實際規格，各自猜測填入，導致資產規格不一致。
+**Risk**：工程師或設計師拿到含 placeholder 的清單，不知道實際規格，各自猜測填入，導致資產規格不一致；特別是 `prompt` 或 `output_path` 含 placeholder 時，資產無法直接送入 AI 工具或整合進 repo，嚴重影響生產流程。
 
-**Fix**：逐行掃描，所有 `{{...}}` placeholder 替換為具體值或「N/A — 委外製作」等明確說明。
+**Fix**：逐行掃描（排除 `file_size_budget` 欄位，已由 04 處理），所有其他欄位的 `{{...}}` placeholder 替換為具體值或「N/A — 委外製作」等明確說明。
 
-#### [LOW] 08 — source_tool 欄位空白（非 needed 狀態）
+#### [LOW] 09 — source_tool 欄位空白（非 needed 狀態）
 
 **Check**：若 `status` 不是 `needed`，`source_tool` 欄位是否已填入具體工具名稱？空白視為 LOW。
 
 **Risk**：設計師不知道用哪個工具生成，可能選擇不適合該資產類型的工具（如用 DALL-E 生成需要 loop-friendly 的 BGM → 工具完全不適用）。
 
 **Fix**：依資產類型填入推薦工具。圖片 → Midjourney v6；BGM → Suno v3 / Udio；SFX → ElevenLabs SFX / Freesound；動畫 → 委外製作 / Spine Animate。
+
+---
+
+### Layer 8: §5 授權章節完整性（MEDIUM）
+
+#### [MEDIUM] 10 — §5 授權章節不完整
+
+**Check**：逐一確認以下三項：
+1. §1/§2/§3 中所有資產 ID 均在 §5 授權表格中有對應行（一對一）。
+2. 所有 §5 授權行的 `license_type` 欄位非空白（不得為 `{{...}}` 或空值）。
+3. `license_type` 為 `purchased` 或 `commissioned` 的授權行，`license_ref` 欄位已填入具體的授權證明或合約編號（非 `N/A`、非空白、非 placeholder）。
+
+**Risk**：授權資訊不明確導致法律風險；purchased / commissioned 資產若無合約編號，發生著作權糾紛時無法舉證，可能造成商業損失或下架風險。
+
+**Fix**：
+- 缺少 §5 行：從 §1/§2/§3 補充缺失的資產 ID，依 source_tool 推導 license_type。
+- license_type 空白：依 source_tool 判斷並填入（AI 工具 → AI-generated；Freesound CC0 → CC0；購買 → purchased；委外 → commissioned）。
+- purchased / commissioned 缺少 license_ref：標記 `⚠️ 待補充授權證明 / 委外合約` 並通知相關人員跟進。
+
+---
+
+### Layer 9: §4 Checklist N/A 後綴正確性（LOW）
+
+#### [LOW] 11 — §4 Checklist 中 N/A 後綴是否正確套用
+
+**Check**：確認 RESOURCE.md §4 Review Checklist 中，與 ANIM.md 或 AUDIO.md 相關的審查項目是否依文件存在性正確標記：
+- 若 `docs/ANIM.md` **不存在**，§4 中所有 ANIM 相關項目應附有「（N/A — ANIM.md 不存在）」後綴。
+- 若 `docs/AUDIO.md` **不存在**，§4 中所有 AUDIO 相關項目應附有「（N/A — AUDIO.md 不存在）」後綴。
+- 若相關文件**存在**，對應審查項目不應有 N/A 後綴。
+
+**Risk**：使用者看到未加 N/A 後綴的審查項目，不知道這些項目可以略過（因為對應文件不存在），可能誤以為有漏填，造成困惑或不必要的追問。
+
+**Fix**：依目前 docs/ 目錄下 ANIM.md 和 AUDIO.md 是否存在，手動為 §4 中對應項目補充「（N/A — ANIM.md 不存在）」或「（N/A — AUDIO.md 不存在）」後綴；若文件已存在則移除錯誤的 N/A 後綴。
