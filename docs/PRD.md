@@ -1,6 +1,6 @@
 # PRD — Product Requirements Document
 <!-- 對應學術標準：IEEE 830 (SRS)，對應業界：Google PRD / Amazon PRFAQ -->
-<!-- Version: v2.7 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 -->
+<!-- Version: v3.0 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 -->
 
 ---
 
@@ -10,10 +10,10 @@
 |------|------|
 | **DOC-ID** | PRD-GENDOC-20260422 |
 | **產品名稱** | gendoc — AI-Driven Implementation Blueprint Generator |
-| **文件版本** | v2.7 |
+| **文件版本** | v3.0 |
 | **狀態** | ACTIVE |
 | **作者（PM）** | AI Product Manager Agent |
-| **日期** | 2026-05-01 |
+| **日期** | 2026-05-03 |
 | **上游來源** | gendoc 開源專案（github.com/ibalasite/gendoc） |
 | **審閱者** | 技術架構師、QA Lead |
 | **核准者** | 待定 |
@@ -24,6 +24,7 @@
 
 | 版本 | 日期 | 作者 | 變更摘要 |
 |------|------|------|---------|
+| v3.0 | 2026-05-03 | PM Agent | **gendoc-config UX 重設計：兩層選單 + 循環修改 + Step 4c 必填補問**：(1) **主選單四項**：「重設流程進度」/ 「修改審查強度」/ 「修改專案設定」/ 「✅ 確認完成，儲存離開」；(2) **兩層設計**：「修改專案設定」展開第二層（client_type / has_admin_backend / 清除全部設定），「重設流程進度」展開第二層（全部重跑 / 從某 STEP 開始），解決 AskUserQuestion 4 選項上限問題；(3) **循環模式**：每個設定完成後回到 Step 1 主選單，使用者可多次修改，完成後選「✅ 確認完成」才儲存離開；(4) **Step 4c 必填強制補問**：選「確認完成」前先檢查 client_type / has_admin_backend / review_strategy 是否均已設定，缺哪項就強制問哪項，確保 state file 無空值；(5) **has_admin_backend 可設定**：從 gendoc-config 互動設定，影響 ADMIN_IMPL 步驟是否執行；(6) **pipeline.json 動態讀取**：step picker 第二層選單從 pipeline.json 動態生成，新增步驟不需改 gendoc-config。 |
 | v2.9 | 2026-05-02 | PM Agent | **DEVELOPER_GUIDE.md — 開發者日常操作手冊（建置之後的每日操作層）**：(1) **填補真實空白**：LOCAL_DEPLOY.md 負責「第一次建起來」（一次性），runbook.md 負責「生產事故處理」，CICD.md 負責「pipeline 設計」；三者均不覆蓋開發者建置完成後的每日操作；(2) **新增 `DEVELOPER_GUIDE.md` template 三件套**：§1 每日開發工作流程 step-by-step（git push → Jenkins 觸發 → pipeline 監控 → ArgoCD sync → 應用驗證）；§2 CI/CD 診斷（Jenkins 未觸發 / stage 失敗重跑 / ArgoCD OutOfSync / Gitea webhook 除錯）；§3 本地環境快速指令（`make dev-status` / `make dev-logs` / `make dev-restart` / `make dev-health`）；§4 常見問題 + 解法（本地 namespace 版本，與 runbook.md 的生產版本明確區隔）；§5 環境維護（密碼 rotate、image 清理、完全重置）；(3) **受眾明確分離**：runbook.md 目標讀者 = SRE / On-call（生產事故）；DEVELOPER_GUIDE.md 目標讀者 = 開發者（日常開發操作），不混用；(4) **pipeline.json 新增 D21-DEVELOPER_GUIDE step**；文件類型 `developer-guide` 可通過 `/gendoc developer-guide` 生成；(5) **PRD LOCAL_DEPLOY 標準 #6 補充**：DEVELOPER_GUIDE.md 作為 LOCAL_DEPLOY.md 的日常操作配套文件納入藍圖品質標準 |
 | v2.8 | 2026-05-02 | PM Agent | **Local Developer Platform：Gitea + Production Parity + 非開發者可用的完整 CI/CD**：(1) **核心需求**：任何人（含非開發者）在本機執行 `make dev-tools-up` 後，即擁有完整的 CI/CD flow——Gitea（本地 git server）→ Jenkins（CI pipeline）→ ArgoCD（CD GitOps）→ 應用自動部署——不需要遠端 GitHub/GitLab 帳號，不需要了解 k8s；(2) **Production Parity 原則**（12-Factor App #10）：本地環境與生產環境使用完全相同的工具鏈（Jenkins + ArgoCD + Kubernetes），差異只在規模與 TLS；本地通過的 pipeline 在生產不會因「工具不同」而失敗；(3) **Port 域分離設計**：應用域（Port 80，面向使用者/測試人員）與開發工具域（Port 3000 Gitea / Port 8080 Jenkins / Port 8443 ArgoCD，面向開發者）明確分開，不衝突、可同時運行；(4) **CICD.md 新增章節**：§8 Local Developer Platform（Gitea pod 設計、dev-tools namespace 架構圖、Gitea→Jenkins webhook、ArgoCD 以 Gitea 為 source）；§9 Makefile dev-tools targets（`make dev-tools-up` / `make gitea-ui` / `make jenkins-ui` / `make argocd-ui` / `make dev-tools-status`）；(5) **LOCAL_DEPLOY.md §21 更新**：完整 Gitea 安裝步驟、本地 git push workflow、Jenkins SCM 指向本地 Gitea、非開發者 onboarding 指引（4 步驟完成完整 CI/CD 環境設置）；(6) **CICD.md 新增**至 pipeline.json（D20-CICD）；文件類型 `cicd` 可通過 `/gendoc cicd` 生成；(7) **PRD LOCAL_DEPLOY 標準 #6 擴充**：CI/CD 工具平台需求加入藍圖品質標準 |
 | v2.7 | 2026-05-01 | PM Agent | **架構重設計：Dev/Runtime 分離 + 統一 setup 工具**：(1) **Clone 位置根本性修正** — 從 `~/projects/gendoc/`（開發目錄兼 runtime）改為 `~/.claude/skills/gendoc/`（純 runtime），徹底解決 SessionStart hook 每小時 `git pull` 可能覆蓋開發者未提交工作的風險；`~/projects/gendoc/` 恢復為純開發目錄，不再是任何人的 runtime 依賴。(2) **統一 `setup` 工具**：廢除 `install.sh`、`install.py`、`bin/gendoc-upgrade` 三個重複入口，整合為單一 `setup` 指令（預設=install）支援 `install` / `uninstall` / `upgrade` 三個子命令；macOS/Linux 用 `setup`、Windows 用 `setup.ps1`。(3) **`bin/gendoc-env.sh` 路徑唯一真相**：新增環境變數宣告檔（`GENDOC_DIR` / `GENDOC_BIN` / `GENDOC_TEMPLATES` / `GENDOC_TOOLS`），所有 skill 和腳本均 `source` 此檔取得路徑，消除各處硬編碼 `~/projects/gendoc` 的違規。(4) **`tools/bin/` Pipeline 工具目錄**：`gen_html.py` 從 `bin/` 移至 `tools/bin/`，區分基礎設施腳本（`bin/`）與流水線工具（`tools/bin/`）。(5) **SKILL.md 移至 repo 根目錄**：從 `skills/gendoc/SKILL.md` 移至 `SKILL.md`，與 gstack 慣例一致。(6) **Fix-D 修正**：`gendoc-auto`、`gendoc-flow`、`gendoc-repair`、`reviewdoc` 4 個 skill 移除硬編碼 `$HOME/projects/gendoc` 路徑，改為 source `gendoc-env.sh` 後呼叫 `$GENDOC_DIR/setup upgrade`。(7) **架構違規稽核**：建立 `VIOLATION_AUDIT.md`，記錄並解決 20 項架構違規（7×P2、8×P3、3×P4、2×D）。 |
@@ -427,7 +428,7 @@ Feature: 使用者登入
 
 ## 5. Skill 架構與流程
 
-### 5.1 Skill 清單（17 個）
+### 5.1 Skill 清單（19 個）
 
 > 標準文件生成（IDEA/BRD/PRD/EDD/API/SCHEMA…）由 `gendoc-flow` 透過 `templates/*.gen.md` 派送 subagent 執行，不以獨立 skill 存在。
 
@@ -436,10 +437,11 @@ Feature: 使用者登入
 | **入口層** | `gendoc` | 快捷入口，自動判斷從 gendoc-auto 或 gendoc-flow 進入 |
 | | `gendoc-auto` | 任意輸入→IDEA+BRD→移交 gendoc-flow |
 | **流水線層** | `gendoc-flow` | 完整文件生成流水線（D03–D19），含 P-14/P-15 |
-| **設定層** | `gendoc-config` | 互動設定執行模式、Review 策略、client_type、重跑起點 |
+| **設定層** | `gendoc-config` | 互動兩層選單：設定 client_type、has_admin_backend、Review 策略、重跑起點；循環修改，確認完成前 Step 4c 強制補問未設定的必填欄位 |
 | **共用層** | `gendoc-shared` | 共用邏輯參考（狀態管理、Review 策略、STEP_SEQUENCE） |
 | **更新層** | `gendoc-update` | 版本自動更新（從 GitHub 拉取最新 skill） |
-| **特殊生成層** | `gendoc-gen-diagrams` | 生成 9 大 UML 圖 + class-inventory.md（D07b-UML） |
+| **特殊生成層** | `gendoc-gen-diagrams` | 生成 9 大 UML 圖 + class-inventory.md（UML）；以及 5 張 CI/CD UML 圖（UML-CICD） |
+| | `gendoc-gen-dryrun` | 讀取 EDD/PRD/ARCH 生成量化基線 docs/MANIFEST.md + .gendoc-rules/*.json（DRYRUN） |
 | | `gendoc-gen-client-bdd` | 生成客戶端 BDD feature files（D12b，client_type≠api-only） |
 | | `gendoc-gen-prototype` | 生成可互動 HTML 原型：UI 原型（web/game）或 API Explorer（api-only） |
 | | `gendoc-gen-contracts` | 提取機器可讀規格至 docs/blueprint/（OpenAPI/Schema/Pact/IaC/Seed Code，D17） |
@@ -459,57 +461,58 @@ Feature: 使用者登入
 ```mermaid
 flowchart TD
     INPUT([任意輸入\n文字 · URL · 圖片 · Repo]) --> AUTO
-
     subgraph AUTO["/gendoc-auto — 入口"]
         direction LR
         G1["⚙ Gen IDEA\n資深 PM Expert"] --> R1["↻ Review + Fix Loop\nfinding = 0 → pass\nfinding > 0 → Fix → re-Review"]
         R1 --> G2["⚙ Gen BRD\n資深商業分析師"]
         G2 --> R2["↻ Review + Fix Loop"]
     end
-
     R2 -->|"finding = 0\nhandoff = true 寫入 state"| FLOW
-
     subgraph FLOW["/gendoc-flow — 每步驟 Gen ⚙ Review ↻ Fix ✎ Commit ↑"]
         direction TD
         subgraph REQ["需求層"]
             direction LR
-            D03["D03 PRD"] --> D04["D04 PDD ✦"] --> D05["D05 VDD ✦"]
+            NP["PRD"] --> NCO["CONSTANTS ★"] --> NPD["PDD ✦"] --> NVD["VDD ✦"]
         end
         subgraph DES["設計層"]
             direction LR
-            D06["D06 EDD"] --> D07["D07 ARCH"] --> D08["D08 API"] --> D09["D09 SCHEMA"] --> D10["D10 FRONTEND ✦"]
+            NED["EDD"] --> NAR["ARCH"] --> NDR["DRYRUN ★"] --> NAPI["API"] --> NSC["SCHEMA"] --> NFR["FRONTEND ✦"] --> NAU["AUDIO ✧"] --> NAN["ANIM ✧"] --> NCI["CLIENT_IMPL ✦"] --> NAIM["ADMIN_IMPL ◆"] --> NRS["RESOURCE ✦"]
+        end
+        subgraph UML_L["知識圖層"]
+            NUML["UML ★\n9 Server + 16 Frontend"]
         end
         subgraph QA["品質層"]
             direction LR
-            D11["D11 test-plan"] --> D12["D12 BDD-server"] --> D12b["D12b BDD-client ✦"] --> D13["D13 RTM"]
+            NTP["test-plan"] --> NBS["BDD-server"] --> NBC["BDD-client ✦"] --> NRTM["RTM"]
         end
         subgraph OPS["運維層"]
             direction LR
-            D14["D14 runbook"] --> D15["D15 LOCAL_DEPLOY"]
+            NRB["runbook"] --> NLD["LOCAL_DEPLOY"] --> NCIC["CICD"] --> NDG["DEVELOPER_GUIDE"] --> NUC["UML-CICD ★"]
         end
         subgraph AUDIT["稽核層"]
-            D16["D16 ALIGN ★"] --> D16F["D16-F ALIGN-FIX ★"]
+            NAL["ALIGN ★"] --> NALF["ALIGN-FIX ★"] --> NALV["ALIGN-VERIFY ★"]
         end
         subgraph IMPL["實作層（docs/blueprint/）"]
             direction LR
-            D17["D17 CONTRACTS ★"] --> D18["D18 MOCK ★ ✦"]
+            NCT["CONTRACTS ★"] --> NMK["MOCK ★ ✦"] --> NPRT["PROTOTYPE ★ ✦"]
         end
         subgraph PUB["發布層"]
-            D19["D19 HTML ★"]
+            NHL["HTML ★"]
         end
-        REQ --> DES --> QA --> OPS --> AUDIT --> IMPL --> PUB
+        REQ --> DES --> UML_L --> QA --> OPS --> AUDIT --> IMPL --> PUB
     end
-
-    FLOW --> DONE([GitHub Pages 文件站])
-
+    FLOW --> DONE([GitHub Pages 文件站\n+ docs/blueprint/ 可攜帶])
     RESUME(["/gendoc-flow\n斷點續行"]) -.->|"review_progress\ncompleted_steps"| FLOW
     CONFIG(["/gendoc-config\n設定強度 / 重跑點"]) -.-> FLOW
-
     classDef condNode fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
+    classDef gameNode fill:#fce7f3,stroke:#db2777,color:#831843
     classDef specNode fill:#fef3c7,stroke:#f59e0b,color:#78350f
+    classDef adminNode fill:#ede9fe,stroke:#7c3aed,color:#3b0764
     classDef ioNode fill:#d1fae5,stroke:#059669,color:#064e3b
-    class D04,D05,D10,D12b,D18 condNode
-    class D16,D16F,D17,D18,D19 specNode
+    class NPD,NVD,NFR,NBC,NCI,NRS,NMK,NPRT condNode
+    class NAU,NAN gameNode
+    class NCO,NDR,NUML,NUC,NAL,NALF,NALV,NCT,NMK,NPRT,NHL specNode
+    class NAIM adminNode
     class INPUT,DONE ioNode
 ```
 
@@ -590,7 +593,7 @@ graph TD
     class REQ,L10 io
 ```
 
-> **藍色節點**（PDD / VDD / FRONTEND / BDD-client）：`client_type ≠ none` 時才啟用。**黃色**：稽核層特殊步驟。
+> **✦ 藍色節點**（PDD / VDD / FRONTEND / CLIENT_IMPL / RESOURCE / BDD-client / MOCK / PROTOTYPE）：`client_type ≠ api-only` 時啟用。**✧ 粉紅節點**（AUDIO / ANIM）：`client_type = game` 專屬。**◆ 紫色節點**（ADMIN_IMPL）：`has_admin_backend = true` 才啟用。**★ 黃色節點**：special_skill（不走三專家，直接呼叫 Skill）— 含 DRYRUN、UML、UML-CICD、ALIGN 三步驟、CONTRACTS、MOCK、PROTOTYPE、HTML。
 
 #### 累積上游依賴表（Cumulative Upstream Table）
 
@@ -734,7 +737,8 @@ State file 記錄：
 - `skill_source`：`gendoc-auto`（防止跨套件誤用）
 
 **專案配置欄位**
-- `client_type`：`none` / `web-saas` / `unity` / `cocos` / `html5-game`（控制條件步驟跳過）
+- `client_type`：`web` / `game` / `api-only`（控制條件步驟；web/game 啟用 PDD/VDD/FRONTEND/CLIENT_IMPL；game 另啟用 AUDIO/ANIM；api-only 跳過所有 client 側文件）
+- `has_admin_backend`：`true` / `false`（控制 ADMIN_IMPL 步驟；由 /gendoc-config 設定）
 - `lang_stack`：技術棧標籤（`node/typescript`、`python/fastapi` 等）
 - `github_repo`：GitHub 倉庫 URL（用於 README badge 生成）
 - `last_completed`：最後一個完成的 step ID

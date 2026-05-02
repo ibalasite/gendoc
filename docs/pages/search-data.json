@@ -7,7 +7,7 @@
   "prd.html": {
     "url": "prd.html",
     "title": "產品需求文件 (PRD)",
-    "excerpt": "PRD — Product Requirements Document\n&lt;!-- 對應學術標準：IEEE 830 (SRS)，對應業界：Google PRD / Amazon PRFAQ --&gt;\n&lt;!-- Version: v2.7 | Status: ACTIVE | DOC-I"
+    "excerpt": "PRD — Product Requirements Document\n&lt;!-- 對應學術標準：IEEE 830 (SRS)，對應業界：Google PRD / Amazon PRFAQ --&gt;\n&lt;!-- Version: v3.0 | Status: ACTIVE | DOC-I"
   },
   "client.html": {
     "url": "client.html",
@@ -18,5 +18,10 @@
     "url": "gendoc-redesign-decisions.html",
     "title": "Gendoc-Redesign-Decisions",
     "excerpt": "gendoc 重新設計 — 決策清單\n本文件列出所有待決策的修改項目，請在「決策」欄填入 ✅ 同意 / ❌ 拒絕 / 🔄 修改（附說明）。\n\n背景確認\nLOCAL_DEPLOY 是否參考 RUNBOOK？\n確認：否。LOCAL_DEPLOY.gen.md 的 upstream-docs = req/"
+  },
+  "ha-spof-modification-plan.html": {
+    "url": "ha-spof-modification-plan.html",
+    "title": "Ha-Spof-Modification-Plan",
+    "excerpt": "HA/SPOF 違規修改計劃\n原則：所有 gendoc 生成的系統文件，架構設計必須以 HA + SCALE + BCP 為前提，無「小/中/大規模」選擇，成本計算以消除所有 SPOF 的最小 Server 數為準。\n&gt;\n狀態說明：決策 欄位留空，請使用者填入 ✅批准 / ❌拒絕 / ✏️修改"
   }
 }

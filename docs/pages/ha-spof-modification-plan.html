@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ha-Spof-Modification-Plan — gendoc</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+</head>
+<body>
+  <header class="top-nav">
+    <a href="index.html" class="nav-brand">gendoc</a>
+    <div class="nav-controls">
+      <div class="search-wrap">
+        <input class="search-input" type="search" placeholder="搜尋文件...">
+        <div class="search-results"></div>
+      </div>
+      <a class="nav-gh-link" href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener">⌥ GitHub</a>
+      <button class="sidebar-toggle" id="sidebarToggle" title="收合/展開側欄">☰</button>
+    </div>
+  </header>
+  <div class="doc-page-banner">
+    <p class="banner-breadcrumb"><a href="index.html">gendoc</a> › Ha-Spof-Modification-Plan</p>
+    <h1 class="banner-title">Ha-Spof-Modification-Plan</h1>
+  </div>
+  <div class="page-wrapper">
+    <aside class="sidebar" aria-label="文件導覽">
+      <div class="sidebar__section">
+<div class="sidebar__label">文件</div>
+<a class="sidebar__link" href="index.html">🏠 首頁</a>
+<a class="sidebar__link" href="prd.html">📝 產品需求文件 (PRD)</a>
+<a class="sidebar__link" href="client.html">📄 Client</a>
+<a class="sidebar__link" href="gendoc-redesign-decisions.html">📄 Gendoc-Redesign-Decisions</a>
+<a class="sidebar__link active" href="ha-spof-modification-plan.html">📄 Ha-Spof-Modification-Plan</a>
+</div>
+    </aside>
+    <div class="sidebar-resizer" id="sidebarResizer"></div>
+    <main class="doc-content"><h1>HA/SPOF 違規修改計劃</h1>
+<blockquote><p><strong>原則</strong>：所有 gendoc 生成的系統文件，架構設計必須以 HA + SCALE + BCP 為前提，無「小/中/大規模」選擇，成本計算以消除所有 SPOF 的最小 Server 數為準。</p></blockquote>
+<p>&gt;</p>
+<blockquote><p><strong>狀態說明</strong>：<code>決策</code> 欄位留空，請使用者填入 ✅批准 / ❌拒絕 / ✏️修改後批准</p></blockquote>
+<hr>
+<h2>M-01</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>V1+V6：IDEA.md Q4 讓使用者選小/中/大規模，且將「人數」當規模分類依據，違反「架構只有一種，差別只在最小 server 數」原則</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>將 Q4 改為「PM Expert 研究推估」展示區塊（非使用者填寫），由 gendoc-auto Step 1.7 PM Expert 依競品研究推估 DAU + 同時在線峰值後寫入 state，IDEA.md 直接顯示推估結果，不再詢問使用者</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/IDEA.md</code> 行 276–282</td></tr>
+<tr><td><strong>原段落</strong></td><td><code>### Q4 — 預期使用規模</code>&lt;br&gt;`\</td><td><strong>回答</strong> \</td><td>{{Q4_SCALE}} \</td><td><code>&lt;br&gt;</code>\</td><td><strong>選項</strong> \</td><td>小規模（1–100 人）／ 中規模（100–10,000 人）／ 大規模（10,000 人以上）\</td><td><code>&lt;br&gt;</code>\</td><td><strong>影響範疇</strong> \</td><td>ARCH 可擴展性設計、SCHEMA 分表策略、EDD 容量規劃 \</td><td>`</td></tr>
+<tr><td><strong>預計改成</strong></td><td><code>### Q4 — 預估流量規模（PM Expert 研究推估）</code>&lt;br&gt;`\</td><td><strong>日活用戶（DAU）</strong> \</td><td>{{Q4_DAU}} \</td><td><code>&lt;br&gt;</code>\</td><td><strong>同時在線峰值（PCU）</strong> \</td><td>{{Q4_PEAK_CCU}} \</td><td><code>&lt;br&gt;</code>\</td><td><strong>推估依據</strong> \</td><td>{{Q4_ESTIMATE_BASIS}} \</td><td><code>&lt;br&gt;</code>\</td><td><strong>影響範疇</strong> \</td><td>EDD 容量規劃數值、ARCH HPA 觸發閾值、DB 連線池大小 \</td><td>`&lt;br&gt;&lt;br&gt;&gt; 以上數值由 PM Expert 依競品研究與行業基準自動推估，僅供容量規劃使用，不影響架構選型（架構均採 HA 設計，≥ 2 replica）。</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>IDEA.md（行 329 的 Q4_SCALE 引用也需同步改）、IDEA.gen.md（生成規則需說明 Q4 欄位來自 state）、gendoc-auto SKILL.md（M-10 同步）</td></tr>
+<tr><td><strong>決策</strong></td><td>IDEA.md, IDEA.gen.md, IDEA.review.md 都要有相對應的相關細節</td></tr>
+</table>
+<hr>
+<h2>M-02</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>V1+V6：IDEA.md 行 329 <code><em>技術建議基於 Q3（{{Q3_TECH}}）與 Q4（{{Q4_SCALE}}）。</em></code> 殘留 Q4_SCALE 引用</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>改為引用 PM Expert 推估的 DAU + PCU 欄位</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/IDEA.md</code> 行 329</td></tr>
+<tr><td><strong>原段落</strong></td><td><code><em>技術建議基於 Q3（{{Q3_TECH}}）與 Q4（{{Q4_SCALE}}）。</em></code></td></tr>
+<tr><td><strong>預計改成</strong></td><td><code><em>技術建議基於 Q3（{{Q3_TECH}}）；容量規劃基於 PM Expert 推估 — DAU {{Q4_DAU}}、同時在線峰值 {{Q4_PEAK_CCU}}。</em></code></td></tr>
+<tr><td><strong>影響範圍</strong></td><td>IDEA.md 單行</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-03</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>V1+V3：ARCH.md Phase 演進路徑「Phase 1 單體服務 → Phase 2 微服務 → Phase 3 Multi-Region」暗示早期架構允許 SPOF（Phase 1 無 HA）</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>移除 Phase 演進作為「選擇哪種架構」的邏輯，改為「任何規模都從 HA 基線出發，Phase 差別只在水平擴展的程度」</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/ARCH.md</code> §10.2 行 781–788</td></tr>
+<tr><td><strong>原段落</strong></td><td><code>Phase 1（0–{{P1_USERS}} 用戶）：單區單體服務 + 托管 DB</code>&lt;br&gt;<code>Phase 2（{{P1_USERS}}–{{P2_USERS}}）：微服務拆分 + Read Replica + PgBouncer</code>&lt;br&gt;<code>Phase 3（{{P2_USERS}}–{{P3_USERS}}）：Multi-Region + CQRS + Event Sourcing</code>&lt;br&gt;<code>Phase 4（{{P3_USERS}}+）：全球分佈 + 資料分片 + 專用搜尋引擎</code></td></tr>
+<tr><td><strong>預計改成</strong></td><td>&gt; 架構從啟動第一天即採 HA 設計（API ≥ 2 replica，DB Primary+Standby，Redis Sentinel），零 SPOF。&lt;br&gt;&gt; 以下為水平擴展里程碑，不代表架構切換，只代表擴展程度：&lt;br&gt;&lt;br&gt;<code>Phase 1（&lt; {{P1_USERS}} 並發）：HA 基線 + 單 Region，HPA 自動擴展</code>&lt;br&gt;<code>Phase 2（{{P1_USERS}}–{{P2_USERS}} 並發）：Read Replica 擴展讀取吞吐，PgBouncer 連線池</code>&lt;br&gt;<code>Phase 3（{{P2_USERS}}+ 並發）：Multi-Region Active-Passive，CQRS 分離讀寫</code>&lt;br&gt;<code>Phase 4（{{P3_USERS}}+ 並發）：全球分佈，資料分片，專用搜尋引擎</code></td></tr>
+<tr><td><strong>影響範圍</strong></td><td>ARCH.md §10.2、ARCH.gen.md（生成規則是否有同樣邏輯）</td></tr>
+<tr><td><strong>決策</strong></td><td>ARCH.md, ARCH.gen.md ARCH.review.md 都要有相對應的相關細節</td></tr>
+</table>
+<hr>
+<h2>M-04</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>V3：ARCH.md §7 服務副本數最小值使用 <code>{{GW_MIN_REPLICAS}}</code> 等純佔位符，允許生成者填入 1，未強制 ≥ 2</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>在每個 Min Replicas 欄位加入 ≥ 2（硬性要求），佔位符只用來填入實際規劃數字，但加上 SPOF 消除說明</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/ARCH.md</code> §7 行 460–467</td></tr>
+<tr><td><strong>原段落</strong></td><td>`\</td><td>API Gateway \</td><td>{{GW_MIN_REPLICAS}} \</td><td>{{GW_MAX_REPLICAS}} \</td><td>minAvailable: {{GW_PDB}} \</td><td><code>&lt;br&gt;</code>\</td><td>{{SERVICE_A}} \</td><td>{{SVC_A_MIN}} \</td><td>{{SVC_A_MAX}} \</td><td>minAvailable: {{SVC_A_PDB}} \</td><td>`</td></tr>
+<tr><td><strong>預計改成</strong></td><td>`\</td><td>API Gateway \</td><td>{{GW_MIN_REPLICAS}}（≥ 2，消除 SPOF）\</td><td>{{GW_MAX_REPLICAS}} \</td><td>minAvailable: {{GW_PDB}} \</td><td><code>&lt;br&gt;</code>\</td><td>{{SERVICE_A}} \</td><td>{{SVC_A_MIN}}（≥ 2，消除 SPOF）\</td><td>{{SVC_A_MAX}} \</td><td>minAvailable: {{SVC_A_PDB}} \</td><td>`&lt;br&gt;&lt;br&gt;並在表格上方加：&lt;br&gt;&gt; <strong>強制要求</strong>：所有服務 Min Replicas ≥ 2，任何低於 2 的設計視為 SPOF，必須修正。</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>ARCH.md §7、ARCH.review.md（審查規則是否有對應強制項）</td></tr>
+<tr><td><strong>決策</strong></td><td>ARCH.md, ARCH.gen.md ARCH.review.md 都要有相對應的相關細節</td></tr>
+</table>
+<hr>
+<h2>M-05</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>V6：ARCH.md §16.3 成本優化策略列出「非生產環境排程停機 40-60% 節省」，允許非生產環境 downtime，與 HA 設計原則衝突</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>加入說明：非生產環境（dev/staging）允許排程縮減副本數以節省成本，但仍不得縮減至 0（即仍需 ≥ 1 可用），且此策略不適用於 production</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/ARCH.md</code> §16.3 行 1157</td></tr>
+<tr><td><strong>原段落</strong></td><td>`\</td><td>RDS \</td><td>非生產環境排程停機（週末、深夜）\</td><td>40-60% \</td><td>低 \</td><td>`</td></tr>
+<tr><td><strong>預計改成</strong></td><td>`\</td><td>RDS \</td><td>非生產環境縮減副本（週末/深夜 scale to 1，非 scale to 0）\</td><td>20-40% \</td><td>低 \</td><td>`&lt;br&gt;&lt;br&gt;並加注：&lt;br&gt;&gt; ⚠️ 注意：Production 環境不得排程停機或縮副本，HA 要求全天候有效。</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>ARCH.md §16.3 單行</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-06</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>V2+V5：EDD.md 環境矩陣 Local 欄 API 副本數 = 1，Local 單副本無法測試 HA 程式邏輯（session、distributed lock、pub/sub）</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>Local API 副本數改為 ≥ 2，並加說明為何需要多副本</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/EDD.md</code> 行 229（環境矩陣）</td></tr>
+<tr><td><strong>原段落</strong></td><td>`\</td><td><strong>API 副本數（Replicas）</strong> \</td><td>1 \</td><td>{{DEV_API_REPLICAS}} \</td><td>{{STAGING_API_REPLICAS}} \</td><td>{{PROD_API_REPLICAS}}（HPA min–max）\</td><td>`</td></tr>
+<tr><td><strong>預計改成</strong></td><td>`\</td><td><strong>API 副本數（Replicas）</strong> \</td><td>2（HA 測試最低要求）\</td><td>{{DEV_API_REPLICAS}} \</td><td>{{STAGING_API_REPLICAS}} \</td><td>{{PROD_API_REPLICAS}}（HPA min–max）\</td><td>`</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>EDD.md 單行、LOCAL_DEPLOY.md 需同步（M-08）</td></tr>
+<tr><td><strong>決策</strong></td><td>可以，但EDD.md, EDD.gen.md EDD.review.md LOCAL_DEPLOY.md, LOCAL_DEPLOY.gen.md LOCAL_DEPLOY.review.md 都要有相對應的相關細節</td></tr>
+</table>
+<hr>
+<h2>M-07</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>V2+V5：EDD.md 環境矩陣 Local 欄 Worker 副本數 = 1，單副本 Worker 無法測試冪等處理、競爭條件等 HA 場景</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>Local Worker 副本數改為 ≥ 2</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/EDD.md</code> 行 230（環境矩陣）</td></tr>
+<tr><td><strong>原段落</strong></td><td>`\</td><td><strong>Worker 副本數</strong> \</td><td>1 \</td><td>{{DEV_WORKER_REPLICAS}} \</td><td>{{STAGING_WORKER_REPLICAS}} \</td><td>{{PROD_WORKER_REPLICAS}}（HPA min–max）\</td><td>`</td></tr>
+<tr><td><strong>預計改成</strong></td><td>`\</td><td><strong>Worker 副本數</strong> \</td><td>2（冪等/競爭條件測試最低要求）\</td><td>{{DEV_WORKER_REPLICAS}} \</td><td>{{STAGING_WORKER_REPLICAS}} \</td><td>{{PROD_WORKER_REPLICAS}}（HPA min–max）\</td><td>`</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>EDD.md 單行</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-08</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>V5：LOCAL_DEPLOY.md 預期 Pod 狀態清單全部為單 pod（api-server-\&lt;hash\&gt; 1/1），與 M-06 EDD 修正後矛盾，且無法測試 HA</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>預期 Pod 清單改為顯示 2 個 api-server pod，並加說明「≥ 2 為 HA 測試基線」</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/LOCAL_DEPLOY.md</code> 行 275–285</td></tr>
+<tr><td><strong>原段落</strong></td><td><code>api-server-&lt;hash&gt;             1/1     Running   0          60s</code>（單行）</td></tr>
+<tr><td><strong>預計改成</strong></td><td><code>api-server-&lt;hash1&gt;            1/1     Running   0          60s</code>&lt;br&gt;<code>api-server-&lt;hash2&gt;            1/1     Running   0          60s</code>&lt;br&gt;&lt;br&gt;並在段落前加：&lt;br&gt;&gt; Local 環境 API Server 維持 ≥ 2 replica，用以測試 HA 程式邏輯（共享 Session、distributed lock、pub/sub 等）。</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>LOCAL_DEPLOY.md、LOCAL_DEPLOY.gen.md（生成規則需同步）</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-09</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>V2：runbook.md <code>{{MIN_POD_COUNT}}</code> 和 <code>{{MIN_WORKER_COUNT}}</code> 純佔位符，無 ≥ 2 硬性要求，生成者可能填入 1</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>在 placeholder 說明中加入「≥ 2，SPOF 消除要求」</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/runbook.md</code> 行 1135、1140、1228、1247</td></tr>
+<tr><td><strong>原段落</strong></td><td><code># Expected: N pods Running and Ready (N = {{MIN_POD_COUNT}})</code>&lt;br&gt;<code>kubectl scale ... --replicas={{MIN_POD_COUNT}}</code></td></tr>
+<tr><td><strong>預計改成</strong></td><td><code># Expected: N pods Running and Ready (N = {{MIN_POD_COUNT}}，最小值 2，消除 SPOF)</code>&lt;br&gt;<code>kubectl scale ... --replicas={{MIN_POD_COUNT}}  # MIN_POD_COUNT ≥ 2</code></td></tr>
+<tr><td><strong>影響範圍</strong></td><td>runbook.md 4 處、runbook.gen.md（生成規則需加強制要求）</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-10</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>V1：gendoc-auto SKILL.md 仍存在 <code>_SUGGEST_SCALE</code> 推斷區塊（小/中/大規模）、Step 1.8 規模確認問題、q4_scale 讀寫（共 10 處）</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>刪除整個 <code>_SUGGEST_SCALE</code> 推斷區塊；刪除 Step 1.8 中規模確認問題；刪除所有 q4_scale 讀寫；由 PM Expert（Step 1.7）從 Step 3 web 研究結果推估 DAU + 同時在線峰值，寫入 state</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>skills/gendoc-auto/SKILL.md</code> 行 634–650、667、683–688、729–757、787、889</td></tr>
+<tr><td><strong>原段落</strong></td><td>行 634–650：<code>_SUGGEST_SCALE=$(python3 ...)</code> 計算小/中/大/MVP&lt;br&gt;行 729–757：「問題 2 — 規模確認」AskUserQuestion&lt;br&gt;行 754：<code>d[&#x27;q4_scale&#x27;] = &#x27;${_CONFIRMED_SCALE}&#x27;</code>&lt;br&gt;行 787：<code>_Q4_SCALE=$(python3 ... d.get(&#x27;q4_scale&#x27;,&#x27;小規模...&#x27;))</code>&lt;br&gt;行 889：<code>d[&#x27;q4_scale&#x27;] = &#x27;${_Q4_SCALE}&#x27;</code></td></tr>
+<tr><td><strong>預計改成</strong></td><td>刪除所有 q4_scale / _SUGGEST_SCALE 相關邏輯。Step 1.8 改為純自動推斷 client_type + has_admin_backend，無規模相關邏輯。&lt;br&gt;&lt;br&gt;<strong>新增</strong>：在 PM Expert（Step 1.7）角色的任務清單中加入容量推估步驟：依 Step 3 web 研究結果（競品 DAU、市場規模、行業基準），推估本專案啟動期預期 DAU 與同時在線峰值（PCU），以及推估依據，寫入 state：&lt;br&gt;<code>d[&#x27;q4_dau&#x27;]            = &#x27;&lt;推估 DAU，如 50,000/day&gt;&#x27;</code>&lt;br&gt;<code>d[&#x27;q4_peak_ccu&#x27;]       = &#x27;&lt;推估同時在線峰值，如 3,000 人&gt;&#x27;</code>&lt;br&gt;<code>d[&#x27;q4_estimate_basis&#x27;] = &#x27;&lt;推估依據，如 競品 A 月活 100 萬，類似產品 DAU/MAU 比約 5%&gt;&#x27;</code></td></tr>
+<tr><td><strong>影響範圍</strong></td><td>gendoc-auto SKILL.md（集中修改），state schema 同步（M-11）</td></tr>
+<tr><td><strong>決策</strong></td><td>client_type + has_admin_backend 是state沒有才在這推估，shared 要能判斷state 讀不到這兩個其中一個值就叫config出來問，統一問的地方，然後寫進state</td></tr>
+</table>
+<hr>
+<h2>M-11</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>V1：gendoc-shared SKILL.md 行 1019 state schema 仍定義 q4_scale 欄位</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>刪除 q4_scale 行，新增三個 PM Expert 推估欄位</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>skills/gendoc-shared/SKILL.md</code> 行 1019</td></tr>
+<tr><td><strong>原段落</strong></td><td>`\</td><td>\<code>q4_scale\</code> \</td><td>string \</td><td>Q4 使用規模澄清結果 \</td><td>`</td></tr>
+<tr><td><strong>預計改成</strong></td><td>刪除 <code>q4_scale</code> 行，替換為：&lt;br&gt;`\</td><td>\<code>q4_dau\</code> \</td><td>string \</td><td>DAU 推估值（PM Expert 從研究推估，如 &quot;50,000/day&quot;）\</td><td><code>&lt;br&gt;</code>\</td><td>\<code>q4_peak_ccu\</code> \</td><td>string \</td><td>同時在線峰值推估值（如 &quot;3,000 人&quot;）\</td><td><code>&lt;br&gt;</code>\</td><td>\<code>q4_estimate_basis\</code> \</td><td>string \</td><td>推估依據來源（競品比較、行業基準等）\</td><td>`</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>gendoc-shared 單行刪除 + 三行新增，下游 IDEA.md 生成時由 state 填入</td></tr>
+<tr><td><strong>決策</strong></td><td>client_type + has_admin_backend 是state沒有才在這推估，但shared 要能判斷state 讀不到這兩個其中一個值就叫config出來問，統一問的地方，然後寫進state, 再回到呼叫端</td></tr>
+</table>
+<hr>
+<h2>M-12</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>V4：API.review.md 完全沒有 HA/SPOF 相關審查項目（Timeout/Retry/Circuit Breaker/Rate Limit）</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>新增 Layer 審查項：API 設計是否支援 HA 部署（Timeout、Retry、幂等性、Circuit Breaker、Rate Limit）</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/API.review.md</code>（在最後一個 Layer 後新增）</td></tr>
+<tr><td><strong>原段落</strong></td><td>無（缺漏）</td></tr>
+<tr><td><strong>預計改成</strong></td><td>新增：&lt;br&gt;<code>#### [HIGH] — API HA 設計缺漏</code>&lt;br&gt;<code><strong>Check</strong>: 每個非冪等 endpoint 是否有 idempotency key 設計？是否定義 Timeout、Retry 策略？是否有 Rate Limit（429）？</code>&lt;br&gt;<code><strong>Risk</strong>: 多副本部署下重複請求導致資料不一致；無限重試導致雪崩。</code>&lt;br&gt;<code><strong>Fix</strong>: 補充 idempotency key、Retry policy、Rate limit header 定義。</code></td></tr>
+<tr><td><strong>影響範圍</strong></td><td>API.review.md 新增段落</td></tr>
+<tr><td><strong>決策</strong></td><td>API.md, API.gen.md API.review.md 都要有相對應的相關細節</td></tr>
+</table>
+<hr>
+<h2>M-13</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>V4：SCHEMA.review.md 完全沒有 Replication/讀寫分離/分片策略的審查項目</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>新增 Layer 審查項：DB Schema 設計是否支援 Read Replica、分片、HA failover</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/SCHEMA.review.md</code>（在最後一個 Layer 後新增）</td></tr>
+<tr><td><strong>原段落</strong></td><td>無（缺漏）</td></tr>
+<tr><td><strong>預計改成</strong></td><td>新增：&lt;br&gt;<code>#### [HIGH] — Schema HA 擴展性缺漏</code>&lt;br&gt;<code><strong>Check</strong>: 高頻寫入 table 是否有分片鍵設計（或說明不需要的理由）？是否有 Read Replica 路由設計（讀寫分離）？主鍵是否避免 Sequential ID 造成的熱點寫入？</code>&lt;br&gt;<code><strong>Risk</strong>: 單節點寫入瓶頸，SPOF 無法 Failover。</code>&lt;br&gt;<code><strong>Fix</strong>: 補充分片策略說明或確認 PgBouncer + Read Replica 路由設計。</code></td></tr>
+<tr><td><strong>影響範圍</strong></td><td>SCHEMA.review.md 新增段落</td></tr>
+<tr><td><strong>決策</strong></td><td>SCHEMA.md, SCHEMA.gen.md SCHEMA.review.md 都要有相對應的相關細節</td></tr>
+</table>
+<hr>
+<h2>M-14</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>V4：test-plan.review.md 沒有 HA 測試覆蓋審查項目（Chaos Engineering、Failover 測試、多副本負載均衡驗證）</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>新增 Layer 審查項：測試計畫是否包含 HA 場景測試</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/test-plan.review.md</code>（在最後一個 Layer 後新增）</td></tr>
+<tr><td><strong>原段落</strong></td><td>無（缺漏）</td></tr>
+<tr><td><strong>預計改成</strong></td><td>新增：&lt;br&gt;<code>#### [HIGH] — HA / SPOF 測試場景缺漏</code>&lt;br&gt;<code><strong>Check</strong>: 測試計畫是否包含：(1) 多副本下請求分配驗證；(2) 單副本 kill 後服務不中斷；(3) DB Failover 期間 API 行為；(4) Redis 不可用時的降級行為？</code>&lt;br&gt;<code><strong>Risk</strong>: HA 程式邏輯未被測試，生產故障時才發現設計缺陷。</code>&lt;br&gt;<code><strong>Fix</strong>: 在 §12 Chaos / Failover 章節補充上述四類測試場景。</code></td></tr>
+<tr><td><strong>影響範圍</strong></td><td>test-plan.review.md 新增段落</td></tr>
+<tr><td><strong>決策</strong></td><td>test-plan.md, test-plan.gen.md test-plan.review.md 都要有相對應的相關細節</td></tr>
+</table>
+<hr>
+<h2>M-15</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>V4+V5：LOCAL_DEPLOY.review.md 完全沒有 HA 本地驗證項目（多副本、負載均衡、HA 程式邏輯測試）</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>新增 Layer 審查項：Local 環境是否支援 ≥ 2 replica HA 測試</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/LOCAL_DEPLOY.review.md</code>（在 Layer 2 最後新增）</td></tr>
+<tr><td><strong>原段落</strong></td><td>無（缺漏）</td></tr>
+<tr><td><strong>預計改成</strong></td><td>新增：&lt;br&gt;<code>#### [CRITICAL] — Local 環境無法測試 HA 程式邏輯</code>&lt;br&gt;<code><strong>Check</strong>: LOCAL_DEPLOY 的 API Server 是否部署 ≥ 2 replica？是否有驗證步驟確認多副本下請求正確分配（session、shared state、WebSocket）？</code>&lt;br&gt;<code><strong>Risk</strong>: 開發者在本地用單副本開發，HA 相關程式邏輯（共享狀態、distributed lock）未被測試，到 staging/production 才爆。</code>&lt;br&gt;<code><strong>Fix</strong>: 確認 api-server replicas ≥ 2，補充多副本驗證步驟（如 kubectl get pods、curl 多次確認 pod hostname 分散）。</code></td></tr>
+<tr><td><strong>影響範圍</strong></td><td>LOCAL_DEPLOY.review.md 新增段落</td></tr>
+<tr><td><strong>決策</strong></td><td>LOCAL_DEPLOY.gen.md LOCAL_DEPLOY.review.md 都要有相對應的相關細節</td></tr>
+</table>
+<hr>
+<hr>
+<h2>M-16</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>V3+V5：EDD.md 缺乏獨立的 HA/SPOF 架構規格章節。HA 相關設計散落在 §3.5（環境矩陣）、§8（Resilience）、§12.3（Chaos）、§13.5（DR），沒有任何一處明確宣告：哪些元件必須 ≥ 2 replica、Anti-affinity 規則、Pod Disruption Budget、Distributed Lock 設計、BCP 啟動條件。工程師拿到 EDD 時 HA 要求是隱性的，容易被各自解讀。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>在 §3 Architecture Design 下新增 §3.6 HA/SPOF Architecture Specification，集中宣告所有 HA 非協商要求；同時在 §12.1 Testing Strategy 表新增「HA 驗證」測試類型、§12.2 測試重點場景加入多副本行為場景</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/EDD.md</code>（§3 下新增 §3.6、§12.1 表格新增行、§12.2 場景清單新增項目）</td></tr>
+<tr><td><strong>原段落</strong></td><td>§3.6 不存在（缺漏）&lt;br&gt;§12.1 表：`\</td><td>Unit Test \</td><td>... \</td><td><code>、</code>\</td><td>Integration Test \</td><td>... \</td><td><code>、</code>\</td><td>E2E Test \</td><td>... \</td><td><code>（無 HA 驗證行）&lt;br&gt;§12.2：</code>- [ ] {{TEST_SCENARIO_4}}（外部服務失敗 → Circuit Breaker 觸發）`（無多副本場景）</td></tr>
+<tr><td><strong>預計改成</strong></td><td><strong>新增 §3.6 HA/SPOF Architecture Specification</strong>，包含：&lt;br&gt;（1）SPOF 消除矩陣表（元件 → Min Replicas → Anti-affinity 規則 → PDB 設定）&lt;br&gt;（2）Session/State 處理聲明（Stateless 原則、禁止 Sticky Session、Redis 共享 Session 設計）&lt;br&gt;（3）Distributed Lock 設計（用於 Background Job 等競爭場景）&lt;br&gt;（4）BCP 啟動條件與手動切換 SOP 摘要（詳細見 runbook）&lt;br&gt;（5）Health Check / Readiness Probe 設計&lt;br&gt;&lt;br&gt;<strong>§12.1 新增行</strong>：`\</td><td>HA 驗證 \</td><td>chaoskube / toxiproxy \</td><td>多副本行為、Failover 恢復 \</td><td>Pre-release / 每季 \</td><td><code>&lt;br&gt;&lt;br&gt;<strong>§12.2 新增項目</strong>：</code>- [ ] Pod kill 測試：Kill 1 of N api-server pods，驗證 30s 內服務恢復、用戶請求無 5xx<code>&lt;br&gt;</code>- [ ] DB Failover 測試：模擬 Primary DB 不可用，驗證切換至 Standby 後 API 可寫入`</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>EDD.md（§3 新增章節、§12.1 表格、§12.2 清單）、EDD.gen.md（生成規則需同步說明如何填入 §3.6）、EDD.review.md（需新增 §3.6 對應審查項）</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-17</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>V4：BDD.md 完全缺乏 HA/SPOF 行為測試情境。Tag Taxonomy（§10.1）沒有 <code>@ha</code>、<code>@failover</code>、<code>@chaos</code> 標籤；Error Scenario Catalog（§8）和 Example Feature File（§11）無任何 HA 相關場景。這意味著 QA 驗收流程中 HA 行為從未被確認：Pod 重啟用戶是否感知、DB Failover 期間寫入是否安全、Redis 不可用時降級是否正確 — 全部缺席。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>在 §10.1 Tag 分類表新增 HA 相關 tag；在文件末尾新增 §16 HA/SPOF BDD Scenario Patterns，提供四類標準 HA 場景範本，供各專案的 BDD 生成時套用</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/BDD.md</code>（§10.1 表格新增行、文件末新增 §16）</td></tr>
+<tr><td><strong>原段落</strong></td><td>§10.1 Tag 表末行：`\</td><td>\<code>@security\</code> \</td><td>安全測試 \</td><td>越權、注入、速率限制等場景 \</td><td>安全回歸 \</td><td>`（之後無 HA tag）&lt;br&gt;§16 不存在（缺漏）</td></tr>
+<tr><td><strong>預計改成</strong></td><td><strong>§10.1 新增三個 tag</strong>：&lt;br&gt;`\</td><td>\<code>@ha\</code> \</td><td>高可用驗證 \</td><td>多副本行為、Failover 恢復、Session 跨 Pod 持久 \</td><td>Pre-release / 每季 \</td><td><code>&lt;br&gt;</code>\</td><td>\<code>@failover\</code> \</td><td>故障切換 \</td><td>DB/Cache/Pod Failover 場景 \</td><td>Pre-release \</td><td><code>&lt;br&gt;</code>\</td><td>\<code>@chaos\</code> \</td><td>混沌工程 \</td><td>故障注入驗證（需 staging 環境授權）\</td><td>每季 \</td><td><code>&lt;br&gt;&lt;br&gt;<strong>新增 §16 HA/SPOF BDD Scenario Patterns</strong>，包含四類標準範本：&lt;br&gt;（1）Pod Kill Recovery：</code>Given 系統有 2 個 api-server pod 運行 / When 其中 1 個 pod 被強制終止 / Then 30 秒內服務恢復 / And 進行中的請求得到正確回應或可重試的錯誤碼<code>&lt;br&gt;（2）DB Primary Failover：</code>Given DB Primary 發生故障 / When 切換至 Standby / Then API 寫入在 RTO 時間內恢復 / And 無資料遺失超過 RPO<code>&lt;br&gt;（3）Redis 不可用降級：</code>Given Redis 連線失敗 / When 用戶發起需要快取的請求 / Then 系統降級走 DB 直讀 / And 回應時間 &lt; SLO × 2 倍閾值<code>&lt;br&gt;（4）Distributed Lock 競爭：</code>Given 2 個 Worker pod 同時處理同一 Job / Then 只有 1 個執行成功 / And 結果冪等（無重複副作用）`</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>BDD.md（§10.1 + 新增 §16）、BDD.gen.md（生成規則需說明：專案有 HA 設計時必須生成對應的 @ha 場景）</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-18</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td><strong>V4（最嚴重）</strong>：test-plan.md §2.3 Future Scope 第 151 行明確將 HA 測試列為「後續版本」：`\</td><td>高可用性驗證（HA Failover） \</td><td>v{{HA_VERSION}} \</td><td>需 Chaos Engineering 場景 \</td><td>`。這是對 HA-First 原則的正面衝突 — 架構設計從 Day 1 是 HA，但測試計劃明文宣告「第一版上線不測 HA」。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>將 HA Failover 測試從 §2.3 Future Scope 移除；在 §2.1 In-Scope 非功能性測試（NFR）中明確列入；在 §3 Test Types 中新增 §3.6 HA/Failover Testing 子章節</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/test-plan.md</code>（§2.1 NFR 表、§2.3 刪除該行、新增 §3.6）</td></tr>
+<tr><td><strong>原段落</strong></td><td>§2.3 行：`\</td><td>高可用性驗證（HA Failover）\</td><td>v{{HA_VERSION}} \</td><td>需 Chaos Engineering 場景（如 Chaos Monkey）\</td><td>`&lt;br&gt;§2.1 NFR 只有：效能測試、安全測試、UAT（缺 HA 驗證）</td></tr>
+<tr><td><strong>預計改成</strong></td><td><strong>§2.3 刪除該行</strong>（HA 測試不得列為 Future Scope）&lt;br&gt;&lt;br&gt;<strong>§2.1 NFR 新增</strong>：<code>- HA / Failover 測試：所有有狀態元件（DB、Cache、Message Queue）的 Failover 場景、多副本負載驗證</code>&lt;br&gt;&lt;br&gt;<strong>新增 §3.6 HA / Failover Testing</strong>：&lt;br&gt;<code><strong>目標</strong>：驗證系統在元件失敗時能在 RTO 內自動恢復，用戶無感知或收到可重試的錯誤碼。</code>&lt;br&gt;（1）HA 測試場景矩陣表（場景 → 觸發方式 → 預期行為 → 驗收標準 → 工具）&lt;br&gt;（2）標準 HA 測試場景：Pod Kill、DB Failover、Redis Unavailable、網路分區&lt;br&gt;（3）執行前提：Staging 環境 + SRE Approval，Production 需 Game Day 形式&lt;br&gt;（4）驗收標準：在 RTO 內服務恢復 + 無資料遺失超過 RPO + Error rate 回到基線</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>test-plan.md（§2.1、§2.3 修改 + 新增 §3.6）、test-plan.review.md（M-14 已涵蓋 review.md，此項聚焦 template 主體）</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-19</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>V4：test-plan.md §3.2 Integration Tests 測試範圍表（Service Boundary、DB Layer、Cache Layer）完全缺乏 HA 相關整合測試場景：並發寫入冪等性、Distributed Lock 競爭、Redis 不可用降級路徑、DB 連線池耗盡回復、Message Queue 重試與 Dead Letter Queue 驗證 — 這些在多副本部署下才會出現的行為，無法靠 Unit Test 覆蓋，必須在 Integration Test 層驗證。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>在 §3.2 Integration Tests 的測試範圍表中新增「HA 行為」層次；在 Test Database 策略後新增「HA Integration Test 標準場景」子節</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/test-plan.md</code>（§3.2 Integration Tests 範圍表新增行、新增子節）</td></tr>
+<tr><td><strong>原段落</strong></td><td>§3.2 測試範圍表末行：`\</td><td>Cache Layer \</td><td>Cache hit/miss、TTL、invalidation \</td><td>testcontainers (Redis) / in-memory fake \</td><td>`（之後無 HA 行）</td></tr>
+<tr><td><strong>預計改成</strong></td><td><strong>§3.2 表格新增行</strong>：`\</td><td>HA 行為 \</td><td>並發冪等性、Distributed Lock 競爭、Redis 不可用降級、DB Failover 切換 \</td><td>toxiproxy + testcontainers \</td><td><code>&lt;br&gt;&lt;br&gt;<strong>新增「HA Integration Test 標準場景」子節</strong>：&lt;br&gt;</code>// 場景 1：並發寫入冪等性（多副本下同一請求到達兩個 Pod）<code>&lt;br&gt;</code>// 場景 2：Distributed Lock — 兩個 Worker 同時搶鎖，只有一個執行<code>&lt;br&gt;</code>// 場景 3：Redis 不可用時 API 降級走 DB，回應時間 &lt; N ms<code>&lt;br&gt;</code>// 場景 4：DB 連線池耗盡 → Circuit Breaker 觸發 → 503 → 10s 後自動恢復`&lt;br&gt;每個場景包含：前置條件（toxiproxy 設定）→ 執行動作 → 驗收 assertion</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>test-plan.md §3.2（新增行 + 子節）、test-plan.gen.md（生成規則需要求 HA Integration Test 場景必填）</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-20</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>V4：test-plan.md §3.3 E2E Tests 的 Critical User Flows 清單完全沒有 HA Failover 相關流程。用戶在交易過程中若 Pod 重啟或 DB Failover，現有 E2E 流程看不出系統如何回應 — 是 5xx 中斷、透明重試、還是提示用戶重試 — 這些行為在驗收時從未被確認。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>在 §3.3 E2E Tests 的 Critical User Flows 表中新增 HA 相關 Flow；在 Browser Matrix 後新增「HA E2E 場景」子節，說明在多副本環境下執行 E2E 的特殊要求</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/test-plan.md</code>（§3.3 Critical User Flows 表新增行、新增子節）</td></tr>
+<tr><td><strong>原段落</strong></td><td>§3.3 Critical User Flows 表末行：`\</td><td>錯誤輸入 → 驗證錯誤顯示 \</td><td>P2 \</td><td>No \</td><td>&lt; 10 sec \</td><td>AC-UX-001 \</td><td>`（之後無 HA Flow）</td></tr>
+<tr><td><strong>預計改成</strong></td><td><strong>§3.3 Critical User Flows 表新增行</strong>：&lt;br&gt;`\</td><td>Pod Kill 期間進行中的表單提交 → 驗證結果正確或收到可重試錯誤 \</td><td>P0 \</td><td>Yes \</td><td>&lt; 60 sec \</td><td>HA-001 \</td><td><code>&lt;br&gt;</code>\</td><td>DB Failover 期間讀取操作 → 驗證降級至 Read Replica 仍可查詢 \</td><td>P0 \</td><td>No \</td><td>&lt; 120 sec \</td><td>HA-002 \</td><td><code>&lt;br&gt;</code>\</td><td>多副本下 Session 跨 Pod 持久 → 同一 Session 在不同 Pod 均可讀取 \</td><td>P0 \</td><td>Yes \</td><td>&lt; 30 sec \</td><td>HA-003 \</td><td><code>&lt;br&gt;&lt;br&gt;<strong>新增「HA E2E 場景執行要求」子節</strong>：&lt;br&gt;</code>- 前提：測試環境部署 ≥ 2 api-server pod<code>&lt;br&gt;</code>- 使用 kubectl delete pod 或 chaoskube 注入故障<code>&lt;br&gt;</code>- E2E runner 需設定 retry policy（可重試的 5xx / 連線錯誤）<code>&lt;br&gt;</code>- 驗收：故障注入後 30s 內，後續請求全部正常`</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>test-plan.md §3.3（新增行 + 子節）、test-plan.gen.md（生成規則需要求 HA E2E Flow 必填）</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<hr>
+<h2>M-21</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>缺漏：EDD.md 沒有「最小完整度架構圖」。目前 EDD 的部署相關內容（§13.1 部署架構、UML §4.5 Deployment Diagram）僅描述單 Region 或未明確 HA-HA 拓撲。任何人生成 EDD 後，無法直接讀到「我們系統長什麼樣子才算合格」，工程師只能自行推斷。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>在 §3 Architecture Design 下新增 <strong>§3.7 Minimum Complete Architecture（最小完整度架構）</strong>，包含兩張 Mermaid <code>graph TB</code> 部署圖（Graph TB 與現有 EDD 圖風格一致，Mermaid 渲染穩定）：圖 A 正式環境 HA-HA、圖 B Local Dev 簡化版。並同步更新 EDD.gen.md（生成規則）和 EDD.review.md（審查項）。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/EDD.md</code>（新增 §3.7）、<code>templates/EDD.gen.md</code>（生成規則同步）、<code>templates/EDD.review.md</code>（審查項同步）</td></tr>
+<tr><td><strong>原段落</strong></td><td>§3.7 不存在（缺漏）。EDD.md §13.1 部署架構有一張單 Region 的 Mermaid 圖，未標注 SPOF 消除、未涵蓋跨 Region。</td></tr>
+<tr><td><strong>預計改成</strong></td><td>新增 §3.7，內容如下：&lt;br&gt;&lt;br&gt;<strong>§3.7 Minimum Complete Architecture（最小完整度架構）</strong>&lt;br&gt;&lt;br&gt;&gt; <strong>架構決策</strong>&lt;br&gt;&gt; - <strong>Active-Active 模式：讀 Active-Active，寫 Active-Primary（選項 B）</strong>&lt;br&gt;&gt;   - 兩個 Region 均對外提供讀取服務（Global LB 路由至就近 Region）&lt;br&gt;&gt;   - 寫入永遠路由至 Primary Region（Region A），非同步複製至 Region B&lt;br&gt;&gt;   - Region A Primary DB 故障時，Region B 提升為新 Primary（RTO ≤ {{RTO_INTER_REGION}} 分鐘）&lt;br&gt;&gt;   - 此設計消除衝突解決複雜度，同時提供跨 Region 讀取高可用&lt;br&gt;&gt; - <strong>異地</strong>：Region A、Region B 位於不同地理 Region（非同一 Region 的不同 AZ）&lt;br&gt;&gt; - <strong>最小 Server 數定義</strong>：每個 Region 內消除所有 SPOF 的最少元件數；兩個 Region 共同消除單機房 SPOF&lt;br&gt;&lt;br&gt;---&lt;br&gt;&lt;br&gt;<strong>圖 A — 正式環境：HA-HA Active-Active（Read AA / Write AP）最小完整度</strong>&lt;br&gt;&lt;br&gt;```mermaid&lt;br&gt;graph TB&lt;br&gt;    User[&quot;👤 Global Users&quot;]&lt;br&gt;    GLB[&quot;🌐 Global Load Balancer&lt;br&gt;(GeoDNS / Anycast)&lt;br&gt;✅ SPOF消除：單一入口點&quot;]&lt;br&gt;&lt;br&gt;    subgraph RA[&quot;☁️ Region A — Primary Write Region（{{REGION_A_NAME}}）&quot;]&lt;br&gt;        direction TB&lt;br&gt;        LB_A[&quot;Regional LB ≥ 2 nodes&lt;br&gt;✅ SPOF消除：LB層&quot;]&lt;br&gt;        subgraph API_A[&quot;API Tier&quot;]&lt;br&gt;            A1[&quot;api-server-1&quot;]&lt;br&gt;            A2[&quot;api-server-2&quot;]&lt;br&gt;        end&lt;br&gt;        subgraph DATA_A[&quot;Data Tier&quot;]&lt;br&gt;            DB_AP[&quot;DB Primary 🖊&lt;br&gt;（{{DB_SPEC}}）&lt;br&gt;✅ 消除DB-SPOF&quot;]&lt;br&gt;            DB_AS[&quot;DB Standby&lt;br&gt;（Failover Ready）&quot;]&lt;br&gt;            REDIS_A[&quot;Redis Sentinel&lt;br&gt;3 nodes&lt;br&gt;✅ 消除Cache-SPOF&quot;]&lt;br&gt;            MQ_A[&quot;Message Queue&lt;br&gt;≥ 2 brokers&quot;]&lt;br&gt;        end&lt;br&gt;    end&lt;br&gt;&lt;br&gt;    subgraph RB[&quot;☁️ Region B — Read Region / Standby Write（{{REGION_B_NAME}}）&quot;]&lt;br&gt;        direction TB&lt;br&gt;        LB_B[&quot;Regional LB ≥ 2 nodes&lt;br&gt;✅ SPOF消除：LB層&quot;]&lt;br&gt;        subgraph API_B[&quot;API Tier&quot;]&lt;br&gt;            B1[&quot;api-server-1&quot;]&lt;br&gt;            B2[&quot;api-server-2&quot;]&lt;br&gt;        end&lt;br&gt;        subgraph DATA_B[&quot;Data Tier&quot;]&lt;br&gt;            DB_BP[&quot;DB Read Replica&lt;br&gt;（平時）/ Promoted Primary（故障時）&lt;br&gt;✅ 消除機房-SPOF&quot;]&lt;br&gt;            DB_BS[&quot;DB Standby&quot;]&lt;br&gt;            REDIS_B[&quot;Redis Sentinel&lt;br&gt;3 nodes&quot;]&lt;br&gt;            MQ_B[&quot;Message Queue&lt;br&gt;≥ 2 brokers&quot;]&lt;br&gt;        end&lt;br&gt;    end&lt;br&gt;&lt;br&gt;    User --&gt; GLB&lt;br&gt;    GLB --&gt;</td><td>&quot;Reads: 就近路由&lt;br&gt;Writes: 固定路由 Region A&quot;</td><td>LB_A&lt;br&gt;    GLB --&gt;</td><td>&quot;Reads: 就近路由&quot;</td><td>LB_B&lt;br&gt;    LB_A --&gt; A1 &amp; A2&lt;br&gt;    LB_B --&gt; B1 &amp; B2&lt;br&gt;    A1 &amp; A2 --&gt; DB_AP &amp; REDIS_A &amp; MQ_A&lt;br&gt;    B1 &amp; B2 --&gt; DB_BP &amp; REDIS_B &amp; MQ_B&lt;br&gt;    DB_AS -.-</td><td>&quot;Failover&quot;</td><td>DB_AP&lt;br&gt;    DB_BS -.-</td><td>&quot;Failover&quot;</td><td>DB_BP&lt;br&gt;    DB_AP --&gt;</td><td>&quot;Async Streaming Replication&lt;br&gt;RPO = {{RPO_INTER_REGION}}&quot;</td><td>DB_BP&lt;br&gt;    DB_AP -.-&gt;</td><td>&quot;Region Failover: Region B 升級為 Primary&lt;br&gt;RTO ≤ {{RTO_INTER_REGION}} min&quot;</td><td>DB_BP&lt;br&gt;```&lt;br&gt;&lt;br&gt;<strong>最小 Server 數摘要（正式環境，每 Region）：</strong>&lt;br&gt;&lt;br&gt;\</td><td>元件 \</td><td>最小數量 \</td><td>說明 \</td><td>&lt;br&gt;\</td><td>------</td><td>---------</td><td>------\</td><td>&lt;br&gt;\</td><td>API Server \</td><td>≥ 2 pods \</td><td>消除應用層 SPOF，HPA auto-scale \</td><td>&lt;br&gt;\</td><td>DB Primary \</td><td>1（Region A）\</td><td>唯一寫入節點 \</td><td>&lt;br&gt;\</td><td>DB Standby \</td><td>1（per region）\</td><td>本 Region 故障切換 \</td><td>&lt;br&gt;\</td><td>DB Read Replica \</td><td>1（Region B）\</td><td>跨 Region 讀取 + 待機 Primary \</td><td>&lt;br&gt;\</td><td>Redis Sentinel \</td><td>3 nodes（per region）\</td><td>Quorum 需 ≥ 3 \</td><td>&lt;br&gt;\</td><td>Message Queue \</td><td>≥ 2 brokers \</td><td>消除佇列 SPOF \</td><td>&lt;br&gt;\</td><td>Regional LB \</td><td>≥ 2 nodes \</td><td>消除 LB 層 SPOF \</td><td>&lt;br&gt;\</td><td>Global LB \</td><td>1 服務（雲端 managed，本身 HA）\</td><td>雲端 managed 服務內建 HA \</td><td>&lt;br&gt;&lt;br&gt;---&lt;br&gt;&lt;br&gt;<strong>圖 B — Local Dev：單 Region 簡化版（HA 程式邏輯測試用）</strong>&lt;br&gt;&lt;br&gt;&gt; ⚠️ <strong>本圖為 Local Dev 簡化版</strong>：單 Region、無跨 Region 複製、Redis standalone。&lt;br&gt;&gt; 程式碼必須設計為支援 Active-Active（Session 不依賴本地記憶體、State 存 Redis、分散式鎖使用 Redis Redlock），使正式環境可無縫切換至圖 A。&lt;br&gt;&lt;br&gt;```mermaid&lt;br&gt;graph TB&lt;br&gt;    Dev[&quot;👤 Developer / CI Runner&quot;]&lt;br&gt;    Ingress[&quot;Local Ingress&lt;br&gt;（Nginx / Traefik）&quot;]&lt;br&gt;&lt;br&gt;    subgraph Local[&quot;🖥️ Local Cluster — Single Region（Rancher Desktop / kind）&quot;]&lt;br&gt;        direction TB&lt;br&gt;        A1[&quot;api-server-1&lt;br&gt;（pod 1）&quot;]&lt;br&gt;        A2[&quot;api-server-2&lt;br&gt;（pod 2）&lt;br&gt;✅ ≥ 2 replica：HA 程式邏輯測試&quot;]&lt;br&gt;        DB_P[&quot;DB Primary&lt;br&gt;（postgres-0）&quot;]&lt;br&gt;        DB_S[&quot;DB Standby&lt;br&gt;（postgres-1）&lt;br&gt;✅ Failover 程式邏輯測試&quot;]&lt;br&gt;        Redis[&quot;Redis&lt;br&gt;（standalone，Local 允許）&quot;]&lt;br&gt;        MQ[&quot;Message Queue&lt;br&gt;（single broker，Local 允許）&quot;]&lt;br&gt;    end&lt;br&gt;&lt;br&gt;    Dev --&gt; Ingress&lt;br&gt;    Ingress --&gt; A1 &amp; A2&lt;br&gt;    A1 &amp; A2 --&gt; DB_P &amp; Redis &amp; MQ&lt;br&gt;    DB_P -.-</td><td>&quot;Local streaming replication&lt;br&gt;（模擬 Failover 測試）&quot;</td><td>DB_S&lt;br&gt;```&lt;br&gt;&lt;br&gt;<strong>Local 與正式環境的對應關係：</strong>&lt;br&gt;&lt;br&gt;\</td><td>元件 \</td><td>Local（圖 B）\</td><td>正式（圖 A）\</td><td>差異說明 \</td><td>&lt;br&gt;\</td><td>------</td><td>------------</td><td>-----------</td><td>----------\</td><td>&lt;br&gt;\</td><td>API Server \</td><td>2 pods \</td><td>≥ 2 pods / region \</td><td>數量相同，消除 HA 程式差異 \</td><td>&lt;br&gt;\</td><td>DB \</td><td>1 Primary + 1 Standby \</td><td>1 Primary + 1 Standby + 1 Replica \</td><td>無跨 Region Replica \</td><td>&lt;br&gt;\</td><td>Redis \</td><td>Standalone \</td><td>Sentinel 3 nodes \</td><td>Local 不測試 Sentinel 故障切換 \</td><td>&lt;br&gt;\</td><td>跨 Region \</td><td>無 \</td><td>Async Streaming \</td><td>Local 明確省略 \</td><td>&lt;br&gt;\</td><td>Global LB \</td><td>無 \</td><td>GeoDNS / Anycast \</td><td>Local 明確省略 \</td><td></td></tr>
+<tr><td><strong>影響範圍</strong></td><td><code>EDD.md</code>（新增 §3.7）、<code>EDD.gen.md</code>（新增規則：①必須依 <code>cloud_provider</code> state 欄位替換圖中雲端服務名稱；②圖中 server 數量不得低於最小值；③禁止生成 single-pod 或 single-region 正式架構圖）、<code>EDD.review.md</code>（新增 CRITICAL 審查項：§3.7 是否存在、圖 A 是否有雙 Region、圖 B 是否保留 ≥ 2 API replica）、<code>LOCAL_DEPLOY.md</code>（在部署規格說明中引用「詳見 EDD §3.7 圖 B」）、<code>LOCAL_DEPLOY.gen.md</code>（生成規則確認 replica count ≥ 2）</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<hr>
+<h2>M-22</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>缺漏 + 風險誤判：(1) BDD.md admin 相關情境幾乎空白，唯一出現（行 361）是「非 admin 用戶呼叫 admin API 得到 403」的負向場景，完全沒有正向 admin 操作的 BDD 範本（RBAC 層級驗證、批次操作、稽核日誌確認、Impersonation）；(2) test-plan.md 行 744 將 Admin Dashboard 定為 P2 + Unit ≥ 70%，嚴重低估風險 — admin 操作影響系統層級（可刪所有用戶、匯出全量資料），RBAC 錯誤等同安全漏洞，理應 P0（Security）。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>BDD.md：新增 <code>@admin</code>/<code>@rbac</code>/<code>@audit</code> Tag、Admin Background 樣板、Admin Feature File 範例（涵蓋 4 類場景）；test-plan.md：修正 Admin 風險分級，在 §3.2 Integration Tests 新增 Admin RBAC Boundary Test 子節</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/BDD.md</code>（§10.1 Tag 表 + 新增 §17 Admin BDD Patterns）、<code>templates/test-plan.md</code>（§2.1 NFR 表 + §3.1 Unit 覆蓋率修正 + §3.2 Integration 新增子節）</td></tr>
+<tr><td><strong>原段落</strong></td><td>BDD.md §10.1 Tag 表末行：`\</td><td>\<code>@security\</code> \</td><td>安全測試 \</td><td>越權、注入、速率限制等場景 \</td><td>安全回歸 \</td><td><code>（之後無 admin/rbac tag）&lt;br&gt;BDD.md §8.1 唯一 admin 場景（行 361）：</code>Given 使用者已以一般帳號 role=&quot;user&quot; 登入 / When 使用者呼叫 DELETE /api/v1/admin/users/123 / Then 403<code>&lt;br&gt;test-plan.md 行 744：</code>\</td><td>Admin Dashboard \</td><td>L \</td><td>僅內部使用，影響範圍小 \</td><td>P2 \</td><td>Unit ≥ 70% \</td><td>`</td></tr>
+<tr><td><strong>預計改成</strong></td><td><strong>BDD.md §10.1 新增三個 tag</strong>：&lt;br&gt;`\</td><td>\<code>@admin\</code> \</td><td>管理介面操作 \</td><td>所有需要 admin 角色才能執行的 Scenario \</td><td>安全回歸 + pre-release \</td><td><code>&lt;br&gt;</code>\</td><td>\<code>@rbac\</code> \</td><td>角色權限邊界 \</td><td>驗證不同角色是否只能執行被授權的操作 \</td><td>安全回歸 \</td><td><code>&lt;br&gt;</code>\</td><td>\<code>@audit\</code> \</td><td>稽核日誌 \</td><td>驗證高風險操作是否被正確記錄到 Audit Log \</td><td>安全回歸 \</td><td><code>&lt;br&gt;&lt;br&gt;<strong>BDD.md 新增 §17 Admin BDD Patterns</strong>，含四類場景範本：&lt;br&gt;（1）Admin Background 樣板：</code>Given 系統中有以下角色的管理員帳號 / And 我已以 &quot;{{ADMIN_ROLE}}&quot; 角色（如 super_admin / operator / viewer）登入管理後台<code>&lt;br&gt;（2）RBAC 邊界驗證：</code>Scenario Outline: &lt;role&gt; 只能存取被授權的功能 / Given 我以 &quot;&lt;role&gt;&quot; 登入 / When 我嘗試執行 &quot;&lt;action&gt;&quot; / Then 回應應為 &quot;&lt;expected&gt;&quot;<code> + Examples 表（涵蓋所有角色 × 操作組合）&lt;br&gt;（3）批次操作 + 稽核日誌：</code>When 我選取 N 筆用戶並執行批次停用 / Then 所有用戶狀態變為 inactive / And Audit Log 記錄本次操作（操作者、時間、影響筆數）<code>&lt;br&gt;（4）Impersonation（若支援）：</code>Given 我以 super_admin 身份進入用戶 &quot;{{TARGET_USER}}&quot; 的 Impersonation 模式 / Then 我看到的介面與該用戶一致 / And Audit Log 記錄 Impersonation 開始事件<code>&lt;br&gt;&lt;br&gt;<strong>test-plan.md 行 744 修正</strong>：&lt;br&gt;原：</code>\</td><td>Admin Dashboard \</td><td>L \</td><td>僅內部使用，影響範圍小 \</td><td>P2 \</td><td>Unit ≥ 70% \</td><td><code>&lt;br&gt;改為三行拆分：&lt;br&gt;</code>\</td><td>Admin RBAC / 越權驗證 \</td><td><strong>H</strong>（高） \</td><td>誤授權等同安全漏洞，影響全體用戶資料 \</td><td><strong>P0 + Security</strong> \</td><td>Security + Integration ≥ 90% \</td><td><code>&lt;br&gt;</code>\</td><td>Admin 批次操作（bulk delete / export）\</td><td>M \</td><td>操作不可逆，影響大量資料 \</td><td><strong>P1</strong> \</td><td>Integration ≥ 80% \</td><td><code>&lt;br&gt;</code>\</td><td>Admin Dashboard UI 功能 \</td><td>L \</td><td>僅內部使用 \</td><td>P2 \</td><td>Unit ≥ 70% \</td><td><code>&lt;br&gt;&lt;br&gt;<strong>test-plan.md §3.2 新增「Admin RBAC Boundary Test」子節</strong>：&lt;br&gt;</code>// 測試矩陣：role × action → expected_status<code>&lt;br&gt;</code>// super_admin → 任何操作 → 200<code>&lt;br&gt;</code>// operator → 讀寫 → 200；刪除 → 403<code>&lt;br&gt;</code>// viewer → 只讀 → 200；寫入/刪除 → 403<code>&lt;br&gt;</code>// 所有 admin API endpoint 均需驗證水平越權（admin A 不能操作 admin B 的私有資源）`</td></tr>
+<tr><td><strong>影響範圍</strong></td><td><code>BDD.md</code>（§10.1 + 新增 §17）、<code>BDD.gen.md</code>（生成規則：專案有 <code>has_admin_backend=true</code> 時必須生成 §17 對應場景）、<code>test-plan.md</code>（行 744 修正 + §3.2 新增子節）、<code>test-plan.gen.md</code>（生成規則：has_admin_backend=true 時必須生成 Admin RBAC test matrix）</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-23</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>缺漏：gendoc 現有 VDD.md、ANIM.md、AUDIO.md 三個模板解決的是「設計規格」，但沒有任何模板解決「<strong>資產生產訂單</strong>」問題 — 即「要生成哪些具體檔案、用什麼 AI 工具、Prompt 是什麼、尺寸與效能預算多少、目前狀態為何」。這導致資產規劃隱性、Prompt 無版本控制、設計師與工程師對接無依據。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>新增 <code>RESOURCE</code> 三件套（<code>RESOURCE.md</code> + <code>RESOURCE.gen.md</code> + <code>RESOURCE.review.md</code>）。gen.md 的上游為 VDD.md + ANIM.md + AUDIO.md，由 AI 推導出需要哪些資產並產出結構化清單，使用者補填 Prompt 後即可餵給生成式 AI 工具（Midjourney、DALL-E、Suno、Udio 等）執行生產。輸出為 <code>docs/RESOURCE.md</code>，HTML 由 <code>/gendoc-gen-html</code> 負責，不在此 skill 範圍。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td>新建 <code>templates/RESOURCE.md</code>、<code>templates/RESOURCE.gen.md</code>、<code>templates/RESOURCE.review.md</code>；更新 <code>skills/gendoc-auto/SKILL.md</code> 中的 type alias 對照表（新增 <code>resource → RESOURCE</code>）；更新 <code>skills/gendoc/SKILL.md</code>（同上）</td></tr>
+<tr><td><strong>原段落</strong></td><td>三個模板均不存在（全新建立）；SKILL.md type alias 表末段（新增一行）</td></tr>
+<tr><td><strong>預計改成</strong></td><td><strong>RESOURCE.md 結構（骨架）</strong>：&lt;br&gt;&lt;br&gt;文件包含三個分類表格，分類對應 VDD / ANIM / AUDIO 的來源：&lt;br&gt;&lt;br&gt;（1）視覺資產清單（圖片 / 圖示 / 插畫）— 上游 VDD.md&lt;br&gt;（2）動態資產清單（動畫 / 粒子 / Shader）— 上游 ANIM.md&lt;br&gt;（3）音效資產清單（BGM / SFX / VO）— 上游 AUDIO.md&lt;br&gt;&lt;br&gt;每個分類表格欄位如下：&lt;br&gt;`\</td><td>ID \</td><td>檔名 \</td><td>type \</td><td>source_tool \</td><td>prompt \</td><td>dimensions \</td><td>file_size_budget \</td><td>status \</td><td>output_path \</td><td>description \</td><td><code>&lt;br&gt;&lt;br&gt;欄位說明：&lt;br&gt;</code>ID<code> — 資產唯一識別碼（RES-IMG-001、RES-ANIM-001、RES-SFX-001）&lt;br&gt;</code>檔名<code> — 最終交付檔案名稱（如 hero_idle.png）&lt;br&gt;</code>type<code> — image / animation / particle / shader / bgm / sfx / vo / video / font&lt;br&gt;</code>source_tool<code> — 生成工具（Midjourney v6 / DALL-E 3 / Stable Diffusion XL / Suno v3 / Udio / ElevenLabs / 手繪委外 / 購買授權）&lt;br&gt;</code>prompt<code> — 直接可用的生成提示詞（語言依 source_tool 決定）&lt;br&gt;</code>dimensions<code> — 圖片用 WxH px；音效用秒數；動畫用幀數×fps&lt;br&gt;</code>file_size_budget<code> — 效能預算上限（如 ≤ 200 KB、≤ 2 MB）&lt;br&gt;</code>status<code> — needed / prompt_ready / generating / generated / approved / rejected&lt;br&gt;</code>output_path<code> — 資產在 repo 中的最終路徑（如 </code>assets/images/hero/hero_idle.png<code>）&lt;br&gt;</code>description<code> — 用途說明與設計注意事項&lt;br&gt;&lt;br&gt;<strong>RESOURCE.gen.md 上游推導規則</strong>：&lt;br&gt;upstream-docs：</code>docs/VDD.md<code>（必讀）、</code>docs/ANIM.md<code>（若存在）、</code>docs/AUDIO.md`（若存在）&lt;br&gt;推導邏輯：&lt;br&gt;① 讀 VDD.md §4 角色設計 → 推斷需要哪些角色 image（hero、NPC）&lt;br&gt;② 讀 VDD.md §5 UI 視覺系統 → 推斷 UI asset（icons、backgrounds、buttons）&lt;br&gt;③ 讀 ANIM.md §2 骨骼動畫清單 → 每個 SKEL-xxx 對應一個 animation 資產行&lt;br&gt;④ 讀 ANIM.md §5 粒子特效清單 → 每個 VFX-xxx 對應一個 particle 資產行&lt;br&gt;⑤ 讀 AUDIO.md §2 BGM 清單 → 每個 BGM-xxx 對應一個 bgm 資產行&lt;br&gt;⑥ 讀 AUDIO.md §3 SFX 清單 → 每個 SFX-xxx 對應一個 sfx 資產行&lt;br&gt;AI 自動填入：ID、檔名、type、output_path、dimensions（從 ANIM/AUDIO 規格推算）&lt;br&gt;AI 自動推測：prompt（依 VDD 風格描述生成第一版 prompt，待人工調整）&lt;br&gt;人工補填：source_tool（選擇工具）、file_size_budget（依效能需求）、status（初始為 needed）&lt;br&gt;&lt;br&gt;<strong>RESOURCE.review.md 審查項（3 個 CRITICAL，2 個 HIGH）</strong>：&lt;br&gt;[CRITICAL] 所有 VDD §4 角色設計是否都有對應的 RES-IMG 行&lt;br&gt;[CRITICAL] 所有 ANIM.md SKEL/VFX 項目是否都有對應的 RES-ANIM 行&lt;br&gt;[CRITICAL] 所有 file_size_budget 是否符合平台效能預算（手遊 ≤ 2MB per texture、Web ≤ 200KB per image）&lt;br&gt;[HIGH] 所有 prompt 欄位是否非空（needed status 除外）&lt;br&gt;[HIGH] output_path 是否與實際 repo 目錄結構一致</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>新建 <code>templates/RESOURCE.md</code> + <code>RESOURCE.gen.md</code> + <code>RESOURCE.review.md</code>；<code>skills/gendoc/SKILL.md</code> 的 type alias 對照表新增 <code>resource → RESOURCE</code>；<code>templates/pipeline.json</code> 可選擇是否將 RESOURCE 加入自動 pipeline（建議加在 VDD/ANIM/AUDIO 之後，D15 位置）</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<p>共 23 項修改（M-01 至 M-23），跨 18 個檔案。請逐項在「決策」欄標注，確認後依指示動手。</p>
+<p><em>版本：2026-05-02 v4（新增 M-22：BDD Admin 覆蓋 + test-plan 風險修正；M-23：RESOURCE 三件套新建）</em></p>
+<hr>
+<h2>計劃外發現（M-24 至 M-27）</h2>
+<blockquote><p>以下四項為 M-01~M-23 全面審查後發現的額外違規，尚未納入原計劃。請審查後標注決策。</p></blockquote>
+<hr>
+<h2>M-24</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>runbook.gen.md 未設定 MIN_POD_COUNT ≥ 2 的強制生成約束。現行生成規則只在「完成後自我檢核清單」末行提到「所有服務最小 replica ≥ 2」，但沒有在逐步驟的生成規則中明確禁止 AI 生成 replica=1 的 runbook 段落，導致 AI 仍可能在 §4 On-Call SOP 或 §6 Capacity Scaling 中給出 <code>replicas: 1</code> 的指令範例。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>在 runbook.gen.md 的 Step 4（On-Call SOP 生成）與 Step 6（Capacity Scaling 生成）中，各新增一條 <strong>Iron Constraint</strong>，明確寫：「任何 kubectl scale / replicas 指令，數值不得低於 2；若上游 EDD §3.7 有定義最小副本數，以 EDD 為準但不得低於 2」。同步在 Quality Gate 表格新增一行：<code>All replicas ≥ 2｜runbook 中所有 replicas 數值 ≥ 2｜掃描全文，任何 replicas=1 視為不合格</code></td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/runbook.gen.md</code>（Step 4 + Step 6 + Quality Gate 表格）</td></tr>
+<tr><td><strong>影響範圍</strong></td><td><code>templates/runbook.gen.md</code></td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-25</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>EDD.md §12.2（混沌工程場景清單）所有場景列均為 <code>{{SCENARIO_N}}</code> 裸 placeholder，未提供任何具體的 HA 故障場景範例。生成時 AI 若缺乏參考，容易填入無意義的通用描述，導致混沌工程測試無法涵蓋關鍵 SPOF 切換路徑（Pod crash、DB Failover、Region Failover）。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>在 EDD.md §12.2 的表格中，保留 placeholder 欄位（允許專案自訂），但在其前方增加「標準最小場景集」示範行（以 HTML 注釋或斜體標注為「範例，請依專案調整」），涵蓋：(1) API Pod kill（chaoskube）、(2) DB Primary Failover（pg_ctl stop / failover trigger）、(3) Redis Sentinel 主節點斷線、(4) 單 Region 全斷（Regional Failover 模擬）。同步在 EDD.gen.md 的 §12 生成步驟中，要求 AI 至少填入上述 4 個場景（可從 EDD §3.6 BCP 設計推導 RTO/RPO 對應的混沌場景）。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/EDD.md</code>（§12.2 表格前新增示範行）、<code>templates/EDD.gen.md</code>（§12 生成規則新增「至少填 4 個場景」要求）</td></tr>
+<tr><td><strong>影響範圍</strong></td><td><code>templates/EDD.md</code>、<code>templates/EDD.gen.md</code></td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-26</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>LOCAL_DEPLOY.gen.md 的「HA ≥ 2 replicas」規則只出現在完成後的自我檢核清單，沒有嵌入各 Step 的生成指令中。這表示 AI 在執行 Step 2（Kubernetes YAML 生成）或 Step 3（docker-compose 生成）時，沒有被明確告知「API Server 與 Worker 的 replicas 必須 ≥ 2」，仍可能輸出 <code>replicas: 1</code>。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>在 LOCAL_DEPLOY.gen.md Step 2（K8s Deployment 生成）與 Step 3（docker-compose 生成）中，各新增明確約束：「api-server Deployment 的 spec.replicas 不得低於 2；worker Deployment 的 spec.replicas 不得低於 2；若生成 docker-compose，services.api.deploy.replicas 不得低於 2」。同時在 Step 2/3 後新增「副本數驗證指令」範例（<code>kubectl get pods</code> 或 <code>docker compose ps</code>），讓 LOCAL_DEPLOY 文件本身就包含驗證步驟。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/LOCAL_DEPLOY.gen.md</code>（Step 2 + Step 3 各新增 Iron Constraint）</td></tr>
+<tr><td><strong>影響範圍</strong></td><td><code>templates/LOCAL_DEPLOY.gen.md</code></td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-27</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td>ARCH.review.md 審查項 #14「架構演進路徑未定義」的審查描述仍寫「Phase 1 模組化單體 → Phase 2 微服務拆分」，這與 M-03 計劃修改後的 ARCH.md §10.2（HA 基線出發，差別只在水平擴展程度）相矛盾。若 M-03 執行後未同步更新 review.md，審查者會用舊標準（允許 Phase 1 單體）去審查新版 ARCH.md，導致本應通過的 HA 基線文件被誤判為「Phase 1 缺少 HA」。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>將 ARCH.review.md #14 的 Check 描述改為：「§10.2 Phase 演進路徑是否以 HA 基線為起點（Phase 1 即已 ≥ 2 replica + DB Primary+Standby），而非從單體或單副本出發？若 Phase 1 描述為 Modular Monolith 或 single pod，視為 HIGH 違規。」同時升級此審查項的嚴重度為 HIGH（原為 MEDIUM），並在 Fix 指引中明確引導修改者參考 M-03 的 Phase 演進表改法。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/ARCH.review.md</code>（審查項 #14）</td></tr>
+<tr><td><strong>影響範圍</strong></td><td><code>templates/ARCH.review.md</code></td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<p>共 27 項修改（M-01 至 M-27），跨 20+ 個檔案。</p>
+<p><em>版本：2026-05-02 v5（新增 M-24~M-27：計劃外發現 — runbook.gen.md 副本約束、EDD §12.2 場景範例、LOCAL_DEPLOY.gen.md Step 層級約束、ARCH.review.md #14 矛盾修正）</em></p>
+<hr>
+<h2>新需求：Spring Modulith — 微服務可拆解性（M-28 至 M-36）</h2>
+<p><strong>背景</strong>：使用者確認採用 Spring Modulith 架構模式。各子系統（member / wallet / deposit / lobby / game 等）從 Day 1 以 Bounded Context 為邊界設計，可合部署（最小 HA 成本），也可獨立拆出 Scale（最大擴展彈性）。五條硬約束（HC-1～HC-5）已寫入 CLAUDE.md、docs/PRD.md §7.6、README.md。以下 M-28～M-36 為 template 層面的對應修改，待決策後執行。</p>
+<p><strong>已完成（不需決策）</strong>：</p>
+<ul><li>CLAUDE.md：已加入第 6 條核心原則（Spring Modulith 五條硬約束）</li><li>docs/PRD.md：已在 §7.6 加入 Spring Modulith 原則區塊與影響清單</li><li>README.md：已加入 Design Principles 段落</li></ul>
+<hr>
+<h2>M-28</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td><code>templates/EDD.md</code> §3.4 Bounded Context 表格無 Schema 擁有權欄位，無跨 BC 存取禁止宣告；§4 模組設計無跨模組依賴 DAG 驗證欄位；§4.6 Domain Event 表格無 <code>event_schema_version</code>、<code>topic_name</code> 欄位。根據 HC-1（跨 BC 禁止直接 DB 存取）和 HC-5（依賴圖為 DAG）的要求，EDD.md 結構上缺少承載這些約束的欄位。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>(1) §3.4 Bounded Context 表格新增「Schema 擁有權」欄：列出每個 BC 擁有的具體 DB 表/Schema 名稱，並加入聲明：「任何其他 BC 不得直接存取本 BC 的 DB 表；跨 BC 資料存取只能透過 Public API 或 Domain Event」。(2) §4 模組設計章節新增「跨模組依賴 DAG 驗證」小節：要求填入所有模組間依賴箭頭並確認圖為 DAG（無循環），提供一個 Mermaid graph 範例框架。(3) §4.6 Domain Event 表格新增欄位：<code>event_schema_version</code>（格式 <code>v{N}</code>）、<code>topic_name</code>（Kafka/Bus topic 名稱）。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/EDD.md</code>（§3.4、§4、§4.6）</td></tr>
+<tr><td><strong>影響範圍</strong></td><td><code>templates/EDD.md</code></td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-29</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td><code>templates/EDD.gen.md</code> §3.4 生成規則有「若有多服務」的條件保護，意即單體部署時 Bounded Context 圖可選填，與 Spring Modulith「Day 1 即需要 BC 邊界」原則相矛盾。Self-Check Checklist 無「每個 BC Schema 擁有權已明確」項目，無「模組依賴圖為 DAG」項目。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>(1) 移除 §3.4 生成規則中的「若有多服務」條件，改為「任何系統均必須生成 Bounded Context Map，並填入 Schema Ownership Table（每個 BC 擁有的具體表名）」。(2) §4.6 Domain Event 生成規則補充：每個事件必須填入 <code>event_schema_version</code>（初始值 <code>v1</code>）和 <code>topic_name</code>。(3) Self-Check Checklist 新增：<code>[ ] 每個 Bounded Context 的 Schema 擁有權已明確（具體表名，無跨 BC DB 直接存取）</code> 和 <code>[ ] 模組間依賴圖已驗證為 DAG（無循環依賴）</code>。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/EDD.gen.md</code>（§3.4 生成規則、§4.6 生成規則、Self-Check Checklist）</td></tr>
+<tr><td><strong>影響範圍</strong></td><td><code>templates/EDD.gen.md</code></td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-30</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td><code>templates/EDD.review.md</code> 審查項 #9「DDD Bounded Context 未定義」嚴重度僅 MEDIUM，且無 Schema 隔離審查項（HC-1 缺失）、無跨模組呼叫只透過公開介面審查項（HC-2 缺失）、無 DAG 驗證審查項（HC-5 缺失）、無跨模組 Shared Mutable State 審查項（HC-4 缺失）。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>在現有審查項之後新增「Spring Modulith 微服務可拆解性」審查層（Layer N），含以下項目：(1) <code>[CRITICAL]</code> SM-01 — Schema 隔離：每個 BC 擁有且只擁有自己的 DB 表，§3.4 Schema Ownership Table 必須填寫具體表名，無兩個 BC 聲明擁有同一張表。Fix：補填 Schema Ownership Table，移除跨 BC FK。(2) <code>[HIGH]</code> SM-02 — 跨模組只透過 Public Interface：無直接跨 BC repository/DAO 呼叫路徑。Fix：改為透過目標 BC 的 API 端點或 Domain Event。(3) <code>[HIGH]</code> SM-03 — 依賴圖 DAG 驗證：模組間依賴已驗證無循環（附 Mermaid 圖或 DAG 聲明）。Fix：消除循環依賴，重新設計邊界。(4) <code>[HIGH]</code> SM-04 — Domain Event Schema 版本化：§4.6 所有 Event 均有 <code>event_schema_version</code> 和 <code>topic_name</code>。Fix：補齊版本欄位。(5) <code>[MEDIUM]</code> SM-05 — 無跨模組 Shared Mutable State：Redis key namespace 隔離，無跨 BC 全域可變物件。Fix：分配獨立 key prefix 給每個 BC。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/EDD.review.md</code>（新增 Spring Modulith 審查層）</td></tr>
+<tr><td><strong>影響範圍</strong></td><td><code>templates/EDD.review.md</code></td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-31</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td><code>templates/ARCH.md</code> §15 Architecture Review Checklist 無 Microservice Decomposability 子節；§4 服務邊界表的「擁有資料」欄為自由文字，無強制填寫具體表名的規則，且無「禁止跨 BC 直接 DB 存取」的明確聲明。<code>templates/ARCH.gen.md</code> Self-Check Checklist 27 項無任何 Decomposability 項目；Quality Gate 6 行無 Schema 隔離閘。<code>templates/ARCH.review.md</code> 無 Schema 隔離審查項、無 DAG 審查項、無 Shared Mutable State 審查項。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>(A) <strong>ARCH.md</strong>：(1) §4 服務邊界表「擁有資料」欄下方加入明確聲明：「禁止跨服務直接存取他服務的 DB 表，所有跨服務資料存取必須透過 Public API 或 Domain Event（HC-1）」。(2) §15 Checklist 新增子節「微服務可拆解性（MD-01～MD-05）」：MD-01 每個服務 Schema 擁有權已明確（具體表名）、MD-02 跨服務通訊只透過 API 或 Event、MD-03 依賴圖已驗證為 DAG、MD-04 無跨服務 Shared Mutable State、MD-05 每個服務理論上可獨立部署（列出需要變更的接合點）。(B) <strong>ARCH.gen.md</strong>：Self-Check 新增 3 項（§4 Schema 擁有權具體表名、依賴圖 DAG 確認、§15 MD-01～MD-05 已生成）；Quality Gate 新增列：`BC 隔離</td><td>§4 每服務具體擁有表名已填；§15 MD-01~05 均已回答</td><td>補充缺失項<code>。(C) <strong>ARCH.review.md</strong>：新增「Layer 5：微服務可拆解性」審查層，含：</code>[CRITICAL]<code> Schema 隔離、</code>[HIGH]<code> 跨服務只透過 Public Interface、</code>[HIGH]<code> 依賴圖 DAG、</code>[MEDIUM]` 無跨服務 Shared Mutable State（對應 HC-1～HC-4）。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/ARCH.md</code>、<code>templates/ARCH.gen.md</code>、<code>templates/ARCH.review.md</code></td></tr>
+<tr><td><strong>影響範圍</strong></td><td>ARCH 三件套</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-32</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td><code>templates/SCHEMA.md</code> Document Control 無「Owning Bounded Context」欄位；§9 資料完整性約束無跨 BC FK 禁止規則；§16 Schema Review Checklist 無任何 BC 隔離審查項。<code>templates/SCHEMA.gen.md</code> 無「Step 0 — Bounded Context 識別」步驟；生成 FK 約束時無跨 BC FK 偵測與阻止規則；Self-Check 和 Quality Gate 無 BC 隔離項。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>(A) <strong>SCHEMA.md</strong>：(1) Document Control 表格新增欄位「Owning Bounded Context / Service」（必填，對應 ARCH §4）。(2) §1 Overview 新增「Schema Boundary Declaration」子節：本 Schema 的唯一擁有服務、外部不得直接 JOIN 的表清單。(3) §9 新增 §9.5「跨 BC FK 禁止」：明確規定 FK 不得引用其他 BC 的表，跨 BC 引用改為應用層管理的 ID-only 策略，加注：<code>-- Cross-BC reference: enforced at application layer, no DB FK.</code>。(4) §16 新增子節「Bounded Context 隔離」：本 Schema Owning BC 已標明、所有表屬同一 BC、無跨 BC DB-level FK、跨 BC 引用使用 ID-only。(B) <strong>SCHEMA.gen.md</strong>：生成規則第一步新增「Step 0 — Bounded Context 識別：讀取 EDD §3.4 和 ARCH §4，確認本 SCHEMA 的 Owning BC，填入 Document Control；列出不得被其他 Schema FK 引用的表清單」；Part 3 CREATE TABLE 生成規則補充「每條 FK 驗證引用表屬同一 BC，跨 BC 引用替換為 ID-only + 注釋」；Self-Check 新增 2 項；Quality Gate 新增「BC 隔離」列。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/SCHEMA.md</code>、<code>templates/SCHEMA.gen.md</code></td></tr>
+<tr><td><strong>影響範圍</strong></td><td>SCHEMA 兩件（review.md 若有也一併檢查）</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-33</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td><code>templates/API.md</code> Document Control 無「Owning Bounded Context」欄位；§1.1 設計原則無「Service Encapsulation」原則（禁止 API Response 直接暴露 DB 欄位名）；§14 API Review Checklist 無任何 BC 封裝審查項。若各子系統（member / wallet 等）的 API 文件不宣告歸屬 BC，審查者無法確認 API 是否真正封裝了邊界。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>(1) Document Control 表格新增「Owning Bounded Context / Service」欄位（必填）。(2) §1.1 設計原則新增「Service Encapsulation」：本 API 是其 Bounded Context 的唯一對外介面；其他服務不得直接存取本 BC 的 DB Schema；API Response 不得直接暴露 DB 欄位名稱作為穩定合約（必須有 DTO/View Model 層）。(3) §14 Checklist 新增子節「Bounded Context 封裝」：本 API 已標注 Owning BC、API Response 不直接暴露 DB 欄位、無端點依賴其他 BC 的 DB 表、若本服務獨立部署所有端點仍可正常運作。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/API.md</code>（Document Control、§1.1、§14）</td></tr>
+<tr><td><strong>影響範圍</strong></td><td><code>templates/API.md</code></td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-34</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td><code>templates/BRD.md</code> §5「Proposed Solution」為平坦清單，無子系統（Bounded Context）業務邊界定義；§8.3「技術約束」無 HC-1～HC-5 硬約束的業務層聲明；RTM §3.4 無「Owning Subsystem」欄位，無法將業務目標追溯到具體子系統。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>(1) 新增 §5.5「子系統分解（Bounded Context）」：表格欄位包含「子系統名</td><td>業務領域</td><td>擁有的業務規則</td><td>不擁有的業務規則</td><td>業務不變量（Invariant）」，要求填入所有子系統（如 member / wallet / deposit / lobby / game）及其業務邊界。(2) §8.3「技術約束」新增必填列：「子系統可拆解性（Spring Modulith HC-1～HC-5）」，說明業務層的跨子系統邊界原則。(3) §3.4 RTM 新增「Owning Subsystem」欄，確保每個業務目標對應一個具體子系統。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/BRD.md</code>（§5.5 新增、§8.3 補充、§3.4 RTM 欄位）</td></tr>
+<tr><td><strong>影響範圍</strong></td><td><code>templates/BRD.md</code></td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-35</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td><code>templates/test-plan.md</code> §3.2 Integration Tests 僅有一行「Service Boundary」描述，Contract Testing（Pact）為可選項而非必要閘；無 Schema 隔離測試、無 DAG 驗證測試、無單一子系統冷啟動測試、無 Async Event Contract 測試。§1.4 Quality Gates 無「合約測試通過率 100%」或「跨 Schema SQL 違規 0」的條件。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>(1) §3.2 Integration Tests 新增必填子節「Module Decomposability Tests」，含以下場景表格：(a) Schema 隔離測試 — 驗證子系統 A 的程式碼不執行子系統 B 的 Schema 的 SQL；(b) Consumer-Driven Contract Tests（Pact，<strong>必要</strong>，非可選）— 每個跨子系統 API pair 均有 Pact 合約測試；(c) Async Event Contract Tests — 每個 Domain Event 的 Producer/Consumer Schema 版本兼容性測試；(d) 單一子系統冷啟動測試 — 僅啟動一個子系統，驗證其全部端點可正常運作（其他子系統以 stub 取代）。(2) §1.4 Quality Gates 新增列：「Contract Test 通過率 100%（Merge 前必要）」和「跨 Schema SQL 違規 0」。(3) §2.1 In-Scope 新增「Module 可拆解性驗證」為必填 NFR 測試項。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/test-plan.md</code>（§3.2 新增子節、§1.4 Quality Gates、§2.1）</td></tr>
+<tr><td><strong>影響範圍</strong></td><td><code>templates/test-plan.md</code></td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-36</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td><code>templates/runbook.md</code> 從單一服務視角撰寫，無子系統邊界定義（每個 K8s Deployment 歸屬哪個 BC）；§4 Deployment Procedures 無「子系統提取程序」（從合部署到獨立部署的操作步驟）；§3.2 SLOs 無子系統層級的可觀測性指引；§7 Troubleshooting 無「跨子系統 API 呼叫失敗」場景。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>(1) 新增 §1.3「子系統邊界參考（Subsystem Boundary Reference）」：表格欄位包含「Bounded Context</td><td>K8s Deployment</td><td>Owning DB Schema</td><td>Public API Prefix</td><td>Event Topics」，列出所有子系統的操作邊界。(2) 新增 §4.X「子系統提取程序（Subsystem Extraction Procedure）」：從合部署切換到獨立部署的 step-by-step，含：新建 Namespace、部署子系統及其獨立 DB Schema、設定新 Ingress、更新 Service Discovery、對新端點執行合約測試、流量切換、從原部署移除。(3) §3.2 SLOs 補充：各子系統 Prometheus label 設計指引（<code>subsystem=&quot;member&quot;</code> 等），使 SLO 可按子系統切片。(4) §7 Troubleshooting 新增場景「跨子系統 API 呼叫失敗」：症狀識別、診斷步驟、修復指引。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/runbook.md</code>（§1.3 新增、§4.X 新增、§3.2 補充、§7 補充）</td></tr>
+<tr><td><strong>影響範圍</strong></td><td><code>templates/runbook.md</code></td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-37</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td><code>templates/LOCAL_DEPLOY.md</code> 假設所有子系統一起啟動（<code>make k8s-apply</code> 套用全部 overlay），無「單一子系統啟動」模式；無子系統分解地圖（哪些 K8s 資源屬於哪個 BC）；無各子系統的 Kustomize overlay 設計；§14 Mock Services 只覆蓋第三方外部服務，無對「缺席子系統」的 stub 指引。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td>(1) 新增 §2.X「子系統分解地圖（Subsystem Decomposition Map）」：表格和圖，說明每個 K8s Deployment/Service 歸屬哪個 BC、其 Owning Schema、對外 API Prefix、Event Topics。(2) 新增 §4.X「單一子系統啟動（Single Subsystem Startup）」：說明如何只啟動單個 BC（例如 <code>make k8s-apply-wallet</code>），對應 <code>k8s/overlays/local-{subsystem}/</code> 的 Kustomize overlay 結構；其他子系統以 WireMock/msw stub 取代。(3) §6 Development Commands 新增每個子系統的 make target（<code>k8s-apply-{subsystem}</code>、<code>health-check-{subsystem}</code>、<code>logs-{subsystem}</code>）。(4) §14 Mock Services 新增「內部子系統 Stub」子節：當進行單一子系統開發時，如何用 WireMock 模擬其他子系統的 Public API。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/LOCAL_DEPLOY.md</code>（§2.X 新增、§4.X 新增、§6 補充、§14 補充）</td></tr>
+<tr><td><strong>影響範圍</strong></td><td><code>templates/LOCAL_DEPLOY.md</code></td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<hr>
+<h2>M-38</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td><strong>BDD 九件套全部缺少 Spring Modulith 覆蓋。</strong> 專家讀檔確認（2026-05-02）：<code>BDD.md</code>、<code>BDD-server.md</code>、<code>BDD-client.md</code> 及其對應 gen.md / review.md 共 9 個檔案，對 HC-1～HC-5 五條硬約束的覆蓋為零。具體缺失：(1) <code>BDD.md</code> §2 Feature File 命名規範以 domain 目錄組織，但沒有 Bounded Context 概念，無跨 BC 整合場景、無 Domain Event 合約測試場景；(2) <code>BDD-server.md</code> §5 Contract Testing 只覆蓋 HTTP 合約，無模組邊界驗證（HC-2）、無跨 BC 呼叫只透過 Public Interface 的場景；(3) <code>BDD.gen.md</code> Self-Check 22 項、<code>BDD-server.gen.md</code> Self-Check 16 項，均無 HC-1～HC-5 任何項目；(4) <code>BDD-server.review.md</code> Layer 3 Item 11 觸及 async operation（HC-3 邊緣）但只關心測試 Flaky，不驗證 Domain Event 合約；(5) 無任何「單一子系統冷啟動 BDD 情境」（僅啟動一個 BC 驗證其行為）；(6) 無 <code>@cross-module</code>、<code>@event-contract</code>、<code>@modulith</code> 等 tag，無對應生成規則。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td><strong>(A) BDD.md</strong>：(1) §2 Feature File 命名規範新增「Spring Modulith 模組組織」：<code>features/{bounded-context}/{domain}/</code> 結構，每個 BC 有獨立目錄，從 ARCH §4 或 EDD §3.4 推導 BC 名稱。(2) §10 Tag Strategy 新增 tag 族群：<code>@modulith</code>（全部 BC 整合場景）、<code>@cross-module</code>（跨 BC 呼叫只透過 Public Interface 驗證）、<code>@event-contract</code>（Domain Event 生產者/消費者合約）、<code>@module-isolation</code>（單一子系統冷啟動）。(3) 新增 §18「Spring Modulith BDD 場景模板」：提供 Domain Event 合約場景的標準 Given/When/Then 格式：<code>Given [Module A] 狀態滿足觸發條件 / When [Event Name] 事件已發布 / Then [Module B] 的可觀測行為符合預期</code>；提供 HC-2 Public Interface 場景：<code>Given 模組 A 需要模組 B 的資料 / When 呼叫模組 B 的公開 API / Then 回傳符合合約的資料（無直接 DB cross-access）</code>。(4) §16 HA BDD Scenario Patterns 仿照格式，新增 §16.5「Module Decomposability Scenarios」。<strong>(B) BDD-server.md</strong>：(1) §3 Standard Feature File Template 新增 Cross-Module Contract 標記格式。(2) §5 Contract Testing 擴充為兩層：HTTP Contract（Pact，現有）+ Domain Event Contract（schema version 兼容性測試）。<strong>(C) BDD.gen.md</strong>：(1) 生成規則新增：從 ARCH §4 服務邊界表推導所有跨 BC dependency pair，每個 pair 至少生成一個 <code>@event-contract</code> 場景；(2) Self-Check 新增：<code>[ ] 每個跨 BC 依賴有對應的 @event-contract 場景</code>、<code>[ ] 每個 Bounded Context 有至少一個 @module-isolation 冷啟動場景</code>、<code>[ ] 無場景在模組 A 的 step 中直接操作模組 B 的 DB 資料（HC-1）</code>。<strong>(D) BDD-server.gen.md</strong>：(1) F-03 Step Definition Skeleton 新增 Event Contract test stub（Kafka consumer mock + schema validation）；(2) Self-Check 新增：<code>[ ] 跨模組呼叫場景驗證 step 指向 Public Service Interface（HC-2）</code>。<strong>(E) BDD-server.review.md</strong>：(1) Layer 3 新增審查項「Domain Event Contract — 有跨 BC 依賴時，是否有 @event-contract 場景覆蓋 Event Schema 版本（MEDIUM）」；(2) Layer 5 Upstream Alignment 新增「Bounded Context 覆蓋 — features/ 目錄結構是否對應 ARCH §4 的每個 BC（HIGH）」。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/BDD.md</code>（§2、§10、新增 §18）、<code>templates/BDD-server.md</code>（§5）、<code>templates/BDD.gen.md</code>（生成規則、Self-Check）、<code>templates/BDD-server.gen.md</code>（F-03 skeleton、Self-Check）、<code>templates/BDD-server.review.md</code>（Layer 3、Layer 5）</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>BDD 五件（BDD-client 三件為 UI 範疇，不需改動）</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-39</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>違規事由</strong></td><td><strong>新需求</strong>：LOCAL_DEPLOY 未整合 client（前端 UI）和 admin（後台管理介面）到同一個 k8s Ingress 對外 Port，導致無法用「一個 URL 分享測試環境」。專家讀檔確認：(1) <code>LOCAL_DEPLOY.md</code> §5 Service Reference 已有 <code>http://{{PROJECT_SLUG}}.local/</code> → web-app 和 <code>/api</code> → api-server，但 <code>admin-service</code> 不在 Ingress 規則中（<code>has_admin_backend=true</code> 條件區塊缺少 Ingress patch）；(2) §19 Docker Compose 明確標注「docker-compose 模式無 Ingress，各服務各自對外暴露 port，與 K8s 單一 port 80 不同」— 與單一 port 目標矛盾；(3) 無 admin SPA 路由的 nginx fallback 說明（admin 部署在 <code>/admin/</code> 路徑時，前端 router basename 和 vite build base 須一致設定，否則靜態資源全部 404）；(4) 無 admin 建置時 <code>base: &#x27;/admin/&#x27;</code> 的強制要求；(5) 無 single-port routing 驗證指令。<strong>架構理由</strong>：Ingress path-based routing（Traefik / k3s built-in）已是 k8s local dev 的標準模式，不需額外元件；docker-compose 側以 nginx reverse proxy container 達到同等效果，消除兩種啟動方式的 URL 差異，QA / 分享測試只需一個 URL。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td><strong>(A) templates/LOCAL_DEPLOY.md 骨架</strong>：(1) §2 Architecture Overview 的 Ingress 圖加入 admin 路徑：<code>/admin → admin-service:80</code>（<code>has_admin_backend=true</code> 時）；(2) §5 Service Reference 表格加入 admin 行：<code>http://{{PROJECT_SLUG}}.local/admin/</code> 管理介面；(3) §10 Common Issues 加入兩個 admin 常見問題：「admin 靜態資源 404（未設 <code>base: &#x27;/admin/&#x27;</code>）」和「admin 頁面 refresh 404（nginx SPA fallback 未設定 <code>/admin/index.html</code>）」；(4) §12 Port Reference 的 Ingress 路徑表加入 admin 行。<strong>(B) templates/LOCAL_DEPLOY.gen.md 生成規則</strong>：(1) <code>has_admin_backend=true</code> 條件區塊新增 Ingress patch 段落，包含完整 Traefik Ingress YAML（<code>/admin</code> Prefix 規則）及 Traefik Middleware（如需 strip prefix 則生成，如 API server 自帶 <code>/api</code> prefix 則不需要）；(2) §4.4 Build Image 生成規則的 admin 段落加入建置約束：「admin 前端 image 必須以 <code>base: &#x27;/admin/&#x27;</code>（Vite）或等效框架設定建置，並加入驗證指令 <code>grep -q &#x27;src=&quot;/admin/&#x27; ... index.html</code>」；(3) §4.5 Deployment 驗證步驟加入 admin 驗證：<code>curl http://{{PROJECT_SLUG}}.local/admin/</code> 回 200 且 SPA deep-link <code>curl http://{{PROJECT_SLUG}}.local/admin/login</code> 亦回 200；(4) §18 AI Quick Start Script 的驗證段落加入 admin 條件驗證；(5) §19 Docker Compose 生成規則重寫單一 Port 模式：移除「各服務各自對外暴露 port」敘述，改為「nginx proxy container 在 Port 80 提供統一入口」，生成 <code>docker/proxy/nginx.conf</code>（含 <code>/api</code>、<code>/admin</code>、<code>/</code> 三段 proxy_pass）；(6) §19 Docker Compose Iron Constraint 同步更新：<code>proxy</code> service 對外 ports 只有 <code>80:80</code>，各 backend service 不暴露 nodePort。<strong>(C) 路由設計原則（寫入 gen.md 生成說明）</strong>：推薦 Option B（API server 路由含 <code>/api</code> prefix，無需 Traefik stripPrefix middleware），原因：<code>kubectl port-forward</code> 直連時路徑一致，調試更直觀；admin nginx container 需要 SPA fallback 設定：<code>try_files $uri $uri/ /admin/index.html</code>，所有 <code>/admin/*</code> 請求返回 admin 的 <code>index.html</code>，由 client-side router 處理路由；admin 前端的 API 呼叫必須使用絕對路徑 <code>/api/...</code>（不得使用相對路徑）。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/LOCAL_DEPLOY.md</code>（§2、§5、§10、§12）、<code>templates/LOCAL_DEPLOY.gen.md</code>（Ingress 生成規則、§4.4/§4.5/§18/§19）</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>LOCAL_DEPLOY 兩件；間接影響 docker/admin/nginx.conf 的生成說明</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<p>共 39 項修改（M-01 至 M-39），跨 28+ 個檔案。</p>
+<p><strong>M-28～M-39 修改優先順序建議（依依賴關係）</strong>：</p>
+<ol><li>M-28、M-29、M-30（EDD 三件套）— 最上游，其他文件依賴 EDD 的 BC 定義</li><li>M-31（ARCH 三件套）— 依賴 EDD BC Map</li><li>M-32（SCHEMA 兩件）— 依賴 EDD §3.4 Schema Ownership</li><li>M-33（API.md）— 依賴 ARCH §4 服務邊界</li><li>M-34（BRD.md）— 業務層定義，可與 M-28 並行</li><li>M-35（test-plan.md）— 依賴 EDD Domain Event + ARCH 邊界</li><li>M-36（runbook.md）— 依賴 ARCH §4 + EDD §3.4</li><li>M-37（LOCAL_DEPLOY.md）— 依賴 ARCH §4 + Subsystem Boundary Reference</li><li>M-38（BDD 五件）— 依賴 ARCH §4 服務邊界（推導跨 BC dependency pair）</li><li>M-39（LOCAL_DEPLOY Single-Port）— 可與 M-37 合併執行，依賴 has_admin_backend flag</li></ol>
+<p><em>版本：2026-05-02 v7（新增 M-38：BDD 九件套 Spring Modulith 覆蓋；M-39：LOCAL_DEPLOY Single-Port client+admin+API 統一 Port 80）</em></p>
+<hr>
+<h2>M-40</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>需求來源</strong></td><td>新功能需求（2026-05-02）：CI/CD 工具選型 + 本地 Pipeline 模擬能力</td></tr>
+<tr><td><strong>問題描述</strong></td><td>目前 gendoc 所有 templates（EDD、ARCH、runbook、LOCAL_DEPLOY）均未涵蓋 CI/CD pipeline 工具設計與本地模擬。企業開發者在 PR 前無法在 local 環境執行完整 CI/CD pipeline dry-run，導致 pipeline 問題只能在 CI server 上才被發現，PR reject 率高、反饋週期長。具體缺失：(1) 無 CI/CD 工具選型指引（Jenkins / Tekton / ArgoCD）；(2) LOCAL_DEPLOY.md 無 Jenkins-on-k3s 安裝章節；(3) 無 <code>jenkinsfile-runner</code> 本地 dry-run 說明；(4) 無 Makefile 共享腳本模式（讓 local 和 CI 執行相同指令）；(5) 無獨立 CICD.md template。</td></tr>
+<tr><td><strong>專家評估</strong></td><td><strong>需求完全合理，是企業工程文化的正確方向。</strong> Survey 結果：Jenkins 仍是企業最大裝機量，<code>jenkinsfile-runner</code>（官方專案）可在本地單次執行 Jenkinsfile 無需啟動完整 server；Kubernetes plugin 讓 Jenkins on k3s 成為支援的模式（<code>ungerts/k3s-jenkins</code>、<code>deors/workshop-pipelines</code> 有 working reference）。現代替代方案 Tekton + ArgoCD 是 Kubernetes-native 方向，但 Jenkins 對企業遷移路徑友好。Screwdriver CD 僅 Yahoo/Verizon 系統使用，不適合本專案。業界最佳實踐：CI 和 local 使用「相同 Make targets」作為共享介面，避免 CI-as-snowflake 問題。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td><strong>(A) 新增 <code>templates/CICD.md</code></strong>（新 template）：(1) Document Control（CI 工具 <code>{{CI_TOOL}}</code>，預設 Jenkins；CD 工具 <code>{{CD_TOOL}}</code>，預設 ArgoCD）；(2) §1 Pipeline Architecture（Jenkins-on-k3s 架構圖：Jenkins server + Kubernetes Plugin + ephemeral agent pod）；(3) §2 Jenkinsfile 骨架（stages: Checkout → Build → Unit Test → Integration Test → Image Build → Deploy to Local K8s → Smoke Test）；(4) §3 Local Pipeline Dry-Run（<code>jenkinsfile-runner</code> 安裝 + <code>docker run jenkinsfile-runner</code> 指令）；(5) §4 Shared Make Targets（<code>make ci-build</code>、<code>make ci-test</code>、<code>make ci-deploy</code> — CI 和 local 共用，消除「本地 OK CI 炸掉」）；(6) §5 PR Gate（PR merge 前必跑的 pipeline stage 清單）。<strong>(B) 新增 <code>templates/CICD.gen.md</code> + <code>templates/CICD.review.md</code></strong>（三件套）。<strong>(C) <code>templates/LOCAL_DEPLOY.md</code> 新增 §20 CI/CD 本地模擬</strong>：(1) Jenkins on k3s 安裝（Helm chart <code>jenkins/jenkins</code> + Kubernetes Plugin 設定）；(2) <code>jenkinsfile-runner</code> 安裝 + 本地 dry-run 指令；(3) 本地 pipeline 驗證指令（確認 agent pod 正常建立/銷毀）。<strong>(D) <code>templates/EDD.md</code></strong>：CI/CD 工具欄位補充 <code>{{CI_TOOL}}</code>（Jenkins / Tekton）+ <code>{{CD_TOOL}}</code>（ArgoCD / Helm）及架構說明。<strong>(E) <code>templates/LOCAL_DEPLOY.gen.md</code></strong>：§20 CI/CD 生成規則（根據 state.ci_tool 選擇 Jenkins 或 Tekton 的安裝說明）。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td>新增：<code>templates/CICD.md</code>、<code>templates/CICD.gen.md</code>、<code>templates/CICD.review.md</code>；修改：<code>templates/LOCAL_DEPLOY.md</code>（新增 §20）、<code>templates/LOCAL_DEPLOY.gen.md</code>（§20 生成規則）、<code>templates/EDD.md</code>（CI/CD 工具欄位）</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>新增 3 個 template；修改 3 個現有 template；gendoc-auto SKILL.md 需加入 CICD step</td></tr>
+<tr><td><strong>工作量評估</strong></td><td>大（需設計新 CICD 三件套）</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-41</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>需求來源</strong></td><td>新功能需求（2026-05-02）：本地 K8s 密碼安全管理 — 不進 git、不用 .env、OS-level 安全存儲 + 每次重啟重生成</td></tr>
+<tr><td><strong>問題描述</strong></td><td>目前 LOCAL_DEPLOY.md 的 secret 處理方式存在安全隱患：(1) <code>k8s/overlays/local/secrets.env</code> 檔案若未加入 .gitignore 有進 git 風險；(2) 靜態密碼（如 DB password <code>secret</code>）在文件中明文標注，開發者容易複製到其他環境；(3) 無「每次重啟重生成密碼」機制，靜態密碼模式有規律可猜；(4) 不支援 macOS Keychain / Windows Credential Manager 存放固定憑證（如 registry token、OAuth secret）；(5) 雙平台（macOS / Windows）無對應的 bootstrap script。</td></tr>
+<tr><td><strong>專家評估</strong></td><td><strong>需求完全合理，符合企業安全標準。</strong> Survey 結果整理為三層設計：<strong>層 1（Ephemeral 密碼，每次重生成）</strong>：`openssl rand -hex 32 \</td><td>kubectl create secret --from-literal<code> 是業界最廣泛做法；</code>mittwald/kubernetes-secret-generator<code> 是最優雅的 in-cluster 方案（annotation 標記，controller 自動生成，無需 bootstrap script）。<strong>層 2（固定憑證，OS Keychain 存儲）</strong>：macOS </code>security<code> CLI + Windows PowerShell </code>CredentialManager<code> 可在 bootstrap script 中讀取，適合不能重生成的憑證（Docker Hub token、npm private registry token）。<strong>層 3（企業 Password Manager）</strong>：1Password </code>op inject` 或 Bitwarden Secrets Manager Operator 是有 password manager 的團隊的首選，1Password Kubernetes Operator 有第一方支援。注意：OS Keychain → K8s Secret 無成熟橋接工具，需要 DIY bootstrap script，onboarding 成本略高但可接受。每次重啟重生成的密碼讓靜態密碼模式消失，安全性顯著提升。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td><strong>(A) <code>templates/LOCAL_DEPLOY.md</code> 新增 §X Secret Bootstrap</strong>（建議放在 §3 Prerequisites 後，§4 之前）：(1) 三層 secret 策略說明（Ephemeral / OS Keychain / Password Manager）；(2) 層 1 Ephemeral：<code>scripts/bootstrap-secrets.sh</code>（macOS/Linux）模板，使用 <code>openssl rand</code> 生成 DB_PASSWORD / REDIS_AUTH / JWT_SECRET / ADMIN_INIT_PASSWORD 並 <code>kubectl create secret</code>；<code>scripts/bootstrap-secrets.ps1</code>（Windows）等效 PowerShell 版本；(3) 層 2 OS Keychain：macOS Keychain 讀取指令（<code>security find-generic-password -w -s &quot;{{PROJECT_SLUG}}-registry&quot; -a &quot;dev&quot;</code>）+ Windows Credential Manager 讀取（<code>(Get-StoredCredential -Target &quot;{{PROJECT_SLUG}}-registry&quot;).GetNetworkCredential().Password</code>）；適用場景：Docker Hub login、private npm/Maven registry token；(4) 重啟重生成規則：每次 <code>make k8s-clean</code>（namespace 刪除）或 <code>make secrets-rotate</code> 後必須重跑 bootstrap script；(5) mittwald/secret-generator 選項說明（in-cluster 自動生成，無需手動跑 script）；(6) 禁止規則：禁止 <code>.env</code> 進 git（<code>.gitignore</code> 必須包含 <code><em>.env</code>, <code>secrets.env</code>, <code>.env.</em></code>）。<strong>(B) <code>templates/LOCAL_DEPLOY.gen.md</code></strong>：(1) Secret Bootstrap 生成規則（雙平台 bootstrap script 內容）；(2) Self-Check 加入：<code>[ ] 無 .env 檔案進 git（.gitignore 已包含 *.env 規則）</code>；(3) Quality Gate 加入：`Ephemeral 密碼</td><td>bootstrap script 存在且使用 openssl rand（非靜態值）<code>。<strong>(C) </code>templates/LOCAL_DEPLOY.review.md<code></strong>：(1) 加入 CRITICAL 審查項：「.env 或 secrets.env 進 git — Risk：密碼洩漏」；(2) 加入 HIGH 審查項：「靜態密碼（DB password = &#x27;secret&#x27;）無重生成機制」。<strong>(D) 新增 </code>scripts/bootstrap-secrets.sh<code> + </code>scripts/bootstrap-secrets.ps1` 模板說明</strong>（不是真實 script，是 template 中說明 gen agent 應生成的 script 格式）。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td>修改：<code>templates/LOCAL_DEPLOY.md</code>（新增 §X Secret Bootstrap）、<code>templates/LOCAL_DEPLOY.gen.md</code>（生成規則 + Self-Check + Quality Gate）、<code>templates/LOCAL_DEPLOY.review.md</code>（CRITICAL/HIGH 審查項）；間接：gen agent 應在目標專案生成 <code>scripts/bootstrap-secrets.sh</code> 和 <code>scripts/bootstrap-secrets.ps1</code></td></tr>
+<tr><td><strong>影響範圍</strong></td><td>LOCAL_DEPLOY 三件套；間接影響所有使用 local K8s 的目標專案</td></tr>
+<tr><td><strong>工作量評估</strong></td><td>中（雙平台 bootstrap script 模板設計有細節）</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-42</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>需求來源</strong></td><td>新功能需求（2026-05-02）：k9s 安裝納入 LOCAL_DEPLOY Prerequisites + Runbook 補充 k9s 操作指引</td></tr>
+<tr><td><strong>問題描述</strong></td><td>目前 LOCAL_DEPLOY.md §1 Prerequisites 和 runbook.md §7 Troubleshooting 均只提供 <code>kubectl</code> 指令，沒有 k9s 相關內容：(1) <code>make k9s</code> 指令已在 §6 Development Commands 出現（<code>k9s -n {{K8S_NAMESPACE}}-local</code>），但 §1 Prerequisites 沒有 k9s 安裝說明；(2) runbook.md §7 各診斷場景只有 <code>kubectl</code> 指令，無 k9s 等效操作；(3) 無 k9s 快速鍵參考章節供 on-call 工程師使用。</td></tr>
+<tr><td><strong>專家評估</strong></td><td><strong>需求合理，工作量小，建議採用「kubectl 為主、k9s 為補充」模式。</strong> Survey 結果：k9s 有 ~33,500 GitHub stars，廣泛使用於 SRE / 平台工程師，是事實上的標準互動式 K8s 工具。業界共識：kubectl 是 canonical（可腳本化、CI 環境、任何 terminal 均可用），k9s 是 power user 效率層（互動式 triage、on-call 快速診斷）。建議模式：runbook §7 各場景<strong>保留 kubectl 指令為主</strong>，每個場景末尾加入 k9s 等效快捷鍵作為「Quick Reference」方塊，不取代 kubectl 主指令。原因：kubectl 指令可直接 copy-paste 進腳本和 CI；k9s 操作依賴本地 terminal session 和特定按鍵綁定，不適合作為 runbook 唯一指令。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td><strong>(A) <code>templates/LOCAL_DEPLOY.md</code> §1 Prerequisites</strong>：(1) 在工具清單加入 k9s：<code>k9s</code>（<code>brew install derailed/k9s/k9s</code> / <code>choco install k9s</code> / <code>scoop install k9s</code>）+ 版本要求（<code>≥ v0.32</code>）；(2) <code>make k9s</code> 指令已存在，確認 §6 指令說明保持一致。<strong>(B) <code>templates/LOCAL_DEPLOY.md</code> 新增 §X k9s 快速操作參考</strong>（建議放在 §11 Logs &amp; Debugging 後）：常用操作對照表：進入特定 namespace（<code>:ns</code> 選擇）、過濾 Pod（<code>/</code> 搜尋）、查看 logs（<code>l</code>）、exec 進 container（<code>s</code>）、port-forward（<code>shift-f</code>）、查看資源（<code>:deploy</code>、<code>:pod</code>、<code>:svc</code>、<code>:cm</code>、<code>:secret</code>）、刪除資源（<code>ctrl-d</code>）、描述資源（<code>d</code>）、編輯資源（<code>e</code>）；附加 k9s skin / config 說明（<code>~/.config/k9s/</code>）。<strong>(C) <code>templates/runbook.md</code> §7 各 troubleshooting 場景</strong>：在每個 §7.X 場景的診斷指令段落末尾，加入固定格式的 k9s 等效方塊：<code>&gt; <strong>k9s 等效操作（互動式）</strong></code>，列出對應按鍵順序（例如 §7.1 API Server 5xx：<code>:pod</code> → <code>/{{API_APP_LABEL}}</code> 篩選 → <code>l</code> 查看 logs）。格式固定、簡短，不取代 kubectl 主指令。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td>修改：<code>templates/LOCAL_DEPLOY.md</code>（§1 Prerequisites + 新增 k9s Quick Reference 章節）、<code>templates/runbook.md</code>（§7.1～§7.11 各場景加 k9s 等效方塊）</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>LOCAL_DEPLOY.md、runbook.md；不影響 gen.md / review.md（k9s 是使用層，不影響生成規則）</td></tr>
+<tr><td><strong>工作量評估</strong></td><td>小（格式固定，工作量可控）</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<p>共 42 項修改（M-01 至 M-42），跨 30+ 個檔案。</p>
+<p><strong>M-40～M-42 修改優先順序建議（依依賴關係）</strong>：</p>
+<ol><li>M-42（k9s）— 最小，可獨立執行，不依賴其他 M 項</li><li>M-41（Secret Bootstrap）— 中量，依賴 LOCAL_DEPLOY 現有結構，可在 M-42 後執行</li><li>M-40（CI/CD）— 最大，需設計新 CICD 三件套，建議在 M-41/M-42 完成後執行</li></ol>
+<p><em>版本：2026-05-02 v8（新增 M-40：CI/CD Jenkins on k3s + 本地 Pipeline 模擬；M-41：Secret Bootstrap 雙平台 OS Keychain + Ephemeral 密碼；M-42：k9s 安裝 + Runbook k9s 操作指引）</em></p>
+<hr>
+<h2>M-43</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>需求來源</strong></td><td>新功能需求（2026-05-02）：Local Developer Platform — Gitea 本地 git server + Production Parity + 非開發者可用的完整 CI/CD flow</td></tr>
+<tr><td><strong>問題描述</strong></td><td>M-40 實作的 CICD.md / LOCAL_DEPLOY.md §21 假設遠端 git server（GitHub / GitLab）存在，導致以下缺口：(1) <strong>無遠端 source 無法使用 Jenkins</strong>：開發者若無 GitHub 帳號或無法存取 remote，Jenkins Multibranch Pipeline 無 SCM source 可配置，整個 CI 流程無法啟動；(2) <strong>jenkinsfile-runner dry-run 只能驗證語法邏輯</strong>，無法測試 Kubernetes agent pod 的實際執行（因為 dry-run 不啟動 Jenkins server），無法驗證 ephemeral pod 建立/銷毀；(3) <strong>無標準化 dev tools UI 存取方式</strong>：Jenkins（Port 8080）、ArgoCD（Port 8443）已有，但無 Gitea（Port 3000），且三者均無 Makefile 統一入口（<code>make jenkins-ui</code> 等），非開發者無法使用；(4) <strong>開發工具 port 與應用 port 80 的域分離未明確文件化</strong>，新進人員不清楚為何 Port 3000/8080/8443 與 Port 80 可同時開著；(5) <strong>Production Parity 原則未落地</strong>：CICD.md 未明確說明「本地與生產使用相同工具鏈」，導致文件使用者誤以為本地是「簡化版」而非「縮小版」。</td></tr>
+<tr><td><strong>專家評估</strong></td><td><strong>需求完全合理，對齊業界最高標準。</strong> 評估依據：(A) <strong>12-Factor App #10 Dev/Prod Parity</strong>（Heroku，2011）：本地環境與生產環境越相似，部署失敗率越低。本設計：本地 = k3s + Jenkins + ArgoCD + Gitea；生產 = EKS/GKE + Jenkins + ArgoCD + GitHub/Gitea，差異只有規模和 TLS，完全符合 Parity 原則。(B) <strong>Platform Engineering / Internal Developer Platform（IDP）設計目標</strong>（Spotify Backstage 2020、Google Paved Road、Netflix DevProd）：把 CI/CD 複雜性封裝在 <code>make</code> targets 裡，開發者只需知道指令名稱，不需了解底層工具。本設計的 <code>make dev-tools-up</code> / <code>make gitea-ui</code> 等正是 IDP 的本地實現。(C) <strong>Gitea 技術可行性</strong>：Gitea 單 pod，&lt; 200MB RAM，helm chart 成熟，Jenkins Git plugin 支援 <code>http://gitea.dev-tools.svc.cluster.local:3000</code> URL，Webhook 支援（Jenkins 收到 push event 自動觸發），完全可在 k3s 執行。(D) <strong>Port 域分離設計正確性</strong>：應用域（Port 80，Traefik Ingress，面向使用者/QA/AI 測試）vs 開發工具域（Port 3000/8080/8443，<code>kubectl port-forward</code>，面向開發者），兩者生命週期不同、受眾不同、設計目的不同，分開是正確的 Separation of Concerns。業界從未見過把 Jenkins 塞進 <code>/jenkins</code> path 的企業實作。(E) <strong>非開發者可用性</strong>：Makefile target 是公認的「最小門檻抽象層」，任何懂 terminal 的人都能執行 <code>make dev-tools-up</code>，不需要懂 Helm、k8s、Jenkins。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td><strong>(A) <code>templates/CICD.md</code> 新增兩個章節（插入現有 §8 Security 之前，重新編號）</strong>：<strong>新 §8 Local Developer Platform</strong>：(1) 架構圖（<code>dev-tools</code> namespace 包含 Gitea pod + Jenkins pod；<code>argocd</code> namespace 包含 ArgoCD；<code>{{K8S_NAMESPACE}}-local</code> 包含應用服務；Port 域對照表：應用域 Port 80 vs 開發工具域 Port 3000/8080/8443）；(2) Gitea 安裝（<code>helm install gitea gitea-charts/gitea -n dev-tools</code>，含 <code>gitea-values.yaml</code>：adminUser/adminPassword、service ClusterIP、persistence 256Mi、resources request 100m/128Mi limit 500m/512Mi）；(3) Gitea → Jenkins Webhook 設定步驟（Gitea: Settings → Webhooks → Jenkins URL <code>http://jenkins.ci.svc.cluster.local:8080/gitea-webhook/post</code>；Jenkins: Gitea plugin 設定 SCM URL 指向本地 Gitea）；(4) ArgoCD 以本地 Gitea 為 source（<code>spec.source.repoURL: http://gitea.dev-tools.svc.cluster.local:3000/dev/{{PROJECT_SLUG}}.git</code>）；(5) <strong>Gitea 首次推送 workflow</strong>（<code>git remote add local http://localhost:3000/dev/{{PROJECT_SLUG}}.git</code> → <code>git push local main</code>）；<strong>新 §9 Makefile dev-tools targets</strong>：完整 Makefile 實作（<code>dev-tools-up</code>：helm install gitea + jenkins + argocd，等待所有 pod ready；<code>dev-tools-status</code>：<code>kubectl get pods -n dev-tools -n argocd</code>；<code>gitea-ui</code>：port-forward + 印出 URL；<code>jenkins-ui</code>：port-forward + 印出 URL；<code>argocd-ui</code>：port-forward + 印出 URL + 取得初始密碼；<code>dev-tools-down</code>：helm uninstall；<code>dev-tools-logs</code>：stern -n dev-tools）；<strong>(B) <code>templates/CICD.gen.md</code> 新增 Step 8-9 生成規則</strong>：(1) §8 Gitea values 中的 <code>adminPassword</code> 必須從 <code>LOCAL_DEPLOY.md §3.5</code> bootstrap-secrets.sh 取得（ephemeral 生成，<code>openssl rand -hex 16</code>）；(2) Gitea SCM URL 格式：<code>http://gitea.dev-tools.svc.cluster.local:3000/dev/{{PROJECT_SLUG}}.git</code>；(3) §9 Make targets 的 <code>dev-tools-up</code> 必須包含 readiness wait（<code>kubectl rollout status -n dev-tools</code>）；(4) <code>gitea-ui</code> / <code>jenkins-ui</code> / <code>argocd-ui</code> 各自必須印出 URL 和預設帳號提示；<strong>(C) <code>templates/CICD.review.md</code> 新增審查項</strong>（Layer 2）：(1) <strong>[CRITICAL] R-X：§8 Gitea SCM URL 使用 <code>localhost</code> 而非 cluster DNS</strong> — Risk：Jenkins pod 內無法解析 localhost → CI pipeline 每次 checkout 失敗；Fix：改為 <code>http://gitea.dev-tools.svc.cluster.local:3000</code>；(2) <strong>[HIGH] R-X：§9 <code>dev-tools-up</code> 缺少 readiness wait</strong> — Risk：後續指令在 pod 未 ready 時執行 → 隨機失敗；Fix：加入 <code>kubectl rollout status</code>；(3) <strong>[MEDIUM] R-X：<code>argocd-ui</code> target 未印出初始密碼取得方式</strong> — Risk：第一次登入找不到密碼；Fix：補 <code>kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath=...</code>；<strong>(D) <code>templates/LOCAL_DEPLOY.md §21</code> 擴充（在現有 §21.1 Jenkins 之前插入）</strong>：<strong>新 §21.0 Local Developer Platform 架構</strong>：(1) 全平台架構圖（ASCII art 版，含四個 namespace：dev-tools / argocd / myapp-local / kube-system；Port 對照表：80/3000/8080/8443 各自的用途和受眾）；(2) Port 域說明（為何應用 Port 80 和開發工具 Port 3000/8080/8443 可同時開著、不衝突）；(3) <strong>非開發者 4 步 onboarding</strong>：<code>make dev-tools-up</code>（啟動所有工具）→ <code>git remote add local http://localhost:3000/dev/{{PROJECT_SLUG}}.git</code> + <code>git push local main</code>（推送到本地 Gitea）→ 開瀏覽器 http://localhost:8080（看 Jenkins 自動觸發）→ 開瀏覽器 https://localhost:8443（看 ArgoCD sync）；(4) Production 對照表（本地 vs 生產的工具對應，差異只有 scale 和 TLS）；<strong>(E) <code>templates/LOCAL_DEPLOY.gen.md §21</code> 更新</strong>：新增 §21.0 生成規則（Gitea adminPassword 從 §3.5 bootstrap-secrets.sh 取；Gitea SCM URL 用 cluster DNS；非開發者 onboarding 步驟必須 &lt; 5 行指令）；<strong>(F) <code>templates/pipeline.json</code> 新增 D20-CICD step</strong>：在 D19-HTML 之後加入 <code>{&quot;id&quot;: &quot;D20-CICD&quot;, &quot;name&quot;: &quot;CICD&quot;, &quot;template&quot;: &quot;templates/CICD.md&quot;, &quot;gen_md&quot;: &quot;templates/CICD.gen.md&quot;, &quot;review_md&quot;: &quot;templates/CICD.review.md&quot;}</code>；<strong>(G) <code>templates/EDD.md</code> §3.4 Gitea 欄位</strong>：在 CI 工具 / CD 工具之後加入「本地 Git Server」欄位：<code>{{LOCAL_GIT_SERVER}}</code>（預設 Gitea，alt: none 若有 remote）；<strong>(H) <code>docs/PRD.md</code> v2.8 changelog + LOCAL_DEPLOY 標準 #6 擴充（已完成）</strong>；<strong>(I) <code>README.md</code> 更新</strong>：新增 <code>cicd</code> 至 Supported Document Types；新增 Local Developer Platform 至 Key capabilities（已完成）。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td>修改：<code>templates/CICD.md</code>（新增 §8 Local Developer Platform + §9 Makefile targets，舊 §8/§9 重新編號）、<code>templates/CICD.gen.md</code>（Step 8-9 生成規則）、<code>templates/CICD.review.md</code>（新增 3 項審查）、<code>templates/LOCAL_DEPLOY.md</code>（§21.0 Local Developer Platform 架構）、<code>templates/LOCAL_DEPLOY.gen.md</code>（§21.0 生成規則）；新增/修改：<code>templates/pipeline.json</code>（D20-CICD step）、<code>templates/EDD.md</code>（§3.4 本地 Git Server 欄位）；已更新：<code>docs/PRD.md</code>（v2.8 changelog + 標準 #6）、<code>README.md</code>（capabilities + 文件類型）。</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>CICD 三件套（修改現有 M-40 產出）；LOCAL_DEPLOY 兩件（修改現有 M-39/M-41/M-42 產出）；pipeline.json；EDD.md；PRD.md；README.md</td></tr>
+<tr><td><strong>工作量評估</strong></td><td>中（主要是在 M-40 基礎上擴充，設計已確定）</td></tr>
+<tr><td><strong>依賴關係</strong></td><td>依賴 M-40（CICD 三件套已存在）；M-41（§3.5 Secret Bootstrap 提供 Gitea password 來源）；M-39（§21 LOCAL_DEPLOY CI/CD 節基礎結構）</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<p>共 43 項修改（M-01 至 M-43），跨 32+ 個檔案。</p>
+<p><strong>M-43 執行優先順序建議</strong>：</p>
+<ol><li>先確認 M-40 已完成（CICD 三件套已存在）✅</li><li>修改 CICD.md（新增 §8 Local Developer Platform + §9 Makefile targets）</li><li>更新 CICD.gen.md + CICD.review.md（對應生成規則 + 審查項）</li><li>更新 LOCAL_DEPLOY.md §21.0 + LOCAL_DEPLOY.gen.md §21.0</li><li>更新 pipeline.json（D20-CICD）</li><li>更新 EDD.md（§3.4 本地 Git Server 欄位）</li></ol>
+<p><em>版本：2026-05-02 v9（新增 M-43：Local Developer Platform — Gitea + Production Parity + 非開發者可用 CI/CD + Port 域分離設計文件化）</em></p>
+<hr>
+<h2>M-44</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>需求來源</strong></td><td>新功能需求（2026-05-02）：開發者日常操作手冊 — DEVELOPER_GUIDE.md 三件套，填補「建置之後的每日操作層」空白</td></tr>
+<tr><td><strong>問題描述</strong></td><td>目前三份主要文件均未覆蓋「建置完成後，開發者每天如何操作」：(1) <code>LOCAL_DEPLOY.md</code> 負責第一次建置（1,973 行，一次性使用），建好後開發者不會每天翻它；(2) <code>runbook.md</code> 負責生產事故（namespace 是 <code>{{K8S_NAMESPACE}}</code>，不是 local 的 <code>{{K8S_NAMESPACE}}-local</code>），且目標讀者是 SRE / on-call 工程師，開發者用錯 namespace 會出事；(3) <code>CICD.md</code> 是 pipeline 設計文件，描述架構，不是操作手冊；(4) 實際缺少的場景：「我 git push 了，Jenkins 沒有觸發，怎麼辦？」「Pipeline 第 3 個 stage 失敗了，要去哪裡看 log？怎麼只重跑那個 stage？」「ArgoCD 一直顯示 OutOfSync，原因是什麼？」「密碼要換，要跑哪個指令？」—— 這些問題三份文件都沒有完整的 step-by-step 答案。</td></tr>
+<tr><td><strong>專家評估</strong></td><td><strong>需求真實存在，填補的是實際開發者體驗的空白，不是理論上的文件完整性。</strong> 評估依據：(A) <strong>受眾分離是設計原則，不是文件數量問題</strong>：On-call 工程師凌晨收到告警打開 runbook.md，不應看到「如何設定 Gitea webhook」；開發者遇到 Jenkins 未觸發打開 runbook.md，找到的指令 namespace 是生產環境 → 誤操作風險。混合受眾的文件兩邊都爛掉。(B) <strong>LOCAL_DEPLOY.md 已達合理上限（1,973 行）</strong>：繼續在 LOCAL_DEPLOY.md 裡加「日常操作」章節，文件定位模糊（建置 + 操作混合），且開發者找東西找不到。(C) <strong>業界對應實踐</strong>：GitHub Engineering 有獨立的 「Developer Guide」；Stripe Engineering 有獨立的「Local Development Handbook」；AWS 有「Getting Started」vs「Day 2 Operations」分開文件。這是業界慣例，不是過度設計。(D) <strong>DEVELOPER_GUIDE.md 的具體內容有明確邊界</strong>：覆蓋「環境建好之後，到生產事故之前」的這段操作空間；不重複 LOCAL_DEPLOY.md 的建置步驟；不重複 runbook.md 的生產事故處理；不重複 CICD.md 的 pipeline 架構說明。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td><strong>(A) 新增 <code>templates/DEVELOPER_GUIDE.md</code>（骨架）</strong>，章節結構：(1) <strong>Document Control</strong>（doc-type: DEVELOPER_GUIDE；前提：LOCAL_DEPLOY.md §21 CI/CD 環境已建置完成；適用對象：開發者，非 SRE）；(2) <strong>§1 每日開發工作流程</strong>：完整 step-by-step 涵蓋 6 個場景 —— ①新功能開發（feature branch push → CI → deploy → verify）；②Hotfix（直接 main branch，緊急流程）；③只改前端（跳過 integration test？說明 Make target 邏輯）；④只改 schema（migration 如何在 CI 裡執行）；⑤多人協作（同一 Gitea repo，branch 保護規則，PR 合併後 ArgoCD 自動部署）；⑥Dry-Run 驗證（jenkinsfile-runner，push 前先本地跑）；(3) <strong>§2 CI/CD 診斷與修復（Jenkins / ArgoCD / Gitea）</strong>：逐場景 step-by-step —— ①Jenkins 未收到 Webhook（Gitea webhook 設定驗證 3 步驟）；②Pipeline stage 失敗（去哪裡看 log：Console Output path；怎麼只重跑一個 stage：Replay 功能 + 限制；怎麼完整重跑：Rebuild）；③ArgoCD OutOfSync（3 種原因分類：git 有改動但未 push 到 Gitea / helm values 漂移 / manifest 語法錯誤；各自解法）；④Image pull 失敗（registry credentials 過期的排查 3 步驟）；⑤Agent Pod 起不來（k3s 資源不足 / image pull policy / RBAC 問題）；(4) <strong>§3 本地環境快速指令（Quick Reference）</strong>：表格格式，Make target + 說明 + 何時用 ——<code>make dev-status</code>（所有 pod 狀態）、<code>make dev-logs service=api</code>（特定服務 log）、<code>make dev-restart service=api</code>（重啟特定服務，不重建 image）、<code>make dev-health</code>（curl 所有 health endpoint，含 Jenkins / ArgoCD / Gitea / App）、<code>make gitea-ui / jenkins-ui / argocd-ui</code>（開 browser + port-forward）、<code>make dev-tools-status</code>（CI/CD 工具 pod 狀態）、<code>make k9s</code>（互動式 k8s 管理）；(5) <strong>§4 常見問題 + 解法（本地環境版）</strong>：與 runbook.md §7 明確區隔（runbook = 生產 namespace；本節 = local namespace），條目：①Pod CrashLoopBackOff（本地版，排查 4 步驟）；②Port 衝突（哪個 process 佔用，kill 方式）；③密碼 / secret 失效（重跑 bootstrap-secrets.sh 的時機和方式）；④Namespace 狀態混亂（make k8s-clean 的執行條件，防止誤刪）；⑤Local image 未更新（build cache 問題，<code>--no-cache</code> 時機）；⑥Gitea push 被 reject（credentials 或 repo 不存在，3 種原因）；⑦Jenkins 初始密碼忘記（重新取得指令）；(6) <strong>§5 環境維護（排程建議）</strong>：每日（無需動作，自動監控）；每週（清理舊 image：<code>make dev-cleanup</code>；確認所有 pod healthy：<code>make dev-health</code>）；每月（helm repo update；確認 Gitea / Jenkins / ArgoCD 版本）；secret rotate（<code>make secrets-rotate</code>，觸發條件說明）；完全重置（<code>make dev-tools-down &amp;&amp; make k8s-clean &amp;&amp; make dev-setup</code>，步驟和預期耗時）；(7) <strong>§6 與其他文件的邊界</strong>：明確表格說明本文件 vs LOCAL_DEPLOY.md vs runbook.md vs CICD.md 各自負責的範圍，防止未來章節混淆。<strong>(B) 新增 <code>templates/DEVELOPER_GUIDE.gen.md</code>（生成規則）</strong>：(1) Iron Law：生成前必須讀取 <code>LOCAL_DEPLOY.md</code>（確認 §21 CI/CD 工具安裝指令）、<code>CICD.md</code>（確認 Make targets 名稱、Jenkinsfile stages）、<code>runbook.md</code>（確認 §7 各診斷場景，避免重複）；(2) 兩個專家角色：Developer Experience Engineer（§1/§3/§4 工作流程與快速指令）+ DevOps Diagnostics Expert（§2/§5 CI/CD 診斷與維護）；(3) 逐章節生成規則：§1 工作流程必須從 <code>CICD.md §4 Shared Make Targets</code> 取得正確 target 名稱；§2 Jenkins 診斷 log path 必須與 <code>CICD.md §2 Jenkinsfile</code> 的 stage 名稱一致；§3 Make targets 必須驗證 <code>LOCAL_DEPLOY.md §6</code> 所有 target 均存在；§4 本地 namespace 必須使用 <code>{{K8S_NAMESPACE}}-local</code>（不得使用生產 namespace）；(4) Quality Gate：無 <code>{{PLACEHOLDER}}</code> 殘留；§2 Jenkins log path 與 CICD.md 一致；§3 所有 Make target 均可在 LOCAL_DEPLOY.md §6 找到對應；§4 所有指令的 namespace 均含 <code>-local</code> 後綴；<strong>(C) 新增 <code>templates/DEVELOPER_GUIDE.review.md</code>（審查標準）</strong>，4 層共 10 項：Layer 1 工作流程完整性（CRITICAL：§1 是否涵蓋 6 個開發場景；HIGH：step-by-step 指令中 Make target 名稱是否與 LOCAL_DEPLOY.md §6 一致）；Layer 2 CI/CD 診斷可操作性（CRITICAL：§2 是否有 Jenkins 未觸發的排查步驟；HIGH：Jenkins log path 是否與 CICD.md Jenkinsfile 一致）；Layer 3 本地環境隔離（CRITICAL：§4 所有指令 namespace 是否含 <code>-local</code>，與生產隔離；MEDIUM：§6 邊界表格是否列出與 runbook.md 的區隔）；Layer 4 維護可操作性（HIGH：§5 完全重置步驟是否有預期耗時說明；MEDIUM：secret rotate 觸發條件是否明確）；<strong>(D) <code>templates/pipeline.json</code> 新增 D21-DEVELOPER_GUIDE step</strong>：<code>{&quot;id&quot;: &quot;D21-DEVELOPER_GUIDE&quot;, &quot;name&quot;: &quot;DEVELOPER_GUIDE&quot;, &quot;template&quot;: &quot;templates/DEVELOPER_GUIDE.md&quot;, &quot;condition&quot;: &quot;always&quot;}</code>（無條件生成，所有專案都需要）；<strong>(E) <code>docs/PRD.md</code> v2.9 changelog + LOCAL_DEPLOY 標準 #6 擴充（已完成）</strong>；<strong>(F) <code>README.md</code> 更新（已完成）</strong>：新增 <code>developer-guide</code> 至 Supported Document Types；新增 Developer Daily Operations Manual 至 Key capabilities。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td>新增：<code>templates/DEVELOPER_GUIDE.md</code>、<code>templates/DEVELOPER_GUIDE.gen.md</code>、<code>templates/DEVELOPER_GUIDE.review.md</code>；修改：<code>templates/pipeline.json</code>（D21-DEVELOPER_GUIDE）；已更新：<code>docs/PRD.md</code>（v2.9 changelog + 標準 #6）、<code>README.md</code>（capabilities + 文件類型）。</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>新增 3 個 template（DEVELOPER_GUIDE 三件套）；pipeline.json 新增 D21 step；PRD / README 已更新</td></tr>
+<tr><td><strong>工作量評估</strong></td><td>中（三件套設計明確，§1~§6 章節邊界清晰，主要工作是生成規則與審查標準的細節設計）</td></tr>
+<tr><td><strong>依賴關係</strong></td><td>依賴 LOCAL_DEPLOY.md（§6 Make targets、§21 CI/CD 工具）；依賴 CICD.md（§2 Jenkinsfile stages、§4 Shared Make Targets、§8/§9 Local Developer Platform）；依賴 runbook.md（§7 各診斷場景，避免內容重複）；建議在 M-43 完成後執行（確認 Gitea / Make targets 設計定案）</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<p>共 44 項修改（M-01 至 M-44），跨 33+ 個檔案。</p>
+<p><strong>M-44 執行優先順序建議</strong>：</p>
+<ol><li>確認 M-43 決策（DEVELOPER_GUIDE §2 的 Gitea webhook 診斷依賴 M-43 的 Gitea 設計）</li><li>建立 DEVELOPER_GUIDE.md 骨架（§1~§6）</li><li>建立 DEVELOPER_GUIDE.gen.md（生成規則，含 upstream 讀取清單）</li><li>建立 DEVELOPER_GUIDE.review.md（4 層 10 項審查標準）</li><li>更新 pipeline.json（D21-DEVELOPER_GUIDE）</li></ol>
+<p><em>版本：2026-05-02 v10（新增 M-44：DEVELOPER_GUIDE.md 三件套 — 開發者日常操作手冊，填補 LOCAL_DEPLOY 建置後的每日操作空白）</em></p>
+<hr>
+<h2>M-45</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>需求來源</strong></td><td>新功能需求（2026-05-02）：gendoc-gen-diagrams skill 缺乏 CI/CD Pipeline + 本地基礎設施 UML 圖，無法支援「讀文件即可建置系統」目標</td></tr>
+<tr><td><strong>問題描述</strong></td><td>M-40 至 M-44 新增了 3 個新子系統（CI/CD Pipeline、Local Developer Platform、Developer Workflow），但 <code>/gendoc-gen-diagrams</code> skill 完全沒有對應的視覺化輸出：(1) <strong>CI/CD 流程無序列圖</strong>：CICD.md §2 Jenkinsfile 有 7 個 stages 的文字描述，但沒有「Developer push → Gitea webhook → Jenkins Agent Pod 建立 → ci-build/test/image → Kaniko 推 image → ci-deploy → ArgoCD sync → ci-smoke」的端對端序列圖；讀文件的 AI 或人類無法直觀理解整個流程的觸發鏈；(2) <strong>本地基礎設施無拓撲圖</strong>：LOCAL_DEPLOY §21 描述 k3s 有 3 個 namespace（<code>dev-tools</code> / <code>{{K8S_NAMESPACE}}-local</code> / <code>argocd</code>）+ 4 個 port（80 / 3000 / 8080 / 8443），但沒有視覺化拓撲圖說明哪些服務在哪個 namespace、哪個 port、Traefik Ingress 的邊界在哪裡、port-forward 的路徑；這是最難用文字描述的「網狀關係」，缺圖導致開發者在建置時頻繁混淆；(3) <strong>PR Gate 流程無活動圖</strong>：CICD.md §5 的 branch protection rules 是 YAML 格式，required-status-checks 是清單，但沒有「什麼時候 block、什麼條件 pass、merge 後 CD 如何接手」的活動流程圖；(4) <strong>Secret 三層流動路徑無視覺化</strong>：LOCAL_DEPLOY §3.5 定義了 Ephemeral / OS Keychain / mittwald 三層 Secret 策略，CICD.md §8 描述 CI 中的 Secret 管理，但沒有「Secret 從哪裡生成、流到哪個 namespace 的 k8s Secret、最終如何注入到 pod env」的流動圖；Secret 管理是安全設計中最容易出錯的環節，缺圖導致按文件建置的人看不出層次；(5) <strong>現有 deployment.md 未標注 CD 層</strong>：Step 2.11 的 Deployment Diagram 只從 EDD §4.5.9 + ARCH.md 讀取，沒有讀 CICD.md §7 ArgoCD Application，導致部署圖上看不到「代碼如何到達 k8s」的 CD 路徑標注。</td></tr>
+<tr><td><strong>專家評估</strong></td><td><strong>需求真實且緊迫，是「文件能建置系統」目標的最後一塊拼圖。</strong> 評估依據：(A) <strong>UML 圖的核心價值是表達「無法用線性文字表達的網狀/時序關係」</strong>：Sequence Diagram = 跨系統時序（誰先誰後、誰等誰）；Deployment Diagram = 空間拓撲（誰在哪、連到誰）；Activity Diagram = 條件分支流程（什麼時候 block、什麼時候 pass）；這三種關係用文字描述效率極低，CI/CD + Local Infra 正好是典型案例。(B) <strong>第一性原則檢驗</strong>：目標是「AI 或人類讀文件，按步驟能建置出同等系統」。測試問題：「只讀 CICD.md，能畫出 CI/CD 流程圖嗎？」現在的答案是「不能」—— 因為 Jenkinsfile 有 stages，但誰觸發 Jenkins、Jenkins 如何建立 Agent Pod、Kaniko image 推到哪裡、ArgoCD 如何 sync，這個完整鏈路沒有視覺化。有圖之後的答案是「能」。(C) <strong>方案選型</strong>：Option A（新建 <code>gendoc-gen-cicd-diagrams</code> skill）：缺點是使用者需記憶兩個 skill，邏輯分裂，State 讀取重複；Option B（在現有 skill 新增 Step 2D，條件觸發）：完全符合現有 Step 2B（Frontend）/ Step 2C（Admin）的條件觸發模式，單一入口，使用者只呼叫 <code>/gendoc-gen-diagrams</code>。<strong>選 Option B</strong>，理由：使用者問的正是「/gendoc-gen-diagrams 是不是要更新」，確認入口不要分裂。(D) <strong>現有 skill 規模可行性</strong>：目前 1,220 行，新增 Step 2D 約 +150 行，最終 ~1,370 行，在合理範圍內（2B Frontend 段本身就有 ~240 行）。(E) <strong>5 張圖的必要性分析</strong>：每一張對應一個「只靠文字無法清楚表達的關係」，無冗餘；其中 infra-local-topology.md 是開發者建置時最常查的拓撲參考，優先級最高。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td><strong>只修改 <code>skills/gendoc-gen-diagrams/SKILL.md</code>，不新增 skill</strong>。具體變更：<strong>(A) 新增 Step 2D（條件觸發：<code>docs/CICD.md</code> 存在）</strong>，共 5 張新圖，輸出至 <code>docs/diagrams/cicd/</code>：<strong>2D-1 <code>cicd-pipeline-sequence.md</code></strong>（sequenceDiagram）— CI/CD 端對端序列圖；Participants：Developer / Gitea / Jenkins Controller / Jenkins Agent Pod / Container Registry / k3s / ArgoCD；覆蓋：git push → webhook → Agent Pod 建立（kubernetes plugin）→ ci-build（make） → ci-test-unit → ci-test-integration → Kaniko image build + push → ci-deploy → pod rollout → ArgoCD sync → ci-smoke → Pipeline 成功/失敗 → Agent Pod 銷毀；alt 分支：ci-test 失敗 → ci-rollback → Pipeline FAILED；來源：CICD.md §2 Jenkinsfile + §7 ArgoCD；<strong>2D-2 <code>cicd-pr-gate-activity.md</code></strong>（flowchart TD）— PR Gate + 分支保護流程活動圖；覆蓋：feature branch commit → local dry-run（jenkinsfile-runner）→ git push → PR 建立 → required-status-checks 觸發（Build / Unit Test / Integration Test / Image Build）→ 全部 pass → Code Review → Approve → Merge → CD 接手（ArgoCD 偵測 main 分支變更 → 自動 sync）；decision 節點：「dry-run 失敗？」→ 修 Jenkinsfile；「CI check 未全 pass？」→ PR blocked；來源：CICD.md §3 + §5；<strong>2D-3 <code>infra-local-topology.md</code></strong>（graph TD，C4-style）— 本地 k3s 基礎設施拓撲圖；涵蓋：4 個 namespace 邊界框（kube-system / dev-tools / argocd / {{K8S_NAMESPACE}}-local）；每個 namespace 內的 Service 節點（標注 ClusterIP + port）；對外存取路徑（Port 80 via Traefik Ingress、Port 3000/8080/8443 via kubectl port-forward）；Gitea → Jenkins webhook 內部路徑；ArgoCD → Gitea SCM URL 內部路徑；應用服務內部通訊路徑（API → DB / Redis）；Port 域標色區分（應用域 Port 80：綠色；開發工具域 Port 3000/8080/8443：橙色）；來源：LOCAL_DEPLOY.md §21.0 + CICD.md §8；<strong>2D-4 <code>developer-workflow-activity.md</code></strong>（flowchart TD，swimlane）— 開發者每日工作流程活動圖（<strong>條件</strong>：<code>docs/DEVELOPER_GUIDE.md</code> 存在，否則從 CICD.md §3 + §5 推斷基本工作流）；swimlane：`Developer</td><td>Local CI</td><td>Gitea</td><td>Jenkins</td><td>ArgoCD<code>；覆蓋：git pull → feature branch → code → make dev-test → local dry-run（jenkinsfile-runner）→ git push → PR → Jenkins CI → review → merge → ArgoCD sync → verify；每個 swimlane actor 的行動標注對應 Make target；來源：DEVELOPER_GUIDE.md §1（若存在）/ CICD.md §3+§5（fallback）；<strong>2D-5 </code>cicd-secret-flow.md<code></strong>（graph LR）— Secret 三層流動路徑圖；Layer 1：Secret 來源（開發者 macOS Keychain / Linux openssl rand / mittwald secret-generator annotation）→ Layer 2：CI Secret（Jenkins credentials store：REGISTRY_TOKEN / DB_PASSWORD / REDIS_AUTH / JWT_SECRET，對應 CICD.md §8 Secret Location table）→ Layer 3：k8s Secret 注入（</code>ci<code> namespace 的 </code>registry-credentials<code> / </code>app-secrets<code>）→ Layer 4：Pod env injection（Jenkinsfile </code>credentials()<code> + </code>kubectl create secret<code>）→ 應用 Pod 讀取 env；標注每個 Secret 的類型（Ephemeral / Fixed / in-cluster）；來源：CICD.md §8 + LOCAL_DEPLOY.md §3.5；<strong>(B) 更新 Step 2.11 </code>deployment.md<code> 生成規則</strong>：在現有「讀取 EDD §4.5.9 + ARCH.md」之後，新增「若 </code>docs/CICD.md<code> 存在，讀取 §7 ArgoCD Application YAML，在 Deployment Diagram 中補充 CD 層標注：GitOps source（Gitea/GitHub repo）→ ArgoCD Controller → k8s Apply → Pod Rollout」；<strong>(C) 更新 Step 0 環境偵測</strong>：新增 </code>_HAS_CICD=$([ -f &quot;${_DOCS_DIR}/CICD.md&quot; ] &amp;&amp; echo &quot;yes&quot;</td><td></td><td>echo &quot;no&quot;)` + 在環境摘要印出 CI/CD UML 觸發狀態；<strong>(D) 更新 Step 2D 完整度驗證</strong>（類比 Step 2B-17）：5 張圖各自的驗證項目（sequence participant 數、activity decision 節點數、topology namespace 框數等）；<strong>(E) 更新 frontmatter description</strong>：新增「CI/CD-: pipeline-sequence / pr-gate-activity / infra-local-topology / developer-workflow / secret-flow」到描述中；<strong>(F) 更新 Step 4 輸出摘要</strong>：新增 Step 2D 的 ✓/✗/skip 清單。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td>修改：<code>skills/gendoc-gen-diagrams/SKILL.md</code>（新增 Step 2D + 更新 Step 2.11 + 更新 Step 0 + 更新 Step 4 + 更新 frontmatter）；不新增任何 template 檔案，不修改任何 template 檔案</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>只影響 <code>/gendoc-gen-diagrams</code> skill 執行結果（新增 5 張圖至 <code>docs/diagrams/cicd/</code>）；不影響其他 skill；不影響任何 template</td></tr>
+<tr><td><strong>工作量評估</strong></td><td>中（主要是撰寫 5 個圖的強制完整度標準，約 +150 行）</td></tr>
+<tr><td><strong>依賴關係</strong></td><td>依賴 M-40（CICD.md 存在，2D 才觸發）；依賴 M-41（LOCAL_DEPLOY §3.5 Secret Bootstrap 是 cicd-secret-flow.md 的 Layer 1 來源）；依賴 M-43（§21.0 Local Developer Platform 架構是 infra-local-topology.md 的主要來源）；M-44 非必要依賴（developer-workflow-activity.md 有 DEVELOPER_GUIDE.md 時取最完整來源，否則從 CICD.md 推斷，不 block）</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<p>共 45 項修改（M-01 至 M-45），跨 33+ 個檔案。</p>
+<p><em>版本：2026-05-02 v11（新增 M-45：gendoc-gen-diagrams 新增 Step 2D — CI/CD + 本地基礎設施 UML 5 張圖，填補 M-40~M-44 新子系統的視覺化缺口）</em></p>
+<hr>
+<h2>M-46</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>需求來源</strong></td><td>結構性缺陷評估（2026-05-02）：<code>templates/pipeline.json</code> 在 M-40~M-45 連續新增需求後，存在 5 個確認 bug，導致「按 pipeline 順序執行即可建置完整系統」的目標無法達成</td></tr>
+<tr><td><strong>問題描述</strong></td><td>以下 5 個問題均由 <code>python3</code> 分析 <code>pipeline.json</code> 原始碼 + grep 各 <code>.gen.md</code> 確認，非推斷：<strong>(1) D07b-UML 位置錯誤（最嚴重 bug）</strong>：目前 D07b-UML 排在 D07-ARCH 之後、D08-API 之前（第 16 位）。但 <code>skills/gendoc-gen-diagrams/SKILL.md</code> Step 1 的 upstream-docs 明確列出：EDD.md、ARCH.md、<strong>API.md</strong>、<strong>SCHEMA.md</strong>、FRONTEND.md、PDD.md、VDD.md。API.md（D08，第 17 位）、SCHEMA.md（D09，第 19 位）、FRONTEND.md（D10，第 21 位）在 D07b-UML 執行時均<strong>尚未生成</strong>，導致：(a) <code>class-inventory.md</code> 只能從 EDD §4.5.2 classDiagram 提取（fallback 模式），遺漏 API layer 和 SCHEMA 的所有 entity；(b) Step 2B（Frontend UML）條件是 <code>HAS_FRONTEND</code>，但 FRONTEND.md 不存在，<strong>Step 2B 永遠被跳過</strong>；(c) <code>test-plan.gen.md</code> 和 <code>RTM.gen.md</code> 消費 <code>class-inventory.md</code>（兩個 .gen.md 均已確認讀取此檔），但拿到的是殘缺 class 清單；(d) UML 圖（class diagram / deployment diagram / sequence diagram）缺少 API endpoints 和 DB schema entity，輸出圖的覆蓋率不到設計層的 40%；<strong>(2) CICD.md 無 pipeline step（M-40 遺漏）</strong>：<code>python3</code> 確認：<code>CICD step 存在: False</code>。M-40 建立了 CICD 三件套（templates/CICD.md + CICD.gen.md + CICD.review.md），但忘記在 <code>pipeline.json</code> 中新增對應 step。效果：執行 <code>/gendoc-auto</code> 時，CICD.md 永遠不會被自動生成，使用者必須手動呼叫 <code>/gendoc CICD</code>，違背「按 pipeline 順序即可完整建置」的核心目標。CICD.gen.md frontmatter 要求 EDD.md、ARCH.md、LOCAL_DEPLOY.md 三個 upstream，確認必須排在 D15-LOCAL_DEPLOY 之後；<strong>(3) DEVELOPER_GUIDE.md 無 pipeline step（M-44 提案遺漏預告）</strong>：<code>python3</code> 確認：<code>DEVELOPER_GUIDE step 存在: False</code>。M-44 提案指出需新增 <code>templates/DEVELOPER_GUIDE.md</code> 三件套，但 pipeline.json 中亦無對應 step（M-44 提案文字有提到「D21-DEVELOPER_GUIDE」但該 step 尚未加入 pipeline.json）。依賴關係：DEVELOPER_GUIDE.gen.md 需讀 LOCAL_DEPLOY.md §6（Make targets）、CICD.md §2+§4（Jenkinsfile stages + Shared Make Targets）、runbook.md §7（避免重複），確認必須排在 CICD.md 之後；<strong>(4) D20-PROTOTYPE 編號混亂（邏輯 bug）</strong>：pipeline.json 陣列中，D20-PROTOTYPE 排在 D19-HTML <strong>之前</strong>執行（陣列順序才是執行順序，step id 的數字大小不代表執行順序）。但 step id「D20」比「D19」大，造成：(a) 人類讀 pipeline 時誤認為 D20 在 D19 之後；(b) 未來維護者插入新 step 時，容易把 step 插入 D19 和 D20 之間（邏輯上以為 D19 是倒數第二），實際上破壞執行順序；(c) <code>gendoc-config</code> 選單顯示 step id 時，D20-PROTOTYPE 排在 D19-HTML 後面，與實際執行順序相反；<strong>(5) D16-ALIGN 覆蓋範圍落後</strong>：D16-ALIGN 排在 D15-LOCAL_DEPLOY 之後執行（對齊現有 pipeline 設計）。但在 M-46 修復後，D15b-CICD 和 D15c-DEVELOPER_GUIDE 會新增到 D15-LOCAL_DEPLOY 之後、D16-ALIGN 之前，D16-ALIGN <strong>可以且應該</strong>審查這兩個新文件與上游的對齊關係（例如：CICD.md §4 Make targets 是否與 LOCAL_DEPLOY.md §6 一致；DEVELOPER_GUIDE.md §2 Jenkins log path 是否與 CICD.md §2 Jenkinsfile stage 名稱一致）。若 pipeline.json 不在 D16-ALIGN 的注釋中補充說明，gendoc-align-check SKILL 可能不知道要稽核這兩個新文件。</td></tr>
+<tr><td><strong>專家評估</strong></td><td><strong>5 個問題全部必須修復，無一可以接受「暫緩」。</strong> 核心論據：(A) <strong>D07b-UML 位置錯誤的連鎖影響最大</strong>：<code>class-inventory.md</code> 是 <code>test-plan.gen.md</code> 和 <code>RTM.gen.md</code> 的 upstream input，錯誤的 class-inventory 會導致 Unit Test RTM §15.2 的 class→test coverage 不完整，品質層文件的正確性依賴設計層文件的完整性，這是「下游文件污染」，修復優先級為 P0。同時 Step 2B（Frontend UML）永遠跳過，讓 frontend 子系統缺少所有視覺化，與 M-45 的新增目標直接衝突。(B) <strong>CICD.md 無 pipeline step 違背工具的核心承諾</strong>：gendoc 的核心價值命題是「執行 <code>/gendoc-auto</code> 即可完整生成所有文件」。CICD.md 是 M-40 明確新增的文件類型，缺少 pipeline step 等同「功能上線但未接入主幹流程」，這是 M-40 的遺漏，必須補充。(C) <strong>D20-PROTOTYPE 編號混亂是維護性定時炸彈</strong>：gendoc 是給所有人用的工具，pipeline.json 必須是可維護、可讀的。ID 比 D19 大卻排在 D19 之前，違背最小驚訝原則（Principle of Least Astonishment），必須修正。(D) <strong>D15d-UML-CICD 的必要性</strong>：M-45 的 Step 2D 是「條件觸發：<code>docs/CICD.md</code> 存在」。若 CICD.md 在 pipeline 中排在 D07b-UML 之後（即 D15b），則 D07b-UML 執行時 CICD.md 尚未生成，Step 2D 永遠 skip。解法是在 pipeline 中，CICD.md 生成後，新增一個 D15d-UML-CICD step，專門執行 gendoc-gen-diagrams 的 Step 2D（5 張 CI/CD 相關圖）。這樣 infra-local-topology.md 等圖才能被生成並被 D19-HTML 收錄。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td><strong>只修改 <code>templates/pipeline.json</code>（單一檔案，所有 5 個 bug 集中修復）</strong>。具體變更清單：<strong>(Fix-1) 將 D07b-UML 從位置 16 移至位置 27（D10f-RESOURCE 之後，D11-test-plan 之前），重命名為 D10g-UML</strong>：移動後，UML step 執行時所有 upstream docs（API.md / SCHEMA.md / FRONTEND.md / AUDIO / ANIM / CLIENT_IMPL / ADMIN_IMPL / RESOURCE）均已存在；class-inventory.md 可從完整設計層提取 entity；Step 2B（Frontend UML）條件觸發正常運作；test-plan 和 RTM 消費到正確的 class-inventory。<strong>此為高影響修復，不涉及任何 skill 修改</strong>；<strong>(Fix-2) 在 D15-LOCAL_DEPLOY 之後新增 D15b-CICD step</strong>（補 M-40 遺漏）：<code>{&quot;id&quot;: &quot;D15b-CICD&quot;, &quot;name&quot;: &quot;CICD&quot;, &quot;phase&quot;: &quot;運維層&quot;, &quot;condition&quot;: &quot;always&quot;, &quot;template&quot;: &quot;templates/CICD.md&quot;, &quot;gen_skill&quot;: &quot;gendoc-gen-cicd&quot;, &quot;review_skill&quot;: &quot;reviewdoc&quot;, &quot;gen_md&quot;: &quot;templates/CICD.gen.md&quot;, &quot;review_md&quot;: &quot;templates/CICD.review.md&quot;, &quot;output&quot;: &quot;docs/CICD.md&quot;}</code>；<strong>(Fix-3) 在 D15b-CICD 之後新增 D15c-DEVELOPER_GUIDE step</strong>（補 M-44 遺漏）：<code>{&quot;id&quot;: &quot;D15c-DEVELOPER_GUIDE&quot;, &quot;name&quot;: &quot;DEVELOPER_GUIDE&quot;, &quot;phase&quot;: &quot;運維層&quot;, &quot;condition&quot;: &quot;always&quot;, &quot;template&quot;: &quot;templates/DEVELOPER_GUIDE.md&quot;, &quot;gen_skill&quot;: &quot;gendoc-gen-developer-guide&quot;, &quot;review_skill&quot;: &quot;reviewdoc&quot;, &quot;gen_md&quot;: &quot;templates/DEVELOPER_GUIDE.gen.md&quot;, &quot;review_md&quot;: &quot;templates/DEVELOPER_GUIDE.review.md&quot;, &quot;output&quot;: &quot;docs/DEVELOPER_GUIDE.md&quot;}</code>；<strong>(Fix-4) 在 D15c-DEVELOPER_GUIDE 之後新增 D15d-UML-CICD step</strong>（M-45 Step 2D）：<code>{&quot;id&quot;: &quot;D15d-UML-CICD&quot;, &quot;name&quot;: &quot;UML-CICD Diagrams&quot;, &quot;phase&quot;: &quot;運維層&quot;, &quot;condition&quot;: &quot;docs/CICD.md exists&quot;, &quot;skill&quot;: &quot;gendoc-gen-diagrams&quot;, &quot;args&quot;: &quot;--step 2D&quot;, &quot;output&quot;: &quot;docs/diagrams/cicd/&quot;}</code>；此 step 確保 infra-local-topology.md 等 5 張圖在 CICD.md 和 LOCAL_DEPLOY.md 均生成後才執行，且在 D16-ALIGN 之前完成，讓 D16 能稽核圖的內容；<strong>(Fix-5) 將 D20-PROTOTYPE 重命名為 D18b-PROTOTYPE 並移至 D18-MOCK 之後、D19-HTML 之前</strong>：ID 從 D20 改為 D18b，使執行順序（D17→D18→D18b→D19）與 ID 排序（D17&lt;D18&lt;D18b&lt;D19）一致，消除維護性混亂；<strong>(Fix-6) 在 D16-ALIGN step 的 <code>notes</code> 欄位新增說明</strong>：<code>&quot;alignment_scope_note&quot;: &quot;包含稽核 CICD.md（§4 Make targets vs LOCAL_DEPLOY.md §6）、DEVELOPER_GUIDE.md（§2 Jenkins log path vs CICD.md §2 Jenkinsfile stage name）、diagrams/cicd/（infra-local-topology namespace 數量 vs LOCAL_DEPLOY §21.0）&quot;</code>。<strong>修復後完整 pipeline 執行順序</strong>（共 35 steps，含 4 個新 step + 1 個重命名）：需求層（D01-IDEA → D01-IDEA-R → D02-BRD → D02-BRD-R → D03-PRD → D03-PRD-R → D03.5-CONSTANTS → D04-PDD → D04-PDD-R）→ 設計層（D05-VDD → D05-VDD-R → D06-EDD → D06-EDD-R → D07-ARCH → D07-ARCH-R → D08-API → D08-API-R → D09-SCHEMA → D09-SCHEMA-R → D10-FRONTEND → D10-FRONTEND-R → D10b-AUDIO → D10c-ANIM → D10d-CLIENT_IMPL → D10e-ADMIN_IMPL → D10f-RESOURCE → <strong>D10g-UML</strong>）→ 品質層（D11-test-plan → D12-BDD-server → D12b-BDD-client → D13-RTM）→ 運維層（D14-runbook → D15-LOCAL_DEPLOY → <strong>D15b-CICD</strong> → <strong>D15c-DEVELOPER_GUIDE</strong> → <strong>D15d-UML-CICD</strong>）→ 稽核層（D16-ALIGN → D16-ALIGN-F → D16b-ALIGN-VERIFY）→ 實作層（D17-CONTRACTS → D18-MOCK → <strong>D18b-PROTOTYPE</strong>）→ 發布層（D19-HTML）。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td>修改：<code>templates/pipeline.json</code>（唯一修改檔案）：(1) 移動 D07b-UML → D10g-UML；(2) 新增 D15b-CICD；(3) 新增 D15c-DEVELOPER_GUIDE；(4) 新增 D15d-UML-CICD；(5) 重命名 D20-PROTOTYPE → D18b-PROTOTYPE；(6) 更新 D16-ALIGN notes</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>直接：pipeline.json 排程與步驟定義；間接：<code>/gendoc-auto</code> 執行結果（D07b 移位後 class-inventory.md 正確；CICD/DEVELOPER_GUIDE 自動生成；CI/CD UML 圖在 CICD 後觸發）；<code>gendoc-config</code> 選單顯示（D18b/D19 順序正確）；<code>gendoc-align-check</code>（CICD + DEVELOPER_GUIDE 進入稽核範圍）</td></tr>
+<tr><td><strong>工作量評估</strong></td><td>小（pipeline.json 是純 JSON 設定，只需精確編輯陣列順序和新增節點，無邏輯程式碼）</td></tr>
+<tr><td><strong>依賴關係</strong></td><td>依賴 M-40（CICD 三件套存在，Fix-2 才有意義）；依賴 M-44（DEVELOPER_GUIDE 三件套存在，Fix-3 才能執行）；依賴 M-45（gendoc-gen-diagrams Step 2D 存在，Fix-4 才能執行）；<strong>不依賴</strong> M-43（pipeline 修復可獨立執行，M-43 Gitea 設計只影響 CICD.md 內容，不影響 pipeline 結構）</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<p>共 46 項修改（M-01 至 M-46），跨 34+ 個檔案。</p>
+<hr>
+<h2>M-47</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>需求來源</strong></td><td>架構原則違反（2026-05-02）：<code>pipeline.json</code> 步驟 ID 使用 <code>D01-IDEA</code>、<code>D07b-UML</code>、<code>D16-ALIGN</code> 等數字前綴格式，違反「pipeline 陣列順序才是執行順序，ID 只是語義識別符」的設計原則，並已蔓延到 9 個 SKILL 和 1 個 template 的靜態文字引用中</td></tr>
+<tr><td><strong>問題描述</strong></td><td><strong>(1) 核心問題：數字前綴暗示順序，與「陣列位置才是執行順序」的設計衝突</strong>：<code>pipeline.json</code> 的 steps 陣列順序（index 0、1、2...）才是執行順序，step <code>id</code> 只是識別符。但現有 <code>D01-IDEA</code>、<code>D07b-UML</code>、<code>D16-ALIGN</code> 等 ID 攜帶數字，讀者（人類和 AI）自然會用數字推斷執行順序，導致：(a) <code>D20-PROTOTYPE</code> 排在 <code>D19-HTML</code> 之前執行，但 ID 數字 20 &gt; 19 → 讀者誤認 PROTOTYPE 後執行（M-46 Bug-4 的根源）；(b) M-46 提案的修復方案本身就重複了同個錯誤：新增 <code>D10g-UML</code>、<code>D15b-CICD</code>、<code>D15c-DEVELOPER_GUIDE</code>、<code>D15d-UML-CICD</code>，這些 ID 仍用數字 + 字母後綴暗示位置，將來步驟再重排時又會出現同樣的歧義；(c) 子步驟的字母後綴（<code>D07b</code>、<code>D10b</code>、<code>D10c</code>、<code>D10d</code>）暗示「主步驟的附屬項」，但實際上 <code>D10b-AUDIO</code> 和 <code>D10-FRONTEND</code> 是平等的 pipeline 步驟；(2) <strong>文字污染：共 11 個檔案 ~55 處靜態引用</strong>，實測數字如下（python3 + grep 確認）：<code>gendoc-shared/SKILL.md</code>：17 處（含 <code>STEP ID 格式規範</code> 定義行 660，明文寫「D-prefix 格式，如 D01-IDEA、D07b-UML」，是所有 skill 的規範來源）；<code>gendoc-flow/SKILL.md</code>：17 處（含可執行程式碼 L492 <code>step[&quot;id&quot;] in (&quot;PRD&quot;, &quot;D03-PRD&quot;)</code> 和 L665 `if [[ &quot;${step_id}&quot; == &quot;UML&quot; \</td><td>\</td><td>&quot;${step_id}&quot; == &quot;D07b-UML&quot; ]]<code>，這兩行是 legacy compatibility 殘留，若 pipeline.json 統一改為 semantic ID，這些 </code>&quot;D03-PRD&quot;<code> 字串永遠不會被命中，造成靜默的邏輯 bug）；</code>gendoc-gen-mock/SKILL.md<code>：8 處（STEP_COMPLETE 信號輸出含 </code>D18-MOCK<code>，若 pipeline.json 改名為 </code>MOCK<code>，gendoc-flow 收到 </code>STEP_COMPLETE: D18-MOCK<code> 但查找 </code>id=MOCK<code> → 找不到 → step 進度記錄失敗）；</code>gendoc-repair/SKILL.md<code>：4 處（hardcoded </code>&quot;D19-HTML&quot; in completed<code> → pipeline 改名後 completed 清單記錄的是 </code>HTML<code>，</code>&quot;D19-HTML&quot; in completed<code> 永遠 False → repair 邏輯失效）；</code>gendoc-shared/SKILL.md<code>：L660 定義「STEP ID 格式為 D-prefix」，這是所有 skill 的共同規範基礎，此處不改，其他 skill 的 D-prefix 引用就無法從源頭消除；其餘：</code>gendoc-gen-contracts<code> 1 處、</code>gendoc-gen-client-bdd<code> 1 處、</code>gendoc-rebuild-templates<code> 1 處、</code>gendoc-align-check<code> 1 處、</code>templates/RTM.gen.md<code> 2 處，均為 informational 字串，不影響執行邏輯，但會誤導維護者；(3) <strong>commit_prefix 同樣攜帶 D-prefix</strong>：</code>pipeline.json<code> 的 </code>commit_prefix<code> 欄位格式為 </code>&quot;docs(gendoc)[D01-IDEA]&quot;<code>，這些前綴用於 git commit message。若 step ID 改名，commit_prefix 必須同步改名，否則 git log 出現混用格式（新 commits 用 </code>[IDEA]<code>，舊 commits 用 </code>[D01-IDEA]`），造成 git log 查詢的一致性問題。</td></tr>
+<tr><td><strong>專家評估</strong></td><td><strong>問題確認，必須在所有上述問題被執行之前完成此修復，否則每次新增 step 都會重複製造相同的命名混亂。</strong> 評估依據：(A) <strong>Single Source of Truth 原則</strong>：<code>pipeline.json</code> 是執行順序的唯一真相來源，其 <code>id</code> 字段應只是無語義附帶的識別符。最低驚訝原則（POLA）要求 ID 不攜帶順序暗示。(B) <strong>陣列位置是唯一的執行順序標準</strong>：任何 gendoc-flow 的步驟迭代都是 <code>for step in pipe[&quot;steps&quot;]</code>，不是按 ID 數字排序。ID 上的數字永遠是多餘且容易誤導的資訊。(C) <strong>最小可行識別符原則</strong>：步驟 ID 的最小可行格式是匹配 output 文件類型的語義名稱：<code>IDEA</code>（生成 IDEA.md）、<code>EDD</code>（生成 EDD.md）、<code>UML</code>（生成 diagrams/）、<code>ALIGN</code>（生成 ALIGN_REPORT.md）。這比 <code>D06-EDD</code>、<code>D07b-UML</code>、<code>D16-ALIGN</code> 更易讀、更不易出錯。(D) <strong>SKILL 程式碼中的 legacy compatibility 殘留是 Bug</strong>：<code>gendoc-flow</code> L492 <code>step[&quot;id&quot;] in (&quot;PRD&quot;, &quot;D03-PRD&quot;)</code> 原意是同時支援新舊 ID 格式，但若 ID 已統一為 <code>PRD</code>，<code>&quot;D03-PRD&quot;</code> 這個分支永遠不會命中，是死代碼（dead code），必須清除。同理 L665。(E) <strong>M-46 的新增 step 命名已重蹈覆轍</strong>：D10g-UML、D15b-CICD、D15c-DEVELOPER_GUIDE、D15d-UML-CICD — 這些 M-46 提案的 ID 繼續使用數字前綴，一旦新 steps 插入，這些 g/b/c/d 後綴又會錯位。M-47 必須先於 M-46 執行，或 M-46 與 M-47 合併執行，統一用 semantic ID（UML、CICD、DEVELOPER_GUIDE、UML-CICD）。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td><strong>完整命名對照表（30 → 語義 ID）</strong>：D01-IDEA → <code>IDEA</code>；D02-BRD → <code>BRD</code>；D03-PRD → <code>PRD</code>；D03.5-CONSTANTS → <code>CONSTANTS</code>；D04-PDD → <code>PDD</code>；D05-VDD → <code>VDD</code>；D06-EDD → <code>EDD</code>；D07-ARCH → <code>ARCH</code>；D07b-UML → <code>UML</code>（同時按 M-46 Fix-1 移位至設計層末尾）；D08-API → <code>API</code>；D09-SCHEMA → <code>SCHEMA</code>；D10-FRONTEND → <code>FRONTEND</code>；D10b-AUDIO → <code>AUDIO</code>；D10c-ANIM → <code>ANIM</code>；D10d-CLIENT_IMPL → <code>CLIENT_IMPL</code>；D10e-ADMIN_IMPL → <code>ADMIN_IMPL</code>；D10f-RESOURCE → <code>RESOURCE</code>；D11-test-plan → <code>test-plan</code>；D12-BDD-server → <code>BDD-server</code>；D12b-BDD-client → <code>BDD-client</code>；D13-RTM → <code>RTM</code>；D14-runbook → <code>runbook</code>；D15-LOCAL_DEPLOY → <code>LOCAL_DEPLOY</code>；D16-ALIGN → <code>ALIGN</code>；D16-ALIGN-F → <code>ALIGN-FIX</code>；D16b-ALIGN-VERIFY → <code>ALIGN-VERIFY</code>；D17-CONTRACTS → <code>CONTRACTS</code>；D18-MOCK → <code>MOCK</code>；D20-PROTOTYPE → <code>PROTOTYPE</code>（同時按 M-46 Fix-5 移至 MOCK 之後）；D19-HTML → <code>HTML</code>。<strong>M-46 新增步驟同步採用語義 ID</strong>：D15b-CICD → <code>CICD</code>；D15c-DEVELOPER_GUIDE → <code>DEVELOPER_GUIDE</code>；D15d-UML-CICD → <code>UML-CICD</code>（M-46 Fix-2/3/4 合併到 M-47 執行時直接使用語義 ID，不再需要 D15b/D15c/D15d 前綴）。<strong>修改清單（11 個檔案，共 ~120 處）</strong>：<strong>(A) <code>templates/pipeline.json</code></strong>（根本修復）：(1) 30 個 step <code>id</code> 欄位按上方對照表重命名；(2) 30 個 <code>commit_prefix</code> 欄位同步更新（格式 <code>&quot;docs(gendoc)[IDEA]&quot;</code> 等，保留 commit type 前綴 docs/test/feat）；(3) 5 個 <code>note</code> 欄位中的 D-prefix 引用更新（L105 <code>D11-test-plan → test-plan, D13-RTM → RTM</code>；L279 <code>D16-ALIGN → ALIGN</code>；L291 <code>D16-ALIGN-F → ALIGN-FIX, D16b-ALIGN-VERIFY → ALIGN-VERIFY</code>；L329 <code>D19-HTML → HTML</code>）；(4) 同步合併 M-46 的所有 pipeline 結構修復（Fix-1～Fix-6），使用語義 ID；<strong>(B) <code>skills/gendoc-shared/SKILL.md</code></strong>（最高優先，此處是規範定義）：(1) L660 規範行：刪除「D-prefix 格式」說法，改為「semantic ID（無數字前綴），如 <code>IDEA</code>、<code>EDD</code>、<code>UML</code>、<code>ALIGN</code>、<code>CONTRACTS</code>，格式與 pipeline.json 的 <code>id</code> 欄位完全一致」；(2) L416 <code>D11-test-plan</code> → <code>test-plan</code>；(3) L463-465 進度示例：<code>D01-IDEA～D09-SCHEMA → IDEA～SCHEMA</code>；<code>D10-FRONTEND → FRONTEND</code>；<code>D10b-AUDIO～D19-HTML → AUDIO～HTML</code>；(4) L613 <code>D03-PRD</code> → <code>PRD</code>；L620 <code>STEP_COMPLETE: D03-PRD</code> → <code>STEP_COMPLETE: PRD</code>；L632 <code>STEP_FAILED: D11-test-plan</code> → <code>STEP_FAILED: test-plan</code>；L634 <code>D07b-UML</code> → <code>UML</code>；(5) L710 <code>&quot;D07-ARCH&quot;</code> → <code>&quot;ARCH&quot;</code>；(6) L840-844 commit 範例：<code>[D03-PRD]→[PRD]</code>、<code>[D06-EDD]→[EDD]</code>、<code>[D12-BDD-server]→[BDD-server]</code>、<code>[D16-ALIGN]→[ALIGN]</code>、<code>[D17-CONTRACTS]→[CONTRACTS]</code>；(7) L922 <code>格式 D01-IDEA 至 D19-HTML</code> → <code>格式 IDEA 至 HTML（語義 ID，無數字前綴）</code>；(8) L1015 同 L922；<strong>(C) <code>skills/gendoc-flow/SKILL.md</code></strong>：(1) L492 <code>step[&quot;id&quot;] in (&quot;PRD&quot;, &quot;D03-PRD&quot;)</code> → <code>step[&quot;id&quot;] == &quot;PRD&quot;</code>（移除 D-prefix legacy fallback，dead code）；(2) L588 <code>step[&quot;id&quot;] in (&quot;EDD&quot;, &quot;D06-EDD&quot;)</code> → <code>step[&quot;id&quot;] == &quot;EDD&quot;</code>（2 處）；(3) L665 `&quot;${step_id}&quot; == &quot;UML&quot;</td><td></td><td>&quot;${step_id}&quot; == &quot;D07b-UML&quot;<code> → </code>&quot;${step_id}&quot; == &quot;UML&quot;<code>；(4) L369 舊格式相容注解 </code>&quot;D06-EDD&quot; → 舊格式，仍相容<code> → 刪除（不再有舊格式）；(5) L661-677 所有 </code>D07b-UML<code> 文字 → </code>UML<code>；(6) L224, L311, L582 注解 </code>D03-PRD<code> → </code>PRD<code>；(7) L584, L607 注解 </code>D06-EDD<code> → </code>EDD<code>；(8) L1445 commit 前綴 </code>test(gendoc)[D12-BDD-server]<code> → </code>test(gendoc)[BDD-server]<code>；(9) L1450 </code>test(gendoc)[D12b-BDD-client]<code> → </code>test(gendoc)[BDD-client]<code>；<strong>(D) </code>skills/gendoc-gen-mock/SKILL.md<code></strong>（有執行邏輯，最需精準修復）：(1) L66 </code>STEP_COMPLETE: D18-MOCK<code> → </code>STEP_COMPLETE: MOCK<code>（信號輸出，影響 pipeline 進度記錄）；(2) L583 </code>STEP_COMPLETE: D18-MOCK<code> → </code>STEP_COMPLETE: MOCK<code>（同上，確認兩處都改）；(3) L541 commit 前綴 </code>feat(gendoc)[D18-MOCK]<code> → </code>feat(gendoc)[MOCK]<code>；(4) L71 錯誤提示 </code>D08-API<code> → </code>API<code>；(5) L8, L549, L558, L579 informational 文字 </code>D18-MOCK → MOCK<code>, </code>D19-HTML → HTML<code>；<strong>(E) </code>skills/gendoc-repair/SKILL.md<code></strong>（有執行邏輯，最需精準修復）：(1) L255 </code>if &quot;D19-HTML&quot; in completed:<code> → </code>if &quot;HTML&quot; in completed:<code>；(2) L260 </code>if not any(x[&quot;id&quot;] == &quot;D19-HTML&quot; for x in incomplete):<code> → </code>if not any(x[&quot;id&quot;] == &quot;HTML&quot; for x in incomplete):<code>；(3) L262 </code>&quot;id&quot;: &quot;D19-HTML&quot;<code> → </code>&quot;id&quot;: &quot;HTML&quot;<code>；(4) L254 注解 </code>D19-HTML<code> → </code>HTML<code>；<strong>(F) </code>skills/gendoc-align-check/SKILL.md<code></strong>：L283 </code>step=D12-BDD-server<code> → </code>step=BDD-server<code>；<strong>(G) </code>skills/gendoc-gen-contracts/SKILL.md<code></strong>：L10 </code>D17-CONTRACTS<code> → </code>CONTRACTS<code>；<strong>(H) </code>skills/gendoc-gen-client-bdd/SKILL.md<code></strong>：L111 </code>D12b-BDD-client<code> → </code>BDD-client<code>；<strong>(I) </code>skills/gendoc-rebuild-templates/SKILL.md<code></strong>：L358 </code>D01-IDEA<code> → </code>IDEA<code>；<strong>(J) </code>templates/RTM.gen.md<code></strong>：L219 </code>D13-RTM<code> → </code>RTM<code>；L234 </code>D13-RTM<code> → </code>RTM<code>；<strong>(K) </code>docs/ha-spof-modification-plan.md`（本文件）</strong>：M-46 的「建議怎麼改」章節中使用 D10g-UML / D15b-CICD / D15c-DEVELOPER_GUIDE / D15d-UML-CICD 的段落需更新為語義 ID（UML / CICD / DEVELOPER_GUIDE / UML-CICD）；此修正為文件一致性，不影響 M-46 的技術內容。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td>主要修改：<code>templates/pipeline.json</code>（30 個 id + 30 個 commit_prefix + 5 個 note = ~65 處）；<code>skills/gendoc-shared/SKILL.md</code>（17 處，含 L660 規範定義 — 最重要）；<code>skills/gendoc-flow/SKILL.md</code>（17 處，含 L492/L588/L665 執行邏輯）；<code>skills/gendoc-gen-mock/SKILL.md</code>（8 處，含 L66/L583 STEP_COMPLETE 信號）；<code>skills/gendoc-repair/SKILL.md</code>（4 處，含 L255/L260/L262 執行邏輯）；次要修改：<code>skills/gendoc-align-check/SKILL.md</code>（1 處）、<code>skills/gendoc-gen-contracts/SKILL.md</code>（1 處）、<code>skills/gendoc-gen-client-bdd/SKILL.md</code>（1 處）、<code>skills/gendoc-rebuild-templates/SKILL.md</code>（1 處）、<code>templates/RTM.gen.md</code>（2 處）；文件一致性：<code>docs/ha-spof-modification-plan.md</code> M-46 段落（D-prefix 新增 step ID 更新）</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>所有 <code>/gendoc-auto</code> / <code>/gendoc-flow</code> 的 STEP_COMPLETE 信號匹配；<code>gendoc-config</code> 選單動態輸出（自動修復，因其讀 pipeline.json <code>id</code> 欄位）；<code>gendoc-repair</code> 的 D19-HTML hardcode 邏輯；<code>gendoc-flow</code> 的 legacy D-prefix fallback（清除死代碼）；git commit message 格式（commit_prefix）；state file <code>start_step</code> 欄位說明</td></tr>
+<tr><td><strong>工作量評估</strong></td><td>中（~120 處精準字串替換，最大風險是 gendoc-gen-mock 的 STEP_COMPLETE 信號和 gendoc-repair 的 Python 邏輯，需逐行確認替換正確）；完全可機械化（sed / python replace），無邏輯變更</td></tr>
+<tr><td><strong>依賴關係</strong></td><td><strong>M-47 應與 M-46 合併執行（同一 PR）</strong>：M-46 新增的 step ID（D15b-CICD 等）在 M-47 中直接使用語義 ID（CICD 等），避免 D-prefix 污染繼續；若分開執行必須先 M-47 後 M-46；不依賴 M-43/M-44/M-45</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<p>共 47 項修改（M-01 至 M-47），跨 35+ 個檔案。</p>
+<p><strong>M-47 執行優先順序建議</strong>：</p>
+<ol><li><code>templates/pipeline.json</code>（根本改動，先改 ID 再改 commit_prefix）— 與 M-46 合併執行</li><li><code>skills/gendoc-shared/SKILL.md</code> L660（規範定義行，改後其他 skill 有依據）</li><li><code>skills/gendoc-gen-mock/SKILL.md</code> L66+L583（STEP_COMPLETE 信號 — 影響執行邏輯）</li><li><code>skills/gendoc-repair/SKILL.md</code> L255+L260+L262（Python 邏輯 — 影響執行邏輯）</li><li><code>skills/gendoc-flow/SKILL.md</code> L492+L588+L665（dead code 清除）</li><li>其餘 informational 文字（gendoc-shared 範例、RTM.gen.md 等）</li></ol>
+<p><em>版本：2026-05-02 v12（新增 M-46：pipeline.json 結構修復 — 5 個確認 bug：D07b-UML 位置錯誤、CICD 無 pipeline step、DEVELOPER_GUIDE 無 pipeline step、D20 編號混亂、D16-ALIGN 覆蓋範圍落後）</em></p>
+<p><strong>M-46 執行優先順序建議</strong>：</p>
+<ol><li>Fix-1（D07b-UML → D10g-UML 位置修正）— P0，影響最大，獨立可執行</li><li>Fix-2（新增 D15b-CICD）— 需 M-40 已完成，確認 CICD 三件套存在</li><li>Fix-5（D20-PROTOTYPE → D18b-PROTOTYPE）— 純命名修正，獨立可執行</li><li>Fix-3（新增 D15c-DEVELOPER_GUIDE）— 需 M-44 決策後執行</li><li>Fix-4（新增 D15d-UML-CICD）— 需 M-45 決策後執行</li><li>Fix-6（ALIGN notes 更新）— 最後執行，確認前面 fix 都定案</li></ol>
+<blockquote><p><strong>注意</strong>：M-46 的所有新增 step 應使用語義 ID（CICD / DEVELOPER_GUIDE / UML-CICD），不使用 D15b/D15c/D15d 前綴，與 M-47 合併執行。</p></blockquote>
+<hr>
+<h2>M-48</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>需求來源</strong></td><td>架構增強（2026-05-02）：使用者提出在 pipeline 中加入 dryrun step，EDD 之後生成「預估清單」，讓後續每個 step 的 review 有機械式程式驗證作為補充，並整合 anti-fake（防假內容）、gate（完成門檻）機制，gate findings 與 review findings 統一受 gendoc-config 的 max_rounds / stop_condition 約束。</td></tr>
+<tr><td><strong>問題描述</strong></td><td>目前 gendoc pipeline 的每個 step 只有 AI review → fix loop，存在以下結構性缺陷：<strong>(1) 無機械式完整性驗證</strong>：review agent 是語意判斷，可接受「API.md 有 §Endpoints 章節但只寫了 2 個 endpoints 而設計有 30 個」，因為它無法從 upstream docs 算出精確數量；目前沒有任何機制在生成後機械式地計算：endpoints 數量、DB table 數量、test case 數量、section 數量，並與 upstream spec 對照確認；<strong>(2) 無 anti-fake 機制</strong>：AI 生成的 .md 文件可能出現：殘留 <code>{{PLACEHOLDER}}</code> 未替換、段落重複複製（同一段文字出現 2+ 次）、章節只有標題沒有內容（&lt; 30 words）、假資料（entity 名稱全是 FooEntity / BarModel 等無意義名稱）；review agent 可能對這些問題評分為 LOW 或忽略，因為它沒有精確的「完成標準」；<strong>(3) 無預測性完整性基線</strong>：pipeline 執行前沒有任何文件說明「此次執行預計生成哪些文件、每個文件應有哪些結構」，導致：執行到 D16-ALIGN 時才發現某個中間文件結構錯誤；debug 時難以判斷問題出在 gen agent 還是 review agent；無法提前知道哪些 step 是「條件觸發」且本次會被 skip；<strong>(4) Review 品質依賴 AI prompt，缺乏量化錨點</strong>：<code>ARCH.gen.md</code> 生成規則說「§3 Tech Stack table 必須列出所有元件」，但 review.gen.md 的對應 check 沒有量化：多少個 = 完整？目前靠 AI 主觀判斷「足夠完整」，不同次執行品質不一致。<strong>(5) 參考：gencode 的 Recon phase 已解決類似問題</strong>：<code>~/.claude/skills/gencode/templates/pipeline.json</code> 把 <code>recon-dryrun</code> 設為 pipeline 第一個 phase，在任何代碼生成前先讀取所有 upstream docs，為每個後續 sub-step 生成 <code>.gencode-rules/&lt;sub-step-id&gt;-rules.json</code>（artifacts + anti_fake_rules），之後每個 phase 的 gate script 機械式驗證規則文件；<code>rule-gate.mjs</code> 是純程式驗證，不依賴 AI 判斷。</td></tr>
+<tr><td><strong>專家評估</strong></td><td><strong>需求有效，設計方向正確，但 gendoc 需要在 3 個關鍵點上偏離 gencode 的實作方式。</strong> <strong>(A) 位置：不是「EDD 之後」，而是「ARCH review 完成後」</strong>：使用者直覺正確（越早鎖定基線越好），但 EDD 只能提供 domain model 和服務邊界，<strong>技術棧（決定哪些 conditional steps 要執行）在 ARCH.md §3 才確認</strong>。例如：<code>HAS_FRONTEND: true/false</code>、<code>LANG: Java/Node/Python</code>（決定 BUILD_TOOL 和 Agent Pod image）、<code>HAS_AUDIO: true/false</code>（決定 AUDIO step 是否在 manifest 中出現）。若 DRYRUN 在 EDD 後、ARCH 前執行，rule files 只能基於不完整資訊生成，mandatory step 清單會有缺漏。結論：<strong>DRYRUN 放在 ARCH-review-loop 之後，API 之前</strong>，此時 EDD + PRD + ARCH 三個最重要的 upstream docs 均已完成 review，資訊最完整。<strong>(B) Rule file 格式：針對 .md 文件的量化規則</strong>：gencode 的量化規則基於 panel count（UI）、table count（DB）、endpoint count（API）。gendoc 文件為純 Markdown，量化維度不同，需轉換：<code>API.md</code>：endpoint 數量 = EDD §4.5 component diagram 中 REST interface 數（grep <code>&lt;&lt;REST&gt;&gt;</code> 或 <code>HTTP</code> 關鍵字統計）；<code>SCHEMA.md</code>：table 數量 = EDD §4.5 classDiagram entity 數（entity 以 <code>class EntityName</code> 形式定義）；<code>test-plan.md</code>：tech layer 覆蓋數 = ARCH.md §3 Tech Stack table 的 layer 數（Presentation / Application / Domain / Infrastructure）；<code>RTM.md</code>：row 數 ≥ PRD.md 中 User Story 數（<code>## US-</code> 出現次數）；<code>BDD .feature</code>：scenario 數 ≥ User Story 數 × 0.8（每個 US 至少 0.8 個 scenario）。這些計數均可 grep 實現，不需要 AI。<strong>(C) Gate 與 Review 的整合方式</strong>：gencode 的 gate 是 phase-level（一個 phase 的所有 sub-steps 完成後跑一次 gate）。gendoc 是 step-level 線性 pipeline，更適合 <strong>step-level gate</strong>：每個 step 完成後，gate 讀取 <code>.gendoc-rules/&lt;step-id&gt;-rules.json</code>，輸出 mechanical findings（MECHANICAL 類型，等同 CRITICAL 級別）。Mechanical findings 注入 review findings 清單，統一進入 review→fix loop，受 <code>max_rounds</code> / <code>stop_condition</code> 約束。AI review agent 看到 mechanical findings 時，必須優先處理再進行語意審查。這樣做的好處：(a) 不需要改變現有 review→fix loop 架構；(b) MECHANICAL findings 有確定性（grep 可驗證），fix agent 知道如何精確修復；(c) gate 重跑有確定性結果（不像 AI review 可能每次評分不同）。<strong>(D) Anti-fake 規則設計</strong>：對 gendoc .md 文件，最有效的 anti-fake 規則是：<code>no_bare_placeholder</code>（正則 <code>\{\{[A-Z_]+\}\}</code> 不得出現）；<code>min_section_words</code>（每個 <code>##</code> 或 <code>###</code> 章節的 body 至少 30 words，純標題章節視為 fake）；<code>no_duplicate_paragraphs</code>（相同 150 字以上的段落不得在同文件出現 2 次，防止 copy-paste 填充）；<code>required_keywords_per_section</code>（API.md §Endpoints 必須出現 GET/POST/PUT/DELETE/PATCH 至少 3 種；SCHEMA.md §Tables 必須出現 PRIMARY KEY 或 FK 或 INDEX）；<code>no_trivial_entity_names</code>（entity 名稱不得全是 FooXxx / BarYyy / SampleZzz，用正則 `(Foo</td><td>Bar</td><td>Baz</td><td>Sample</td><td>Test)[A-Z]<code> 出現 ≥ 3 次 = anti-fake 觸發）。<strong>(E) Manifest.md 的必要性</strong>：</code>docs/MANIFEST.md<code>（人類可讀）和 </code>.gendoc-rules/*.json<code>（機械可驗證）應同時生成。MANIFEST.md 是給開發者和 AI review agent 的「合約書」，明確說明本次 pipeline 執行後應有哪些文件、每個文件的最低完整性標準。在 </code>/gendoc-auto` 開始時若 MANIFEST.md 已存在，可以跳過 DRYRUN 重新生成（節省一個 step 執行時間）。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td><strong>架構設計（4 個組成部分）</strong>：<strong>(Part 1) 新增 pipeline step <code>DRYRUN</code></strong>，位置：ARCH 之後、API 之前（現有 pipeline 中為第 9 位，即 ARCH-review-loop 完成後）。Step 定義：<code>{&quot;id&quot;: &quot;DRYRUN&quot;, &quot;name&quot;: &quot;Pipeline Dryrun &amp; Rule Generation&quot;, &quot;phase&quot;: &quot;設計層-規劃&quot;, &quot;condition&quot;: &quot;always&quot;, &quot;type&quot;: &quot;planning&quot;, &quot;gen_skill&quot;: &quot;gendoc-gen-dryrun&quot;, &quot;output&quot;: [&quot;docs/MANIFEST.md&quot;, &quot;.gendoc-rules/*.json&quot;], &quot;no_review_loop&quot;: true}</code>，注意：DRYRUN step 本身不跑 review→fix loop（它不是文件，是規則文件），完成即進下一步；<strong>(Part 2) 新建三件套（DRYRUN 不需要 review.md，只需兩件）</strong>：<code>templates/DRYRUN.md</code>（MANIFEST.md 的骨架結構，說明每個 step 的預計輸出）；<code>templates/DRYRUN.gen.md</code>（DRYRUN step 生成規則，包含所有量化規則的計算邏輯）。Rule file 格式（<code>.gendoc-rules/&lt;step-id&gt;-rules.json</code>）：<code>{&quot;step_id&quot;: &quot;API&quot;, &quot;step_name&quot;: &quot;API Design Document&quot;, &quot;output_files&quot;: [{&quot;path&quot;: &quot;docs/API.md&quot;, &quot;must_exist&quot;: true, &quot;must_not_be_empty&quot;: true, &quot;min_h2_sections&quot;: 6, &quot;min_endpoint_count&quot;: &lt;從 EDD 計算的實際數&gt;, &quot;content_rules&quot;: {&quot;required_sections&quot;: [&quot;API Overview&quot;, &quot;Authentication&quot;, &quot;Endpoints&quot;, &quot;Error Codes&quot;], &quot;no_bare_placeholders&quot;: true, &quot;min_words_per_section&quot;: 30}}], &quot;anti_fake_rules&quot;: [{&quot;type&quot;: &quot;no_placeholder_strings&quot;, &quot;pattern&quot;: &quot;\\{\\{[A-Z_]+\\}\\}&quot;}, {&quot;type&quot;: &quot;no_duplicate_paragraphs&quot;, &quot;min_char_length&quot;: 150}, {&quot;type&quot;: &quot;min_section_words&quot;, &quot;min_words&quot;: 30}, {&quot;type&quot;: &quot;required_keywords&quot;, &quot;section&quot;: &quot;Endpoints&quot;, &quot;keywords&quot;: [&quot;GET&quot;, &quot;POST&quot;, &quot;PUT&quot;, &quot;DELETE&quot;]}]}</code>；<strong>(Part 3) 新建 gate checker script</strong>：<code>tools/bin/gate-check.sh</code>（每個 step 執行後由 gendoc-flow 自動呼叫）：讀取 <code>.gendoc-rules/&lt;step-id&gt;-rules.json</code>；對每個 <code>output_files</code> 執行：(a) 存在性檢查（<code>test -f</code>）；(b) 非空檢查（<code>wc -c</code>）；(c) 章節數計數（<code>grep -c &#x27;^## &#x27;</code>）；(d) endpoint 數計數（`grep -cE &#x27;^\</td><td>*(GET</td><td>POST</td><td>PUT</td><td>DELETE</td><td>PATCH)&#x27;<code>）；(e) 無裸 placeholder 檢查（</code>grep -cE &#x27;\{\{[A-Z_]+\}\}&#x27;<code>）；對每個 </code>anti_fake_rules<code> 執行對應的 grep 或 awk 邏輯；輸出格式為 JSON：</code>[{&quot;severity&quot;: &quot;MECHANICAL&quot;, &quot;rule_id&quot;: &quot;AF-01&quot;, &quot;check&quot;: &quot;no_bare_placeholders&quot;, &quot;file&quot;: &quot;docs/API.md&quot;, &quot;detail&quot;: &quot;發現 3 個未替換的 {{PLACEHOLDER}}：{{API_VERSION}}, {{BASE_URL}}, {{AUTH_TOKEN}}&quot;, &quot;fix_hint&quot;: &quot;替換所有 {{}} 為實際值&quot;}]<code>；<strong>(Part 4) 修改 </code>gendoc-flow/SKILL.md<code></strong>，在每個 step 的 review→fix loop 的 <strong>第一個 round 之前</strong>，先執行 gate-check.sh：</code>_GATE_FINDINGS=$(bash tools/bin/gate-check.sh &lt;step-id&gt; 2&gt;/dev/null</td><td></td><td>echo &quot;[]&quot;)<code>；</code>_GATE_COUNT=$(echo &quot;$_GATE_FINDINGS&quot; \</td><td>python3 -c &quot;import json,sys; print(len(json.load(sys.stdin)))&quot;)<code>；若 </code>_GATE_COUNT &gt; 0<code>：將 MECHANICAL findings 注入 review agent prompt（加在「本輪審查額外 mechanical findings：」章節），review agent 的 fix guidance 應以修復 MECHANICAL findings 為最高優先；修改 round summary：顯示 </code>MECHANICAL=N  AI-CRITICAL=N  AI-HIGH=N<code>；gate-check.sh 在每個 fix round 後<strong>重跑一次</strong>，確認 MECHANICAL findings 是否已消除（MECHANICAL findings 不依賴 AI 重評，是確定性驗證）；<strong>(量化規則計算邏輯，由 DRYRUN gen agent 執行)</strong>：</code>EDD_ENTITY_COUNT=$(grep -c &#x27;^\s*class &#x27; docs/EDD.md 2&gt;/dev/null</td><td></td><td>echo &quot;5&quot;)<code>；</code>EDD_REST_COUNT=$(grep -cE &#x27;(&lt;&lt;REST&gt;&gt;</td><td>&lt;&lt;API&gt;&gt;</td><td>HTTP\s*(GET</td><td>POST))&#x27; docs/EDD.md 2&gt;/dev/null</td><td></td><td>echo &quot;10&quot;)<code>；</code>PRD_US_COUNT=$(grep -c &#x27;^## US-&#x27; docs/PRD.md 2&gt;/dev/null</td><td></td><td>echo &quot;10&quot;)<code>；</code>ARCH_LAYER_COUNT=$(grep -c &#x27;^\</td><td>[A-Za-z]&#x27; docs/ARCH.md 2&gt;/dev/null</td><td></td><td>echo &quot;4&quot;)<code>；這些數值寫入各 step 的 rule file，成為不可更改的完成標準；<strong>(MANIFEST.md 結構)</strong>：</code># Pipeline Execution Manifest`；Document Control 表（生成日期、pipeline 版本、EDD entity count、PRD US count、ARCH layer count）；Mandatory Steps 清單（本次 pipeline 必須執行的 steps + expected output 路徑）；Conditional Steps 清單（HAS_FRONTEND=true 才執行 FRONTEND step 等）；Per-Step 完整性標準（表格：step</td><td>output files</td><td>min_sections</td><td>quantitative_rules</td><td>anti_fake_rules）。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td>新建：<code>templates/DRYRUN.md</code>（MANIFEST.md 骨架）；<code>templates/DRYRUN.gen.md</code>（量化規則計算 + rule file 生成邏輯）；<code>skills/gendoc-gen-dryrun/SKILL.md</code>（DRYRUN step gen agent，讀 EDD/PRD/ARCH → 計算量化數值 → 生成所有 rule files + MANIFEST.md）；<code>tools/bin/gate-check.sh</code>（機械式 gate checker，純 bash + grep/awk，不依賴 AI）；修改：<code>templates/pipeline.json</code>（新增 DRYRUN step，位置 = ARCH-review-loop 之後、API 之前）；<code>skills/gendoc-flow/SKILL.md</code>（在每個 step review-loop 第一個 round 前加入 gate_check 邏輯，共 ~30 行新增）</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>直接：pipeline 執行時間增加 1 個 DRYRUN step（預計 2-3 min，因純 grep 計算）；每個 step review-loop 第一個 round 前多執行一次 gate-check.sh（約 &lt; 5s，純 bash）；<code>docs/MANIFEST.md</code> 成為新的 pipeline 輸出文件，D16-ALIGN 可稽核 MANIFEST.md 與實際生成文件的一致性；間接：review agent 的 finding 品質提升（MECHANICAL findings 提供確定性錨點，AI review 聚焦語意品質而非基礎完整性）；<code>gendoc-config</code> 的 max_rounds / stop_condition 約束自動涵蓋 MECHANICAL findings（因整合到同一 finding 清單）；git history 可追蹤每次 pipeline 執行的 MANIFEST.md 版本（鎖定當時的量化基線）</td></tr>
+<tr><td><strong>工作量評估</strong></td><td>中大（共 5 個新文件 + 2 個修改）：<code>DRYRUN.gen.md</code> 需設計 ~30 個 step 的量化規則計算邏輯，最複雜；<code>gate-check.sh</code> 需覆蓋所有 output_files 的 6 種機械 check，中等複雜；<code>gendoc-flow</code> 修改需精確插入 gate_check 呼叫，風險最高（現有邏輯不得破壞）；總估計：3-5 個開發 sessions</td></tr>
+<tr><td><strong>依賴關係</strong></td><td>依賴 M-47（step ID 統一語義化後，rule file 路徑 <code>.gendoc-rules/API-rules.json</code> 等才是正確格式）；依賴 M-46 Fix-1（UML step 移位後，DRYRUN 生成的 rule files 才反映正確的 step 執行順序）；不依賴 M-40/M-43/M-44/M-45（但若這些 step 已加入 pipeline，DRYRUN 應為它們也生成對應的 rule files）；<strong>建議執行順序</strong>：先完成 M-47 + M-46（pipeline 結構穩定），再設計 M-48 的 rule files（避免對 D-prefix ID 生成規則後又需重命名）</td></tr>
+<tr><td><strong>決策</strong></td><td>可以</td></tr>
+</table>
+<hr>
+<h2>M-49</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>需求來源</strong></td><td>Spring Modulith 架構符合性審查（2026-05-02）：HC-1「無跨模組 DB 直接存取」在 ARCH.md §4 缺少可追溯的三層映射表，工程師無法從任何 API Endpoint 反查「哪個 BC 擁有哪些 Table」。</td></tr>
+<tr><td><strong>問題描述</strong></td><td>ARCH.md §4「服務邊界」現有模板要求填入「擁有資料」欄，但（1）模板中只有 <code>{{SERVICE_A_DATA}}</code> 等 placeholder，無對應的示例列格式；（2）ARCH.gen.md 未要求「從 EDD §3.4 BC 清單 + API.md Endpoints 自動生成三層映射表」；（3）即使 review checklist AM-01 能攔截違規，生成的 ARCH.md 本身若缺少此表，新工程師在 PR 之前仍無法自查。缺口具體表現：目前生成的 ARCH.md 中，無法從 <code>POST /api/v1/members/login</code> 直接看到「此 endpoint 屬於 Member BC → 操作 member_schema.users / sessions 表」的明確聲明。</td></tr>
+<tr><td><strong>專家評估</strong></td><td>CRITICAL 缺口。Spring Modulith HC-1 的核心是「Schema Ownership is explicit and traceable」—— 若在主架構文件中沒有正式的 BC ↔ Table 所有權聲明，開發者只能靠 SCHEMA.md 的「Owning BC」欄隱性推斷，容易在跨 BC 功能開發時誤操作他人的 Table。三層映射表（API Endpoint → Owning BC → Owned Tables）是消除歧義的最直接工具，且製作成本低（從已有的 EDD §3.4 和 API.md 直接提取）。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td><strong>(1) ARCH.md §4 新增子節「§4.0 API-BC-Schema 映射表」</strong>：位置在 §4「服務邊界」現有 BC 描述表之後、§4.1 之前；格式為 3 欄表格：<code>API Endpoint（Method + Path）</code> ｜ <code>Owning Bounded Context</code> ｜ <code>Owned DB Tables</code>；需涵蓋所有「寫入操作 Endpoint」（GET 僅 Query，不強制列出）；至少包含 EDD §3.4 定義的每個 BC 的代表性 endpoint ≥ 1 條。<strong>(2) ARCH.gen.md 加入生成規則</strong>：在「Step 4：§4 服務邊界」的指令中新增：「必須從 EDD.md §3.4 Bounded Context 清單 + API.md §3 Endpoints 逐一提取，自動生成 §4.0 映射表；每個 BC 至少 1 條 endpoint 且 Table 名稱必須與 SCHEMA.md Document Control 的 Owning BC 欄一致」。<strong>(3) ARCH.review.md AM-01 擴展 Check 內容</strong>：在現有 AM-01「Schema 隔離缺失」的 Check 中新增：「§4.0 映射表是否存在且每個 BC 至少有 1 行；Table 名稱是否與 SCHEMA.md 對應 BC 一致」。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/ARCH.md</code>（§4 新增 §4.0 子節，提供表格骨架）；<code>templates/ARCH.gen.md</code>（Step 4 生成規則新增三層映射表指令）；<code>templates/ARCH.review.md</code>（AM-01 Check 擴展）</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>生成的 ARCH.md 頁數增加 1~2 頁（映射表）；ARCH review loop 多 1 個量化 check；SCHEMA.md 的「Owning BC」欄成為 ARCH §4.0 的驗證依據（兩個文件需保持一致）</td></tr>
+<tr><td><strong>工作量評估</strong></td><td>小（3 個文件，各新增 10~30 行）；ARCH.md 新增表格骨架、ARCH.gen.md 新增生成指令、ARCH.review.md 擴展 Check</td></tr>
+<tr><td><strong>依賴關係</strong></td><td>依賴 EDD.md §3.4 BC 清單（M-28 已修，現有 §3.4 有 Bounded Context 表）；依賴 API.md §3 Endpoints（現有 API.md 已有 Endpoints 章節）；依賴 SCHEMA.md Document Control Owning BC 欄（現有 SCHEMA.md 已有此欄）</td></tr>
+<tr><td><strong>決策</strong></td><td>確認</td></tr>
+</table>
+<hr>
+<h2>M-50</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>需求來源</strong></td><td>Spring Modulith 架構符合性審查（2026-05-02）：HC-1～HC-5 全部 5 條約束缺少自動化測試場景定義。BDD-server.gen.md 雖提到「@modulith @p0 Scenario ≥ 4」，但 test-plan.md 本身無對應章節，CI 無法自動跑 Spring Modulith 隔離驗證。</td></tr>
+<tr><td><strong>問題描述</strong></td><td>目前情況：（1）<code>templates/test-plan.md</code> 缺少 Spring Modulith 可拆解性測試的正式章節；（2）<code>templates/test-plan.gen.md</code> 無「為每對 BC 自動生成 HC-1/HC-2 isolation scenario」的生成規則；（3）<code>BDD-server.gen.md</code> 有「@modulith @p0 Scenario ≥ 4」的要求，但格式是 quality-bar 中的一行條件，而非 Feature 檔的具體骨架；（4）結果：生成的 test-plan.md 可能完全沒有 ArchUnit / @ApplicationModuleTest 相關內容，CI pipeline 中的 <code>make test-modulith</code> 步驟缺少依據。影響：Spring Modulith 的 5 條約束在系統建置後完全依賴人工 Code Review 發現，無機械式驗證防護網。</td></tr>
+<tr><td><strong>專家評估</strong></td><td>CRITICAL 缺口。Spring Modulith 提供的 <code>@ApplicationModuleTest</code> 是其核心價值之一 —— 它能在 unit test 層級驗證「模組邊界是否被突破」，不需要啟動完整 Spring Context。若 test-plan.md 不定義這些測試場景，工程師不會主動寫這類測試。有了 DRYRUN（M-48）的 gate-check 機制後，test-plan.md 的完整性已有量化基線，現在更需要確保基線本身包含 Modulith 測試場景。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td><strong>(1) test-plan.md 新增「§X Spring Modulith 可拆解性驗證」章節</strong>（位置：在整合測試章節之後）：定義 ≥ 5 個測試場景骨架，每個對應一條 HC 約束：<code>TC-SM-01: HC-1 Schema Isolation — BC-A 不得直接 SELECT BC-B 的 Table</code>（工具：ArchUnit + SQL query log）；<code>TC-SM-02: HC-2 Public Interface — BC-A 不得 import BC-B 的 internal package</code>（工具：<code>@ApplicationModuleTest</code>）；<code>TC-SM-03: HC-3 Event-Driven — BC 間異步操作必須透過 Domain Event，不得直接 method call</code>（工具：<code>@ApplicationModuleTest</code> + mock event bus）；<code>TC-SM-04: HC-4 Shared State — Redis Key 必須以 </code>${BC_NAME}:<code> 為 prefix，不得跨 BC 讀寫</code>（工具：integration test + Redis key log）；<code>TC-SM-05: HC-5 DAG — 模組依賴圖無循環</code>（工具：<code>spring-modulith-core</code> 的 <code>ApplicationModules.verify()</code>）。<strong>(2) test-plan.gen.md 加入生成規則</strong>：在現有 Step N（整合測試章節）後新增：「必須從 EDD §3.4 BC 清單自動為每對 BC 生成 HC-1 + HC-2 隔離 scenario，總 scenario 數 ≥ BC 數 × 2」。<strong>(3) BDD-server.gen.md quality-bar 強化</strong>：將「@modulith @p0 Scenario ≥ 4」改為「@modulith @p0 Scenario ≥ 5（TC-SM-01 到 TC-SM-05 各一個）」，並要求每個 Scenario 的 Given/When/Then 具體到工具層級（如「Given Spring ApplicationModules.verify() is configured」）。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/test-plan.md</code>（新增 §X Spring Modulith 可拆解性驗證章節）；<code>templates/test-plan.gen.md</code>（新增 BC pair 自動生成規則）；<code>templates/BDD.md</code> 或 <code>BDD-server.gen.md</code>（@modulith Scenario 數量和格式要求加強）</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>生成的 test-plan.md 新增 1 個章節（~1 頁）；BDD feature files 新增 ≥ 5 個 @modulith Scenario；CI 新增 <code>make test-modulith</code> 目標（需 LOCAL_DEPLOY.md 同步新增）</td></tr>
+<tr><td><strong>工作量評估</strong></td><td>小～中（3 個文件，各 20~40 行）；test-plan.md 骨架最複雜，需確定 ≥ 5 個 Scenario 的 Given/When/Then 內容</td></tr>
+<tr><td><strong>依賴關係</strong></td><td>依賴 EDD.md §3.4 BC 清單（M-28 已修）；依賴 LOCAL_DEPLOY.md <code>make</code> 系列指令（M-50 完成後需在 LOCAL_DEPLOY.md 新增 <code>make test-modulith</code>）；不依賴 M-49（可並行）</td></tr>
+<tr><td><strong>決策</strong></td><td>確認</td></tr>
+</table>
+<hr>
+<h2>M-51</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>需求來源</strong></td><td>Spring Modulith 架構符合性審查（2026-05-02）：EDD.md §4.6 Domain Events 清單表完整性不確定；§4.3 服務間依賴 DAG 圖生成是否確實執行無法驗證。EDD.gen.md 的生成指令對兩者都不夠明確，導致 AI 可能跳過或生成空殼。</td></tr>
+<tr><td><strong>問題描述</strong></td><td>具體問題：<strong>(A) §4.6 Domain Events 清單</strong>：EDD.review.md SM-04（HIGH）要求 Domain Event Schema 包含 <code>event_schema_version</code> 和 <code>topic_name</code>，但 EDD.gen.md 的「生成 §4.6 Domain Events」步驟沒有「遍歷所有 BC 逐一列出發布的 Event」的強制指令；AI gen agent 可能只為 2-3 個 BC 示範，其餘 BC 的 events 缺漏。缺漏後果：ARCH §5.3 Event-Driven Communication 無法追溯「哪個 BC 發布了哪些事件」，Kafka Topic 設計無 source of truth。<strong>(B) §4.3 服務間依賴 DAG 圖</strong>：EDD.review.md SM-03（HIGH）要求「模組依賴圖含循環依賴 HC-5」的 check，但 EDD.gen.md 對 §4.3 DAG 圖的生成指令只說「生成跨 BC 依賴圖」，沒有「必須覆蓋所有 BC、必須標示依賴方向、必須透過 <code>ApplicationModules.verify()</code> 可驗證」的強制要求；AI 可能生成不完整的 DAG 或遺漏邊界。</td></tr>
+<tr><td><strong>專家評估</strong></td><td>CRITICAL 缺口。Domain Events 清單是 Spring Modulith 合部署 → 拆微服務的關鍵橋梁 —— 合部署時事件走 in-process bus，拆出後改 Kafka topic 名稱，若清單不完整，拆分時會遺漏事件。DAG 圖則是 HC-5 的唯一可視化工具，若不強制生成完整版本，循環依賴可能在 6 個月後才被 production 事故發現。兩個問題都源自 EDD.gen.md 生成規則的「強制程度」不足。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td><strong>(1) EDD.md §4.6 骨架加強</strong>：在現有 §4.6 Domain Events 後新增「§4.6.1 Domain Events 完整清單」表格骨架（6 欄：Owning BC ｜ Event Class Name ｜ Trigger ｜ Payload 欄位 ｜ Consumer BC(s) ｜ topic_name ｜ event_schema_version）；表格後補充「Event Schema 升版規則」2-3 行說明（破壞性變更需遞增 major version；舊版本保留 ≤ 14 天）。<strong>(2) EDD.gen.md §4.6 生成指令強化</strong>：在「生成 §4.6」的步驟中新增強制規則：「<strong>必須</strong>逐一遍歷 §3.4 的每個 BC，對每個 BC 列出其發布的所有 Domain Event（至少 1 個；若某 BC 無事件，明確標示「無」而非略過）；topic_name 格式為 <code>{系統縮寫}.{bc_name}.{event_type}.{v1}</code>；禁止只示範 1-2 個 BC」。<strong>(3) EDD.md §4.3 DAG 圖骨架加強</strong>：在現有 §4.3 後新增明確要求：「Mermaid graph LR 圖必須節點 = 全部 BC（無遺漏）、邊 = 依賴方向（A → B 表示 A 依賴 B 的 Public API）、附加 @ApplicationModules.verify() 測試程式碼骨架（3-5 行 Java）說明如何自動驗證此圖」。<strong>(4) EDD.gen.md §4.3 生成指令強化</strong>：新增：「DAG 圖節點數必須等於 §3.4 BC 清單的 BC 數（可用 bash 驗證：<code>grep -c &#x27;class &#x27; §4.3 Mermaid block == BC count</code>）；若圖中出現 A → B → A 的路徑，必須標示 ⚠️ 循環依賴並在 §4.3 下方加入修復建議」。<strong>(5) EDD.review.md SM-03 / SM-04 Check 加強</strong>：SM-03 新增量化 check：「DAG 圖的節點數是否等於 §3.4 BC 清單數（允差 0）」；SM-04 新增：「Events 清單中每個 BC 是否都有至少 1 行（無論是 event 或『無』聲明）」。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/EDD.md</code>（§4.3 DAG 圖骨架加強、§4.6.1 Domain Events 清單骨架新增）；<code>templates/EDD.gen.md</code>（§4.3 和 §4.6 生成指令各新增 3~5 行強制規則）；<code>templates/EDD.review.md</code>（SM-03 和 SM-04 Check 各新增 1~2 個量化驗證條件）</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>生成的 EDD.md 頁數增加（Events 清單可能 1~2 頁，視 BC 數量）；EDD review loop 多 2 個量化 check；EDD.gen.md 生成指令更嚴格，gen agent 生成時間可能增加 10-20%</td></tr>
+<tr><td><strong>工作量評估</strong></td><td>小～中（3 個文件，各 20~50 行）；EDD.md §4.6.1 表格骨架設計最需要謹慎（欄位要完整但不能過於複雜）</td></tr>
+<tr><td><strong>依賴關係</strong></td><td>不依賴其他未完成的 M-item；M-49（ARCH 三層映射表）完成後，EDD §4.6 Events 清單的 Consumer BC 欄可以被 ARCH §4.0 映射表驗證一致性（兩者互為上下游）</td></tr>
+<tr><td><strong>決策</strong></td><td>確認</td></tr>
+</table>
+<hr>
+<h2>M-52</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>需求來源</strong></td><td>Spring Modulith 架構符合性審查（2026-05-02）：HC-2「跨模組只透過 Public Interface」在 API.md 中缺少「每個 Endpoint 所屬 BC」的顯式聲明，導致前端或其他 BC 開發者無法從 API 文件判斷「這個 API 是哪個 BC 的 Public Interface」。</td></tr>
+<tr><td><strong>問題描述</strong></td><td>API.md §1.1（Document Control）雖有標注「Service Encapsulation（HC-2）」字樣，但整份文件是單一文件涵蓋所有 BC 的 Endpoints，缺少「每個 Endpoint 所屬 BC」的欄位或分組。問題：（1）如果 Member BC 和 Wallet BC 的 endpoint 混合列在同一個 §3 Endpoints 章節，消費者無法判斷「呼叫 <code>/api/v1/wallets/balance</code> 時，我是在跨 BC 呼叫嗎？」；（2）API.gen.md 沒有要求「按 BC 分節」或「每個 Endpoint 標示 Owning BC」；（3）review.md 對此無 check 項。</td></tr>
+<tr><td><strong>專家評估</strong></td><td>HIGH 缺口。HC-2 的實踐關鍵在於「BC 邊界可見」—— 開發者在寫 frontend 代碼時必須知道「我正在呼叫哪個 BC 的 Public API」，才能在之後的拆分中正確配置 API Gateway 的路由。若 API.md 不標示所屬 BC，整個 Modulith 可拆解性只存在於 EDD/ARCH 理論層，不落到實際 API 契約上。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td><strong>(1) API.md §3 Endpoints 按 BC 分節</strong>：將現有的扁平式 Endpoints 清單改為「§3.1 {BC_NAME} BC — Public API」的結構，每個 BC 一個小節；或在每個 Endpoint 行首加入「Owning BC」欄（若保持表格格式）。<strong>(2) API.md §1 Document Control 新增「Bounded Context Scope」欄</strong>：說明「本文件涵蓋以下 BC 的 Public API：<code>{{BC_LIST}}</code>」。<strong>(3) API.gen.md 新增生成規則</strong>：在「生成 §3 Endpoints」步驟中新增：「Endpoints 必須按 Owning BC 分組，每組以 <code>### §3.N {BC_NAME} Bounded Context Public API</code> 為標題；BC 名稱必須與 EDD §3.4 BC 清單完全一致（禁止自創 BC 名稱）」。<strong>(4) API.review.md（若存在）或 ARCH.review.md AM-02 擴展</strong>：新增 check：「§3 Endpoints 是否按 BC 分節或標示 Owning BC；每個 Endpoint 的 Owning BC 是否能在 EDD §3.4 找到對應」。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/API.md</code>（§1 Document Control 新增 BC Scope 欄、§3 Endpoints 結構改為按 BC 分節）；<code>templates/API.gen.md</code>（若存在，新增分節生成規則）；<code>templates/ARCH.review.md</code>（AM-02 擴展 API BC 標示 check）</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>生成的 API.md 結構調整（§3 從扁平改為按 BC 分節）；現有 API.review.md（若有）需同步更新 section check</td></tr>
+<tr><td><strong>工作量評估</strong></td><td>小（2~3 個文件，各 10~20 行調整）；主要工作是 API.md 骨架的結構重組</td></tr>
+<tr><td><strong>依賴關係</strong></td><td>依賴 M-49（ARCH §4.0 映射表）完成後，API BC 分節可作為 §4.0 映射表的驗證來源；不阻塞 M-49</td></tr>
+<tr><td><strong>決策</strong></td><td>確認</td></tr>
+</table>
+<hr>
+<h2>M-53</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>需求來源</strong></td><td>Spring Modulith 架構符合性審查（2026-05-02）：HC-4「無跨模組 Shared Mutable State」的 Redis Key Namespace 隔離設計，僅在 EDD.review.md SM-05 的 check 範例（<code>member:<em></code>, <code>wallet:</em></code>）中隱性出現，未在正式架構文件中有專屬設計章節，工程師難以發現和執行。</td></tr>
+<tr><td><strong>問題描述</strong></td><td>ARCH.md §7 高可用設計提及 Redis 配置（Sentinel / Cluster），但未包含「BC 維度的 Redis Key Prefix 設計規範」。ARCH.review.md AM-04 能在 review 時發現違規，但「Cache Invalidation 跨 BC 影響」、「Session 共享 Redis 如何隔離」等設計決策完全缺失。結果：工程師在寫 Redis 相關代碼時，沒有官方參考文件說明「Wallet BC 的 Redis key 應以 <code>wallet:</code> 為 prefix，不得以 <code>member:wallet:</code> 這種跨 BC namespace 存取」。</td></tr>
+<tr><td><strong>專家評估</strong></td><td>MEDIUM 缺口。Redis Namespace 隔離的設計成本低，但若缺少正式規範，在 3-6 個月後的 BC 拆分時，發現 Redis Key 沒有隔離（例如 <code>session:{user_id}</code> 跨 BC 共用），遷移成本極高。現在在架構文件中正式化只需 10-20 行，但拆分時修復可能需要 1-2 週。</td></tr>
+<tr><td><strong>建議怎麼改</strong></td><td><strong>(1) ARCH.md §7 新增子節「§7.1 Shared State Isolation（HC-4）」</strong>：定義 Redis Key Namespace 分配規範（格式 <code>{BC_NAME}:{entity_type}:{id}</code>，範例 <code>member:session:u001</code>、<code>wallet:balance_cache:w001</code>）；列出「禁止的 Key 模式」（如 <code>user:<em></code> 橫跨多 BC）；說明 Session 存放規則（Session 若存 Redis，必須以所屬 BC prefix 隔離）；說明 Cache Invalidation 政策（BC-A 的 cache 失效操作只能清除 <code>{BC_A}:</em></code>，不得清除他 BC 的 key）。<strong>(2) ARCH.gen.md 新增生成規則</strong>：在「生成 §7 高可用設計」步驟後新增：「必須從 EDD §3.4 BC 清單自動為每個 BC 分配 Redis Key Prefix，生成 §7.1 表格（至少涵蓋 Session、Cache、Lock、Pub/Sub 4 種 key 類型）」。<strong>(3) ARCH.review.md AM-04 擴展</strong>：在現有 AM-04「無跨服務共享可變狀態說明」的 Check 中新增：「§7.1 是否存在；表格中每個 BC 是否都有 Redis Key Prefix 定義；Key Prefix 是否互斥（無重疊）」。</td></tr>
+<tr><td><strong>目標檔案</strong></td><td><code>templates/ARCH.md</code>（§7 新增 §7.1 Shared State Isolation 子節）；<code>templates/ARCH.gen.md</code>（§7 生成步驟後新增 §7.1 生成指令）；<code>templates/ARCH.review.md</code>（AM-04 Check 擴展）</td></tr>
+<tr><td><strong>影響範圍</strong></td><td>生成的 ARCH.md 新增 §7.1（~0.5 頁）；DRYRUN gate-check 的 ARCH.md min_h2_sections 需從 5 調整為 6（新增 §7.1）</td></tr>
+<tr><td><strong>工作量評估</strong></td><td>小（3 個文件，各 10~20 行）；§7.1 骨架設計最關鍵，需確定 Key 格式和 4 種 key 類型</td></tr>
+<tr><td><strong>依賴關係</strong></td><td>不依賴其他未完成 M-item；M-53 完成後，<code>templates/DRYRUN.gen.md</code> 的 ARCH.md min_h2_sections 規則需從 5 更新為 6（小 follow-up 修改）</td></tr>
+<tr><td><strong>決策</strong></td><td>確認</td></tr>
+</table>
+<hr>
+<p>共 53 項修改（M-01 至 M-53），跨 40+ 個檔案。</p>
+<p><em>版本：2026-05-02 v14（新增 M-49～M-53：Spring Modulith 架構符合性審查缺口修復 — 3 個 CRITICAL（ARCH 三層映射表、Modulith BDD 測試場景、EDD Events/DAG 強化）+ 2 個 HIGH/MEDIUM（API BC 分節、Redis Namespace 設計）；審查基礎：5 條 HC 約束逐項驗證，覆蓋 17 個核心模板文件，整體評分 4.0/5）</em></p></main>
+  </div>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({startOnLoad:true,theme:'default',
+      flowchart:{curve:'basis',nodeSpacing:60,rankSpacing:80},
+      er:{layoutDirection:'TD',minEntityWidth:100,fontSize:12},
+      sequence:{actorMargin:60,messageMargin:30}});
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-go.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

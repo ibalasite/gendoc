@@ -31,22 +31,23 @@
 <a class="sidebar__link active" href="prd.html">📝 產品需求文件 (PRD)</a>
 <a class="sidebar__link" href="client.html">📄 Client</a>
 <a class="sidebar__link" href="gendoc-redesign-decisions.html">📄 Gendoc-Redesign-Decisions</a>
+<a class="sidebar__link" href="ha-spof-modification-plan.html">📄 Ha-Spof-Modification-Plan</a>
 </div>
     </aside>
     <div class="sidebar-resizer" id="sidebarResizer"></div>
     <main class="doc-content"><h1>PRD — Product Requirements Document</h1>
 <p>&lt;!-- 對應學術標準：IEEE 830 (SRS)，對應業界：Google PRD / Amazon PRFAQ --&gt;</p>
-<p>&lt;!-- Version: v2.7 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 --&gt;</p>
+<p>&lt;!-- Version: v3.0 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 --&gt;</p>
 <hr>
 <h2>Document Control</h2>
 <table>
 <tr><th>欄位</th><th>內容</th></tr>
 <tr><td><strong>DOC-ID</strong></td><td>PRD-GENDOC-20260422</td></tr>
 <tr><td><strong>產品名稱</strong></td><td>gendoc — AI-Driven Implementation Blueprint Generator</td></tr>
-<tr><td><strong>文件版本</strong></td><td>v2.7</td></tr>
+<tr><td><strong>文件版本</strong></td><td>v3.0</td></tr>
 <tr><td><strong>狀態</strong></td><td>ACTIVE</td></tr>
 <tr><td><strong>作者（PM）</strong></td><td>AI Product Manager Agent</td></tr>
-<tr><td><strong>日期</strong></td><td>2026-05-01</td></tr>
+<tr><td><strong>日期</strong></td><td>2026-05-03</td></tr>
 <tr><td><strong>上游來源</strong></td><td>gendoc 開源專案（github.com/ibalasite/gendoc）</td></tr>
 <tr><td><strong>審閱者</strong></td><td>技術架構師、QA Lead</td></tr>
 <tr><td><strong>核准者</strong></td><td>待定</td></tr>
@@ -55,6 +56,9 @@
 <h2>Change Log</h2>
 <table>
 <tr><th>版本</th><th>日期</th><th>作者</th><th>變更摘要</th></tr>
+<tr><td>v3.0</td><td>2026-05-03</td><td>PM Agent</td><td><strong>gendoc-config UX 重設計：兩層選單 + 循環修改 + Step 4c 必填補問</strong>：(1) <strong>主選單四項</strong>：「重設流程進度」/ 「修改審查強度」/ 「修改專案設定」/ 「✅ 確認完成，儲存離開」；(2) <strong>兩層設計</strong>：「修改專案設定」展開第二層（client_type / has_admin_backend / 清除全部設定），「重設流程進度」展開第二層（全部重跑 / 從某 STEP 開始），解決 AskUserQuestion 4 選項上限問題；(3) <strong>循環模式</strong>：每個設定完成後回到 Step 1 主選單，使用者可多次修改，完成後選「✅ 確認完成」才儲存離開；(4) <strong>Step 4c 必填強制補問</strong>：選「確認完成」前先檢查 client_type / has_admin_backend / review_strategy 是否均已設定，缺哪項就強制問哪項，確保 state file 無空值；(5) <strong>has_admin_backend 可設定</strong>：從 gendoc-config 互動設定，影響 ADMIN_IMPL 步驟是否執行；(6) <strong>pipeline.json 動態讀取</strong>：step picker 第二層選單從 pipeline.json 動態生成，新增步驟不需改 gendoc-config。</td></tr>
+<tr><td>v2.9</td><td>2026-05-02</td><td>PM Agent</td><td><strong>DEVELOPER_GUIDE.md — 開發者日常操作手冊（建置之後的每日操作層）</strong>：(1) <strong>填補真實空白</strong>：LOCAL_DEPLOY.md 負責「第一次建起來」（一次性），runbook.md 負責「生產事故處理」，CICD.md 負責「pipeline 設計」；三者均不覆蓋開發者建置完成後的每日操作；(2) <strong>新增 <code>DEVELOPER_GUIDE.md</code> template 三件套</strong>：§1 每日開發工作流程 step-by-step（git push → Jenkins 觸發 → pipeline 監控 → ArgoCD sync → 應用驗證）；§2 CI/CD 診斷（Jenkins 未觸發 / stage 失敗重跑 / ArgoCD OutOfSync / Gitea webhook 除錯）；§3 本地環境快速指令（<code>make dev-status</code> / <code>make dev-logs</code> / <code>make dev-restart</code> / <code>make dev-health</code>）；§4 常見問題 + 解法（本地 namespace 版本，與 runbook.md 的生產版本明確區隔）；§5 環境維護（密碼 rotate、image 清理、完全重置）；(3) <strong>受眾明確分離</strong>：runbook.md 目標讀者 = SRE / On-call（生產事故）；DEVELOPER_GUIDE.md 目標讀者 = 開發者（日常開發操作），不混用；(4) <strong>pipeline.json 新增 D21-DEVELOPER_GUIDE step</strong>；文件類型 <code>developer-guide</code> 可通過 <code>/gendoc developer-guide</code> 生成；(5) <strong>PRD LOCAL_DEPLOY 標準 #6 補充</strong>：DEVELOPER_GUIDE.md 作為 LOCAL_DEPLOY.md 的日常操作配套文件納入藍圖品質標準</td></tr>
+<tr><td>v2.8</td><td>2026-05-02</td><td>PM Agent</td><td><strong>Local Developer Platform：Gitea + Production Parity + 非開發者可用的完整 CI/CD</strong>：(1) <strong>核心需求</strong>：任何人（含非開發者）在本機執行 <code>make dev-tools-up</code> 後，即擁有完整的 CI/CD flow——Gitea（本地 git server）→ Jenkins（CI pipeline）→ ArgoCD（CD GitOps）→ 應用自動部署——不需要遠端 GitHub/GitLab 帳號，不需要了解 k8s；(2) <strong>Production Parity 原則</strong>（12-Factor App #10）：本地環境與生產環境使用完全相同的工具鏈（Jenkins + ArgoCD + Kubernetes），差異只在規模與 TLS；本地通過的 pipeline 在生產不會因「工具不同」而失敗；(3) <strong>Port 域分離設計</strong>：應用域（Port 80，面向使用者/測試人員）與開發工具域（Port 3000 Gitea / Port 8080 Jenkins / Port 8443 ArgoCD，面向開發者）明確分開，不衝突、可同時運行；(4) <strong>CICD.md 新增章節</strong>：§8 Local Developer Platform（Gitea pod 設計、dev-tools namespace 架構圖、Gitea→Jenkins webhook、ArgoCD 以 Gitea 為 source）；§9 Makefile dev-tools targets（<code>make dev-tools-up</code> / <code>make gitea-ui</code> / <code>make jenkins-ui</code> / <code>make argocd-ui</code> / <code>make dev-tools-status</code>）；(5) <strong>LOCAL_DEPLOY.md §21 更新</strong>：完整 Gitea 安裝步驟、本地 git push workflow、Jenkins SCM 指向本地 Gitea、非開發者 onboarding 指引（4 步驟完成完整 CI/CD 環境設置）；(6) <strong>CICD.md 新增</strong>至 pipeline.json（D20-CICD）；文件類型 <code>cicd</code> 可通過 <code>/gendoc cicd</code> 生成；(7) <strong>PRD LOCAL_DEPLOY 標準 #6 擴充</strong>：CI/CD 工具平台需求加入藍圖品質標準</td></tr>
 <tr><td>v2.7</td><td>2026-05-01</td><td>PM Agent</td><td><strong>架構重設計：Dev/Runtime 分離 + 統一 setup 工具</strong>：(1) <strong>Clone 位置根本性修正</strong> — 從 <code>~/projects/gendoc/</code>（開發目錄兼 runtime）改為 <code>~/.claude/skills/gendoc/</code>（純 runtime），徹底解決 SessionStart hook 每小時 <code>git pull</code> 可能覆蓋開發者未提交工作的風險；<code>~/projects/gendoc/</code> 恢復為純開發目錄，不再是任何人的 runtime 依賴。(2) <strong>統一 <code>setup</code> 工具</strong>：廢除 <code>install.sh</code>、<code>install.py</code>、<code>bin/gendoc-upgrade</code> 三個重複入口，整合為單一 <code>setup</code> 指令（預設=install）支援 <code>install</code> / <code>uninstall</code> / <code>upgrade</code> 三個子命令；macOS/Linux 用 <code>setup</code>、Windows 用 <code>setup.ps1</code>。(3) <strong><code>bin/gendoc-env.sh</code> 路徑唯一真相</strong>：新增環境變數宣告檔（<code>GENDOC_DIR</code> / <code>GENDOC_BIN</code> / <code>GENDOC_TEMPLATES</code> / <code>GENDOC_TOOLS</code>），所有 skill 和腳本均 <code>source</code> 此檔取得路徑，消除各處硬編碼 <code>~/projects/gendoc</code> 的違規。(4) <strong><code>tools/bin/</code> Pipeline 工具目錄</strong>：<code>gen_html.py</code> 從 <code>bin/</code> 移至 <code>tools/bin/</code>，區分基礎設施腳本（<code>bin/</code>）與流水線工具（<code>tools/bin/</code>）。(5) <strong>SKILL.md 移至 repo 根目錄</strong>：從 <code>skills/gendoc/SKILL.md</code> 移至 <code>SKILL.md</code>，與 gstack 慣例一致。(6) <strong>Fix-D 修正</strong>：<code>gendoc-auto</code>、<code>gendoc-flow</code>、<code>gendoc-repair</code>、<code>reviewdoc</code> 4 個 skill 移除硬編碼 <code>$HOME/projects/gendoc</code> 路徑，改為 source <code>gendoc-env.sh</code> 後呼叫 <code>$GENDOC_DIR/setup upgrade</code>。(7) <strong>架構違規稽核</strong>：建立 <code>VIOLATION_AUDIT.md</code>，記錄並解決 20 項架構違規（7×P2、8×P3、3×P4、2×D）。</td></tr>
 <tr><td>v2.6</td><td>2026-04-28</td><td>PM Agent</td><td><strong>CLIENT_IMPL 客戶端實作規格書 + pipeline.json 成為唯一維護入口 + Phase D-2 Agent 包裝</strong>：(1) 新增 D10d-CLIENT_IMPL 步驟（條件 <code>client_type != none</code>，位於 D10c-ANIM 之後），三件套模板（CLIENT_IMPL.md + CLIENT_IMPL.gen.md + CLIENT_IMPL.review.md），5-way 引擎路由 —— 依 EDD §3.3 自動偵測 CLIENT_ENGINE，分別為 Cocos Creator（cc.Node 樹、cc.assetManager.loadBundle、cc.EventTarget 事件驅動、cc.AudioSource pool、Prefab Object Pool）/ Unity WebGL（Hierarchy GameObject 樹、Addressables、Animator.SetTrigger、AudioMixer）/ React（JSX 組件樹、React.lazy + Suspense、Framer Motion / GSAP、pages/components/store 三層）/ Vue（SFC 組件樹、defineAsyncComponent、Pinia stores / composables）/ HTML5（DOM 結構、Web Audio API / Howler.js、Preload Manager、requestAnimationFrame）展開對應場景結構、資源載入策略、動畫觸發、AudioManager 架構、VFX 整合規格；<code>gendoc/SKILL.md</code> 新增 client-impl / client_impl / cocos / unity / react-impl / vue-impl 等 6 個型別別名。(2) <strong>pipeline.json 成為唯一維護入口</strong>：<code>gendoc-config</code> step picker 和 <code>gendoc-shared</code> STEP_SEQUENCE / STEP_ORDER / Review Loop 適用清單全部改為執行時動態讀取 pipeline.json（python3 解析），消除 skill 間硬編碼同步問題；新增步驟只需修改 pipeline.json 一個檔案，其他所有 skill 自動跟上。(3) <strong>gendoc-flow Phase D-2 → Agent subagent 包裝</strong>：每份文件的 review→fix loop 改由 Agent tool 委派給獨立 subagent 執行，主 Claude context 不再累積 12+ 文件 × 5 輪的 review/fix 輸出，pipeline 可持續運行至 D19 不被 context window 撐爆，回傳格式統一為 REVIEW_LOOP_RESULT 緊湊結構。</td></tr>
 <tr><td>v2.5</td><td>2026-04-28</td><td>PM Agent</td><td><strong>具體建置成功標準明確化</strong>：在「什麼是可實作的藍圖」新增 LOCAL_DEPLOY / Runbook / 跨文件一致性三條標準，明確定義 gendoc 產出必須能讓 AI 或人類 step-by-step 在 local 建置完整 k8s 環境（Rancher Desktop）、client 封進 k8s pod、對外僅一個 port、docker-compose 為輔助工具、所有 Unit / Integration / E2E 測試可完整執行、跨文件品質如各自聲明的標準且上下文對齊無缺漏。</td></tr>
@@ -89,7 +93,7 @@
 </table>
 <h3>什麼是「可實作的藍圖」</h3>
 <p>gendoc 生成的每份文件都必須達到以下標準，才視為合格輸出：</p>
-<ol><li><strong>EDD（Engineering Design Doc）</strong>：每個 module 的 class 清單；每個 class 的 method 簽名、參數名稱、型別、回傳值、例外行為；跨 class 的呼叫關係圖</li><li><strong>API.md</strong>：每個端點的 URL、HTTP method、request body schema（含欄位、型別、是否必填、驗證規則）、response schema、error code 列舉、Rate Limit</li><li><strong>SCHEMA.md</strong>：完整 DDL；每個欄位的型別、nullable、default、constraint；全部 index（含 composite）；外鍵關係；migration 策略</li><li><strong>test-plan.md</strong>：每個功能點的正向測試、負向測試、邊界值分析（BVA）；等價類劃分（EP）；具體輸入值與預期輸出值的對照表</li><li><strong>BDD.md</strong>：每個 Scenario 的 Given/When/Then 完整定義；edge case Scenario；unhappy path Scenario</li><li><strong>LOCAL_DEPLOY.md</strong>：依文件 step-by-step 指令，AI 或人類可在 local 完整建置 k8s 環境（以 Rancher Desktop 實現）；<strong>client 也封進 k8s pod</strong>，所有服務均在 k8s 內；<strong>對外只有一個 port</strong>，測試入口單一；同時提供 docker-compose 版本作為輔助（兩種方式均可無礙建置，不能有缺漏步驟或 TBD）</li><li><strong>Runbook.md</strong>：所有操作步驟具體到指令層級（含 namespace、context、port-forward 指令）；不含模糊描述；含驗證指令讓執行者確認每步成功</li><li><strong>跨文件上下文一致性</strong>：所有文件（BRD → PRD → PDD → EDD → ARCH → API → SCHEMA → test-plan → BDD → Runbook → LOCAL_DEPLOY）的內容必須互相對齊，上游定義的規格下游必須遵守，不得有衝突或沉默遺漏；任何一份文件聲明的品質標準，其產出必須如實達到，不能打折</li></ol>
+<ol><li><strong>EDD（Engineering Design Doc）</strong>：每個 module 的 class 清單；每個 class 的 method 簽名、參數名稱、型別、回傳值、例外行為；跨 class 的呼叫關係圖</li><li><strong>API.md</strong>：每個端點的 URL、HTTP method、request body schema（含欄位、型別、是否必填、驗證規則）、response schema、error code 列舉、Rate Limit</li><li><strong>SCHEMA.md</strong>：完整 DDL；每個欄位的型別、nullable、default、constraint；全部 index（含 composite）；外鍵關係；migration 策略</li><li><strong>test-plan.md</strong>：每個功能點的正向測試、負向測試、邊界值分析（BVA）；等價類劃分（EP）；具體輸入值與預期輸出值的對照表</li><li><strong>BDD.md</strong>：每個 Scenario 的 Given/When/Then 完整定義；edge case Scenario；unhappy path Scenario</li><li><strong>LOCAL_DEPLOY.md + DEVELOPER_GUIDE.md（配套二件）</strong>：LOCAL_DEPLOY.md 負責第一次建置（step-by-step，含 k8s 環境、所有服務、CI/CD 工具平台）；DEVELOPER_GUIDE.md 負責建置後的每日操作（git push → CI → CD → 驗證的完整工作流程，CI/CD 診斷，本地快速指令，常見問題，環境維護）；<strong>client 也封進 k8s pod</strong>，所有服務均在 k8s 內；<strong>對外只有一個 port（Port 80）</strong>，測試入口單一；同時提供 docker-compose 版本作為輔助（兩種方式均可無礙建置，不能有缺漏步驟或 TBD）；<strong>Local Developer Platform 完整可用</strong>：Gitea（Port 3000）+ Jenkins（Port 8080）+ ArgoCD（Port 8443）均以 k3s pod 運行，透過 <code>make dev-tools-up</code> 一鍵啟動；開發工具 port 與應用 port 80 域分離、不衝突；<strong>Production Parity</strong>：本地與生產使用完全相同工具鏈，差異只在規模與 TLS</li><li><strong>Runbook.md</strong>：所有操作步驟具體到指令層級（含 namespace、context、port-forward 指令）；不含模糊描述；含驗證指令讓執行者確認每步成功</li><li><strong>跨文件上下文一致性</strong>：所有文件（BRD → PRD → PDD → EDD → ARCH → API → SCHEMA → test-plan → BDD → Runbook → LOCAL_DEPLOY）的內容必須互相對齊，上游定義的規格下游必須遵守，不得有衝突或沉默遺漏；任何一份文件聲明的品質標準，其產出必須如實達到，不能打折</li></ol>
 <h3>雙受眾設計</h3>
 <table>
 <tr><th>受眾</th><th>如何使用 gendoc 產出</th></tr>
@@ -362,17 +366,18 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
     And 帳號的 failed_attempts 重置為 0</code></pre>
 <hr>
 <h2>5. Skill 架構與流程</h2>
-<h3>5.1 Skill 清單（17 個）</h3>
+<h3>5.1 Skill 清單（19 個）</h3>
 <blockquote><p>標準文件生成（IDEA/BRD/PRD/EDD/API/SCHEMA…）由 <code>gendoc-flow</code> 透過 <code>templates/*.gen.md</code> 派送 subagent 執行，不以獨立 skill 存在。</p></blockquote>
 <table>
 <tr><th>分層</th><th>Skill 名稱</th><th>功能</th></tr>
 <tr><td><strong>入口層</strong></td><td><code>gendoc</code></td><td>快捷入口，自動判斷從 gendoc-auto 或 gendoc-flow 進入</td></tr>
 <tr><td></td><td><code>gendoc-auto</code></td><td>任意輸入→IDEA+BRD→移交 gendoc-flow</td></tr>
 <tr><td><strong>流水線層</strong></td><td><code>gendoc-flow</code></td><td>完整文件生成流水線（D03–D19），含 P-14/P-15</td></tr>
-<tr><td><strong>設定層</strong></td><td><code>gendoc-config</code></td><td>互動設定執行模式、Review 策略、client_type、重跑起點</td></tr>
+<tr><td><strong>設定層</strong></td><td><code>gendoc-config</code></td><td>互動兩層選單：設定 client_type、has_admin_backend、Review 策略、重跑起點；循環修改，確認完成前 Step 4c 強制補問未設定的必填欄位</td></tr>
 <tr><td><strong>共用層</strong></td><td><code>gendoc-shared</code></td><td>共用邏輯參考（狀態管理、Review 策略、STEP_SEQUENCE）</td></tr>
 <tr><td><strong>更新層</strong></td><td><code>gendoc-update</code></td><td>版本自動更新（從 GitHub 拉取最新 skill）</td></tr>
-<tr><td><strong>特殊生成層</strong></td><td><code>gendoc-gen-diagrams</code></td><td>生成 9 大 UML 圖 + class-inventory.md（D07b-UML）</td></tr>
+<tr><td><strong>特殊生成層</strong></td><td><code>gendoc-gen-diagrams</code></td><td>生成 9 大 UML 圖 + class-inventory.md（UML）；以及 5 張 CI/CD UML 圖（UML-CICD）</td></tr>
+<tr><td></td><td><code>gendoc-gen-dryrun</code></td><td>讀取 EDD/PRD/ARCH 生成量化基線 docs/MANIFEST.md + .gendoc-rules/*.json（DRYRUN）</td></tr>
 <tr><td></td><td><code>gendoc-gen-client-bdd</code></td><td>生成客戶端 BDD feature files（D12b，client_type≠api-only）</td></tr>
 <tr><td></td><td><code>gendoc-gen-prototype</code></td><td>生成可互動 HTML 原型：UI 原型（web/game）或 API Explorer（api-only）</td></tr>
 <tr><td></td><td><code>gendoc-gen-contracts</code></td><td>提取機器可讀規格至 docs/blueprint/（OpenAPI/Schema/Pact/IaC/Seed Code，D17）</td></tr>
@@ -388,58 +393,59 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
 <p>每個標準步驟執行<strong>三專家子代理模式</strong>：Gen ⚙ → Review ↻ → Fix ✎ → Commit ↑，直至 finding = 0 或達 max_rounds。</p>
 <p><code>✦</code> = client_type ≠ none 時執行（有 UI 的產品）　<code>★</code> = special_skill（不走三專家，直接呼叫 Skill）</p>
 <div class="diagram-container"><pre class="mermaid">flowchart TD
-    INPUT((任意輸入\n文字 · URL · 圖片 · Repo)) --&gt; AUTO
-
+    INPUT([任意輸入\n文字 · URL · 圖片 · Repo]) --&gt; AUTO
     subgraph AUTO[&quot;/gendoc-auto — 入口&quot;]
         direction LR
         G1[&quot;⚙ Gen IDEA\n資深 PM Expert&quot;] --&gt; R1[&quot;↻ Review + Fix Loop\nfinding = 0 → pass\nfinding &gt; 0 → Fix → re-Review&quot;]
         R1 --&gt; G2[&quot;⚙ Gen BRD\n資深商業分析師&quot;]
         G2 --&gt; R2[&quot;↻ Review + Fix Loop&quot;]
     end
-
     R2 --&gt;|&quot;finding = 0\nhandoff = true 寫入 state&quot;| FLOW
-
     subgraph FLOW[&quot;/gendoc-flow — 每步驟 Gen ⚙ Review ↻ Fix ✎ Commit ↑&quot;]
         direction TD
         subgraph REQ[&quot;需求層&quot;]
             direction LR
-            D03[&quot;D03 PRD&quot;] --&gt; D04[&quot;D04 PDD ✦&quot;] --&gt; D05[&quot;D05 VDD ✦&quot;]
+            NP[&quot;PRD&quot;] --&gt; NCO[&quot;CONSTANTS ★&quot;] --&gt; NPD[&quot;PDD ✦&quot;] --&gt; NVD[&quot;VDD ✦&quot;]
         end
         subgraph DES[&quot;設計層&quot;]
             direction LR
-            D06[&quot;D06 EDD&quot;] --&gt; D07[&quot;D07 ARCH&quot;] --&gt; D08[&quot;D08 API&quot;] --&gt; D09[&quot;D09 SCHEMA&quot;] --&gt; D10[&quot;D10 FRONTEND ✦&quot;]
+            NED[&quot;EDD&quot;] --&gt; NAR[&quot;ARCH&quot;] --&gt; NDR[&quot;DRYRUN ★&quot;] --&gt; NAPI[&quot;API&quot;] --&gt; NSC[&quot;SCHEMA&quot;] --&gt; NFR[&quot;FRONTEND ✦&quot;] --&gt; NAU[&quot;AUDIO ✧&quot;] --&gt; NAN[&quot;ANIM ✧&quot;] --&gt; NCI[&quot;CLIENT_IMPL ✦&quot;] --&gt; NAIM[&quot;ADMIN_IMPL ◆&quot;] --&gt; NRS[&quot;RESOURCE ✦&quot;]
+        end
+        subgraph UML_L[&quot;知識圖層&quot;]
+            NUML[&quot;UML ★\n9 Server + 16 Frontend&quot;]
         end
         subgraph QA[&quot;品質層&quot;]
             direction LR
-            D11[&quot;D11 test-plan&quot;] --&gt; D12[&quot;D12 BDD-server&quot;] --&gt; D12b[&quot;D12b BDD-client ✦&quot;] --&gt; D13[&quot;D13 RTM&quot;]
+            NTP[&quot;test-plan&quot;] --&gt; NBS[&quot;BDD-server&quot;] --&gt; NBC[&quot;BDD-client ✦&quot;] --&gt; NRTM[&quot;RTM&quot;]
         end
         subgraph OPS[&quot;運維層&quot;]
             direction LR
-            D14[&quot;D14 runbook&quot;] --&gt; D15[&quot;D15 LOCAL_DEPLOY&quot;]
+            NRB[&quot;runbook&quot;] --&gt; NLD[&quot;LOCAL_DEPLOY&quot;] --&gt; NCIC[&quot;CICD&quot;] --&gt; NDG[&quot;DEVELOPER_GUIDE&quot;] --&gt; NUC[&quot;UML-CICD ★&quot;]
         end
         subgraph AUDIT[&quot;稽核層&quot;]
-            D16[&quot;D16 ALIGN ★&quot;] --&gt; D16F[&quot;D16-F ALIGN-FIX ★&quot;]
+            NAL[&quot;ALIGN ★&quot;] --&gt; NALF[&quot;ALIGN-FIX ★&quot;] --&gt; NALV[&quot;ALIGN-VERIFY ★&quot;]
         end
         subgraph IMPL[&quot;實作層（docs/blueprint/）&quot;]
             direction LR
-            D17[&quot;D17 CONTRACTS ★&quot;] --&gt; D18[&quot;D18 MOCK ★ ✦&quot;]
+            NCT[&quot;CONTRACTS ★&quot;] --&gt; NMK[&quot;MOCK ★ ✦&quot;] --&gt; NPRT[&quot;PROTOTYPE ★ ✦&quot;]
         end
         subgraph PUB[&quot;發布層&quot;]
-            D19[&quot;D19 HTML ★&quot;]
+            NHL[&quot;HTML ★&quot;]
         end
-        REQ --&gt; DES --&gt; QA --&gt; OPS --&gt; AUDIT --&gt; IMPL --&gt; PUB
+        REQ --&gt; DES --&gt; UML_L --&gt; QA --&gt; OPS --&gt; AUDIT --&gt; IMPL --&gt; PUB
     end
-
-    FLOW --&gt; DONE((GitHub Pages 文件站))
-
-    RESUME((&quot;/gendoc-flow\n斷點續行&quot;)) -.-&gt;|&quot;review_progress\ncompleted_steps&quot;| FLOW
-    CONFIG((&quot;/gendoc-config\n設定強度 / 重跑點&quot;)) -.-&gt; FLOW
-
+    FLOW --&gt; DONE([GitHub Pages 文件站\n+ docs/blueprint/ 可攜帶])
+    RESUME([&quot;/gendoc-flow\n斷點續行&quot;]) -.-&gt;|&quot;review_progress\ncompleted_steps&quot;| FLOW
+    CONFIG([&quot;/gendoc-config\n設定強度 / 重跑點&quot;]) -.-&gt; FLOW
     classDef condNode fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
+    classDef gameNode fill:#fce7f3,stroke:#db2777,color:#831843
     classDef specNode fill:#fef3c7,stroke:#f59e0b,color:#78350f
+    classDef adminNode fill:#ede9fe,stroke:#7c3aed,color:#3b0764
     classDef ioNode fill:#d1fae5,stroke:#059669,color:#064e3b
-    class D04,D05,D10,D12b,D18 condNode
-    class D16,D16F,D17,D18,D19 specNode
+    class NPD,NVD,NFR,NBC,NCI,NRS,NMK,NPRT condNode
+    class NAU,NAN gameNode
+    class NCO,NDR,NUML,NUC,NAL,NALF,NALV,NCT,NMK,NPRT,NHL specNode
+    class NAIM adminNode
     class INPUT,DONE ioNode</pre></div>
 <h3>5.3 文件流水線依賴鏈（Pipeline Dependency Chain）</h3>
 <p>每份文件生成時<strong>必須讀取所有上游文件</strong>（累積鏈，非僅直接父文件）。以下為各文件類型的權威累積上游依賴，來源為各 <code>templates/*.gen.md</code> 的 <code>upstream-docs</code> 欄位。</p>
@@ -467,7 +473,7 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
                │              └─[稽核層] ALIGN_REPORT.md + README.md → docs/pages/</code></pre>
 <h4>文件上下層關係圖（Document Hierarchy Diagram）</h4>
 <div class="diagram-container"><pre class="mermaid">graph TD
-    REQ((docs/req/ 原始素材))
+    REQ([docs/req/ 原始素材])
     L0[&quot;L0 IDEA.md&lt;br/&gt;&lt;small&gt;概念入口（可選）&lt;/small&gt;&quot;]
     L1[&quot;L1 BRD.md&lt;br/&gt;&lt;small&gt;商業需求&lt;/small&gt;&quot;]
     L2[&quot;L2 PRD.md&lt;br/&gt;&lt;small&gt;產品需求&lt;/small&gt;&quot;]
@@ -508,7 +514,7 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
     class AUDIT audit
     class IMPL,PUB impl
     class REQ,L10 io</pre></div>
-<blockquote><p><strong>藍色節點</strong>（PDD / VDD / FRONTEND / BDD-client）：<code>client_type ≠ none</code> 時才啟用。<strong>黃色</strong>：稽核層特殊步驟。</p></blockquote>
+<blockquote><p><strong>✦ 藍色節點</strong>（PDD / VDD / FRONTEND / CLIENT_IMPL / RESOURCE / BDD-client / MOCK / PROTOTYPE）：<code>client_type ≠ api-only</code> 時啟用。<strong>✧ 粉紅節點</strong>（AUDIO / ANIM）：<code>client_type = game</code> 專屬。<strong>◆ 紫色節點</strong>（ADMIN_IMPL）：<code>has_admin_backend = true</code> 才啟用。<strong>★ 黃色節點</strong>：special_skill（不走三專家，直接呼叫 Skill）— 含 DRYRUN、UML、UML-CICD、ALIGN 三步驟、CONTRACTS、MOCK、PROTOTYPE、HTML。</p></blockquote>
 <h4>累積上游依賴表（Cumulative Upstream Table）</h4>
 <table>
 <tr><th>文件</th><th>層級</th><th>必須讀取的累積上游</th><th>可選條件</th></tr>
@@ -535,7 +541,7 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
 <h4>累積上游關聯圖（Cumulative Reference Visualization）</h4>
 <p>每個節點顏色深度代表累積讀取的文件層數；箭頭方向為「讀取方向」（下游文件讀上游文件）。</p>
 <div class="diagram-container"><pre class="mermaid">graph TD
-    REQ((&quot;docs/req/ ●&quot;)):::l0
+    REQ([&quot;docs/req/ ●&quot;]):::l0
     ID[&quot;IDEA ●●&quot;]:::l1
     BR[&quot;BRD ●●●&quot;]:::l2
     PR[&quot;PRD ●●●●&quot;]:::l3
@@ -618,7 +624,7 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
 <p><strong>版本與移交欄位</strong></p>
 <ul><li><code>pipeline_hash</code>：SHA256 of pipeline.json（P-11 版本漂移偵測）</li><li><code>handoff</code>：true（gendoc-auto → gendoc-flow 移交完成標記）</li><li><code>idea_review_passed</code> / <code>brd_review_passed</code>：IDEA/BRD Review Loop 通過旗標（P-01 skip guard）</li><li><code>skill_source</code>：<code>gendoc-auto</code>（防止跨套件誤用）</li></ul>
 <p><strong>專案配置欄位</strong></p>
-<ul><li><code>client_type</code>：<code>none</code> / <code>web-saas</code> / <code>unity</code> / <code>cocos</code> / <code>html5-game</code>（控制條件步驟跳過）</li><li><code>lang_stack</code>：技術棧標籤（<code>node/typescript</code>、<code>python/fastapi</code> 等）</li><li><code>github_repo</code>：GitHub 倉庫 URL（用於 README badge 生成）</li><li><code>last_completed</code>：最後一個完成的 step ID</li><li><code>last_updated</code>：ISO 8601 時間戳</li></ul>
+<ul><li><code>client_type</code>：<code>web</code> / <code>game</code> / <code>api-only</code>（控制條件步驟；web/game 啟用 PDD/VDD/FRONTEND/CLIENT_IMPL；game 另啟用 AUDIO/ANIM；api-only 跳過所有 client 側文件）</li><li><code>has_admin_backend</code>：<code>true</code> / <code>false</code>（控制 ADMIN_IMPL 步驟；由 /gendoc-config 設定）</li><li><code>lang_stack</code>：技術棧標籤（<code>node/typescript</code>、<code>python/fastapi</code> 等）</li><li><code>github_repo</code>：GitHub 倉庫 URL（用於 README badge 生成）</li><li><code>last_completed</code>：最後一個完成的 step ID</li><li><code>last_updated</code>：ISO 8601 時間戳</li></ul>
 <hr>
 <h3>5.5 Gen / Review / Fix 三專家模式（Standard Step Pattern）</h3>
 <p>每個標準流水線步驟（非 <code>special_skill</code> 步驟）都遵循以下三階段子代理模式：</p>
@@ -751,6 +757,51 @@ BDD-client：
 <tr><td>BDD-server（features/）</td><td>每個 PRD P0 AC 有 Server Gherkin Scenario；6 種 HTTP 錯誤碼（401/403/404/409/422/429）全部覆蓋；無任何 UI 步驟</td></tr>
 <tr><td>BDD-client（features/client/）</td><td>每個 P0 Screen 有 E2E Scenario；含 happy path、error flow、auth guard；無後端邏輯驗證</td></tr>
 </table>
+<h3>7.6 目標系統架構原則（生成文件強制遵守）</h3>
+<p>gendoc 所生成的所有文件，其描述的目標系統必須遵守以下架構原則。這些原則是設計前提，不是選項，不得讓使用者選擇是否採用。</p>
+<p><strong>核心原則：Design for HA / SCALE / BCP from Day One</strong></p>
+<table>
+<tr><th>原則</th><th>說明</th></tr>
+<tr><td><strong>零 SPOF（Zero Single Point of Failure）</strong></td><td>每個元件都必須有備援。任何單一 instance 失敗不得導致服務中斷。</td></tr>
+<tr><td><strong>水平可擴展（Horizontal Scale）</strong></td><td>流量增加以增加 replica 解決，不是升級單機規格（scale up）。架構設計必須支援無狀態或共享狀態。</td></tr>
+<tr><td><strong>高可用（HA）</strong></td><td>服務可用性設計目標 ≥ 99.9%。Multi-AZ 或 Multi-Region 部署為標準，不是可選項。</td></tr>
+<tr><td><strong>業務持續（BCP）</strong></td><td>任何元件（DB、Cache、Queue、Storage）都必須有 Failover 策略和 RTO/RPO 定義。</td></tr>
+</table>
+<p><strong>成本模型：最小啟動成本 ≠ 最小架構</strong></p>
+<ul><li>成本估算的基準是「消除所有 SPOF 所需的最少 server 數」</li><li>不得以「節省成本」為理由設計 SPOF</li><li>流量成長 → 水平 scale 解決，成本線性增長，不需要重新設計架構</li></ul>
+<p><strong>最小 Replica 要求</strong></p>
+<table>
+<tr><th>元件</th><th>最小副本數</th><th>說明</th></tr>
+<tr><td>API Server</td><td>≥ 2</td><td>消除 SPOF，支援滾動更新</td></tr>
+<tr><td>Worker / Scheduler</td><td>≥ 2</td><td>消除 SPOF，支援冪等處理</td></tr>
+<tr><td>DB（PostgreSQL）</td><td>Primary + 1 Standby</td><td>消除 SPOF，支援 Failover</td></tr>
+<tr><td>Cache（Redis）</td><td>≥ 3 nodes（Sentinel 或 Cluster）</td><td>消除 SPOF</td></tr>
+<tr><td>Message Queue</td><td>≥ 3 nodes</td><td>消除 SPOF</td></tr>
+<tr><td>Object Storage</td><td>Cross-region replication</td><td>消除 AZ 級故障</td></tr>
+</table>
+<p><strong>Local 環境（LOCAL_DEPLOY）也必須支援小 HA</strong></p>
+<p>HA 的程式寫法與單台不同（session 存放、distributed lock、pub/sub、WebSocket 狀態），若 local 只跑單 pod，開發者無法測試 HA 程式邏輯是否正確。LOCAL_DEPLOY 必須支援 API Server ≥ 2 replica。</p>
+<p><strong>對文件生成的影響</strong></p>
+<ul><li>EDD：必須定義各元件 minimum replica 數、分散式設計模式、零 SPOF 驗證</li><li>ARCH：架構圖必須呈現 HA 拓撲，必須有 SPOF 識別與消除說明</li><li>runbook：MIN_POD_COUNT ≥ 2，不得設計為可配置為 1</li><li>LOCAL_DEPLOY：API server 必須支援 ≥ 2 replica 本地測試</li><li>所有 review checklist：必須包含 HA / SCALE / SPOF 驗證項目</li></ul>
+<p><strong>核心原則：Spring Modulith — 微服務可拆解性（Microservice Decomposability）</strong></p>
+<table>
+<tr><th>維度</th><th>內容</th></tr>
+<tr><td>架構模式</td><td>Spring Modulith（Modular Monolith with Microservice-Ready Boundaries）</td></tr>
+<tr><td>設計目標</td><td>各子系統（member / wallet / deposit / lobby / game 等）可合部署（最小 HA 成本），也可獨立拆出 Scale（最大擴展彈性）</td></tr>
+<tr><td>適用時機</td><td>所有多子系統設計；客戶端類型不限（game / web / api-only）</td></tr>
+<tr><td>文獻依據</td><td>Martin Fowler &quot;MonolithFirst&quot;（2015）；Sam Newman《Monolith to Microservices》O&#x27;Reilly 2019；Spring Modulith（spring.io，2022）</td></tr>
+</table>
+<p><strong>五條硬約束（Five Hard Constraints）— 缺一不可</strong></p>
+<table>
+<tr><th>#</th><th>約束</th><th>違反後果</th></tr>
+<tr><td>HC-1</td><td>無跨模組 DB 直接存取：每個 Bounded Context 擁有且只擁有自己的 DB Schema，跨 BC 存取只能透過 Public API 或 Domain Event</td><td>無法按 Schema 邊界切割，DB 成為提取障礙</td></tr>
+<tr><td>HC-2</td><td>跨模組只透過 Public Interface：禁止直接呼叫其他模組的 internal class / function / repository</td><td>提取時需重寫所有呼叫路徑</td></tr>
+<tr><td>HC-3</td><td>跨模組通訊事件驅動（Async）：Domain Event 合部署時走 in-process bus，拆出後切 Kafka/RabbitMQ，程式碼不變</td><td>強耦合；拆出後需改程式碼</td></tr>
+<tr><td>HC-4</td><td>無跨模組 Shared Mutable State：Redis key namespace 隔離；無跨 BC 共享可變物件</td><td>跨服務 Cache 一致性問題；拆出後需分別管理 State</td></tr>
+<tr><td>HC-5</td><td>模組依賴圖為 DAG：任何循環依賴（A→B→A）設計時必須消除</td><td>循環依賴無法拆分為獨立服務</td></tr>
+</table>
+<p><strong>對文件生成的影響</strong></p>
+<ul><li>EDD：§3.4 Bounded Context 必須含 Schema 擁有權清單；§4 模組間依賴必須驗證為 DAG；§4.6 Domain Event 必須含版本化 Schema</li><li>ARCH：§4 服務邊界表必須列出每個 BC 擁有的具體 DB 表名；§15 Checklist 必須包含 Decomposability MD-01～MD-05</li><li>SCHEMA：每份 SCHEMA 文件必須宣告 Owning Bounded Context；禁止跨 BC 的 DB-level FOREIGN KEY</li><li>API：每份 API 文件必須宣告 Owning Bounded Context；端點不得依賴其他 BC 的 DB 表</li><li>test-plan：必須含 Module Decomposability Tests（合約測試、Schema 隔離測試、DAG 驗證）</li><li>runbook：必須含 Subsystem Boundary Reference 和 Subsystem Extraction Procedure</li><li>LOCAL_DEPLOY：必須支援 Single Subsystem Startup（獨立子系統啟動驗證）</li><li>所有 review checklist：必須包含 HC-1～HC-5 驗證項目</li></ul>
 <hr>
 <h2>8. 模板系統</h2>
 <h3>8.1 模板三件套設計</h3>

@@ -4,7 +4,7 @@
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](https://github.com/ibalasite/gendoc)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-skill-blueviolet)](https://claude.ai/code)
 
-**AI-driven engineering document generation system for Claude Code.** One command generates a complete implementation blueprint — IDEA, BRD, PRD, PDD, VDD, EDD, ARCH, API, Schema, FRONTEND, AUDIO, ANIM, **CLIENT_IMPL**, test-plan, BDD, RTM, Runbook, LOCAL_DEPLOY, CONTRACTS (OpenAPI/JSON Schema/Pact/IaC/Seed Code), and an HTML documentation site — all output consolidated under `docs/blueprint/` for portability — each document inheriting knowledge from all upstream docs automatically. For game projects (`client_type=game`), AUDIO and ANIM design documents are also generated. CLIENT_IMPL is generated for any project with a client (`client_type ≠ api-only`) and auto-routes to the correct engine: Cocos Creator / Unity WebGL / React / Vue / HTML5.
+**AI-driven engineering document generation system for Claude Code.** One command generates a complete implementation blueprint — IDEA, BRD, PRD, **CONSTANTS**, PDD, VDD, EDD, ARCH, **DRYRUN**, API, Schema, FRONTEND, AUDIO, ANIM, **CLIENT_IMPL**, **ADMIN_IMPL**, **RESOURCE**, test-plan, BDD, RTM, Runbook, LOCAL_DEPLOY, CONTRACTS (OpenAPI/JSON Schema/Pact/IaC/Seed Code), MOCK, **PROTOTYPE**, and an HTML documentation site — all output consolidated under `docs/blueprint/` for portability — each document inheriting knowledge from all upstream docs automatically. For game projects (`client_type=game`), AUDIO and ANIM design documents are also generated. CLIENT_IMPL is generated for any project with a client (`client_type ≠ api-only`) and auto-routes to the correct engine: Cocos Creator / Unity WebGL / React / Vue / HTML5. ADMIN_IMPL is generated when `has_admin_backend=true`.
 
 ---
 
@@ -43,7 +43,8 @@ Key capabilities:
 | `reviewdoc` | `/reviewdoc <type>` | Review & iteratively fix any document |
 | `gendoc-auto` | `/gendoc-auto` | Full pipeline entry point: IDEA + BRD generation, then hands off to gendoc-flow |
 | `gendoc-flow` | `/gendoc-flow` | Template-driven orchestrator (D03–D19) with reliable breakpoint resume, P-14/P-15 |
-| `gendoc-config` | `/gendoc-config` | Configure execution mode, review strategy, client_type & restart step interactively |
+| `gendoc-config` | `/gendoc-config` | Interactive two-level menu: configure client_type, has_admin_backend, review strategy, restart step; supports multi-edit loop with mandatory-field check (Step 4c) before save |
+| `gendoc-gen-dryrun` | `/gendoc-gen-dryrun` | Generate quantitative baseline MANIFEST.md + .gendoc-rules/*.json from EDD/PRD/ARCH — lock numbers that review loops enforce (D-DRYRUN) |
 | `gendoc-align-check` | `/gendoc-align-check` | Cross-document alignment scan (D16) |
 | `gendoc-align-fix` | `/gendoc-align-fix` | Auto-fix alignment issues |
 | `gendoc-gen-html` | `/gendoc-gen-html` | Generate HTML documentation site v3.0 (D19) — converts all docs/*.md + docs/diagrams/*.md to HTML pages; 3-section sidebar (文件 / Server UML / Frontend UML) |
@@ -59,7 +60,7 @@ Key capabilities:
 
 ### Supported Document Types
 
-`idea` · `brd` · `prd` · `pdd` · `vdd` · `edd` · `arch` · `api` · `schema` · `frontend` · `audio` · `anim` · `client-impl` · `test-plan` · `bdd` · `rtm` · `runbook` · `local-deploy` · `cicd` · `developer-guide` · `readme` · `contracts` · `mock`
+`idea` · `brd` · `prd` · `constants` · `pdd` · `vdd` · `edd` · `arch` · `dryrun` · `api` · `schema` · `frontend` · `audio` · `anim` · `client-impl` · `admin-impl` · `resource` · `test-plan` · `bdd` · `rtm` · `runbook` · `local-deploy` · `cicd` · `developer-guide` · `readme` · `contracts` · `mock` · `prototype`
 
 > `audio` and `anim` are only generated for `client_type=game` projects (games, HTML5 game engines).
 > `client-impl` is generated for any project with a client (`client_type ≠ api-only`). Aliases: `cocos`, `unity`, `react-impl`, `vue-impl`, `client_impl`.
@@ -192,27 +193,35 @@ flowchart TD
     R2 -->|"finding = 0\nhandoff = true 寫入 state"| FLOW
     subgraph FLOW["/gendoc-flow — 每步驟 Gen ⚙ Review ↻ Fix ✎ Commit ↑"]
         subgraph REQ["需求層"]
-            D03["D03 PRD"] --> D04["D04 PDD ✦"] --> D05["D05 VDD ✦"]
+            direction LR
+            NP["PRD"] --> NCO["CONSTANTS ★"] --> NPD["PDD ✦"] --> NVD["VDD ✦"]
         end
         subgraph DES["設計層"]
-            D06["D06 EDD"] --> D07["D07 ARCH"] --> D07b["D07b UML ★"] --> D08["D08 API"] --> D09["D09 SCHEMA"] --> D10["D10 FRONTEND ✦"] --> D10b["D10b AUDIO ✧"] --> D10c["D10c ANIM ✧"]
+            direction LR
+            NED["EDD"] --> NAR["ARCH"] --> NDR["DRYRUN ★"] --> NAPI["API"] --> NSC["SCHEMA"] --> NFR["FRONTEND ✦"] --> NAU["AUDIO ✧"] --> NAN["ANIM ✧"] --> NCI["CLIENT_IMPL ✦"] --> NAIM["ADMIN_IMPL ◆"] --> NRS["RESOURCE ✦"]
+        end
+        subgraph UML_L["知識圖層"]
+            NUML["UML ★\n9 Server + 16 Frontend"]
         end
         subgraph QA["品質層"]
-            D11["D11 test-plan"] --> D12["D12 BDD-server"] --> D12b["D12b BDD-client ✦"] --> D13["D13 RTM"]
+            direction LR
+            NTP["test-plan"] --> NBS["BDD-server"] --> NBC["BDD-client ✦"] --> NRTM["RTM"]
         end
         subgraph OPS["運維層"]
-            D14["D14 runbook"] --> D15["D15 LOCAL_DEPLOY"]
+            direction LR
+            NRB["runbook"] --> NLD["LOCAL_DEPLOY"] --> NCIC["CICD"] --> NDG["DEVELOPER_GUIDE"] --> NUC["UML-CICD ★"]
         end
         subgraph AUDIT["稽核層"]
-            D16["D16 ALIGN ★"] --> D16F["D16-F ALIGN-FIX ★"]
+            NAL["ALIGN ★"] --> NALF["ALIGN-FIX ★"] --> NALV["ALIGN-VERIFY ★"]
         end
-        subgraph IMPL["實作層"]
-            D17["D17 CONTRACTS ★"] --> D18["D18 MOCK ★ ✦"]
+        subgraph IMPL["實作層（docs/blueprint/）"]
+            direction LR
+            NCT["CONTRACTS ★"] --> NMK["MOCK ★ ✦"] --> NPRT["PROTOTYPE ★ ✦"]
         end
         subgraph PUB["發布層"]
-            D19["D19 HTML ★"]
+            NHL["HTML ★"]
         end
-        REQ --> DES --> QA --> OPS --> AUDIT --> IMPL --> PUB
+        REQ --> DES --> UML_L --> QA --> OPS --> AUDIT --> IMPL --> PUB
     end
     FLOW --> DONE([GitHub Pages 文件站\n+ docs/blueprint/ 可攜帶])
     RESUME(["/gendoc-flow 斷點續行"]) -.->|"review_progress\ncompleted_steps"| FLOW
@@ -220,15 +229,16 @@ flowchart TD
     classDef condNode fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
     classDef gameNode fill:#fce7f3,stroke:#db2777,color:#831843
     classDef specNode fill:#fef3c7,stroke:#f59e0b,color:#78350f
+    classDef adminNode fill:#ede9fe,stroke:#7c3aed,color:#3b0764
     classDef ioNode fill:#d1fae5,stroke:#059669,color:#064e3b
-    class D04,D05,D10,D12b condNode
-    class D10b,D10c gameNode
-    class D07b,D16,D16F,D17,D18,D19 specNode
-    class D18 condNode
+    class NPD,NVD,NFR,NBC,NCI,NRS,NMK,NPRT condNode
+    class NAU,NAN gameNode
+    class NCO,NDR,NUML,NUC,NAL,NALF,NALV,NCT,NMK,NPRT,NHL specNode
+    class NAIM adminNode
     class INPUT,DONE ioNode
 ```
 
-> **✦ 藍色節點**（PDD / VDD / FRONTEND / BDD-client / MOCK）：`client_type=web` 或 `game` 才啟用（MOCK 同時跳過 `api-only`）。**✧ 粉紅節點**（AUDIO / ANIM）：`client_type=game` 專屬。**★ 黃色節點**：特殊步驟（special_skill）— 含 D16-ALIGN-FIX（依 ALIGN_REPORT.md 自動修復對齊問題）、D07b-UML（gen-diagrams: 9 Server UML + 16 Frontend UML）。
+> **✦ 藍色節點**（PDD / VDD / FRONTEND / CLIENT_IMPL / RESOURCE / BDD-client / MOCK / PROTOTYPE）：`client_type ≠ api-only` 時啟用。**✧ 粉紅節點**（AUDIO / ANIM）：`client_type = game` 專屬。**◆ 紫色節點**（ADMIN_IMPL）：`has_admin_backend = true` 才啟用。**★ 黃色節點**：special_skill（不走三專家，直接呼叫 Skill）。
 
 ### 文件上下層關係（Document Hierarchy）
 
@@ -238,38 +248,58 @@ graph TD
     L0["L0 IDEA.md"]
     L1["L1 BRD.md"]
     L2["L2 PRD.md"]
+    LCO["CONSTANTS.md"]
     L3a["L3a PDD.md"]:::cond
     L35["L3.5 VDD.md"]:::cond
     L4["L4 EDD.md"]
     L5a["L5a ARCH.md"]
+    LDR["DRYRUN\nMANIFEST.md"]:::spec
     L5b["L5b API.md"]
     L5c["L5c SCHEMA.md"]
     L6["L6 FRONTEND.md"]:::cond
+    L6a["AUDIO.md"]:::game
+    L6b["ANIM.md"]:::game
+    L6c["CLIENT_IMPL.md"]:::cond
+    L6d["ADMIN_IMPL.md"]:::admin
+    L6e["RESOURCE.md"]:::cond
     L7["L7 test-plan.md"]
     L8a["L8a BDD-server"]
     L8b["L8b BDD-client"]:::cond
     L9a["L9a RTM.md"]
     L9b["L9b RUNBOOK.md"]
     L9c["L9c LOCAL_DEPLOY.md"]
+    L9d["CICD.md"]
+    L9e["DEVELOPER_GUIDE.md"]
     L10["L10 README.md"]
-    IMPL["實作層 CONTRACTS + MOCK → docs/blueprint/"]:::impl
+    IMPL["實作層 CONTRACTS + MOCK + PROTOTYPE"]:::impl
     AUDIT["稽核層 ALIGN → docs/pages/"]:::audit
 
     REQ --> L0 --> L1 --> L2
+    L2 --> LCO
     L2 --> L3a --> L35 --> L4
     L2 --> L4
-    L4 --> L5a --> L5b --> L5c --> L6 --> L7
+    L4 --> L5a --> LDR
+    L5a --> L5b --> L5c --> L6 --> L6a & L6b
+    L6 --> L6c
+    L6c --> L6d
+    L6c --> L6e
+    L6 --> L7
     L7 --> L8a --> L9a
     L7 --> L8b --> L9a
-    L5a --> L9b --> L9c
-    L9a & L9b & L9c --> L10 --> IMPL --> AUDIT
+    L5a --> L9b --> L9c --> L9d --> L9e
+    L9a & L9b & L9c & L9e --> L10 --> IMPL --> AUDIT
 
     classDef cond fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
+    classDef game fill:#fce7f3,stroke:#db2777,color:#831843
+    classDef spec fill:#fef3c7,stroke:#f59e0b,color:#78350f
+    classDef admin fill:#ede9fe,stroke:#7c3aed,color:#3b0764
     classDef audit fill:#fef3c7,stroke:#f59e0b,color:#78350f
     classDef impl fill:#d1fae5,stroke:#059669,color:#064e3b
 ```
 
-Each document accumulates knowledge from **all** ancestors (skips silently if missing). Blue nodes only run when `client_type ≠ none`.
+> **✦ 藍色節點**（PDD / VDD / FRONTEND / CLIENT_IMPL / RESOURCE / BDD-client / MOCK / PROTOTYPE）：`client_type ≠ api-only` 時啟用。**✧ 粉紅節點**（AUDIO / ANIM）：`client_type = game` 專屬。**◆ 紫色節點**（ADMIN_IMPL）：`has_admin_backend = true` 才啟用。**★ 黃色節點**：special_skill（不走三專家，直接呼叫 Skill）。
+
+Each document accumulates knowledge from **all** ancestors (skips silently if missing). Blue nodes only run when `client_type ≠ api-only`.
 
 ---
 

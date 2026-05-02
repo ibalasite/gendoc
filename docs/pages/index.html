@@ -31,6 +31,7 @@
 <a class="sidebar__link" href="prd.html">📝 產品需求文件 (PRD)</a>
 <a class="sidebar__link" href="client.html">📄 Client</a>
 <a class="sidebar__link" href="gendoc-redesign-decisions.html">📄 Gendoc-Redesign-Decisions</a>
+<a class="sidebar__link" href="ha-spof-modification-plan.html">📄 Ha-Spof-Modification-Plan</a>
 </div>
     </aside>
     <div class="sidebar-resizer" id="sidebarResizer"></div>
@@ -38,12 +39,12 @@
 <p><a href="LICENSE" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'badge-fallback',textContent:this.alt}))"></a></p>
 <p><a href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey" alt="Platform" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'badge-fallback',textContent:this.alt}))"></a></p>
 <p><a href="https://claude.ai/code" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/Claude%20Code-skill-blueviolet" alt="Claude Code" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'badge-fallback',textContent:this.alt}))"></a></p>
-<p><strong>AI-driven engineering document generation system for Claude Code.</strong> One command generates a complete implementation blueprint — IDEA, BRD, PRD, PDD, VDD, EDD, ARCH, API, Schema, FRONTEND, AUDIO, ANIM, <strong>CLIENT_IMPL</strong>, test-plan, BDD, RTM, Runbook, LOCAL_DEPLOY, CONTRACTS (OpenAPI/JSON Schema/Pact/IaC/Seed Code), and an HTML documentation site — all output consolidated under <code>docs/blueprint/</code> for portability — each document inheriting knowledge from all upstream docs automatically. For game projects (<code>client_type=game</code>), AUDIO and ANIM design documents are also generated. CLIENT_IMPL is generated for any project with a client (<code>client_type ≠ api-only</code>) and auto-routes to the correct engine: Cocos Creator / Unity WebGL / React / Vue / HTML5.</p>
+<p><strong>AI-driven engineering document generation system for Claude Code.</strong> One command generates a complete implementation blueprint — IDEA, BRD, PRD, <strong>CONSTANTS</strong>, PDD, VDD, EDD, ARCH, <strong>DRYRUN</strong>, API, Schema, FRONTEND, AUDIO, ANIM, <strong>CLIENT_IMPL</strong>, <strong>ADMIN_IMPL</strong>, <strong>RESOURCE</strong>, test-plan, BDD, RTM, Runbook, LOCAL_DEPLOY, CONTRACTS (OpenAPI/JSON Schema/Pact/IaC/Seed Code), MOCK, <strong>PROTOTYPE</strong>, and an HTML documentation site — all output consolidated under <code>docs/blueprint/</code> for portability — each document inheriting knowledge from all upstream docs automatically. For game projects (<code>client_type=game</code>), AUDIO and ANIM design documents are also generated. CLIENT_IMPL is generated for any project with a client (<code>client_type ≠ api-only</code>) and auto-routes to the correct engine: Cocos Creator / Unity WebGL / React / Vue / HTML5. ADMIN_IMPL is generated when <code>has_admin_backend=true</code>.</p>
 <hr>
 <h2>Overview</h2>
 <p><code>gendoc</code> is a Claude Code skill suite that automates the full engineering documentation lifecycle. Using a three-layer template architecture (<code>TYPE.md</code> structure + <code>TYPE.gen.md</code> generation rules + <code>TYPE.review.md</code> review criteria), it generates and iteratively reviews production-quality engineering documents from an initial idea through deployment runbooks.</p>
 <p>Key capabilities:</p>
-<ul><li><strong>Cumulative upstream reading</strong> — every doc reads all ancestor docs, never just its direct parent</li><li><strong>Universal generation</strong> — <code>/gendoc &lt;type&gt;</code> for any document type, driven by templates</li><li><strong>Universal review loop</strong> — <code>/reviewdoc &lt;type&gt;</code> with configurable strategy (rapid / standard / exhaustive / tiered / custom)</li><li><strong>Reliable breakpoint resume</strong> — <code>review_progress</code> schema tracks each review round; any step can be safely interrupted and resumed at the exact round</li><li><strong>Quality status tracking</strong> — <code>passed</code> / <code>degraded</code> / <code>failed</code> per step; CRITICAL/HIGH findings block completion, MEDIUM/LOW log as degraded</li><li><strong>Three-value project type</strong> — <code>game</code> (AUDIO+ANIM+UI prototype) / <code>web</code> (SaaS/App, UI prototype) / <code>api-only</code> (API Explorer prototype); auto-detected from IDEA/BRD/PRD keywords, re-verified after PRD generation (P-14)</li><li><strong>Interactive prototypes</strong> — <code>/gendoc-gen-prototype</code> generates a clickable HTML prototype for any project type: UI flow prototype (web/game) or API Explorer with mock responses (api-only, like Postman)</li><li><strong>Implementation-ready UML (1:1 standard)</strong> — <code>/gendoc-gen-diagrams</code> generates all 9 Server UML types + 16 Frontend UML types (Step 2B, auto-triggered when <code>client_type ≠ none</code> and <code>FRONTEND.md</code> exists) with enough precision that a developer can implement the entire system from diagrams alone: exact attribute types, full method signatures, enum values fully listed, cardinality + role labels on every relation, exact method names + typed params on every sequence arrow, <code>trigger [guard] / action</code> on every state transition (no <code>&lt;br/&gt;</code> in stateDiagram-v2), swimlanes per actor in activity diagrams, technology + version + port on every component/deployment node</li><li><strong>Cross-browser Mermaid enforcement</strong> — all diagram-generating templates prohibit <code>&lt;br/&gt;</code> in <code>stateDiagram-v2</code> transition labels (Safari/Firefox break) and <code>sequenceDiagram</code> participant aliases; experimental charts (<code>pie</code> / <code>xychart-beta</code> / <code>bar</code>) are banned in favour of <code>graph TD</code> or HTML tables</li><li><strong>Pipeline integrity check</strong> — P-15 verifies all expected steps have a record before marking complete</li><li><strong>5-way client engine routing</strong> — <code>CLIENT_IMPL</code> (D10d) detects <code>CLIENT_ENGINE</code> from EDD §3.3 and generates engine-specific scene structure, asset loading, AudioManager, and VFX specs for Cocos Creator / Unity WebGL / React / Vue / HTML5; aliases <code>cocos</code>, <code>unity</code>, <code>react-impl</code>, <code>vue-impl</code> all resolve to CLIENT_IMPL</li><li><strong>pipeline.json as single source of truth</strong> — <code>gendoc-config</code> step picker, <code>gendoc-shared</code> STEP_SEQUENCE / STEP_ORDER / Review Loop list all read <code>pipeline.json</code> dynamically at runtime; adding a new pipeline step requires editing only <code>pipeline.json</code> — all skills auto-update</li><li><strong>Context-isolated review loops</strong> — <code>gendoc-flow</code> Phase D-2 wraps each document&#x27;s review→fix loop in an Agent subagent, preventing 12+ documents × 5 rounds of review output from bloating the main Claude context; results returned as compact REVIEW_LOOP_RESULT</li><li><strong>Centralized state file guard</strong> — <code>gendoc-shared</code> is the single executable entry point for R-01 guard logic; <code>gendoc-config</code> is the sole creator of state files; <code>gendoc-auto</code> and <code>gendoc-flow</code> delegate via one-line Skill call</li><li><strong>Uniform review loops</strong> — IDEA and BRD review loops in <code>gendoc-auto</code> use the same Phase D-2 pattern as <code>gendoc-flow</code>: main Claude directly drives Review→Fix→Round Summary→Commit per round with full output visibility</li><li><strong>Auto-update via SessionStart hook</strong> — harness-enforced, LLM-independent, runs in background</li><li><strong>Windows native support</strong> — Python-based hook for Windows, bash for macOS/Linux</li></ul>
+<ul><li><strong>Cumulative upstream reading</strong> — every doc reads all ancestor docs, never just its direct parent</li><li><strong>Universal generation</strong> — <code>/gendoc &lt;type&gt;</code> for any document type, driven by templates</li><li><strong>Universal review loop</strong> — <code>/reviewdoc &lt;type&gt;</code> with configurable strategy (rapid / standard / exhaustive / tiered / custom)</li><li><strong>Reliable breakpoint resume</strong> — <code>review_progress</code> schema tracks each review round; any step can be safely interrupted and resumed at the exact round</li><li><strong>Quality status tracking</strong> — <code>passed</code> / <code>degraded</code> / <code>failed</code> per step; CRITICAL/HIGH findings block completion, MEDIUM/LOW log as degraded</li><li><strong>Three-value project type</strong> — <code>game</code> (AUDIO+ANIM+UI prototype) / <code>web</code> (SaaS/App, UI prototype) / <code>api-only</code> (API Explorer prototype); auto-detected from IDEA/BRD/PRD keywords, re-verified after PRD generation (P-14)</li><li><strong>Interactive prototypes</strong> — <code>/gendoc-gen-prototype</code> generates a clickable HTML prototype for any project type: UI flow prototype (web/game) or API Explorer with mock responses (api-only, like Postman)</li><li><strong>Implementation-ready UML (1:1 standard)</strong> — <code>/gendoc-gen-diagrams</code> generates all 9 Server UML types + 16 Frontend UML types (Step 2B, auto-triggered when <code>client_type ≠ none</code> and <code>FRONTEND.md</code> exists) with enough precision that a developer can implement the entire system from diagrams alone: exact attribute types, full method signatures, enum values fully listed, cardinality + role labels on every relation, exact method names + typed params on every sequence arrow, <code>trigger [guard] / action</code> on every state transition (no <code>&lt;br/&gt;</code> in stateDiagram-v2), swimlanes per actor in activity diagrams, technology + version + port on every component/deployment node</li><li><strong>Cross-browser Mermaid enforcement</strong> — all diagram-generating templates prohibit <code>&lt;br/&gt;</code> in <code>stateDiagram-v2</code> transition labels (Safari/Firefox break) and <code>sequenceDiagram</code> participant aliases; experimental charts (<code>pie</code> / <code>xychart-beta</code> / <code>bar</code>) are banned in favour of <code>graph TD</code> or HTML tables</li><li><strong>Pipeline integrity check</strong> — P-15 verifies all expected steps have a record before marking complete</li><li><strong>5-way client engine routing</strong> — <code>CLIENT_IMPL</code> (D10d) detects <code>CLIENT_ENGINE</code> from EDD §3.3 and generates engine-specific scene structure, asset loading, AudioManager, and VFX specs for Cocos Creator / Unity WebGL / React / Vue / HTML5; aliases <code>cocos</code>, <code>unity</code>, <code>react-impl</code>, <code>vue-impl</code> all resolve to CLIENT_IMPL</li><li><strong>pipeline.json as single source of truth</strong> — <code>gendoc-config</code> step picker, <code>gendoc-shared</code> STEP_SEQUENCE / STEP_ORDER / Review Loop list all read <code>pipeline.json</code> dynamically at runtime; adding a new pipeline step requires editing only <code>pipeline.json</code> — all skills auto-update</li><li><strong>Context-isolated review loops</strong> — <code>gendoc-flow</code> Phase D-2 wraps each document&#x27;s review→fix loop in an Agent subagent, preventing 12+ documents × 5 rounds of review output from bloating the main Claude context; results returned as compact REVIEW_LOOP_RESULT</li><li><strong>Centralized state file guard</strong> — <code>gendoc-shared</code> is the single executable entry point for R-01 guard logic; <code>gendoc-config</code> is the sole creator of state files; <code>gendoc-auto</code> and <code>gendoc-flow</code> delegate via one-line Skill call</li><li><strong>Uniform review loops</strong> — IDEA and BRD review loops in <code>gendoc-auto</code> use the same Phase D-2 pattern as <code>gendoc-flow</code>: main Claude directly drives Review→Fix→Round Summary→Commit per round with full output visibility</li><li><strong>Local Developer Platform (Production Parity)</strong> — <code>/gendoc cicd</code> generates a complete CI/CD platform design: Gitea (local git server, Port 3000) + Jenkins on k3s (CI, Port 8080) + ArgoCD (CD GitOps, Port 8443); dev-tool ports are fully separate from the app&#x27;s single Port 80; <code>make dev-tools-up</code> starts everything in one command; non-developers can run the full pipeline without knowing Kubernetes; local environment uses the exact same toolchain as production (only scale and TLS differ) — compliant with 12-Factor App #10 Dev/Prod Parity</li><li><strong>Developer Daily Operations Manual</strong> — <code>/gendoc developer-guide</code> generates the day-to-day developer operations handbook that pairs with <code>local-deploy</code>: covers the complete daily workflow (git push → Jenkins trigger → pipeline monitoring → ArgoCD sync → app verification), CI/CD troubleshooting (Jenkins not triggered, stage failed, ArgoCD OutOfSync, Gitea webhook issues), quick-reference make targets (<code>make dev-status</code> / <code>make dev-logs</code> / <code>make dev-restart</code>), common local environment issues with step-by-step fixes, and environment maintenance procedures (secret rotation, image cleanup, full reset); distinct from <code>runbook.md</code> which targets production on-call SREs</li><li><strong>Auto-update via SessionStart hook</strong> — harness-enforced, LLM-independent, runs in background</li><li><strong>Windows native support</strong> — Python-based hook for Windows, bash for macOS/Linux</li></ul>
 <hr>
 <h2>Skills</h2>
 <table>
@@ -52,7 +53,8 @@
 <tr><td><code>reviewdoc</code></td><td><code>/reviewdoc &lt;type&gt;</code></td><td>Review &amp; iteratively fix any document</td></tr>
 <tr><td><code>gendoc-auto</code></td><td><code>/gendoc-auto</code></td><td>Full pipeline entry point: IDEA + BRD generation, then hands off to gendoc-flow</td></tr>
 <tr><td><code>gendoc-flow</code></td><td><code>/gendoc-flow</code></td><td>Template-driven orchestrator (D03–D19) with reliable breakpoint resume, P-14/P-15</td></tr>
-<tr><td><code>gendoc-config</code></td><td><code>/gendoc-config</code></td><td>Configure execution mode, review strategy, client_type &amp; restart step interactively</td></tr>
+<tr><td><code>gendoc-config</code></td><td><code>/gendoc-config</code></td><td>Interactive two-level menu: configure client_type, has_admin_backend, review strategy, restart step; supports multi-edit loop with mandatory-field check (Step 4c) before save</td></tr>
+<tr><td><code>gendoc-gen-dryrun</code></td><td><code>/gendoc-gen-dryrun</code></td><td>Generate quantitative baseline MANIFEST.md + .gendoc-rules/*.json from EDD/PRD/ARCH — lock numbers that review loops enforce (D-DRYRUN)</td></tr>
 <tr><td><code>gendoc-align-check</code></td><td><code>/gendoc-align-check</code></td><td>Cross-document alignment scan (D16)</td></tr>
 <tr><td><code>gendoc-align-fix</code></td><td><code>/gendoc-align-fix</code></td><td>Auto-fix alignment issues</td></tr>
 <tr><td><code>gendoc-gen-html</code></td><td><code>/gendoc-gen-html</code></td><td>Generate HTML documentation site v3.0 (D19) — converts all docs/<em>.md + docs/diagrams/</em>.md to HTML pages; 3-section sidebar (文件 / Server UML / Frontend UML)</td></tr>
@@ -61,14 +63,17 @@
 <tr><td><code>gendoc-gen-prototype</code></td><td><code>/gendoc-gen-prototype</code></td><td>Interactive HTML prototype — UI flow (web/game) or API Explorer with mock engine (api-only)</td></tr>
 <tr><td><code>gendoc-gen-diagrams</code></td><td><code>/gendoc-gen-diagrams</code></td><td>Generate Server 9 UML types + Frontend 16 UML types (Step 2B, when client_type≠none+FRONTEND.md exists) + class-inventory.md (D07b); 30+ precision validation checks; enforces no <code>&lt;br/&gt;</code> in stateDiagram-v2 / sequenceDiagram; bans experimental charts (pie/xychart-beta/bar)</td></tr>
 <tr><td><code>gendoc-gen-client-bdd</code></td><td><code>/gendoc-gen-client-bdd</code></td><td>Client-facing BDD feature files (web/game projects)</td></tr>
+<tr><td><code>gendoc-repair</code></td><td><code>/gendoc-repair</code></td><td>Diff completed_steps vs pipeline.json, list missing steps, and optionally resume gendoc-flow from the first gap</td></tr>
 <tr><td><code>gendoc-rebuild-templates</code></td><td><code>/gendoc-rebuild-templates</code></td><td>Rebuild all document templates from scratch</td></tr>
 <tr><td><code>gendoc-update</code></td><td><code>/gendoc-update</code></td><td>Manual skill upgrade</td></tr>
 <tr><td><code>reviewtemplate</code></td><td><code>/reviewtemplate &lt;TYPE&gt;</code></td><td>Review &amp; iteratively fix a template three-file set (TYPE.md + .gen.md + .review.md)</td></tr>
 </table>
 <h3>Supported Document Types</h3>
-<p><code>idea</code> · <code>brd</code> · <code>prd</code> · <code>pdd</code> · <code>vdd</code> · <code>edd</code> · <code>arch</code> · <code>api</code> · <code>schema</code> · <code>frontend</code> · <code>audio</code> · <code>anim</code> · <code>client-impl</code> · <code>test-plan</code> · <code>bdd</code> · <code>rtm</code> · <code>runbook</code> · <code>local-deploy</code> · <code>readme</code> · <code>contracts</code> · <code>mock</code></p>
+<p><code>idea</code> · <code>brd</code> · <code>prd</code> · <code>constants</code> · <code>pdd</code> · <code>vdd</code> · <code>edd</code> · <code>arch</code> · <code>dryrun</code> · <code>api</code> · <code>schema</code> · <code>frontend</code> · <code>audio</code> · <code>anim</code> · <code>client-impl</code> · <code>admin-impl</code> · <code>resource</code> · <code>test-plan</code> · <code>bdd</code> · <code>rtm</code> · <code>runbook</code> · <code>local-deploy</code> · <code>cicd</code> · <code>developer-guide</code> · <code>readme</code> · <code>contracts</code> · <code>mock</code> · <code>prototype</code></p>
 <blockquote><p><code>audio</code> and <code>anim</code> are only generated for <code>client_type=game</code> projects (games, HTML5 game engines).</p></blockquote>
 <blockquote><p><code>client-impl</code> is generated for any project with a client (<code>client_type ≠ api-only</code>). Aliases: <code>cocos</code>, <code>unity</code>, <code>react-impl</code>, <code>vue-impl</code>, <code>client_impl</code>.</p></blockquote>
+<blockquote><p><code>cicd</code> generates the full CI/CD pipeline design document — Jenkinsfile skeleton, Shared Make Targets, PR Gate, Jenkins on k3s, ArgoCD GitOps, <strong>Local Developer Platform</strong> (Gitea + production parity).</p></blockquote>
+<blockquote><p><code>developer-guide</code> generates the developer daily operations manual — pairs with <code>local-deploy</code> (setup) to cover day-to-day workflow: git push → CI trigger → pipeline monitoring → ArgoCD sync → app verification; CI/CD troubleshooting; local quick commands; common issues; environment maintenance.</p></blockquote>
 <hr>
 <h2>Quick Start</h2>
 <h3>Install (macOS / Linux / WSL)</h3>
@@ -121,6 +126,22 @@ git clone https://github.com/ibalasite/gendoc.git &quot;$env:USERPROFILE\.claude
 <pre><code class="">Session start → harness triggers hook → git pull (background) → skills updated</code></pre>
 <p>Manual update: <code>/gendoc-upgrade</code> or <code>~/.claude/skills/gendoc/setup upgrade</code></p>
 <hr>
+<h2>Design Principles</h2>
+<p>gendoc enforces two non-negotiable architectural principles on all generated documents:</p>
+<p><strong>1. HA / SCALE / SPOF / BCP from Day One</strong></p>
+<p>Every generated system has ≥ 2 replicas at minimum. There is no &quot;small&quot; or &quot;single-instance&quot; mode. Cost is the minimum number of servers required to eliminate all single points of failure.</p>
+<p><strong>2. Spring Modulith — Microservice Decomposability</strong></p>
+<p>All subsystems (e.g. member / wallet / deposit / lobby / game) are designed as Bounded Contexts from Day 1. They can be deployed together (minimum HA cost) or independently extracted as microservices (maximum scale). Five hard constraints apply to every generated design:</p>
+<table>
+<tr><th>#</th><th>Constraint</th></tr>
+<tr><td>HC-1</td><td>No cross-module DB table access — each BC owns its schema exclusively</td></tr>
+<tr><td>HC-2</td><td>Cross-module calls only via Public Interface (no internal class calls)</td></tr>
+<tr><td>HC-3</td><td>Async event-driven inter-module communication (in-process → message broker without code change)</td></tr>
+<tr><td>HC-4</td><td>No shared mutable state across module boundaries</td></tr>
+<tr><td>HC-5</td><td>Module dependency graph must be a DAG (no circular dependencies)</td></tr>
+</table>
+<p>References: Martin Fowler &quot;MonolithFirst&quot; (2015) · Sam Newman <em>Monolith to Microservices</em> (O&#x27;Reilly 2019) · Spring Modulith (spring.io, 2022)</p>
+<hr>
 <h2>Template Architecture</h2>
 <pre><code class="">templates/
 ├── &lt;TYPE&gt;.md          ← document structure skeleton
@@ -129,7 +150,7 @@ git clone https://github.com/ibalasite/gendoc.git &quot;$env:USERPROFILE\.claude
 <p>The <strong>Iron Law</strong>: no document is generated without reading both <code>TYPE.md</code> AND <code>TYPE.gen.md</code> first. Templates are the single source of truth — editing a template immediately changes behavior of all <code>/gendoc</code> and <code>/reviewdoc</code> calls.</p>
 <h3>Pipeline (D01–D19)</h3>
 <div class="diagram-container"><pre class="mermaid">flowchart TD
-    INPUT((任意輸入\n文字 · URL · 圖片 · Repo)) --&gt; AUTO
+    INPUT([任意輸入\n文字 · URL · 圖片 · Repo]) --&gt; AUTO
     subgraph AUTO[&quot;/gendoc-auto — 入口&quot;]
         direction LR
         G1[&quot;⚙ Gen IDEA\n資深 PM Expert&quot;] --&gt; R1[&quot;↻ Review + Fix Loop\nfinding = 0 → pass&quot;]
@@ -139,77 +160,105 @@ git clone https://github.com/ibalasite/gendoc.git &quot;$env:USERPROFILE\.claude
     R2 --&gt;|&quot;finding = 0\nhandoff = true 寫入 state&quot;| FLOW
     subgraph FLOW[&quot;/gendoc-flow — 每步驟 Gen ⚙ Review ↻ Fix ✎ Commit ↑&quot;]
         subgraph REQ[&quot;需求層&quot;]
-            D03[&quot;D03 PRD&quot;] --&gt; D04[&quot;D04 PDD ✦&quot;] --&gt; D05[&quot;D05 VDD ✦&quot;]
+            direction LR
+            NP[&quot;PRD&quot;] --&gt; NCO[&quot;CONSTANTS ★&quot;] --&gt; NPD[&quot;PDD ✦&quot;] --&gt; NVD[&quot;VDD ✦&quot;]
         end
         subgraph DES[&quot;設計層&quot;]
-            D06[&quot;D06 EDD&quot;] --&gt; D07[&quot;D07 ARCH&quot;] --&gt; D07b[&quot;D07b UML ★&quot;] --&gt; D08[&quot;D08 API&quot;] --&gt; D09[&quot;D09 SCHEMA&quot;] --&gt; D10[&quot;D10 FRONTEND ✦&quot;] --&gt; D10b[&quot;D10b AUDIO ✧&quot;] --&gt; D10c[&quot;D10c ANIM ✧&quot;]
+            direction LR
+            NED[&quot;EDD&quot;] --&gt; NAR[&quot;ARCH&quot;] --&gt; NDR[&quot;DRYRUN ★&quot;] --&gt; NAPI[&quot;API&quot;] --&gt; NSC[&quot;SCHEMA&quot;] --&gt; NFR[&quot;FRONTEND ✦&quot;] --&gt; NAU[&quot;AUDIO ✧&quot;] --&gt; NAN[&quot;ANIM ✧&quot;] --&gt; NCI[&quot;CLIENT_IMPL ✦&quot;] --&gt; NAIM[&quot;ADMIN_IMPL ◆&quot;] --&gt; NRS[&quot;RESOURCE ✦&quot;]
+        end
+        subgraph UML_L[&quot;知識圖層&quot;]
+            NUML[&quot;UML ★\n9 Server + 16 Frontend&quot;]
         end
         subgraph QA[&quot;品質層&quot;]
-            D11[&quot;D11 test-plan&quot;] --&gt; D12[&quot;D12 BDD-server&quot;] --&gt; D12b[&quot;D12b BDD-client ✦&quot;] --&gt; D13[&quot;D13 RTM&quot;]
+            direction LR
+            NTP[&quot;test-plan&quot;] --&gt; NBS[&quot;BDD-server&quot;] --&gt; NBC[&quot;BDD-client ✦&quot;] --&gt; NRTM[&quot;RTM&quot;]
         end
         subgraph OPS[&quot;運維層&quot;]
-            D14[&quot;D14 runbook&quot;] --&gt; D15[&quot;D15 LOCAL_DEPLOY&quot;]
+            direction LR
+            NRB[&quot;runbook&quot;] --&gt; NLD[&quot;LOCAL_DEPLOY&quot;] --&gt; NCIC[&quot;CICD&quot;] --&gt; NDG[&quot;DEVELOPER_GUIDE&quot;] --&gt; NUC[&quot;UML-CICD ★&quot;]
         end
         subgraph AUDIT[&quot;稽核層&quot;]
-            D16[&quot;D16 ALIGN ★&quot;] --&gt; D16F[&quot;D16-F ALIGN-FIX ★&quot;]
+            NAL[&quot;ALIGN ★&quot;] --&gt; NALF[&quot;ALIGN-FIX ★&quot;] --&gt; NALV[&quot;ALIGN-VERIFY ★&quot;]
         end
-        subgraph IMPL[&quot;實作層&quot;]
-            D17[&quot;D17 CONTRACTS ★&quot;] --&gt; D18[&quot;D18 MOCK ★ ✦&quot;]
+        subgraph IMPL[&quot;實作層（docs/blueprint/）&quot;]
+            direction LR
+            NCT[&quot;CONTRACTS ★&quot;] --&gt; NMK[&quot;MOCK ★ ✦&quot;] --&gt; NPRT[&quot;PROTOTYPE ★ ✦&quot;]
         end
         subgraph PUB[&quot;發布層&quot;]
-            D19[&quot;D19 HTML ★&quot;]
+            NHL[&quot;HTML ★&quot;]
         end
-        REQ --&gt; DES --&gt; QA --&gt; OPS --&gt; AUDIT --&gt; IMPL --&gt; PUB
+        REQ --&gt; DES --&gt; UML_L --&gt; QA --&gt; OPS --&gt; AUDIT --&gt; IMPL --&gt; PUB
     end
-    FLOW --&gt; DONE((GitHub Pages 文件站\n+ docs/blueprint/ 可攜帶))
-    RESUME((&quot;/gendoc-flow 斷點續行&quot;)) -.-&gt;|&quot;review_progress\ncompleted_steps&quot;| FLOW
-    CONFIG((&quot;/gendoc-config 設定&quot;)) -.-&gt; FLOW
+    FLOW --&gt; DONE([GitHub Pages 文件站\n+ docs/blueprint/ 可攜帶])
+    RESUME([&quot;/gendoc-flow 斷點續行&quot;]) -.-&gt;|&quot;review_progress\ncompleted_steps&quot;| FLOW
+    CONFIG([&quot;/gendoc-config 設定&quot;]) -.-&gt; FLOW
     classDef condNode fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
     classDef gameNode fill:#fce7f3,stroke:#db2777,color:#831843
     classDef specNode fill:#fef3c7,stroke:#f59e0b,color:#78350f
+    classDef adminNode fill:#ede9fe,stroke:#7c3aed,color:#3b0764
     classDef ioNode fill:#d1fae5,stroke:#059669,color:#064e3b
-    class D04,D05,D10,D12b condNode
-    class D10b,D10c gameNode
-    class D07b,D16,D16F,D17,D18,D19 specNode
-    class D18 condNode
+    class NPD,NVD,NFR,NBC,NCI,NRS,NMK,NPRT condNode
+    class NAU,NAN gameNode
+    class NCO,NDR,NUML,NUC,NAL,NALF,NALV,NCT,NMK,NPRT,NHL specNode
+    class NAIM adminNode
     class INPUT,DONE ioNode</pre></div>
-<blockquote><p><strong>✦ 藍色節點</strong>（PDD / VDD / FRONTEND / BDD-client / MOCK）：<code>client_type=web</code> 或 <code>game</code> 才啟用（MOCK 同時跳過 <code>api-only</code>）。<strong>✧ 粉紅節點</strong>（AUDIO / ANIM）：<code>client_type=game</code> 專屬。<strong>★ 黃色節點</strong>：特殊步驟（special_skill）— 含 D16-ALIGN-FIX（依 ALIGN_REPORT.md 自動修復對齊問題）、D07b-UML（gen-diagrams: 9 Server UML + 16 Frontend UML）。</p></blockquote>
+<blockquote><p><strong>✦ 藍色節點</strong>（PDD / VDD / FRONTEND / CLIENT_IMPL / RESOURCE / BDD-client / MOCK / PROTOTYPE）：<code>client_type ≠ api-only</code> 時啟用。<strong>✧ 粉紅節點</strong>（AUDIO / ANIM）：<code>client_type = game</code> 專屬。<strong>◆ 紫色節點</strong>（ADMIN_IMPL）：<code>has_admin_backend = true</code> 才啟用。<strong>★ 黃色節點</strong>：special_skill（不走三專家，直接呼叫 Skill）。</p></blockquote>
 <h3>文件上下層關係（Document Hierarchy）</h3>
 <div class="diagram-container"><pre class="mermaid">graph TD
-    REQ((docs/req/ 原始素材))
+    REQ([docs/req/ 原始素材])
     L0[&quot;L0 IDEA.md&quot;]
     L1[&quot;L1 BRD.md&quot;]
     L2[&quot;L2 PRD.md&quot;]
+    LCO[&quot;CONSTANTS.md&quot;]
     L3a[&quot;L3a PDD.md&quot;]:::cond
     L35[&quot;L3.5 VDD.md&quot;]:::cond
     L4[&quot;L4 EDD.md&quot;]
     L5a[&quot;L5a ARCH.md&quot;]
+    LDR[&quot;DRYRUN\nMANIFEST.md&quot;]:::spec
     L5b[&quot;L5b API.md&quot;]
     L5c[&quot;L5c SCHEMA.md&quot;]
     L6[&quot;L6 FRONTEND.md&quot;]:::cond
+    L6a[&quot;AUDIO.md&quot;]:::game
+    L6b[&quot;ANIM.md&quot;]:::game
+    L6c[&quot;CLIENT_IMPL.md&quot;]:::cond
+    L6d[&quot;ADMIN_IMPL.md&quot;]:::admin
+    L6e[&quot;RESOURCE.md&quot;]:::cond
     L7[&quot;L7 test-plan.md&quot;]
     L8a[&quot;L8a BDD-server&quot;]
     L8b[&quot;L8b BDD-client&quot;]:::cond
     L9a[&quot;L9a RTM.md&quot;]
     L9b[&quot;L9b RUNBOOK.md&quot;]
     L9c[&quot;L9c LOCAL_DEPLOY.md&quot;]
+    L9d[&quot;CICD.md&quot;]
+    L9e[&quot;DEVELOPER_GUIDE.md&quot;]
     L10[&quot;L10 README.md&quot;]
-    IMPL[&quot;實作層 CONTRACTS + MOCK → docs/blueprint/&quot;]:::impl
+    IMPL[&quot;實作層 CONTRACTS + MOCK + PROTOTYPE&quot;]:::impl
     AUDIT[&quot;稽核層 ALIGN → docs/pages/&quot;]:::audit
 
     REQ --&gt; L0 --&gt; L1 --&gt; L2
+    L2 --&gt; LCO
     L2 --&gt; L3a --&gt; L35 --&gt; L4
     L2 --&gt; L4
-    L4 --&gt; L5a --&gt; L5b --&gt; L5c --&gt; L6 --&gt; L7
+    L4 --&gt; L5a --&gt; LDR
+    L5a --&gt; L5b --&gt; L5c --&gt; L6 --&gt; L6a &amp; L6b
+    L6 --&gt; L6c
+    L6c --&gt; L6d
+    L6c --&gt; L6e
+    L6 --&gt; L7
     L7 --&gt; L8a --&gt; L9a
     L7 --&gt; L8b --&gt; L9a
-    L5a --&gt; L9b --&gt; L9c
-    L9a &amp; L9b &amp; L9c --&gt; L10 --&gt; IMPL --&gt; AUDIT
+    L5a --&gt; L9b --&gt; L9c --&gt; L9d --&gt; L9e
+    L9a &amp; L9b &amp; L9c &amp; L9e --&gt; L10 --&gt; IMPL --&gt; AUDIT
 
     classDef cond fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
+    classDef game fill:#fce7f3,stroke:#db2777,color:#831843
+    classDef spec fill:#fef3c7,stroke:#f59e0b,color:#78350f
+    classDef admin fill:#ede9fe,stroke:#7c3aed,color:#3b0764
     classDef audit fill:#fef3c7,stroke:#f59e0b,color:#78350f
     classDef impl fill:#d1fae5,stroke:#059669,color:#064e3b</pre></div>
-<p>Each document accumulates knowledge from <strong>all</strong> ancestors (skips silently if missing). Blue nodes only run when <code>client_type ≠ none</code>.</p>
+<blockquote><p><strong>✦ 藍色節點</strong>（PDD / VDD / FRONTEND / CLIENT_IMPL / RESOURCE / BDD-client / MOCK / PROTOTYPE）：<code>client_type ≠ api-only</code> 時啟用。<strong>✧ 粉紅節點</strong>（AUDIO / ANIM）：<code>client_type = game</code> 專屬。<strong>◆ 紫色節點</strong>（ADMIN_IMPL）：<code>has_admin_backend = true</code> 才啟用。<strong>★ 黃色節點</strong>：special_skill（不走三專家，直接呼叫 Skill）。</p></blockquote>
+<p>Each document accumulates knowledge from <strong>all</strong> ancestors (skips silently if missing). Blue nodes only run when <code>client_type ≠ api-only</code>.</p>
 <hr>
 <h2>Repository Structure</h2>
 <pre><code class="">gendoc/
@@ -261,7 +310,7 @@ git clone https://github.com/ibalasite/gendoc.git &quot;$env:USERPROFILE\.claude
 <ol><li>Edit skill files in <code>skills/&lt;skill-name&gt;/SKILL.md</code> or templates in <code>templates/</code></li><li>Commit and push to remote</li><li>On any machine: run <code>/gendoc-upgrade</code> or <code>~/.claude/skills/gendoc/setup upgrade</code></li><li>Test with Claude Code — SessionStart hook auto-pulls every hour</li></ol>
 <hr>
 <h2>License</h2>
-<p>MIT © ibalasite</p><section style="margin-top:2.5rem"><h2 style="font-size:1rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem">文件導覽</h2><div class="index-grid"><a class="index-card" href="prd.html"><span class="index-card__icon">📝</span><span class="index-card__title">產品需求文件 (PRD)</span></a><a class="index-card" href="client.html"><span class="index-card__icon">📄</span><span class="index-card__title">Client</span></a><a class="index-card" href="gendoc-redesign-decisions.html"><span class="index-card__icon">📄</span><span class="index-card__title">Gendoc-Redesign-Decisions</span></a></div></section><section style="margin-top:3rem;padding:1.5rem;background:#fff;border:1px solid var(--border);border-radius:8px;"><h2 style="margin-top:0">📊 專案健康狀態</h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;margin-top:1rem"><div style="text-align:center;padding:1rem;background:var(--page-bg);border-radius:6px"><div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem">已完成 STEP</div><div style="font-size:1.5rem;font-weight:700;color:var(--accent)">0/20</div></div></div></section></main>
+<p>MIT © ibalasite</p><section style="margin-top:2.5rem"><h2 style="font-size:1rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem">文件導覽</h2><div class="index-grid"><a class="index-card" href="prd.html"><span class="index-card__icon">📝</span><span class="index-card__title">產品需求文件 (PRD)</span></a><a class="index-card" href="client.html"><span class="index-card__icon">📄</span><span class="index-card__title">Client</span></a><a class="index-card" href="gendoc-redesign-decisions.html"><span class="index-card__icon">📄</span><span class="index-card__title">Gendoc-Redesign-Decisions</span></a><a class="index-card" href="ha-spof-modification-plan.html"><span class="index-card__icon">📄</span><span class="index-card__title">Ha-Spof-Modification-Plan</span></a></div></section><section style="margin-top:3rem;padding:1.5rem;background:#fff;border:1px solid var(--border);border-radius:8px;"><h2 style="margin-top:0">📊 專案健康狀態</h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;margin-top:1rem"><div style="text-align:center;padding:1rem;background:var(--page-bg);border-radius:6px"><div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem">已完成 STEP</div><div style="font-size:1.5rem;font-weight:700;color:var(--accent)">0/20</div></div></div></section></main>
   </div>
   <script type="module">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
