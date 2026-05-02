@@ -313,14 +313,16 @@ Closed ──(錯誤率 > 閾值)──► Open ──(等待 Timeout)──► 
 | API Pod CPU | 70% | P99 延遲上升 | HPA + 優化演算法 |
 | <依系統特性> | <上限> | <症狀> | <解決方案> |
 
-**架構演進 4 Phase 路線**
+**架構演進 4 Phase 路線（水平擴展里程碑，非架構切換）**
 
-| Phase | 觸發條件 | 架構變更 |
+> **Iron Constraint**：Phase 1 已採 HA 基線（API ≥ 2 replica，DB Primary+Standby，Redis Sentinel 3 nodes），以下 Phase 差別只在水平擴展程度，**不得**描述為從單體或單副本出發的架構轉型。
+
+| Phase | 觸發條件（並發/QPS）| 水平擴展變更 |
 |-------|---------|---------|
-| Phase 1（現況）| QPS < N | Modular Monolith + 單一 DB |
-| Phase 2 | QPS N~N | 讀寫分離 + Redis Cluster |
-| Phase 3 | QPS N~N | 按業務域拆分 Microservice |
-| Phase 4 | QPS > N | CQRS + Event Sourcing |
+| Phase 1（HA 基線）| 啟動即採 HA，QPS < {{P1_QPS}} | API ≥ 2 replica + DB Primary+Standby + Redis Sentinel 3 nodes；HPA auto-scale |
+| Phase 2 | QPS {{P1_QPS}}–{{P2_QPS}} | Read Replica 擴展讀取吞吐 + PgBouncer 連線池 + Redis Cluster |
+| Phase 3 | QPS {{P2_QPS}}–{{P3_QPS}} | 按業務域拆分 Microservice + CQRS 分離讀寫 |
+| Phase 4 | QPS > {{P3_QPS}} | 全球分佈 + 資料分片 + 專用搜尋引擎 |
 
 ### §12 Observability Architecture
 

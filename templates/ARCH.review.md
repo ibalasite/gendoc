@@ -106,10 +106,10 @@ upstream-alignment:
 **Risk**: 資料一致性策略缺失，跨服務事務失敗後無補償機制，造成資料孤兒、雙重扣款、狀態不一致等業務問題。
 **Fix**: 補充資料一致性章節：說明系統選用的一致性模型（Strong / Eventual）+ 跨服務事務的處理策略（Saga Choreography / Orchestration / Outbox Pattern）+ 失敗補償機制。
 
-#### [MEDIUM] 14 — 架構演進路徑未定義
-**Check**: ARCH §2 是否說明架構的演進路徑（如 Phase 1 模組化單體 → Phase 2 微服務拆分）？演進觸發條件（如 DAU > 10K / 功能邊界穩定）是否有具體說明？
-**Risk**: 架構演進路徑未定義，初期過度設計（過早拆分微服務）或未來難以演進（單體膨脹無法拆分），技術債在架構層面累積。
-**Fix**: 補充架構演進路徑說明（Phase 1 → Phase 2 → Phase N），並列出觸發演進的量化條件（用戶規模 / 團隊規模 / 功能邊界穩定度）。
+#### [HIGH] 14 — 架構演進路徑違反 HA 基線原則
+**Check**: ARCH §10.2 Phase 演進路徑是否以 HA 基線為起點？具體驗證：(1) Phase 1 是否已標注「API ≥ 2 replica + DB Primary+Standby + Redis Sentinel」；(2) Phase 1 是否出現「Modular Monolith」「單一 DB」「single pod」等暗示 SPOF 的描述；(3) 演進觸發條件是否以「並發/QPS」為單位而非「用戶數規模」作為架構切換依據。若 Phase 1 描述包含單體或單副本架構，視為 HIGH（下游 LOCAL_DEPLOY/runbook 可能據此生成 SPOF 配置）。
+**Risk**: Phase 1 允許 SPOF，工程師依此文件部署後可能在 Day 1 即產生單點故障；HA 程式碼（分散式鎖、Session 外置、Pub/Sub）無法在 Phase 1 被測試，上線後切換 HA 需要大規模重構。
+**Fix**: 依照 M-03 修改方向更新 §10.2：移除「Phase 1 單體/單副本」描述，改為「Phase 1 HA 基線（啟動即 ≥ 2 replica）」；演進觸發條件從「規模大小」改為「QPS/並發閾值」；加入 Iron Constraint 注解「架構從 Day 1 採 HA，Phase 差別只在水平擴展程度」。
 
 ---
 
