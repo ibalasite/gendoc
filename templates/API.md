@@ -9,6 +9,7 @@
 | Status | Draft / In Review / Approved / Deprecated |
 | Classification | Internal / Confidential |
 | Owner | Backend Lead / API Guild |
+| **Owning Bounded Context / Service** | **{{BC_NAME}}**（對應 ARCH §4 / EDD §3.4；本 API 的唯一發布服務） |
 | Created | {{YYYYMMDD}} |
 | Last Updated | {{YYYYMMDD}} |
 | Upstream EDD | [docs/EDD.md](docs/EDD.md) |
@@ -43,6 +44,7 @@
 - 冪等性：GET、PUT、DELETE 皆為冪等操作
 - 向後相容：新欄位以 additive 方式加入，不移除或重命名現有欄位
 - 所有狀態變更操作須攜帶 `Idempotency-Key` 標頭
+- **Service Encapsulation（Spring Modulith HC-2）**：本 API 是其 Bounded Context（`{{BC_NAME}}`）的**唯一對外介面**；其他 BC 的服務不得直接存取本 BC 的 DB Schema；API Response 欄位名稱**不得直接暴露 DB 欄位名稱**作為穩定合約（必須有 DTO/View Model 層隔離，DB 欄位重命名不能影響 API Contract）
 
 ---
 
@@ -1205,6 +1207,13 @@ components:
 - [ ] 每個端點的 Timeout 已於 §2 或端點說明中明確定義（非 0 / 非無限）
 - [ ] 客戶端重試策略已定義（最大次數、Exponential Backoff、Jitter）
 - [ ] 重試端點的冪等性已於 §7 標注（POST 需 Idempotency-Key）
+
+### Bounded Context 封裝（Spring Modulith HC-2，必查）
+- [ ] Document Control「Owning BC / Service」已填入具體服務名稱（非 placeholder）
+- [ ] §1.1 Service Encapsulation 原則已確認：本 API 是本 BC 的唯一對外介面
+- [ ] API Response 使用 DTO/View Model 層，欄位名稱與 DB 欄位名稱解耦（DB 欄位可重命名不影響 API Contract）
+- [ ] 無端點依賴其他 BC 的 DB Table（所有跨 BC 資料存取已透過對方 BC 的 API 端點或 Domain Event）
+- [ ] 若本服務獨立部署（其他 BC 以 stub 取代），本 API 所有端點仍可正常返回 2XX（冷啟動測試通過）
 - [ ] Rate Limiting 含 503/429 + Retry-After header，客戶端不盲目 retry
 - [ ] 關鍵外部呼叫（DB、Cache、第三方 API）有 Circuit Breaker 說明
 - [ ] 所有端點在服務 downscale / pod 重啟期間有 Graceful Shutdown 行為定義（in-flight request ≤ 30s 完成後才終止）
