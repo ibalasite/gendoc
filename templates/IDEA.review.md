@@ -185,3 +185,24 @@ upstream-alignment:
 **Check**: §1.4 Innovation Type Classification 表格是否已勾選恰好一個類型（Incremental / Sustaining / Adjacent / Disruptive / Radical），且「分類依據」欄位已填寫實質理由？若所有類型均未勾選，或分類依據為 `{{CLASSIFICATION_RATIONALE}}`，視為 LOW。
 **Risk**: 未分類創新類型，資源投入策略（快速 ROI vs 長期實驗）無法在 BRD 階段獲得正確的期望校準，stakeholder 對投資時間表可能存在誤解。
 **Fix**: 依照 IDEA 的實際定位勾選最匹配的創新類型，並在「分類依據」欄位說明關鍵理由（1–2 句話）。
+
+---
+
+### Layer 8: Q4 容量推估完整性（由 Technical Advisor 主審，共 3 項）
+
+> **背景**：Q4 容量推估欄位（`q4_dau` / `q4_peak_ccu` / `q4_estimate_basis`）必須由 PM Expert 自動推算並寫入 state，**禁止以「小/中/大規模」選單詢問使用者**，因為架構設計統一採 HA（≥ 2 replica），不依賴規模選項。
+
+#### [CRITICAL] 27 — §7.3 Q4 容量推估仍使用規模選項（小/中/大）
+**Check**: §7.3 流量推估是否仍呈現「小規模（1–100 人）/ 中規模（100–10,000 人）/ 大規模（10,000 人以上）」這類規模分類選項？若有此類選項出現（無論是 placeholder 還是實際值），視為 CRITICAL（違反 HA-First 原則中「架構只有一種」的要求）。
+**Risk**: 以規模選項決定架構，違反架構設計原則（架構從 Day 1 起統一 HA，規模只影響 HPA 閾值和 DB 連線池大小，不影響 replica 數）；下游 EDD/ARCH 生成器會錯誤地基於規模選擇輸出單副本方案。
+**Fix**: 將 §7.3 改為 PM Expert 推算的 DAU / PCU / 推估依據三欄，並補充「以上數值僅供容量規劃，不影響架構選型（均採 HA 設計，≥ 2 replica）」說明。
+
+#### [HIGH] 28 — §7.3 q4_dau / q4_peak_ccu / q4_estimate_basis 任一為空或 TBD
+**Check**: §7.3 是否已填入具體的 `q4_dau`（日活用戶估算數字）、`q4_peak_ccu`（同時在線峰值數字）、`q4_estimate_basis`（推估依據說明）？若任一欄位為空、TBD、或仍為 `{{PLACEHOLDER}}`，視為 HIGH。
+**Risk**: 容量推估欄位缺失，EDD 生成器無法進行 §10 效能規格的容量計算（HPA 閾值、DB 連線池大小、快取命中率目標），導致 EDD 中的容量規劃數字為空或不合理。
+**Fix**: PM Expert 依 Web Research 競品數據推算並填入；即使是保守估算（如「參考同類競品 1% 市場份額」）也需填入具體數字，並在 `q4_estimate_basis` 欄位說明推算依據。
+
+#### [MEDIUM] 29 — §7.3 q4_estimate_basis 推估依據僅有結論無來源
+**Check**: `q4_estimate_basis` 是否說明了推算依據（引用具體競品名稱 + 公開數據 + 估算比例）？若僅有「根據市場研究」「AI 推算」等無可追溯的說明，視為 MEDIUM。
+**Risk**: 推估依據不可追溯，EDD 審查者無法判斷 DAU/PCU 估算的合理性，無法質疑或調整容量規劃假設。
+**Fix**: 補充具體推算過程（例如：「參考 Trello（MAU 5000 萬），目標市場 1% ≈ 50 萬 MAU，DAU 率 20% ≈ 10 萬 DAU；PCU 取 DAU 的 10% ≈ 1 萬」），確保可被 EDD 審查者理解和質疑。

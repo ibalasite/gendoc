@@ -29,7 +29,7 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 | Q1 澄清結果（目標使用者） | 使用者族群、規模、核心需求 | §3 Target Users、§2 Problem Statement |
 | Q2 澄清結果（痛點） | 痛點陳述、現有替代方案的不足 | §2 Problem Statement |
 | Q3 澄清結果（限制條件） | 技術限制、預算、時間、法規 | §6 Clarification Interview Record |
-| Q4 澄清結果（規模） | 使用量、市場規模估算 | §7 Market Intelligence |
+| Q4 容量推估（PM Expert 自動推算） | DAU / 同時在線峰值（PCU）/ 推估依據 — 由 PM Expert 依競品研究自動寫入 state（`q4_dau` / `q4_peak_ccu` / `q4_estimate_basis`），不詢問使用者 | §7 Market Intelligence（§7.3 流量推估欄位）|
 | Q5 澄清結果（補充資訊） | 其他關鍵背景資訊 | 各相關章節 |
 | Web Research 摘要 | 競品分析、市場動態、技術建議 | §7 Market Intelligence（競品/技術章節）|
 
@@ -48,7 +48,9 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 | Target Users | Q1 澄清結果 | 使用者族群、規模估算 |
 | Core Pain Points | Q2 澄清結果 | 具體痛點陳述，避免泛泛而談 |
 | Constraints | Q3 澄清結果 | 硬性技術/法規/預算限制 |
-| Market Scale | Q4 澄清結果 | TAM/SAM 初步估算或定性描述 |
+| `q4_dau` | state（PM Expert 寫入）/ Web Research 推斷 | 日活用戶（DAU）估算，不得詢問使用者，由 PM Expert 依競品研究自動填入 |
+| `q4_peak_ccu` | state（PM Expert 寫入）/ Web Research 推斷 | 同時在線峰值（PCU），同上，AI 推算後寫入 state |
+| `q4_estimate_basis` | state（PM Expert 寫入）/ Web Research 推斷 | 推估依據說明（競品名稱 + 行業基準），同上 |
 | Competitive Landscape | Web Research 摘要 | 至少 2 個競品的差異化描述 |
 | Kill Conditions | PM Expert 推斷 | 明確觸發「放棄本專案」的條件（至少 2 條）|
 | docs/req/ 素材清單 | docs/req/ 目錄掃描 | Appendix C 必須列出所有引用的素材檔案 |
@@ -176,6 +178,11 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 2. **Web Research 缺失時**：依輸入素材中提及的競品名稱進行靜態分析，並標注「無即時 Web Research，以下為靜態推斷」
 3. **docs/req/ 素材缺失時**：完全依賴 Q1-Q5 澄清結果生成，不可因缺少素材而降低任何章節的覆蓋深度
 4. **PROJECT_NAME 缺失時**：依 Elevator Pitch 的產品名稱或輸入素材的標題推斷
+5. **Q4 容量推估（強制 PM Expert 推算，禁止詢問使用者）**：
+   - `q4_dau`、`q4_peak_ccu`、`q4_estimate_basis` 三個欄位**必須由 PM Expert 從 Web Research 結果和競品數據推算**，寫入 state 後直接顯示在 §7.3，不得詢問使用者選擇「小/中/大規模」
+   - 若 state 中已有這三個欄位，直接引用；若無，PM Expert 依競品研究推算後填入
+   - 推算方式：找 1-2 個同類競品的公開 MAU/DAU 數據，估算本專案在 1 年內可能達到的 DAU 比例（例如：「參考 Notion（1000 萬 DAU），保守估算本專案初期達到 1% ≈ 10 萬 DAU」）
+   - 這些數值僅供 EDD 容量規劃使用，**不影響架構選型**（架構統一採 HA 設計，≥ 2 replica）
 
 ---
 
