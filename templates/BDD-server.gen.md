@@ -311,3 +311,5 @@ Then('I receive HTTP status {int}', async (statusCode) => {
 | 數值非 TBD/N/A | 回應碼、Payload 欄位填有實際值 | 從 API.md 對應定義填入 |
 | 測試資料真實 | 請求體範例非 "string" / 1 / true，使用符合業務語義的真實格式 | 替換為業務語義資料 |
 | 錯誤路徑覆蓋 | 每個 endpoint 至少有 1 個錯誤 Scenario（4XX/5XX） | 補充錯誤 Scenario |
+| Modulith 架構 BDD | `features/architecture/` 目錄存在，@modulith @p0 Scenario ≥ 4 個（HC-1/HC-2/HC-3/HC-5）| 依 BDD.md §18 生成缺失 Modulith Feature |
+| Event Contract 覆蓋 | @event-contract Scenario 覆蓋所有跨 BC Domain Event consumer pair | 依 BDD.md §18.3 補充 Pact consumer 驗證 Scenario |

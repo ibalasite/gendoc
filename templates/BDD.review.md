@@ -130,6 +130,17 @@ upstream-alignment:
 
 ---
 
+### Layer 5: Spring Modulith 微服務可拆解性 BDD（由 Backend Architect 主審，共 4 項）
+
+| ID | Severity | Check | Risk | Fix |
+|----|----------|-------|------|-----|
+| BDD-SM-01 | CRITICAL | `@modulith @p0` Scenario 是否存在（≥ 4 個，覆蓋 HC-1/HC-2/HC-3/HC-5）？ | 缺少架構 BDD 驗證，HC 約束無法在 CI 自動偵測 | 依 §18 補充 `features/architecture/` 目錄下的 4 類 Scenario |
+| BDD-SM-02 | HIGH | `@event-contract` Scenario 是否覆蓋 EDD §4.6 所有 Domain Events 的跨 BC consumer？ | Event schema 升版或 topic 改名時 consumer 端無自動偵測 | 依 §18.3 為每個跨 BC event pair 補充 Pact consumer 驗證 Scenario |
+| BDD-SM-03 | HIGH | `@module-isolation` Scenario 是否為每個 BC 提供冷啟動驗證場景？ | BC 間存在隱性依賴時無法被提前偵測 | 依 §18.1 / §18.2 為所有 BC 補充 WireMock stub 冷啟動場景 |
+| BDD-SM-04 | MEDIUM | §10.1 Tag Taxonomy 是否包含 `@modulith` / `@cross-module` / `@event-contract` / `@module-isolation`？ | 缺乏標籤分類，架構回歸 CI job 無法精準篩選 | 在 §10.1 補充 4 個 Spring Modulith 專用 tag |
+
+---
+
 ## Escalation Protocol
 
 - **CRITICAL**：任一 CRITICAL 項目未通過 → 停止審查，立即修正後重審
@@ -144,6 +155,8 @@ upstream-alignment:
 - §4.5 Forbidden Patterns 涵蓋主要錯誤模式 ✅
 - §12.1 API ↔ BDD 追溯矩陣覆蓋所有 P0 Endpoints ✅
 - §14 VRT 基準快照管理規範清晰 ✅
+- §18 Spring Modulith @modulith @p0 Scenario ≥ 4 個 ✅
+- §10.1 Tag Taxonomy 包含 4 個 Spring Modulith 專用 tag ✅
 - Document Control 完整填入 ✅
 
 > 由 `/reviewdoc BDD` 自動執行本 checklist。

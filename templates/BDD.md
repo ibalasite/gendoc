@@ -468,6 +468,10 @@ Feature: 登入頁面（UI）
 | `@admin` | Admin 後台功能 | 所有 Admin 後台相關場景（has_admin_backend=true 時必填）| Admin 回歸 |
 | `@rbac` | 角色權限控制 | RBAC 邊界測試（Admin 角色隔離、Permission 邊界）| 安全回歸 |
 | `@audit` | 稽核日誌驗證 | 確認高風險操作記錄在 AuditLog 且內容完整 | 安全回歸 |
+| `@modulith` | Spring Modulith 邊界測試 | 驗證系統在 Modular Monolith 模式下的 BC 隔離行為 | 架構回歸 |
+| `@cross-module` | 跨 BC 呼叫驗證 | 跨 Bounded Context 的 Public API 呼叫場景 | 架構回歸 |
+| `@event-contract` | Domain Event 契約測試 | 驗證 event schema version 與 topic name 符合契約 | 架構回歸 |
+| `@module-isolation` | BC 冷啟動隔離測試 | 單一 BC 獨立啟動，其他 BC 為 stub，驗證無非法依賴 | 架構回歸 |
 
 ### 10.2 Tag 組合原則
 
@@ -1132,4 +1136,128 @@ Feature: Admin 操作稽核日誌驗證
     When 嘗試修改或刪除稽核日誌記錄（PUT / DELETE）
     Then 回傳 HTTP 405（Method Not Allowed）
     And 稽核日誌記錄總數仍為 100 筆（未減少）
+```
+
+---
+
+## 18. Spring Modulith 微服務可拆解性 BDD Scenario Patterns
+
+以下場景模式驗證 Spring Modulith HC-1～HC-5 在 BDD 層的行為。  
+所有場景必須使用對應的 `@modulith` / `@cross-module` / `@event-contract` / `@module-isolation` tag。
+
+### 18.1 Schema Isolation Scenario（HC-1）
+
+```gherkin
+# features/architecture/schema_isolation.feature
+# 來源：EDD §3.4 Bounded Context Map，ARCH §4 BC 邊界原則
+
+@modulith @module-isolation @p0 @api
+Feature: Bounded Context Schema 隔離（HC-1）
+
+  Background:
+    Given 系統執行 Spring Modulith 模式
+    And 所有 BC 均部署在同一 api-server pod 中
+
+  @smoke
+  Scenario: member BC 不直接查詢 wallet BC 的 DB Schema
+    Given 「member」BC 需要取得用戶餘額資訊
+    When member BC 發起查詢操作
+    Then 查詢必須透過 wallet Public API（`GET /api/v1/wallets/{memberId}/balance`）
+    And 不存在跨 schema SQL（`SELECT ... FROM wallet_schema.*` 出現在 member BC 的查詢中）
+    And SQL 稽核日誌顯示 0 筆跨 schema 查詢
+
+  Scenario: 每個 BC 只持有自己 schema 的 FK
+    Given 系統初始化完成
+    When 執行跨 BC FK 掃描（schema_isolation_audit）
+    Then 掃描結果顯示 cross_bc_foreign_keys = 0
+    And 所有跨 BC 參照均使用「ID-only + COMMENT ON COLUMN」模式
+```
+
+### 18.2 Cross-Module Public API Scenario（HC-2）
+
+```gherkin
+# features/architecture/cross_module_api.feature
+# 來源：EDD §4.2，ARCH §4 HC-2 Public Interface
+
+@modulith @cross-module @p0 @api
+Feature: 跨 BC 呼叫只能透過 Public Interface（HC-2）
+
+  Scenario: wallet BC 結算時透過 Public API 取得 member 狀態
+    Given member BC 已部署（其他 BC 以 WireMock stub 替代）
+    And 有一個 memberId 為 "M-001" 的活躍會員
+    When wallet BC 執行餘額結算操作
+    Then wallet BC 呼叫 `GET /api/v1/members/M-001`（Public API）
+    And 回應包含 member.status = "ACTIVE"
+    And wallet BC 未直接存取 `member_schema.member` 表
+
+  @module-isolation
+  Scenario: wallet BC 在 member BC 不可用時啟用 Circuit Breaker
+    Given member BC 的 WireMock stub 回傳 HTTP 503
+    When wallet BC 嘗試取得 memberId = "M-001" 的狀態
+    Then wallet BC 的 Circuit Breaker 觸發（狀態變為 OPEN）
+    And wallet BC 回傳降級回應（status: "UNKNOWN"，不拋出 5xx）
+    And 不存在任何對 member_schema 的直接 DB 查詢
+```
+
+### 18.3 Domain Event Contract Scenario（HC-3）
+
+```gherkin
+# features/architecture/domain_event_contract.feature
+# 來源：EDD §4.6 Domain Events，test-plan.md SM-TEST-02/03
+
+@modulith @event-contract @p0 @api
+Feature: Domain Event Schema 契約驗證（HC-3）
+
+  Background:
+    Given Pact Broker 已設定完成
+    And Schema Registry 已啟動
+
+  Scenario Outline: 各 BC 發布的 Event 符合 Pact Consumer 契約
+    Given "<consumer_bc>" BC 已在 Pact Broker 登錄對 "<event_topic>" 的 Consumer 契約
+    When "<producer_bc>" BC 發布一個 "<event_topic>" 的 Domain Event
+    Then Pact Provider 驗證通過（exit code 0）
+    And Event 的 event_schema_version 符合契約要求的版本
+    And Event 的 topic_name 格式為 "<bc_name>.<entity>.<type>"
+
+    Examples:
+      | producer_bc | consumer_bc | event_topic               |
+      | member      | wallet      | member.account.registered |
+      | wallet      | deposit     | wallet.balance.deducted   |
+      | deposit     | wallet      | deposit.transaction.completed |
+      | lobby       | game        | lobby.session.started     |
+
+  Scenario: Event Schema 版本升級時 Consumer 端向下相容
+    Given member BC 的 "member.account.registered" event 當前版本為 v1
+    When member BC 發布 v2 版本（新增可選欄位 `kyc_level`）
+    Then 已登錄的所有 Consumer（wallet, deposit）驗證均通過
+    And v1 Consumer 接收 v2 event 時可忽略未知欄位（不拋出 deserialization error）
+```
+
+### 18.4 Module DAG 驗證 Scenario（HC-5）
+
+```gherkin
+# features/architecture/module_dag.feature
+# 來源：EDD §4.3 跨模組依賴 DAG，ARCH §15 MD-03
+
+@modulith @module-isolation @p0 @api
+Feature: Spring Modulith 模組依賴 DAG 驗證（HC-5）
+
+  @smoke
+  Scenario: 模組依賴圖為 DAG（無循環依賴）
+    Given Spring Modulith ApplicationContext 已載入
+    When 執行 ModulithDAGTest（`ApplicationModules.of(Application.class).verify()`）
+    Then 驗證通過（無循環依賴 CyclicDependencyException）
+    And 依賴圖符合 EDD §4.3 定義的 DAG
+
+  Scenario: 新增跨 BC 依賴時若形成循環則建置失敗
+    Given 當前依賴圖為 DAG：game → lobby → member
+    When 嘗試在 member BC 新增對 game BC 的直接依賴
+    Then Spring Modulith 驗證拋出 CyclicDependencyException
+    And CI pipeline 建置失敗，不允許合併此 PR
+
+  Scenario: 各 BC 模組可獨立載入（無未宣告的 bean 依賴）
+    Given 只啟動「wallet」BC 的 ApplicationContext（其他 BC 模組未載入）
+    When Spring 容器完成初始化
+    Then 容器啟動成功（不拋出 NoSuchBeanDefinitionException）
+    And wallet BC 所有 Service bean 均正確注入
 ```

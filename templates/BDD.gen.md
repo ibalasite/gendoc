@@ -486,3 +486,6 @@ _HAS_ADMIN=$(python3 -c "import json; print(json.load(open('.gendoc-state.json')
 | HA Then 具體 RTO | 所有 @ha Scenario 的 Then 含具體 RTO 數字（≤ 30s / ≤ 60s）和 5XX 錯誤率上限 | 補充具體 RTO 值 |
 | Admin BDD 覆蓋 | has_admin_backend=true 時：features/admin/ 存在，@admin @rbac ≥ 2 + @admin @audit ≥ 2 | 依 §17 生成缺失 Admin Feature |
 | Admin RBAC 邊界 | 每個 Admin 角色至少有一個「403 拒絕存取」Scenario | 補充 RBAC 邊界測試 |
+| Modulith 架構 BDD | `features/architecture/` 目錄存在，@modulith @p0 Scenario ≥ 4 個（HC-1 schema isolation + HC-2 cross-module + HC-3 event-contract + HC-5 DAG）| 依 §18 生成缺失 Modulith Feature |
+| Event Contract 覆蓋 | @event-contract Scenario 覆蓋 EDD §4.6 所有 Domain Events 的跨 BC consumer | 補充缺失的 event contract Scenario |
+| Module Isolation 場景 | @module-isolation Scenario 覆蓋所有 BC（每個 BC ≥ 1 個冷啟動驗證場景）| 依 §18.1 / §18.2 補充 |

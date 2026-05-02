@@ -148,3 +148,21 @@ upstream-alignment:
 **Check**: 是否有 `{{PLACEHOLDER}}` 格式未替換（Module 名稱、TC-ID 範例、Step 描述範例、測試資料值）？逐一掃描所有 .feature 檔案，列出所有裸 placeholder 及其所在檔案和行號。
 **Risk**: 裸 placeholder 的 Scenario 或 Step 描述讓 BDD 框架無法正確解析，導致 Step 匹配失敗或 Scenario 名稱顯示模板字符串。
 **Fix**: 替換所有裸 placeholder 為真實的 Module 名稱、TC-ID 或 Step 描述；若暫時無法確定，加上 `# TODO: 待填入` 注釋說明。
+
+### Layer 6: Spring Modulith 微服務可拆解性（由 Backend Architect 主審，共 3 項）
+
+#### [CRITICAL] 21 — Modulith 架構 BDD 場景缺失
+**Check**: `features/architecture/` 目錄是否存在？是否包含 `@modulith @p0` Scenario，覆蓋 HC-1（schema isolation）、HC-2（cross-module public API）、HC-3（domain event contract）、HC-5（module DAG）四個方向，各至少 1 個 Scenario？
+**Risk**: 缺少架構 BDD 驗證，Spring Modulith HC 約束退化為「人工 code review 才能確認」，CI 無法自動偵測架構違規。
+**Fix**: 依 BDD.md §18 補充 `features/architecture/` 下四個 feature 檔案，各含 `@modulith @p0` Scenario。
+
+#### [HIGH] 22 — Event Contract Scenario 覆蓋不完整
+**Check**: `@event-contract` Scenario 是否覆蓋 EDD §4.6 中所有跨 BC 的 Domain Event consumer pair？對照 EDD §4.6 的 Domain Events 表，列出每個 event 的 producer BC 和 consumer BC，確認對應 Pact consumer 驗證 Scenario 是否存在。
+**Risk**: Domain Event schema 升版或 topic_name 重命名時，consumer 端無 CI 自動偵測，只有在 runtime 才發現不相容。
+**Fix**: 依 BDD.md §18.3 為每個跨 BC event pair 補充 Pact consumer 驗證 Scenario，標記 `@event-contract @p0`。
+
+#### [MEDIUM] 23 — Module Isolation 冷啟動場景缺失
+**Check**: 是否為每個 BC 各提供至少 1 個 `@module-isolation` Scenario，驗證該 BC 在其他 BC 完全不可用（WireMock stub）時可獨立冷啟動？
+**Risk**: 隱性 bean 依賴或跨 schema 查詢在全系統運行時不易被偵測，只有隔離啟動才能暴露。
+**Fix**: 依 BDD.md §18.1 / §18.2 為各 BC 補充冷啟動 Scenario，Given 設定其他 BC 為 WireMock stub，Then 驗證 ApplicationContext 啟動成功且 health 端點回傳 up。
+
