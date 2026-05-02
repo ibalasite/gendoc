@@ -800,7 +800,7 @@
 | **影響範圍** | 生成的 ARCH.md 頁數增加 1~2 頁（映射表）；ARCH review loop 多 1 個量化 check；SCHEMA.md 的「Owning BC」欄成為 ARCH §4.0 的驗證依據（兩個文件需保持一致） |
 | **工作量評估** | 小（3 個文件，各新增 10~30 行）；ARCH.md 新增表格骨架、ARCH.gen.md 新增生成指令、ARCH.review.md 擴展 Check |
 | **依賴關係** | 依賴 EDD.md §3.4 BC 清單（M-28 已修，現有 §3.4 有 Bounded Context 表）；依賴 API.md §3 Endpoints（現有 API.md 已有 Endpoints 章節）；依賴 SCHEMA.md Document Control Owning BC 欄（現有 SCHEMA.md 已有此欄） |
-| **決策** | 待確認 |
+| **決策** | 確認 |
 
 ---
 
@@ -816,7 +816,7 @@
 | **影響範圍** | 生成的 test-plan.md 新增 1 個章節（~1 頁）；BDD feature files 新增 ≥ 5 個 @modulith Scenario；CI 新增 `make test-modulith` 目標（需 LOCAL_DEPLOY.md 同步新增） |
 | **工作量評估** | 小～中（3 個文件，各 20~40 行）；test-plan.md 骨架最複雜，需確定 ≥ 5 個 Scenario 的 Given/When/Then 內容 |
 | **依賴關係** | 依賴 EDD.md §3.4 BC 清單（M-28 已修）；依賴 LOCAL_DEPLOY.md `make` 系列指令（M-50 完成後需在 LOCAL_DEPLOY.md 新增 `make test-modulith`）；不依賴 M-49（可並行） |
-| **決策** | 待確認 |
+| **決策** | 確認 |
 
 ---
 
@@ -832,7 +832,7 @@
 | **影響範圍** | 生成的 EDD.md 頁數增加（Events 清單可能 1~2 頁，視 BC 數量）；EDD review loop 多 2 個量化 check；EDD.gen.md 生成指令更嚴格，gen agent 生成時間可能增加 10-20% |
 | **工作量評估** | 小～中（3 個文件，各 20~50 行）；EDD.md §4.6.1 表格骨架設計最需要謹慎（欄位要完整但不能過於複雜） |
 | **依賴關係** | 不依賴其他未完成的 M-item；M-49（ARCH 三層映射表）完成後，EDD §4.6 Events 清單的 Consumer BC 欄可以被 ARCH §4.0 映射表驗證一致性（兩者互為上下游） |
-| **決策** | 待確認 |
+| **決策** | 確認 |
 
 ---
 
@@ -848,7 +848,7 @@
 | **影響範圍** | 生成的 API.md 結構調整（§3 從扁平改為按 BC 分節）；現有 API.review.md（若有）需同步更新 section check |
 | **工作量評估** | 小（2~3 個文件，各 10~20 行調整）；主要工作是 API.md 骨架的結構重組 |
 | **依賴關係** | 依賴 M-49（ARCH §4.0 映射表）完成後，API BC 分節可作為 §4.0 映射表的驗證來源；不阻塞 M-49 |
-| **決策** | 待確認 |
+| **決策** | 確認 |
 
 ---
 
@@ -864,7 +864,7 @@
 | **影響範圍** | 生成的 ARCH.md 新增 §7.1（~0.5 頁）；DRYRUN gate-check 的 ARCH.md min_h2_sections 需從 5 調整為 6（新增 §7.1） |
 | **工作量評估** | 小（3 個文件，各 10~20 行）；§7.1 骨架設計最關鍵，需確定 Key 格式和 4 種 key 類型 |
 | **依賴關係** | 不依賴其他未完成 M-item；M-53 完成後，`templates/DRYRUN.gen.md` 的 ARCH.md min_h2_sections 規則需從 5 更新為 6（小 follow-up 修改） |
-| **決策** | 待確認 |
+| **決策** | 確認 |
 
 ---
 
