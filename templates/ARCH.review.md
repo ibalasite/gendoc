@@ -189,9 +189,9 @@ upstream-alignment:
 **Fix**: 補填 §4 表格「擁有資料」欄為具體 Table 清單；確認 §4 邊界原則含 HC-1 禁止宣告；識別並移除所有跨服務 DB-level FK。若 §4.0 缺失，依 `API.md §3` 完整列出所有 Endpoint 並填入對應 BC 和 Owned Tables。
 
 #### [HIGH] AM-02 — 跨服務通訊路徑未明確（HC-2）
-**Check**: §4 或 §5 通訊模式是否明確說明所有跨服務通訊只透過 Public API 或 Domain Event？是否有設計允許直接呼叫其他服務的 Repository 或 DAO？若有直接呼叫視為 HIGH。
-**Risk**: 未明確禁止跨服務 Repository 直接呼叫，開發者在實作時會取最短路徑（直接 Import），導致編譯期耦合。
-**Fix**: 在 §4 邊界原則或 §5 通訊模式明確標注 HC-2；識別並列出所有需要重設計為 API/Event 的直接呼叫路徑。
+**Check**: §4 或 §5 通訊模式是否明確說明所有跨服務通訊只透過 Public API 或 Domain Event？是否有設計允許直接呼叫其他服務的 Repository 或 DAO？**API.md §3 Endpoints 是否依 Bounded Context 分組（每個 BC 對應 `### BC: {BC_NAME} Endpoints` 子章節）？是否存在跨 BC Path Prefix 混淆（不同 BC 共用同一 Path Prefix）？** 若有直接呼叫或 §3 無 BC 分組視為 HIGH。
+**Risk**: 未明確禁止跨服務 Repository 直接呼叫，開發者在實作時會取最短路徑（直接 Import），導致編譯期耦合。API.md §3 無 BC 分組，工程師無法一眼識別 Endpoint 的 BC 歸屬，HC-2 在 Code Review 中無法機械式驗證。
+**Fix**: 在 §4 邊界原則或 §5 通訊模式明確標注 HC-2；識別並列出所有需要重設計為 API/Event 的直接呼叫路徑；在 API.md §3 為每個 BC 添加 `### BC: {BC_NAME} Endpoints` 子章節並確認 Path Prefix 不重疊。
 
 #### [HIGH] AM-03 — 服務間依賴未驗證 DAG（HC-5）
 **Check**: 是否有服務間依賴圖（來自 §4、§5 或 EDD §4.3）？是否宣告圖為 DAG（無循環依賴）？若無依賴圖或存在循環，視為 HIGH。

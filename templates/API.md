@@ -46,6 +46,17 @@
 - 所有狀態變更操作須攜帶 `Idempotency-Key` 標頭
 - **Service Encapsulation（Spring Modulith HC-2）**：本 API 是其 Bounded Context（`{{BC_NAME}}`）的**唯一對外介面**；其他 BC 的服務不得直接存取本 BC 的 DB Schema；API Response 欄位名稱**不得直接暴露 DB 欄位名稱**作為穩定合約（必須有 DTO/View Model 層隔離，DB 欄位重命名不能影響 API Contract）
 
+### 1.2 Bounded Context 歸屬（HC-2）
+
+> 此節宣告本 API 文件所覆蓋的 Bounded Context 範圍。每個 BC 有且僅有一份 API 文件（單一職責）；跨 BC 呼叫需透過對方 BC 的 API 文件中定義的端點。
+
+| Bounded Context | Path Prefix | Owning Team | Owned DB Schema（對應 SCHEMA.md） |
+|-----------------|------------|------------|----------------------------------|
+| {{BC_NAME_1}} | `/api/v1/{{bc1_prefix}}/` | {{TEAM_NAME_1}} | `{{schema_1}}`: `{{table_a}}`, `{{table_b}}` |
+| {{BC_NAME_2}} | `/api/v1/{{bc2_prefix}}/` | {{TEAM_NAME_2}} | `{{schema_2}}`: `{{table_c}}`, `{{table_d}}` |
+
+*（每個 BC 一列；Path Prefix 必須與 §3 的 BC 分組標題一致；Owned DB Schema 必須與 ARCH.md §4.0 映射表一致）*
+
 ---
 
 ## 2. 通用規範
@@ -266,6 +277,12 @@ Link: <https://docs.{{DOMAIN}}.com/migration/v2>; rel="successor-version"
 ---
 
 ## 3. Endpoints
+
+> **組織原則（Spring Modulith HC-2）**：本節所有 Endpoint 依所屬 Bounded Context 分組，每個 BC 為一個一級子章節（`### BC: {{BC_NAME}}`）。BC 邊界與 §1.2 Bounded Context 歸屬表一致；每個 Endpoint 只屬於一個 BC；Endpoint Path Prefix 必須對應其 Owning BC（例：`/api/v1/members/` → `member BC`）。
+
+### BC: {{BC_NAME_1}} Endpoints
+
+> **Owning BC**：{{BC_NAME_1}} | **Path Prefix**：`/api/v1/{{bc1_prefix}}/` | **Owned Tables**：`{{schema_1}}`: `{{table_a}}`, `{{table_b}}`
 
 ### 3.1 {{RESOURCE_NAME}}（{{資源中文名稱}}）
 
