@@ -103,7 +103,7 @@ upstream-alignment:
 
 ---
 
-### Layer 3: 安全性（由安全工程師主審，共 5 項）
+### Layer 3: 安全性（由安全工程師主審，共 7 項）
 
 #### [CRITICAL] 12 — §7 明文密碼無安全警示
 **Check**: §7（Database Operations）的 psql 連線字串中是否有明文密碼（如 `postgres://app:secret@...`）且**未加任何「本地開發用，禁止生產使用」注釋**？若已有注釋說明僅本機開發使用，視為合規。
@@ -129,6 +129,16 @@ upstream-alignment:
 **Check**: §9（ConfigMap & Secret Reference）中 Secret 表格是否只列出 Key 名稱，不填入任何實際值（包含「預設值」範例密碼）？若 Secret 表格的「說明」欄有任何看起來像真實密碼的值（如：`Password1!`、`my-secret-key`），視為 finding。
 **Impact**: 文件中出現密碼範例值，開發者可能誤用為真實值，降低安全性。
 **Fix**: 移除 Secret 表格中所有看起來像真實密碼的值，只保留 Key 名稱說明。
+
+#### [CRITICAL] 16b — .env 或 secrets.env 可能進 git
+**Check**: `.gitignore` 是否包含以下全部規則：`*.env`、`secrets.env`、`.env.*`？缺少任一規則視為 CRITICAL。同時確認 §3.5 Secret Bootstrap 段落存在且明確聲明禁止規則。若 §3.5 不存在，視為 CRITICAL。
+**Risk**: `.env` 或 `secrets.env` 進入 git 歷史 → 所有有 repo 存取權的人均能看到明文密碼；即使之後刪除，git 歷史仍保留，需 `git filter-repo` 才能徹底清除。
+**Fix**: (1) 在 `.gitignore` 補充 `*.env`、`secrets.env`、`.env.*` 規則；(2) 在 §3.5 Secret Bootstrap 明確說明禁止規則清單；(3) 驗證 `git check-ignore -v secrets.env` 輸出顯示已被忽略。
+
+#### [HIGH] 16c — 靜態密碼無重生成機制
+**Check**: §3.5 Secret Bootstrap 中，`bootstrap-secrets.sh` 和 `bootstrap-secrets.ps1` 是否使用 `openssl rand`（bash）或 PowerShell CSPRNG 生成隨機密碼？若 script 中出現任何硬編碼密碼值（如 `DB_PASSWORD=secret123`），視為 HIGH。若 §3.5 完全不存在，升級為 CRITICAL。
+**Risk**: 靜態密碼模式可被猜測；多個開發者使用相同密碼，一人洩漏影響全團隊；靜態密碼可能被意外複製到 staging/production。
+**Fix**: 確認 bootstrap script 使用 `openssl rand -hex 32` 或 PowerShell `[System.Security.Cryptography.RandomNumberGenerator]::Create()` 生成密碼，不得有任何 literal password 值。
 
 ---
 

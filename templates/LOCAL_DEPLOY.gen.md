@@ -174,8 +174,17 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 - namespace 建立命令使用真實 `K8S_NAMESPACE`
 - /etc/hosts 設定：`127.0.0.1 {{PROJECT_SLUG}}.local api.{{PROJECT_SLUG}}.local`
 
+**§3.5 Secret Bootstrap（Ephemeral 密碼）生成規則**：
+- 必須生成雙平台 bootstrap script：`scripts/bootstrap-secrets.sh`（macOS/Linux）和 `scripts/bootstrap-secrets.ps1`（Windows）
+- bash script 使用 `openssl rand -hex 32` 生成 DB_PASSWORD / REDIS_AUTH / ENCRYPTION_KEY；`openssl rand -hex 64` 生成 JWT_SECRET；`openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16` 生成 ADMIN_INIT_PASSWORD
+- PowerShell script 使用 `[System.Security.Cryptography.RandomNumberGenerator]::Create()` 等效方式
+- **禁止任何 literal password 值**（如 `DB_PASSWORD=secret`、`DB_PASSWORD=password123`）
+- `.gitignore` 必須包含：`*.env`、`secrets.env`、`.env.*`
+- 三層策略說明（Ephemeral / OS Keychain / Password Manager）必須清晰，包含何時使用哪一層
+- mittwald/secret-generator 作為可選 in-cluster 替代方案，提供簡短說明和 YAML annotation 範例
+
 **§4.3 建立 K8s Secret**：
-- secrets.env 路徑：`k8s/overlays/local/secrets.env`
+- 改為參考 §3.5 bootstrap script 執行方式
 - 建立命令使用 `--from-env-file`（非 `--from-literal`）
 - 必須說明：`k8s/overlays/local/secrets.env` 已加入 `.gitignore`
 
@@ -471,11 +480,14 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 - [ ] §4.4 Build 策略說明與 CLIENT_ENGINE 一致（Unity WebGL / Cocos / Web 各有對應 Dockerfile 說明）
 - [ ] §15 Inner Loop 包含正確的引擎特定小節（Web HMR / Cocos CLI / Unity WebGL build steps）
 
-**安全性（4 項）**
+**安全性（7 項）**
 - [ ] §7 Database Operations 所有含明文密碼 `secret` 的連線字串前均有安全警示注釋
 - [ ] Secret 建立使用 `--from-env-file` 方式
 - [ ] §13 Local HTTPS 使用 mkcert（非自簽憑證），且憑證私鑰加入 .gitignore
 - [ ] pgadmin Secret 密碼注釋「本機使用，勿使用於其他環境」
+- [ ] §3.5 Secret Bootstrap 存在，且 bootstrap script 使用 `openssl rand`（非靜態明文密碼）
+- [ ] 無 `.env` 檔案進 git（`.gitignore` 已包含 `*.env`、`secrets.env`、`.env.*` 規則）
+- [ ] bootstrap-secrets.sh 和 bootstrap-secrets.ps1 均以 `openssl rand` / PowerShell CSPRNG 生成密碼，無任何靜態值
 
 **裸 placeholder 掃描（3 項）**
 - [ ] 全文無裸 `{{PROJECT_NAME}}`、`{{PROJECT_SLUG}}`、`{{K8S_NAMESPACE}}` placeholder（應已全部替換）
@@ -545,6 +557,8 @@ LOCAL_DEPLOY.md 必須包含服務啟動和關閉的依賴順序圖：
 | Local HA ≥ 2 Replicas | API Server 副本數 ≥ 2、Worker 副本數 ≥ 2（遵循 EDD §3.7 圖 B），含 HA 驗證指令 | 修正 Deployment replicas 設定及補充驗證步驟 |
 | Admin Ingress 路徑（has_admin_backend=true）| §5 Ingress 表含 `/admin` 路由；admin SPA nginx.conf 含 `try_files` SPA fallback；`base: '/admin/'` 打包設定有說明 | 依 §5 Admin SPA Ingress 設定補充 YAML + nginx.conf |
 | Docker Compose 單一 port（has_admin_backend=true）| §19 含 nginx proxy service + nginx.conf + 驗證指令（含 /admin deep link reload 驗證）| 依 §19.1 補充 nginx proxy 方案 |
+| Ephemeral 密碼 Bootstrap | §3.5 Secret Bootstrap 存在；bootstrap-secrets.sh + bootstrap-secrets.ps1 使用 `openssl rand`（非靜態值）；`.gitignore` 涵蓋 `*.env`、`secrets.env` | 補寫 §3.5，修正 bootstrap script 使用隨機生成 |
+| 無 .env 進 git | `.gitignore` 包含 `*.env`、`secrets.env`、`.env.*` 規則 | 在 .gitignore 補充缺漏規則 |
 
 ---
 

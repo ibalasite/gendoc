@@ -188,6 +188,228 @@ make health-check
 
 ---
 
+## 3.5 Secret Bootstrap（密碼安全管理）
+
+> **原則**：所有 K8s Secret **禁止進 git**。禁止使用靜態明文密碼（如 `password: secret`）。本節定義三層密碼策略，確保本地開發環境的安全性符合企業標準。
+
+### 禁止規則
+
+以下檔案 **必須** 加入 `.gitignore`，違規者視為安全事故：
+
+```gitignore
+# Secret files — never commit
+*.env
+.env
+.env.*
+secrets.env
+k8s/overlays/local/secrets.env
+scripts/bootstrap-secrets.sh.local
+```
+
+### 三層 Secret 策略
+
+| 層 | 類型 | 適用密碼 | 管理方式 |
+|----|------|---------|---------|
+| **層 1** | Ephemeral（每次重生成） | DB password、Redis AUTH、JWT secret、Admin init password | 每次 `make k8s-init` 或 `make secrets-rotate` 重生成 |
+| **層 2** | OS Keychain（固定憑證） | Docker Hub token、npm/Maven private registry token | macOS Keychain / Windows Credential Manager |
+| **層 3** | Enterprise Password Manager（可選） | OAuth client secret、API keys | 1Password `op inject` 或 Bitwarden Secrets Manager |
+
+---
+
+### 層 1：Ephemeral 密碼 Bootstrap（必做）
+
+每次重啟 cluster 或執行 `make k8s-clean` 後，執行以下 bootstrap script 重新生成所有密碼：
+
+**macOS / Linux：**
+
+```bash
+# scripts/bootstrap-secrets.sh
+#!/usr/bin/env bash
+# Auto-generate ephemeral K8s secrets — never commit this output
+set -euo pipefail
+
+NAMESPACE="{{K8S_NAMESPACE}}-local"
+
+echo "[bootstrap-secrets] Generating ephemeral secrets for namespace: ${NAMESPACE}"
+
+# Ensure namespace exists
+kubectl create namespace "${NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
+
+# Delete existing secrets to force regeneration
+kubectl delete secret app-secrets -n "${NAMESPACE}" --ignore-not-found
+
+# Generate and apply
+kubectl create secret generic app-secrets \
+  -n "${NAMESPACE}" \
+  --from-literal=DB_PASSWORD="$(openssl rand -hex 32)" \
+  --from-literal=REDIS_AUTH="$(openssl rand -hex 32)" \
+  --from-literal=JWT_SECRET="$(openssl rand -hex 64)" \
+  --from-literal=ADMIN_INIT_PASSWORD="$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16)" \
+  --from-literal=ENCRYPTION_KEY="$(openssl rand -hex 32)"
+
+echo "[bootstrap-secrets] ✅ Ephemeral secrets created in ${NAMESPACE}"
+echo "[bootstrap-secrets] ⚠️  Secrets are ephemeral — regenerated on every cluster restart"
+```
+
+```bash
+# 每次 cluster 啟動時執行
+chmod +x scripts/bootstrap-secrets.sh
+./scripts/bootstrap-secrets.sh
+
+# 或透過 make target（§6 Development Commands 需加入此 target）
+make secrets-rotate
+```
+
+**Windows（PowerShell）：**
+
+```powershell
+# scripts/bootstrap-secrets.ps1
+# Auto-generate ephemeral K8s secrets — never commit this output
+param(
+    [string]$Namespace = "{{K8S_NAMESPACE}}-local"
+)
+
+Write-Host "[bootstrap-secrets] Generating ephemeral secrets for namespace: $Namespace"
+
+# Ensure namespace exists
+kubectl create namespace $Namespace --dry-run=client -o yaml | kubectl apply -f -
+
+# Delete existing secrets
+kubectl delete secret app-secrets -n $Namespace --ignore-not-found
+
+# Helper: generate random hex string
+function New-RandomHex([int]$bytes) {
+    $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    $bytes_arr = New-Object byte[] $bytes
+    $rng.GetBytes($bytes_arr)
+    return ([System.BitConverter]::ToString($bytes_arr) -replace '-','').ToLower()
+}
+
+# Generate and apply
+kubectl create secret generic app-secrets `
+    -n $Namespace `
+    --from-literal="DB_PASSWORD=$(New-RandomHex 32)" `
+    --from-literal="REDIS_AUTH=$(New-RandomHex 32)" `
+    --from-literal="JWT_SECRET=$(New-RandomHex 64)" `
+    --from-literal="ENCRYPTION_KEY=$(New-RandomHex 32)" `
+    --from-literal="ADMIN_INIT_PASSWORD=$(New-RandomHex 16)"
+
+Write-Host "[bootstrap-secrets] ✅ Ephemeral secrets created in $Namespace"
+Write-Host "[bootstrap-secrets] ⚠️  Secrets are ephemeral — regenerated on every cluster restart"
+```
+
+```powershell
+# 執行
+.\scripts\bootstrap-secrets.ps1
+# 或指定 namespace
+.\scripts\bootstrap-secrets.ps1 -Namespace "{{K8S_NAMESPACE}}-local"
+```
+
+**重生成時機：**
+
+```bash
+# 每次執行以下任何一個動作後，必須重跑 bootstrap script
+make k8s-clean        # 刪除 namespace（所有 secret 一起被刪）
+make cluster-reset    # 完全重建 cluster
+make secrets-rotate   # 主動輪換（安全需求或 secret 洩漏後）
+```
+
+---
+
+### 層 2：OS Keychain 固定憑證（視需求）
+
+適用於**不能每次重生成**的憑證，例如 Docker Hub token、npm private registry token。
+
+**macOS Keychain（`security` CLI）：**
+
+```bash
+# 儲存憑證到 macOS Keychain（首次設定）
+security add-generic-password \
+  -s "{{PROJECT_SLUG}}-registry" \
+  -a "dev" \
+  -w "<YOUR_DOCKER_HUB_TOKEN>"
+
+# 讀取憑證並登入（bootstrap script 中使用）
+REGISTRY_TOKEN=$(security find-generic-password -w -s "{{PROJECT_SLUG}}-registry" -a "dev")
+echo "${REGISTRY_TOKEN}" | docker login --username {{DOCKER_HUB_USERNAME}} --password-stdin
+
+# 儲存 npm registry token
+security add-generic-password \
+  -s "{{PROJECT_SLUG}}-npm-token" \
+  -a "dev" \
+  -w "<YOUR_NPM_TOKEN>"
+```
+
+**Windows Credential Manager（PowerShell）：**
+
+```powershell
+# 需安裝 CredentialManager 模組（一次性安裝）
+Install-Module -Name CredentialManager -Force
+
+# 儲存憑證（首次設定）
+New-StoredCredential -Target "{{PROJECT_SLUG}}-registry" -UserName "dev" -Password "<YOUR_DOCKER_HUB_TOKEN>"
+
+# 讀取憑證
+$cred = Get-StoredCredential -Target "{{PROJECT_SLUG}}-registry"
+$token = $cred.GetNetworkCredential().Password
+echo $token | docker login --username {{DOCKER_HUB_USERNAME}} --password-stdin
+```
+
+---
+
+### 層 3：mittwald/kubernetes-secret-generator（進階選項）
+
+如果偏好 **in-cluster 全自動生成**（無需手動執行 bootstrap script）：
+
+```bash
+# 安裝 mittwald/kubernetes-secret-generator
+helm repo add mittwald https://helm.mittwald.de
+helm upgrade --install secret-generator mittwald/kubernetes-secret-generator \
+  -n kube-system
+
+# 在 Secret manifest 中加入 annotation 即可自動生成
+```
+
+```yaml
+# k8s/overlays/local/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+  namespace: {{K8S_NAMESPACE}}-local
+  annotations:
+    # mittwald/kubernetes-secret-generator 自動填入隨機值
+    secret-generator.v1.mittwald.de/autogenerate: "DB_PASSWORD,REDIS_AUTH,JWT_SECRET,ENCRYPTION_KEY"
+    secret-generator.v1.mittwald.de/length: "64"
+    secret-generator.v1.mittwald.de/type: "string"
+type: Opaque
+```
+
+> **注意**：mittwald/secret-generator 適合不需要在 bootstrap script 中讀取密碼的場景（如 app 直接從 K8s Secret 讀取）。若需要在腳本中取得生成的密碼值，層 1（openssl rand）更直接。
+
+---
+
+### 驗證 Secret 已正確建立
+
+```bash
+# 確認 secret 存在（不顯示值）
+kubectl get secret app-secrets -n {{K8S_NAMESPACE}}-local
+
+# 確認所有 key 都存在
+kubectl get secret app-secrets -n {{K8S_NAMESPACE}}-local -o jsonpath='{.data}' | python3 -c "
+import sys, json
+keys = list(json.load(sys.stdin).keys())
+required = ['DB_PASSWORD', 'REDIS_AUTH', 'JWT_SECRET', 'ENCRYPTION_KEY', 'ADMIN_INIT_PASSWORD']
+missing = [k for k in required if k not in keys]
+print('Missing:', missing) if missing else print('✅ All required secrets present')
+"
+
+# 確認 .gitignore 涵蓋 secret 檔案
+grep -E '\.env|secrets\.env' .gitignore && echo "✅ .gitignore OK" || echo "❌ .gitignore missing secret patterns"
+```
+
+---
+
 ## 4. Step-by-Step Setup
 
 ### 4.1 Clone & Configure
