@@ -128,6 +128,7 @@ graph TD
 - 效能測試：{{CORE_API_ENDPOINTS}} 所有 public API endpoints
 - 安全測試：所有 authenticated endpoints、用戶資料處理流程
 - UAT：所有 Must-have 功能的 Critical User Flows
+- **HA / Failover 測試**：驗證高可用配置正確性（Pod Kill、DB Failover、Redis Sentinel 切換）— 依 EDD §12.2 HA-01~HA-04 標準場景執行，確保 HA 程式邏輯（分散式鎖、Session 外置、連線重試）在 ≥ 2 replica 環境下可正常運作
 
 ### §2.2 Out-of-Scope（排除項目）
 
