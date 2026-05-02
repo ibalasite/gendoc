@@ -15,6 +15,8 @@ condition: has_admin_backend
 | 上游 EDD | [EDD.md](EDD.md) §3.3 + §5.5-A |
 | 上游 API | [API.md](API.md) /admin/* 章節 |
 | 上游 SCHEMA | [SCHEMA.md](SCHEMA.md) RBAC 資料表章節 |
+| 上游 ARCH | [ARCH.md](ARCH.md) Admin Portal 容器（部署位置 + 技術棧） |
+| 上游 CONSTANTS | [CONSTANTS.md](CONSTANTS.md) Token TTL + API Timeout + pageSize 等常數 |
 
 ---
 
@@ -60,7 +62,7 @@ condition: has_admin_backend
 {
   "dependencies": {
     "vue": "^3.4.0",
-    "element-plus": "^2.x.x",
+    "element-plus": "^2.7.0",
     "vue-router": "^4.x.x",
     "pinia": "^2.x.x",
     "axios": "^1.x.x",
@@ -359,6 +361,11 @@ http.interceptors.response.use(
 | `{{storeName}}` | `{{職責}}` | `{{狀態}}` |
 
 ### §9.2 authStore 關鍵邏輯
+
+> **Token 存儲方式對本節實作的影響（依 §5.4 選擇）：**
+> - **HttpOnly Cookie**：`accessToken` 由瀏覽器自動附帶，此 store 不需存放 token 字串；`refreshToken()` 透過呼叫刷新端點完成，Cookie 由後端更新。
+> - **Memory（預設範例）**：`accessToken` 存於 ref 中，頁面刷新後清空；需配合 silent refresh（頁面載入時呼叫 refresh endpoint 恢復 token）或導向登入頁。
+> 請依 §5.4 的選擇調整下方程式碼邏輯，確保兩節保持一致。
 
 ```typescript
 // stores/auth.ts

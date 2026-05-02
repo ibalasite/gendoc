@@ -12,29 +12,47 @@ expert-roles:
       scope: §13-§16 i18n + 效能 + 部署配置
 upstream-docs:
   required:
-    - docs/EDD.md          # §3.3 _ADMIN_FRAMEWORK 技術棧 + §5.5 RBAC 模型 + §3.1 角色
-    - docs/ARCH.md         # C4 Container 圖 + Admin Portal 服務部署位置
-    - docs/API.md          # /admin/* endpoints 清單 + 認證方案
-    - docs/SCHEMA.md       # RBAC 相關 tables (Role, Permission, AdminUser, AuditLog)
+    - path: docs/EDD.md
+      sections: "§3.3 + §5.5 + §3.1"
+      purpose: "_ADMIN_FRAMEWORK 技術棧 + RBAC 模型 + 角色定義"
+    - path: docs/ARCH.md
+      sections: "Admin Portal 容器"
+      purpose: "C4 Container 圖 + Admin Portal 服務部署位置"
+    - path: docs/API.md
+      sections: "/admin/* 章節"
+      purpose: "/admin/* endpoints 清單 + 認證方案"
+    - path: docs/SCHEMA.md
+      sections: "RBAC 資料表章節"
+      purpose: "Role, Permission, AdminUser, AuditLog 表結構"
+    - path: docs/CONSTANTS.md
+      sections: "全文"
+      purpose: "Token 有效期、API Timeout、pageSize 等常數"
   recommended:
-    - docs/PRD.md          # Admin 使用情境 + 業務功能模組
-    - docs/PDD.md          # Admin 產品設計 section
-    - docs/VDD.md          # Admin UI 設計原則 + 色彩系統
-    - docs/CONSTANTS.md    # Token 有效期、Rate Limit 等常數
+    - path: docs/PRD.md
+      sections: "Admin 功能段落"
+      purpose: "Admin 使用情境 + 業務功能模組"
+    - path: docs/PDD.md
+      sections: "Admin 產品設計"
+      purpose: "Admin 產品設計 section"
+    - path: docs/VDD.md
+      sections: "設計原則章節"
+      purpose: "Admin UI 設計原則 + 色彩系統"
 output-paths:
   - docs/ADMIN_IMPL.md
 quality-bar:
-  - "§2 技術棧版本表：所有依賴有明確版本號，無 latest 或空版本"
+  - "§0 DOC-ID 已填入 PROJECT_SLUG + 日期（非靜態值），Admin技術棧欄位已從 EDD §3.3 讀取（非 placeholder）"
+  - "§1 Admin Portal 概覽：系統定位非 placeholder，§1.3 角色表格已依 EDD §5.5-A 完整填入（無 {{role_name}} 殘留）"
+  - "§2 技術棧版本表：所有依賴有明確版本號，無 latest 或空版本（允許 X.x 格式表示大版本鎖定，但不接受 latest 或空版本）"
   - "§3 目錄結構完整，包含 admin/ 子目錄 + views/layout/store/utils"
   - "§4 路由表涵蓋所有 admin 功能頁面（不含 placeholder）"
   - "§5 RBAC 完整：Role/Permission 定義 + PermissionGuard 實作 + Token 管理"
-  - "§6 Layout 系統：HeaderBar/SidebarMenu/BreadCrumb/Content 區域四個子項均有說明"
+  - "§6.1 主 Layout 結構涵蓋四個功能區域（HeaderBar / SidebarMenu / BreadCrumb / Content），在 §6.1 ASCII 圖和文字說明中體現各區域規格"
   - "§7 頁面規格：login/dashboard/user-mgmt/role-mgmt/audit-log 全部有欄位或操作說明"
   - "§8 API 整合：baseURL、interceptor、所有 /admin/* endpoint 對應表"
   - "§9 三個 Pinia Store（authStore/permissionStore/userStore）有完整 state + actions"
   - "§10 Element Plus 規範：Table 三狀態 + Form 驗證規則 + ElMessageBox 確認範例均存在"
   - "§11 共用組件：SearchableTable 和 AuditLogDetail 均有 Props TypeScript 型別定義"
-  - "§14 效能目標有具體數值（bundle < 150KB gzipped，首屏 < 2s），無殘留 {{N}} placeholder（骨架中的 {{150}} 屬合法模板佔位，生成時必須替換為具體數值）"
+  - "§14 效能目標：bundle size 有具體數值（如 150KB gzipped），首屏時間有明確毫秒數（如 2000ms），全文無任何 {{N}} 格式的未替換佔位符。"
   - "§15 部署配置：env 變數 + Nginx /admin 路由規則"
   - "禁止保留任何 {{PLACEHOLDER}} 或 TODO 空欄"
 condition: has_admin_backend
@@ -70,7 +88,7 @@ _ADMIN_FRAMEWORK = EDD §3.3 中 _ADMIN_FRAMEWORK 欄位值
 ```python
 TECH_DEFAULTS = {
     "frontend_framework": "Vue 3 (Composition API)",
-    "ui_library": "Element Plus 2.x",
+    "ui_library": "Element Plus 2.7+",
     "build_tool": "Vite 5.x",
     "state_management": "Pinia 2.x",
     "router": "Vue Router 4.x",
@@ -136,16 +154,21 @@ TECH_DEFAULTS = {
 
 ## Step 1：生成 §0 文件資訊
 
+依骨架 §0 欄位結構，生成七列表格（欄名為「欄位｜說明」）：
+
 ```markdown
-| 項目         | 內容                                  |
-|------------|---------------------------------------|
-| DOC-ID     | ADMIN_IMPL-001                        |
-| 版本        | 1.0.0                                 |
-| 技術棧      | Vue3 + Element Plus + Vite（Admin Portal）|
-| 觸發條件    | has_admin_backend=true                |
-| 上游文件    | EDD §3.3 §5.5 + ARCH + API + SCHEMA   |
-| 覆蓋範圍    | Admin Portal 完整實作規格             |
+| 欄位 | 說明 |
+|------|------|
+| DOC-ID | ADMIN-`{PROJECT_SLUG}`-`{YYYYMMDD}` |
+| Admin 技術棧 | `{_ADMIN_FRAMEWORK}`（來自 EDD §3.3） |
+| 上游 EDD | [EDD.md](EDD.md) §3.3 + §5.5-A |
+| 上游 API | [API.md](API.md) /admin/* 章節 |
+| 上游 SCHEMA | [SCHEMA.md](SCHEMA.md) RBAC 資料表章節 |
+| 上游 ARCH | [ARCH.md](ARCH.md) Admin Portal 容器（部署位置 + 技術棧） |
+| 上游 CONSTANTS | [CONSTANTS.md](CONSTANTS.md) Token TTL + API Timeout + pageSize 等常數 |
 ```
+
+> **注意**：DOC-ID 格式為 `ADMIN-{PROJECT_SLUG}-{YYYYMMDD}`，其中 PROJECT_SLUG 和 YYYYMMDD 須替換為實際值（非靜態字串 `ADMIN_IMPL-001`）。Admin 技術棧從 Step 0-A 讀取的 `_ADMIN_FRAMEWORK` 填入。
 
 ---
 
@@ -162,19 +185,27 @@ TECH_DEFAULTS = {
 
 ## Step 3：生成 §2 技術棧決策
 
-完整列出依賴版本表（不得使用 "latest" 或空版本）：
+### §2.1 框架選型表（3 欄格式）
+
+§2.1 需維持骨架的 3 欄格式（技術 / 選型 / 決策理由），依下列骨架格式填入，不得使用 4 欄或其他欄位佈局：
 
 ```markdown
-| 類別         | 技術        | 版本   | 用途                          |
-|------------|-----------|------|-----------------------------|
-| Framework  | Vue 3     | 3.4+ | Composition API + `<script setup>` |
-| UI Library | Element Plus | 2.7+ | 企業組件庫                  |
-| Build      | Vite      | 5.x  | HMR + 生產 bundle             |
-| State      | Pinia     | 2.x  | 模組化 Store                 |
-| Router     | Vue Router| 4.x  | History 模式 + 動態路由       |
-| HTTP       | Axios     | 1.x  | 攔截器 + 自動 token 注入     |
-| ...        | ...       | ...  | ...                          |
+| 技術 | 選型 | 決策理由 |
+|------|------|---------|
+| 前端框架 | Vue 3.4+ | Composition API + `<script setup>`，與 Element Plus 2.x 完整相容 |
+| UI Component | Element Plus 2.7+ | 企業組件庫，提供完整 Admin 所需的 Table / Form / Dialog 組件 |
+| Build Tool | Vite 5.x | HMR 快速 + 生產 bundle 優化 |
+| 狀態管理 | Pinia 2.x | 模組化 Store，型別友善 |
+| 路由 | Vue Router 4.x | History 模式 + 動態路由 + 路由守衛 |
+| HTTP Client | Axios 1.x | 攔截器 + 自動 token 注入 |
+| ...  | ...  | ... |
 ```
+
+> **格式說明**：§2.1 固定為「技術 / 選型 / 決策理由」3 欄，與骨架一致。決策理由欄必須填入具體理由（非 `{{理由}}` placeholder）。
+
+### §2.2 依賴版本清單
+
+完整列出 package.json 依賴版本（不得使用 "latest" 或空版本）：
 
 ---
 
@@ -260,15 +291,31 @@ export const permissionDirective = {
 
 從 CONSTANTS.md 讀取 Token 有效期常數（若不存在則使用合理預設：access=15min, refresh=7days）。
 
+### 6.4 動態選單生成策略
+
+依據 PRD.md 或 EDD §5.5 判斷 Admin 角色結構，選擇 §5.3 的選單生成方式：
+
+- **client-filtered（首選）**：Admin 角色定義固定（Role 清單在部署時確定，不動態新增），前端依用戶 Permission 清單過濾靜態路由配置。選擇條件：EDD §5.5-A 角色數量固定，無需後端動態下發選單。
+- **server-driven**：Admin 角色可由後台動態配置（如多租戶、自定義角色），選單結構需從 API 取回。選擇條件：PRD 要求支援動態角色或多層級組織結構。
+
+**填入 §5.3 的方式**：
+1. 確認選擇值：`server-driven` 或 `client-filtered`
+2. 填入選擇理由（一句話，說明依據）
+3. 若選 `server-driven`，確認 §8 對應表中存在 `GET /admin/menu`（或同功能端點），若缺失須補充
+
 ---
 
 ## Step 7：生成 §6 Layout 系統
 
-生成完整的 Layout 結構說明：
+§6.1 必須包含 ASCII 或 Markdown 框線圖，呈現 Header / Sidebar / Content 三區域的視覺佈局，格式參考骨架 §6.1。
+
+接著，§6.1 中對以下四個功能區域分別提供具體規格說明：
 - HeaderBar：用戶資訊 + 通知 + 登出
 - SidebarMenu：動態路由 + 折疊功能 + 高亮當前路由
 - BreadCrumb：根據路由自動生成
 - Content 區域：max-width + padding 規範
+
+§6.2 Sidebar 規格：記錄展開寬度（預設 260px）/ 收合寬度（64px）/ 收合後行為（icon + Tooltip 顯示選單名稱）/ 選中樣式（從 VDD 或 PDD 讀取色彩方案；若無，使用預設 accent 色左邊框 + 淡背景）。
 
 ---
 
@@ -289,6 +336,26 @@ export const permissionDirective = {
 - 稽核日誌（列表 + 詳情 + 導出）
 - （依 PRD 業務功能補充其他頁面）
 
+**§7.2 Dashboard KPI Cards 與圖表填充規則（防止 placeholder 殘留）：**
+
+掃描 PRD.md 的 Admin 統計/監控需求段落，依序填入：
+1. **統計卡（KPI Cards）**：列出每張卡片的名稱、對應 `GET /admin/stats/*` endpoint（若端點在 API.md 有定義則引用，否則依 REST 命名設計）、更新策略（輪詢間隔 / 手動刷新按鈕 / 頁面載入時）。每個統計卡需有具體名稱（如「今日新增用戶數」「當前在線人數」），不得保留 `{{指標名}}` placeholder。
+2. **圖表**：依 PRD 中 Admin 圖表需求填入圖表名稱和類型（折線 / 柱狀 / 圓餅）。若 PRD 無明確圖表需求，於圖表區塊填入「本專案 Dashboard 無圖表需求，略過此欄」。
+3. 若 PRD 無 Admin 統計需求，整個 §7.2 統計卡表格填入「本專案 Dashboard 無 KPI 指標需求，略過此節」。
+
+**§7.x 業務功能頁生成規則：**
+
+掃描 PRD.md 的 Admin 功能模組段落，對每個業務功能頁面，依序提取並填入：
+1. **路徑**：`/admin/{{resource}}`（依 PRD 命名決定）
+2. **頁面用途**：一句話說明此頁管理何種業務資源
+3. **列表欄位**：從 PRD 和 SCHEMA.md 提取主要顯示欄位（至少 3 個，排除密碼類敏感欄位）
+4. **操作按鈕**：新增 / 編輯 / 刪除 / 狀態切換（標注每個按鈕所需的 Permission）
+5. **表單欄位**：新增/編輯 Dialog 的輸入欄位（欄位名稱、類型、是否必填）
+6. **所需 API endpoints**：對應 API.md 中的 `/admin/{{resource}}` CRUD 路徑
+7. **所需 Permission**：對應 §5 RBAC 的 `{{resource}}:list / create / update / delete`
+
+若 PRD 無 Admin 業務功能頁，於 §7.x 節標注「本專案 Admin 無額外業務功能頁，略過此節」。
+
 ---
 
 ## Step 9：生成 §8 API 整合
@@ -298,11 +365,13 @@ export const permissionDirective = {
 ```typescript
 const request = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
-  timeout: 10000,
+  timeout: ADMIN_API_TIMEOUT_MS, // 來自 CONSTANTS.md，預設 10000ms
 })
 // request interceptor: 自動注入 Authorization Bearer Token
 // response interceptor: 401→重新導向 login；403→顯示無權限；500→統一 toast 錯誤
 ```
+
+> **CONSTANTS.md 讀取指引**：`timeout` 值應從 `docs/CONSTANTS.md` 讀取 `ADMIN_API_TIMEOUT_MS` 常數（若存在）。若 CONSTANTS.md 無此欄位，使用預設值 `10000`（10 秒），並在生成的 §8.1 程式碼中以行內註解說明來源（如 `// ADMIN_API_TIMEOUT_MS，來自 CONSTANTS.md，預設 10000ms`）。生成的程式碼中，`ADMIN_API_TIMEOUT_MS` 應以 `const ADMIN_API_TIMEOUT_MS = {值} // 來自 CONSTANTS.md` 的形式在 `api/http.ts` 頂部宣告，不得直接使用未宣告的識別符。
 
 ### 9.2 Admin Endpoint 對應表
 
@@ -327,6 +396,12 @@ const request = axios.create({
 - `authStore`：token / adminUser / login() / logout() / refreshToken()
 - `permissionStore`：permissions / menuTree / loadPermissions() / hasPermission()
 - `userStore`：userList / totalCount / fetchUsers() / updateUser() / deleteUser()
+
+> **authStore Token 存儲方式必須與 §5.4 一致（重要）：**
+> - 若 §5.4 選擇 **HttpOnly Cookie**：`authStore` 不應設置 `accessToken` ref 用於存放 token 字串；`isAuthenticated` 可依後端返回的用戶資訊判斷，不依賴 token 字串是否存在；`refreshToken()` 透過呼叫刷新端點完成，Cookie 由後端自動更新（瀏覽器自動附帶）。
+> - 若 §5.4 選擇 **Memory**：`accessToken` 存於 ref 中，頁面刷新後清空；需在 `main.ts` 初始化時呼叫 silent refresh（透過 refresh endpoint 恢復 token）或直接導向登入頁；在 §9.2 代碼範例中加入 silent refresh 策略說明。
+>
+> 生成 §9.2 程式碼時，依 §5.4 的選擇動態調整 `accessToken` ref 的使用方式，確保兩節保持一致，不得出現 §5.4 選 HttpOnly Cookie 但 §9.2 仍有 `accessToken.value = res.access_token` 的矛盾。
 
 ---
 
@@ -397,11 +472,12 @@ const request = axios.create({
 
 ### 16.2 環境變數
 
-必須包含（`.env.example` 格式）：
-```
-VITE_API_BASE_URL=https://api.example.com
-VITE_ADMIN_BASE_PATH=/admin
-```
+依骨架 §15.2 格式，生成三欄表格（變數名 | Development 值 | Production 值），列出 VITE_API_BASE_URL 和 VITE_ADMIN_PATH，Development 填 localhost 值，Production 填對應的生產值或說明：
+
+| 變數 | Development | Production |
+|------|-------------|-----------|
+| `VITE_API_BASE_URL` | `http://localhost:{PORT}/api` | `/api`（Nginx 反代） |
+| `VITE_ADMIN_PATH` | `/admin` | `/admin` |
 
 ### 16.3 Nginx 路由規則
 
@@ -410,10 +486,12 @@ location /admin/ {
   root /var/www;
   try_files $uri $uri/ /admin/index.html;
 }
-location /admin/api/ {
+location /api/admin/ {
   proxy_pass http://backend:8080/;
 }
 ```
+
+> **注意**：API proxy 路徑須與 ARCH.md 中 Admin Portal → Backend 的連線路徑一致，如有差異以 ARCH.md 為準。
 
 ---
 
@@ -429,13 +507,16 @@ location /admin/api/ {
 | 1 | §3 目錄結構完整，含 views/store/router/api  | ✅/❌ |
 | 2 | §4 路由表覆蓋所有頁面，含權限欄位          | ✅/❌ |
 | 3 | §5 RBAC：Role+Permission 定義 + Guard 程式碼 | ✅/❌ |
-| 4 | §5.1 Permission 清單有具體 routes/buttons 對應說明 | ✅/❌ |
+| 4 | §5.2 Permission Guard：hasPermission() 實作 + routes/buttons 對應說明 | ✅/❌ |
 | 5 | §7 頁面規格：必要頁面全部有欄位說明        | ✅/❌ |
 | 6 | §8 Axios 配置有 baseURL + request interceptor（Token 注入）+ response interceptor（401/403 處理）說明 | ✅/❌ |
 | 7 | §8 /admin/* endpoint 對應表完整            | ✅/❌ |
 | 8 | §9 三個 Pinia Store 有 state+actions       | ✅/❌ |
 | 9 | §15 部署：env 變數 + Nginx 配置            | ✅/❌ |
 | 10 | 全文無 {{PLACEHOLDER}} / TODO 空欄        | ✅/❌ |
+| 11 | §1 Admin Portal 概覽：系統定位 + 使用者角色已依 EDD §5.5-A 填入，無 placeholder | ✅/❌ |
+| 12 | §6.1 主 Layout 結構涵蓋四個功能區域（HeaderBar / SidebarMenu / BreadCrumb / Content），在 §6.1 ASCII 圖和文字說明中體現各區域規格（非 placeholder） | ✅/❌ |
+| 13 | §5.1 Permission 清單與 API.md /admin/* endpoint 一對一對應 | ✅/❌ |
 ```
 
 若有 ❌，必須返回相應 Step 補完後再輸出。
@@ -448,13 +529,15 @@ location /admin/api/ {
 ✅ Pass-0 條件：has_admin_backend=true 已確認（否則整個 STEP 跳過）
 ✅ _ADMIN_FRAMEWORK 已從 EDD §3.3 讀取（或使用預設值 Vue3+ElementPlus+Vite）
 ✅ 技術棧版本表無 "latest" 或空版本
+✅ §1 Admin Portal 概覽：系統定位 + 使用者角色已依 EDD §5.5-A 填入，無 placeholder
 ✅ 路由表：每個路由有 path + component + 權限 + 說明
 ✅ RBAC：Role 定義 + Permission Guard 程式碼 + Token 管理
+✅ §6.1 主 Layout 結構涵蓋四個功能區域（HeaderBar / SidebarMenu / BreadCrumb / Content），在 §6.1 ASCII 圖和文字說明中體現各區域規格（非 placeholder）
 ✅ API 對應表：所有 /admin/* endpoint 均已列出
 ✅ Pinia：authStore + permissionStore + userStore 三個 Store 完整
 ✅ 部署：Nginx /admin/ try_files + env 變數清單
 ✅ §14 效能目標：bundle size 有具體數值（< 150KB gzipped）+ 首屏時間（< 2s）+ 無殘留 {{N}} placeholder
-✅ Self-Check Checklist 全部通過（10/10）
+✅ Self-Check Checklist 全部通過（13/13）（Step 17 = AI 生成時自查（13 項）；骨架 §16 = 開發者交付前驗收自查（10 項））
 ```
 
 ---
