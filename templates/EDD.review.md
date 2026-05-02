@@ -240,3 +240,32 @@ upstream-alignment:
 **Check**: §3.7.2 Figure B（本地開發環境）的最小 Replica 表格中，API Server 或 Worker 的 Min Replicas（Local）是否標注為 1 或「1（Local OK）」？若任一為 1 視為 HIGH。
 **Risk**: 本地允許單副本的錯誤示範會被開發者直接套用於 docker-compose.yml，導致 Distributed Lock（Redis SETNX/Redlock）、冪等防重入（DB 唯一約束）、Session 共享（Redis）等 HA 關鍵路徑從未被測試；到生產才發現競態問題時代價極高。
 **Fix**: 將 Figure B 最小 Replica 表格中 API Server 和 Worker 的 Min Replicas（Local）改為 **≥ 2**（加粗），並補充說明「必須 ≥ 2 以測試 HA 程式行為」；DB/Redis/MQ 在本地允許單節點。
+
+---
+
+### Layer 7: Spring Modulith 微服務可拆解性（由 Software Architect 主審，共 5 項）
+
+#### [CRITICAL] SM-01 — Schema 隔離違反（HC-1）
+**Check**: §3.4 Schema Ownership Table 是否存在且完整填寫具體 Table 名稱（非 placeholder）？是否有任何兩個 BC 宣告擁有同一張 Table？EDD §4.3 或 SCHEMA.md 中是否存在跨 BC DB-level FK？任一違反視為 CRITICAL。
+**Risk**: 跨 BC 共享 DB Table 或 FK 是 Schema 隔離的根本違反：BC 無法獨立部署，Schema 變更破壞其他 BC 資料一致性。
+**Fix**: 補填 §3.4 Schema Ownership Table；移除所有跨 BC DB-level FK，改為 Application Layer ID-only 引用（加注 `-- Cross-BC: enforced at application layer`）。
+
+#### [HIGH] SM-02 — 跨模組呼叫未透過 Public Interface（HC-2）
+**Check**: §4 Module Design 中是否存在直接呼叫其他 BC Repository/DAO/Service 內部類別的設計？跨 BC 通訊是否全部透過 REST API 端點或 Domain Event？若有直接呼叫路徑視為 HIGH。
+**Risk**: 直接呼叫其他 BC 內部類別形成隱性 Compile-time Coupling；BC 提取為獨立服務時所有直接呼叫路徑都要重寫。
+**Fix**: 將所有跨 BC 直接呼叫路徑改為目標 BC 的 Public API 或 Domain Event；更新 §4 模組設計依賴描述。
+
+#### [HIGH] SM-03 — 模組依賴圖含循環依賴（HC-5）
+**Check**: §4.3 跨模組依賴 DAG 是否已填寫且宣告「無循環依賴」？若 §4.3 缺失或存在循環（A → B → A），視為 HIGH。
+**Risk**: 循環依賴在獨立部署時造成啟動順序死鎖；BC 邊界設計不清晰。
+**Fix**: 補填 §4.3 DAG 圖；存在循環時提取共同依賴為 Shared Kernel BC，或將循環之一改為 Event-driven 方向。
+
+#### [HIGH] SM-04 — Domain Event Schema 未版本化（HC-3）
+**Check**: §4.6 Domain Events 表格是否有 `event_schema_version`（初始 `v1`）和 `topic_name`（格式 `{bc}.{entity}.{type}`）欄位？任一缺失視為 HIGH。
+**Risk**: 無版本化無法安全地做 Event Schema 破壞性變更；`topic_name` 未標準化導致跨 BC Consumer 路由混亂。
+**Fix**: 在 §4.6 補充兩欄；建立版本升級原則（破壞性變更 → 遞增版號 + 短暫雙版本並存）。
+
+#### [MEDIUM] SM-05 — 跨模組共享可變狀態（HC-4）
+**Check**: §4 或 §7 設計中，是否有多個 BC 直接讀寫同一 Redis Key（無命名空間隔離），或全域可變物件跨 BC 存取？若有視為 MEDIUM。
+**Risk**: 共享 Redis Key 無 namespace 隔離，一個 BC 的快取操作可能影響其他 BC 狀態。
+**Fix**: 為每個 BC 分配獨立 Redis Key Prefix（如 `member:*`、`wallet:*`），並在設計中記錄每個 BC 的 Key Pattern。
