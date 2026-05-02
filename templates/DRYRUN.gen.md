@@ -268,8 +268,9 @@ anti_fake_rules   += ["no_duplicate_paragraphs_150", "no_trivial_entity_names"]
 ### ARCH.md
 
 ```
-min_h2_sections   = 5
-required_sections = ["架構目標", "架構模式", "系統元件", "安全架構", "擴展策略"]
+min_h2_sections   = 6
+  # 5 → 6：新增 §7.1 Shared State Isolation（HC-4）後，ARCH.md 實際 ## 章節數增加
+required_sections = ["架構目標", "架構模式", "系統元件", "安全架構", "擴展策略", "Shared State"]
 anti_fake_rules   += ["no_duplicate_paragraphs_150"]
 ```
 

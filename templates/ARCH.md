@@ -514,6 +514,26 @@ readinessProbe:
 - Kubernetes `topologySpreadConstraints` 確保 Pod 分佈均勻
 - 資料庫 Multi-AZ 部署，同步複製
 
+### §7.1 Shared State Isolation（HC-4）
+
+> **HC-4 硬約束**：各 Bounded Context 的 Redis Key 必須有獨立 Namespace 前綴，禁止跨 BC 直接讀寫他 BC 的 Redis Key。
+
+**Redis Key Namespace 格式**：`{BC_NAME}:{entity_type}:{id}`
+
+| Bounded Context | Key Pattern | 範例 Key | 可寫入的 Keys | 禁止存取 |
+|-----------------|------------|---------|-------------|---------|
+| {{BC_NAME_1}} | `{{bc1}}:*` | `{{bc1}}:session:u001`, `{{bc1}}:cache:{{entity}}:{{id}}` | 本 BC 所有 `{{bc1}}:*` Keys | 其他 BC 的任何 Key |
+| {{BC_NAME_2}} | `{{bc2}}:*` | `{{bc2}}:balance_cache:w001`, `{{bc2}}:lock:{{id}}` | 本 BC 所有 `{{bc2}}:*` Keys | 其他 BC 的任何 Key |
+| {{BC_NAME_3}} | `{{bc3}}:*` | `{{bc3}}:state:{{id}}` | 本 BC 所有 `{{bc3}}:*` Keys | 其他 BC 的任何 Key |
+
+*（填入系統所有 BC 的 Redis Key Pattern；BC 名稱必須與 §4 服務邊界表一致）*
+
+**隔離強制策略**：
+
+- 所有 Redis 操作透過各 BC 的 `{{BCName}}CacheService`（BC 內部類別，其他 BC 不得 Import）
+- 全域 Key Flush / SCAN 操作**禁止**用於 production（危及其他 BC 快取）
+- Redis Cluster 模式：`{BC_NAME}` 作為 Hash Tag 確保同一 BC 的 Keys 落在同一 Slot
+
 ---
 
 ## 8. 災難恢復（DR）

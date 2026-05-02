@@ -276,6 +276,20 @@ Closed ──(錯誤率 > 閾值)──► Open ──(等待 Timeout)──► 
   | Redis | Sentinel 3 nodes 或 Cluster | Quorum 要求至少 3 nodes |
   | Load Balancer | 雲端 Managed（本身 HA）| 若自架需 ≥ 2 |
 
+**§7.1 Shared State Isolation（HC-4，必填）**：
+
+1. 讀取 EDD §3.4 Bounded Context Map，識別所有 BC 名稱
+2. 為每個 BC 生成一列 Redis Key Pattern 表：`{BC_NAME}:{entity_type}:{id}`
+3. **填寫規則**：
+   - `Key Pattern` 欄格式：`{bc_name}:*`（全小寫，與 BC 名稱一致）
+   - `範例 Key` 欄：填入 2～3 個具體 Key 範例（非 `member:key:123` 等通用 placeholder，而是業務語義明確的 Key 如 `member:session:u001`）
+   - `可寫入的 Keys` 欄：只寫本 BC 的 `{bc_name}:*` pattern
+   - `禁止存取` 欄：明確寫「其他 BC 的任何 Key」
+4. **驗證規則**：
+   - 每個 BC 恰好一列（與 §4 服務邊界表行數一致）
+   - `Key Pattern` 前綴不重疊（無兩個 BC 共用同一前綴）
+   - BC 名稱必須與 §4 服務邊界表的「服務/模組」欄完全一致
+
 ### §8 災難恢復（DR）
 
 - **RTO/RPO 目標**：依 PRD 或 BRD 的 SLA 填入（如 RTO ≤ 30 min, RPO ≤ 5 min）

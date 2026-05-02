@@ -199,6 +199,6 @@ upstream-alignment:
 **Fix**: 生成跨服務依賴 Mermaid 圖；識別循環並重設計：提取 Shared Kernel 或將某個方向改為 Domain Event。
 
 #### [MEDIUM] AM-04 — 無跨服務共享可變狀態說明（HC-4）
-**Check**: §4 或 §7（快取設計）是否說明各服務的 Redis Key Namespace（如 `member:*`、`wallet:*`）？是否有全域可變物件跨服務邊界存取的設計？若有或未說明，視為 MEDIUM。
-**Risk**: 未隔離 Redis Namespace 導致服務提取後快取操作相互干擾（FLUSH 影響全域）。
-**Fix**: 在 §7 或 §4 補充各服務的 Redis Key Prefix 設計；列出需要遷移隔離的現有 Key。
+**Check**: **§7.1 Shared State Isolation 是否存在？** 是否列出每個 BC 的 Redis Key Pattern（格式 `{BC_NAME}:{entity_type}:{id}`，每個 BC 一列）？各 BC 的 Key Pattern 前綴是否不重疊？是否有全域可變物件跨服務邊界存取的設計？若 §7.1 缺失、Key Pattern 不完整（有 BC 未列出）、或 Key Pattern 重疊，視為 MEDIUM。
+**Risk**: 未隔離 Redis Namespace 導致服務提取後快取操作相互干擾（FLUSH 影響全域）；缺少 §7.1 則 HC-4 無法在 Design Review 中被機械式驗證。
+**Fix**: 新增 §7.1 並為每個 BC（§4 服務邊界表中的所有 BC）填入 Redis Key Pattern；確認所有 Key Pattern 不重疊；列出需要遷移隔離的現有 Key。
