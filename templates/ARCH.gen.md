@@ -249,10 +249,20 @@ Closed ──(錯誤率 > 閾值)──► Open ──(等待 Timeout)──► 
 
 ### §7 高可用設計
 
+> **Iron Constraint — Min Replicas ≥ 2（絕對下限）**：本節生成的所有副本數配置，API Server、Worker、Cache 等任何元件的 replica 數均不得低於 2。若上游 EDD §3.7 有更高的最小副本要求，以 EDD 為準但不得低於 2。**禁止生成任何 `replicas: 1` 或 `minReplicas: 1` 的配置**。
+
 - HA 策略：Active-Active / Active-Standby（必須選定並說明理由）
-- 失效轉移設計
-- 健康檢查頻率
-- 最小健康 Pod 數
+- 失效轉移設計：說明 DB Failover、API Pod 滾動更新、Cache 故障切換的觸發條件與 RTO 目標
+- 健康檢查頻率：liveness probe / readiness probe 設定（interval / timeout / failureThreshold）
+- 最小健康 Pod 數（**必填，不得低於 2**）：
+
+  | 元件 | Min Replicas | 說明 |
+  |------|-------------|------|
+  | API Server | ≥ 2 | 消除應用層 SPOF，HPA auto-scale |
+  | Worker / Background Job | ≥ 2 | 消除 Worker 層 SPOF |
+  | DB | Primary + Standby | 消除 DB SPOF，Failover ≤ {{DB_FAILOVER_RTO}} |
+  | Redis | Sentinel 3 nodes 或 Cluster | Quorum 要求至少 3 nodes |
+  | Load Balancer | 雲端 Managed（本身 HA）| 若自架需 ≥ 2 |
 
 ### §8 災難恢復（DR）
 

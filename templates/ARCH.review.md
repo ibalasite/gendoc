@@ -96,10 +96,10 @@ upstream-alignment:
 **Risk**: 通訊模式不統一，部分開發者選用同步呼叫、部分選用事件，造成分散式事務問題、重複消費、或超時雪崩效應。
 **Fix**: 補充通訊模式章節：同步/非同步選用原則（如：即時查詢用 REST，高延遲操作用 Queue）+ 通訊矩陣（Service A → Service B：協定 / 同步非同步）。
 
-#### [HIGH] 12 — 高可用（HA）設計不完整
-**Check**: ARCH §7 高可用設計是否識別並處理所有單點故障（SPOF）？是否說明每個 SPOF 的緩解方案（多副本 / HA 配置 / Failover）？若有元件未標注 HA 方案但屬於關鍵路徑，視為 HIGH。
-**Risk**: SPOF 未識別，系統上線後某個關鍵元件故障時導致全服務中斷，且事前未規劃備援方案，RTO 遠超 SLO 目標。
-**Fix**: 逐一審查所有元件，標注哪些是 SPOF，並為每個 SPOF 說明緩解方案（HA DB 配置 / Load Balancer 雙活 / Cache 熱備援 / 降級策略）。
+#### [CRITICAL] 12 — 高可用（HA）設計違反 Min Replicas ≥ 2 原則
+**Check**: ARCH §7 高可用設計中，是否有任何元件的 Min Replicas < 2？具體驗證：(1) API Server / Worker 的 minReplicas 是否 ≥ 2；(2) DB 是否為 Primary+Standby（非單節點）；(3) Redis 是否為 Sentinel 3 nodes 或 Cluster（非 standalone）；(4) 是否有任何配置標注 `replicas: 1` 或 `minReplicas: 1`。任一元件 Min Replicas < 2 視為 CRITICAL。
+**Risk**: Min Replicas < 2 = SPOF = 任何一個 Pod/節點故障即導致服務中斷。HA 架構的程式碼設計（分散式鎖、Session 外置、Pub/Sub）依賴 ≥ 2 副本才能被真實測試，單副本環境通過測試不代表 HA 功能正確。
+**Fix**: 逐一審查 §7 中所有元件的副本配置，將所有 replicas < 2 的配置升至 2；更新 §10.2 Phase 1 欄位確認 HA 基線已包含所有元件的最小副本要求；同步更新 LOCAL_DEPLOY 和 runbook 中的對應配置。
 
 #### [HIGH] 13 — 資料一致性策略缺失
 **Check**: 若系統存在多個服務或非同步操作，ARCH 是否說明分散式場景下的資料一致性策略（Eventual Consistency / Saga / Outbox Pattern）？以及事務邊界如何劃定？完全未提及視為 HIGH。
