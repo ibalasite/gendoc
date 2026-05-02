@@ -22,7 +22,7 @@
 |------|------|------------|------|
 | `[x]` | CONSTANTS | ✅✅✅ | finding=0，5輪，11個findings全修復 |
 | `[x]` | AUDIO | ✅✅✅ | finding=0，3輪，9個findings全修復 |
-| `[ ]` | ANIM | ✅✅✅ | |
+| `[x]` | ANIM | ✅✅✅ | finding=0，2輪，7個findings全修復 |
 | `[ ]` | CLIENT_IMPL | ✅✅✅ | |
 | `[ ]` | ADMIN_IMPL | ✅✅✅ | |
 | `[ ]` | RESOURCE | ✅✅✅ | |

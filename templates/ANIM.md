@@ -7,6 +7,7 @@ upstream:
   - docs/IDEA.md
   - docs/BRD.md
   - docs/PRD.md
+  - docs/PDD.md
   - docs/EDD.md
   - docs/VDD.md
   - docs/FRONTEND.md
@@ -28,7 +29,7 @@ upstream:
 | **作者** | {{AUTHOR}} |
 | **日期** | {{DATE}} |
 | **適用引擎** | {{ENGINE}} （Cocos Creator / Unity / HTML5 PixiJS / CSS + GSAP） |
-| **上游文件** | IDEA.md · BRD.md · PRD.md · EDD.md · VDD.md · FRONTEND.md |
+| **上游文件** | IDEA.md · BRD.md · PRD.md · PDD.md · EDD.md · VDD.md · FRONTEND.md |
 | **審閱者** | 技術動畫師、VFX 技術工程師、效能工程師 |
 
 ---
@@ -56,7 +57,7 @@ upstream:
 - **即時回饋**：操作 ≤ 100ms 啟動動畫，讓用戶感知系統響應
 - **引導視線**：動畫方向引導用戶注意力，不干擾主要操作
 - **效能優先**：所有特效必須在目標裝置維持 {{TARGET_FPS}}fps 以上
-- {{CUSTOM_PRINCIPLE}}
+- {{CUSTOM_PRINCIPLE}}（必須填入具體原則，例如：「角色受傷時使用畫面震動（Camera Shake）替代閃紅效果，以符合本專案的沉浸式寫實風格」；不得保留此 placeholder）
 
 ### §1.3 動畫分級（Priority）
 
@@ -113,11 +114,11 @@ win（只有 idle 狀態可觸發）
 
 ## §4 Tween / 緩動動畫清單
 
-| ID | 名稱 | 目標物件 | 屬性 | 起始值 | 結束值 | 時長(ms) | Easing | 觸發條件 | 優先級 |
-|----|------|---------|------|-------|-------|---------|--------|---------|-------|
-| TWN-001 | 按鈕點擊縮放 | Button | scale | 1.0 | 0.9 → 1.0 | 150 | Bounce.Out | onTouchStart | P0 |
-| TWN-002 | 面板滑入 | Panel | y | {{OFF_SCREEN}} | {{ON_SCREEN}} | 300 | Cubic.Out | panel show | P0 |
-| TWN-003 | 數字跳動 | ScoreLabel | string | 舊分數 | 新分數 | 800 | Linear | 得分事件 | P1 |
+| ID | 名稱 | 目標物件 | 屬性 | 起始值 | 結束值 | 時長(ms) | Easing（語義名） | Cocos Easing | Unity Easing（DOTween） | HTML5 Easing（GSAP） | 觸發條件 | 優先級 |
+|----|------|---------|------|-------|-------|---------|----------------|--------------|------------------------|----------------------|---------|-------|
+| TWN-001 | 按鈕點擊縮放 | Button | scale | 1.0 | 0.9 → 1.0 | 150 | Bounce.Out | `cc.easing.bounceOut` | `Ease.OutBounce` | `"bounce.out"` | onTouchStart | P0 |
+| TWN-002 | 面板滑入 | Panel | y | {{OFF_SCREEN}} | {{ON_SCREEN}} | 300 | Cubic.Out | `cc.easing.cubicOut` | `Ease.OutCubic` | `"power3.out"` | panel show | P0 |
+| TWN-003 | 數字跳動 | ScoreLabel | string | 舊分數 | 新分數 | 800 | Linear | `cc.easing.linear` | `Ease.Linear` | `"none"` | 得分事件 | P1 |
 
 ---
 

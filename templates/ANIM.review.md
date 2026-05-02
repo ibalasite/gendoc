@@ -8,7 +8,16 @@ reviewer-roles:
   secondary-scope: "§5 粒子技術規格、§6 Shader 代碼正確性、§7 引擎設定合理性、§8 資產規格"
   tertiary: "效能工程師（Performance Engineer，移動端 GPU 優化、Draw Call 合批、LOD 策略）"
   tertiary-scope: "§9 效能預算達成可行性、§9.1 LOD 策略完整性、§10 效能測試覆蓋"
-quality-bar: "技術動畫師和 VFX 工程師可直接依此文件完成全部動畫與特效實作，不需再問任何技術決策問題。"
+quality-bar:
+  rationale: "技術動畫師和 VFX 工程師可直接依此文件完成全部動畫與特效實作，不需再問任何技術決策問題。"
+  conditions:
+    - "CRITICAL 問題數 = 0"
+    - "HIGH 問題數 = 0"
+    - "§4 所有 Tween 起始值/結束值為具體數值，含 OFF_SCREEN/ON_SCREEN 位置已依目標解析度計算；三引擎 Easing 欄（Cocos/Unity/HTML5）均已填寫或標注不適用"
+    - "§7 引擎設定代碼與 FRONTEND.md 確認的引擎版本一致，無裸 placeholder"
+    - "§9 所有效能指標（fps/Draw Call/粒子數/骨骼數/記憶體）填具體數值"
+    - "§1.2 第4條 {{CUSTOM_PRINCIPLE}} 已替換為具體設計原則"
+    - "無裸 placeholder（文件全文不含任何 {{XXX}} 未替換欄位）"
 upstream-alignment:
   - field: 引擎版本與動畫 API
     source: FRONTEND.md §2

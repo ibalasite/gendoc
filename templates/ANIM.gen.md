@@ -10,7 +10,7 @@ upstream-docs:
   - docs/VDD.md     # 視覺設計系統 → 運動語言、easing 函數、品牌色
   - docs/EDD.md
   - docs/FRONTEND.md
-quality-bar: "§2 所有 P0 角色/物件都有完整骨骼動畫狀態機；§5 粒子特效最大粒子數已填具體值；§7 引擎設定代碼可直接複製使用；§8 資產命名規範完整；§9 所有效能指標填具體數值且有 LOD 策略；§10 測試清單覆蓋幀率/記憶體/跨平台；無裸 placeholder"
+quality-bar: "§2 所有 P0 角色/物件都有完整骨骼動畫狀態機；§4 所有 P0 UI 互動（按鈕縮放/面板滑入/數值跳動）均有 Tween 記錄，起始值/結束值為具體數值（含 OFF_SCREEN/ON_SCREEN 位置已依目標解析度計算），三引擎 Easing 欄（Cocos/Unity/HTML5）均已填寫；§5 粒子特效最大粒子數已填具體值；§7 引擎設定代碼可直接複製使用；§8 資產命名規範完整；§9 所有效能指標填具體數值且有 LOD 策略；§10 測試清單覆蓋幀率/記憶體/跨平台；§1.2 第4條 {{CUSTOM_PRINCIPLE}} 已替換為具體設計原則；無裸 placeholder"
 ---
 
 # ANIM.gen.md — 動畫特效設計文件生成規則
@@ -34,6 +34,8 @@ quality-bar: "§2 所有 P0 角色/物件都有完整骨骼動畫狀態機；§5
 
 常見遺漏欄位（特別注意）：
 - **§1**：`{{VISUAL_FEEDBACK_GOAL}}`、`{{PERF_GOAL}}`、`{{TARGET_FPS}}` 等設計目標欄位必須填入具體描述和數值。
+- **§1.2 第4條**：`{{CUSTOM_PRINCIPLE}}` 必須替換為符合專案特色的具體設計原則（例如「角色受傷使用 Camera Shake 替代閃紅效果」）；不得原樣保留此 placeholder。
+- **§4**：`{{OFF_SCREEN}}`、`{{ON_SCREEN}}` 必須依 BRD 目標解析度計算出實際座標（如 `y: -1920`）；三引擎 Easing 對照欄（Cocos / Unity / HTML5）均須填寫具體 easing 名稱。
 - **§6**：{{SHADER_NAME}}、{{RENDER_QUEUE}}、{{GPU_INSTANCING}} 等 Shader 技術規格中的 placeholder 必須替換為實際 Shader 名稱、渲染佇列設定和 GPU Instancing 開關。
 
 若任何 placeholder 未替換，生成結果視為不通過品質門（Quality Gate）。
@@ -141,11 +143,20 @@ if 無法偵測 → 三個引擎章節全部展開
 - VDD 定義的 Easing 函數名稱 → §4 Easing 欄直接引用
 - VDD 定義的動畫時長規格 → §4 時長欄使用相同數值
 
-**Easing 命名統一規範：**
-- Cocos：`cc.easing.backOut`
-- Unity（DOTween）：`Ease.OutBack`
-- HTML5（GSAP）：`"back.out"`
-→ 同一 Tween 項目必須標注所有使用引擎的 easing 名稱（若多引擎）
+**Easing 命名統一規範（對應 §4 表格三個引擎欄位）：**
+
+§4 表格包含四個 Easing 相關欄位，填寫規則如下：
+
+| 欄位名 | 填寫規則 | 範例（Back.Out 語義） |
+|--------|---------|---------------------|
+| Easing（語義名） | 語言無關的語義名稱，供 VDD 對照 | `Back.Out` |
+| Cocos Easing | `cc.easing.xxx`（Cocos Creator 2.x/3.x 共用） | `cc.easing.backOut` |
+| Unity Easing（DOTween） | `Ease.OutXxx` | `Ease.OutBack` |
+| HTML5 Easing（GSAP） | GSAP 字串形式 | `"back.out"` |
+
+- 若本專案只使用單一引擎，非本引擎欄位填「不適用」。
+- 若多引擎並存（如 Cocos 遊戲場景 + HTML5 行銷頁），三欄均須填寫。
+- VDD.md §4 定義的語義 easing 名稱應填入「Easing（語義名）」欄，各引擎具體名稱由此映射而來。
 
 **禁止裸 Placeholder（Strict）**：§4 每條記錄的起始值與結束值必須填具體數值。特別是含 `{{OFF_SCREEN}}`、`{{ON_SCREEN}}` 的欄位，必須依 BRD 目標解析度計算出實際座標數值（如 `y: -1920` 表示解析度 1920 高度時螢幕外起始位置），不得保留 placeholder。
 
@@ -242,7 +253,7 @@ if 無法偵測 → 三個引擎章節全部展開
 |-------|------|
 | 骨骼動畫覆蓋 | PRD P0 角色/物件全部有 §2 記錄 |
 | 幀動畫覆蓋 | §3 每條記錄的名稱/幀數/幀率/圖集路徑均填具體值；或聲明本專案無幀動畫需求 |
-| Tween 覆蓋 | 所有 P0 UI 互動有對應 Tween 項目 |
+| Tween 覆蓋 | §4 所有 P0 UI 互動（按鈕縮放/面板滑入/數值跳動）均有 Tween 記錄，起始值/結束值為具體數值（含 OFF_SCREEN/ON_SCREEN 位置已依目標解析度計算），三引擎 Easing 欄均已填寫或標注「不適用」 |
 | 粒子數量 | §5 每條特效填具體最大粒子數 |
 | 引擎代碼 | §7 代碼無裸 placeholder，版本/路徑均已填具體值 |
 | 效能預算 | §9 所有欄位填具體數值，LOD 三級已定義 |
