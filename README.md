@@ -53,7 +53,7 @@ Key capabilities:
 | `gendoc-gen-prototype` | `/gendoc-gen-prototype` | Interactive HTML prototype — UI flow (web/game) or API Explorer with mock engine (api-only) |
 | `gendoc-gen-diagrams` | `/gendoc-gen-diagrams` | Generate Server 9 UML types + Frontend 16 UML types (UML) + class-inventory.md; 30+ precision validation checks; enforces no `<br/>` in stateDiagram-v2 / sequenceDiagram; bans experimental charts (pie/xychart-beta/bar) |
 | `gendoc-gen-client-bdd` | `/gendoc-gen-client-bdd` | Client-facing BDD feature files (web/game projects) |
-| `gendoc-repair` | `/gendoc-repair` | Diff completed_steps vs pipeline.json, list missing steps, and optionally resume gendoc-flow from the first gap |
+| `gendoc-repair` | `/gendoc-repair` | Phase-aware backfill — brings any incomplete project to the same state as `gendoc-auto` + `gendoc-flow` would produce. Categorizes gaps into Phase A (pre-DRYRUN) / DRYRUN Gate / Phase B (post-DRYRUN); detects DRYRUN state (none / defaults / ok); validates completed docs against `.gendoc-rules/*.json` quality gates; two-phase repair mode: complete Phase A → trigger DRYRUN → continue Phase B |
 | `gendoc-rebuild-templates` | `/gendoc-rebuild-templates` | Rebuild all document templates from scratch |
 | `gendoc-update` | `/gendoc-update` | Manual skill upgrade |
 | `reviewtemplate` | `/reviewtemplate <TYPE>` | Review & iteratively fix a template three-file set (TYPE.md + .gen.md + .review.md) |
