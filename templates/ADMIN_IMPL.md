@@ -207,8 +207,8 @@ export function usePermission() {
 
 | 項目 | 規格 |
 |------|------|
-| Access Token TTL | `{{來自 constants.json 的值}}` |
-| Refresh Token TTL | `{{來自 constants.json 的值}}` |
+| Access Token TTL | `{{來自 CONSTANTS.md 的值}}` |
+| Refresh Token TTL | `{{來自 CONSTANTS.md 的值}}` |
 | Token 存儲位置 | `{{HttpOnly Cookie / Memory（不存 localStorage）}}` |
 | Refresh 策略 | Axios Interceptor 自動 refresh，失敗 → 重導登入頁 |
 
@@ -247,7 +247,7 @@ export function usePermission() {
 ### §7.1 登入頁（/admin/login）
 
 - 表單欄位：Username + Password（不用 Email，避免暴露使用者存在與否）
-- 失敗處理：連續 `{{來自 constants.json: admin_login_max_attempts}}` 次失敗 → 鎖定帳號 + 通知管理員
+- 失敗處理：連續 `{{來自 CONSTANTS.md: admin_login_max_attempts}}` 次失敗 → 鎖定帳號 + 通知管理員
 - 2FA（若 PRD 要求）：`{{TOTP / SMS / 無}}`
 - 成功後：重導 `/admin/dashboard`
 
@@ -269,7 +269,7 @@ export function usePermission() {
 - 搜尋：姓名 / Email / 狀態 / 角色
 - 篩選：創建時間範圍 / 是否啟用
 - 批量操作：批量啟用 / 停用（需 `user:update` 權限）
-- 分頁：每頁 `{{20}}` 筆（來自 constants.json）
+- 分頁：每頁 `{{20}}` 筆（來自 CONSTANTS.md）
 
 **詳情/編輯頁功能**：
 - 基本資料編輯
@@ -305,8 +305,8 @@ export function usePermission() {
 ```typescript
 // api/http.ts
 const http = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE,
-  timeout: {{ADMIN_API_TIMEOUT_MS}},  // 來自 constants.json
+  baseURL: import.meta.env.VITE_API_BASE_URL,
+  timeout: {{ADMIN_API_TIMEOUT_MS}},  // 來自 CONSTANTS.md
 })
 
 // Request Interceptor：附加 Authorization header
@@ -438,15 +438,62 @@ Emits：
   - row-click(row)             ← 行點擊
 
 Features：
-  - 分頁（el-pagination，pageSize 來自 constants.json）
+  - 分頁（el-pagination，pageSize 來自 CONSTANTS.md）
   - 搜尋（debounce 300ms）
   - 排序（server-side）
   - 匯出 CSV（可選）
 ```
 
+```typescript
+// SearchableTable Props（TypeScript interface）
+interface TableColumn {
+  prop: string
+  label: string
+  width?: number | string
+  sortable?: boolean
+  formatter?: (row: unknown) => string
+}
+
+interface SearchField {
+  prop: string
+  label: string
+  type: 'input' | 'select' | 'date-range'
+  options?: { label: string; value: string | number }[]
+}
+
+interface SortConfig {
+  prop: string
+  order: 'ascending' | 'descending'
+}
+
+interface SearchableTableProps {
+  columns: TableColumn[]
+  fetchFn: (params: QueryParams) => Promise<PagedResponse<unknown>>
+  searchFields?: SearchField[]
+  defaultSort?: SortConfig
+  pageSize?: number      // 預設來自 CONSTANTS.md
+  selectable?: boolean
+}
+
+// 使用方式：
+// defineProps<SearchableTableProps>()
+```
+
 ### §11.2 AuditLogDetail 組件
 
 顯示 old_value / new_value JSON Diff，使用 highlight 標示變更欄位。
+
+```typescript
+interface AuditLogDetailProps {
+  operatorId: string
+  targetType: string   // 'user' | 'wallet' | 'game' | ...
+  targetId: string
+  startDate?: string   // ISO 8601
+  endDate?: string
+  visible: boolean     // 控制 drawer/dialog 開關
+}
+// defineProps<AuditLogDetailProps>()
+```
 
 ---
 
@@ -492,7 +539,7 @@ Element Plus Locale 同步設定（見 `main.ts`）。
 npx vite-bundle-visualizer
 ```
 
-目標：主 bundle < `{{150}}` KB gzipped（來自 constants.json 或專案約定）。
+目標：主 bundle < `{{150}}` KB gzipped（來自 CONSTANTS.md 或專案約定）。
 
 ---
 
@@ -523,15 +570,15 @@ export default defineConfig({
 
 | 變數 | Development | Production |
 |------|-------------|-----------|
-| `VITE_API_BASE` | `http://localhost:{{PORT}}/api` | `/api`（Nginx 反代） |
+| `VITE_API_BASE_URL` | `http://localhost:{{PORT}}/api` | `/api`（Nginx 反代） |
 | `VITE_ADMIN_PATH` | `/admin` | `/admin` |
 
 ### §15.3 Nginx 路由配置
 
 ```nginx
 # Admin Portal SPA routing
-location /admin {
-  alias /usr/share/nginx/html/admin;
+location /admin/ {
+  root /usr/share/nginx/html;
   try_files $uri $uri/ /admin/index.html;
 }
 
@@ -546,11 +593,13 @@ location /api/admin/ {
 
 ## §16 Self-Check Checklist（生成後必須全部通過）
 
+- [ ] §2 所有依賴版本號已填入具體版本（無 latest 或空版本，vue/element-plus/pinia/vue-router/axios 均已指定）
 - [ ] §0 Admin 技術棧欄位已填入（_ADMIN_FRAMEWORK 來自 EDD §3.3，非 placeholder）
 - [ ] §5.1 角色清單與 EDD §5.5-A 完全對應（無遺漏）
 - [ ] §5.1 Permission 清單與 API.md /admin/* endpoint 一對一對應
 - [ ] §7.1-7.5 所有頁面均有對應的 API endpoint
 - [ ] §8.2 API Endpoints 數量與 API.md /admin/* 路由數量相符
 - [ ] §9 所有 Pinia Store 已完整定義（無 placeholder）
-- [ ] constants.json 中的數值已被正確引用（timeout / pageSize 等）
+- [ ] CONSTANTS.md 中的數值已被正確引用（timeout / pageSize 等）
+- [ ] §15 環境變數（VITE_API_BASE_URL）與 Nginx /admin/ try_files 已正確配置（非 placeholder）
 - [ ] 無殘留 `{{PLACEHOLDER}}` 格式的未填內容

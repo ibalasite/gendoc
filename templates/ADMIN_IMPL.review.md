@@ -12,10 +12,17 @@ reviewer-roles:
   - name: Deployment Reviewer
     scope: §15 部署配置、Nginx 規則、環境變數
 quality-bar:
-  - "§5 RBAC：Role 定義、Permission Guard、Token 管理均完整"
+  - "§2 技術棧版本表：所有依賴有明確版本號，無 latest 或空版本"
+  - "§3 目錄結構完整，包含 admin/ 子目錄 + views/layout/store/utils"
   - "§4 路由表：全部功能頁面有路由 + 權限 + 元件"
+  - "§5 RBAC：Role 定義、Permission Guard、Token 管理均完整"
+  - "§6 Layout 系統：HeaderBar/SidebarMenu/BreadCrumb/Content 區域四個子項均有說明"
+  - "§7 頁面規格：login/dashboard/user-mgmt/role-mgmt/audit-log 全部有欄位或操作說明"
   - "§8 API 對應表：所有 /admin/* endpoint 均覆蓋"
   - "§9 三個 Pinia Store 有完整 state + actions"
+  - "§10 Element Plus 規範：Table 三狀態 + Form 驗證規則 + ElMessageBox 確認範例均存在"
+  - "§11 共用組件：SearchableTable 和 AuditLogDetail 均有 Props TypeScript 型別定義"
+  - "§14 效能目標有具體數值（bundle < 150KB gzipped，首屏 < 2s），無殘留 {{N}} placeholder"
   - "§15 部署：env 變數 + Nginx /admin/ 路由規則"
   - "全文無 {{PLACEHOLDER}} / TODO 空欄"
 upstream-alignment:
@@ -28,35 +35,6 @@ upstream-alignment:
 ---
 
 # ADMIN_IMPL.review.md — Admin 後台實作規格審查標準
-
----
-
-## §0 文件完整性審查
-
-### HI-07：上游文件引用正確性
-
-**Check**: §0 文件資訊表中的上游文件引用（EDD、API、SCHEMA）是否均存在且路徑正確？具體確認：
-1. `EDD.md` 已存在且包含 §3.3 + §5.5-A 段落
-2. `API.md` 已存在且包含 `/admin/*` 路由章節
-3. `SCHEMA.md` 已存在且包含 RBAC 相關資料表章節
-4. §0 表格中的引用連結路徑與實際檔案路徑一致（無相對路徑錯誤）
-
-**Risk**: 上游文件缺失或路徑錯誤時，AI 讀取上游資料失敗，導致後續生成內容依據不足，產生幻覺填充。  
-**Fix**: 確認三份上游文件均已生成，並修正 §0 中的引用路徑（統一使用 `docs/` 前綴）。
-
----
-
-## §1 Admin Portal 概覽審查
-
-### ME-06：§1.3 角色清單與 EDD §5.5-A 對齊
-
-**Check**: §1.3 使用者角色表格中列出的角色（role_name + description + capabilities）是否與 EDD §5.5-A 角色定義完全對應？具體確認：
-1. 角色數量與 EDD §5.5-A 一致（無遺漏、無多餘）
-2. 角色 key（英文 code）與 EDD §5.5-A 命名一致（大小寫、底線格式）
-3. 每個角色的 capabilities 描述覆蓋 EDD §5.5-A 中該角色的操作範圍
-
-**Risk**: §1.3 與 EDD §5.5-A 不一致，後續 §5 RBAC 定義以 §1.3 為基礎時將引入偏差，導致整份文件 RBAC 系統性錯誤。  
-**Fix**: 對照 EDD §5.5-A 補充或修正 §1.3 的角色清單，確保與 EDD 完全對應。
 
 ---
 
@@ -160,9 +138,34 @@ upstream-alignment:
 
 ---
 
+### HI-07：上游文件引用正確性
+
+**Check**: §0 文件資訊表中的上游文件引用（EDD、API、SCHEMA）是否均存在且路徑正確？具體確認：
+1. `EDD.md` 已存在且包含 §3.3 + §5.5-A 段落
+2. `API.md` 已存在且包含 `/admin/*` 路由章節
+3. `SCHEMA.md` 已存在且包含 RBAC 相關資料表章節
+4. §0 表格中的引用連結路徑與實際檔案路徑一致（無相對路徑錯誤）
+
+**Risk**: 上游文件缺失或路徑錯誤時，AI 讀取上游資料失敗，導致後續生成內容依據不足，產生幻覺填充。  
+**Fix**: 確認三份上游文件均已生成，並修正 §0 中的引用路徑（統一使用 `docs/` 前綴）。
+
+---
+
 ## MEDIUM 級別（品質問題 — 建議修復）
 
-### ME-01：§10 Element Plus 規範不完整
+### ME-01：§1.3 角色清單與 EDD §5.5-A 對齊
+
+**Check**: §1.3 使用者角色表格中列出的角色（role_name + description + capabilities）是否與 EDD §5.5-A 角色定義完全對應？具體確認：
+1. 角色數量與 EDD §5.5-A 一致（無遺漏、無多餘）
+2. 角色 key（英文 code）與 EDD §5.5-A 命名一致（大小寫、底線格式）
+3. 每個角色的 capabilities 描述覆蓋 EDD §5.5-A 中該角色的操作範圍
+
+**Risk**: §1.3 與 EDD §5.5-A 不一致，後續 §5 RBAC 定義以 §1.3 為基礎時將引入偏差，導致整份文件 RBAC 系統性錯誤。  
+**Fix**: 對照 EDD §5.5-A 補充或修正 §1.3 的角色清單，確保與 EDD 完全對應。
+
+---
+
+### ME-02：§10 Element Plus 規範不完整
 
 **Check**: §10 是否涵蓋 Table 三狀態 + Form 驗證 + ElMessageBox 二次確認 + 全局 message 格式？  
 **Risk**: 規範不完整導致各頁面 UI 行為不一致，影響使用者體驗。  
@@ -170,7 +173,7 @@ upstream-alignment:
 
 ---
 
-### ME-02：§11 共用組件缺少 Props 定義
+### ME-03：§11 共用組件缺少 Props 定義
 
 **Check**: `SearchableTable` 和 `AuditLogDetail` 組件是否有完整的 Props TypeScript interface？  
 **Risk**: 無 Props 定義，AI 生成組件時接口設計不一致，難以複用。  
@@ -178,11 +181,11 @@ upstream-alignment:
 
 ---
 
-### ME-03：§14 效能目標缺乏具體數值
+### ME-04：§14 效能目標缺乏具體數值
 
 **Check**: §14 是否明確標注 bundle size 目標（< 150KB gzipped）和首屏時間目標（< 2s）？額外確認：
 1. Bundle size 目標有明確數值（如 `< 150KB gzipped`），而非保留 `{{150}}` 這類未填充的 placeholder 格式
-2. 若仍為 `{{150}}` placeholder，表示數值未從 `constants.json` 或專案約定取得，需補充具體數值
+2. 若仍為 `{{150}}` placeholder，表示數值未從 `CONSTANTS.md` 或專案約定取得，需補充具體數值
 3. 首屏時間目標有明確毫秒數（如 `< 2000ms in 3G`），而非模糊描述
 
 **Risk**: 無具體目標或保留 placeholder，效能優化無依據；`{{150}}` 等 placeholder 殘留也代表文件生成不完整。  
@@ -190,7 +193,7 @@ upstream-alignment:
 
 ---
 
-### ME-04：§8 未說明 401/403 攔截器行為
+### ME-05：§8 未說明 401/403 攔截器行為
 
 **Check**: §8 response interceptor 是否說明 401（token 失效 → 重新導向 login）和 403（無權限 → toast 提示）的處理邏輯？  
 **Risk**: 不同開發者對錯誤處理有不同理解，導致行為不一致。  
@@ -198,7 +201,7 @@ upstream-alignment:
 
 ---
 
-### ME-05：§6 Layout 缺少響應式說明
+### ME-06：§6 Layout 缺少響應式說明
 
 **Check**: §6 Layout 規範是否說明 Admin Portal 的響應式斷點策略（Admin 通常以桌面為主，是否支援平板？）？  
 **Risk**: 無明確說明，各頁面響應式行為不一致。  
@@ -234,9 +237,9 @@ upstream-alignment:
 
 ### LO-04：§16 Self-Check Checklist 不完整
 
-**Check**: §16 的 Self-Check 是否包含至少 8 個可驗證項目？  
+**Check**: `ADMIN_IMPL.md §16` 的 checkbox list 是否包含至少 10 個可驗證項目（含 §15 環境變數/Nginx 配置驗證，以及 §2 依賴版本號驗證）？  
 **Risk**: Self-Check 項目不足，生成後驗證不完整，可能遺漏關鍵缺陷。  
-**Fix**: 確認清單完整覆蓋：目錄結構 / 路由 / RBAC / 頁面規格 / API / Store / 效能 / placeholder。
+**Fix**: 確認 `ADMIN_IMPL.md §16` checkbox list 完整覆蓋：§2 版本表 / 目錄結構 / 路由 / RBAC / 頁面規格 / API / Store / 效能 / §15 部署配置 / placeholder，共 10 項。
 
 ---
 

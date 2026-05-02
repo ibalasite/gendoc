@@ -24,7 +24,7 @@
 | `[x]` | AUDIO | ✅✅✅ | finding=0，3輪，9個findings全修復 |
 | `[x]` | ANIM | ✅✅✅ | finding=0，2輪，7個findings全修復 |
 | `[x]` | CLIENT_IMPL | ✅✅✅ | finding=0，5輪，28個findings全修復 |
-| `[ ]` | ADMIN_IMPL | ✅✅✅ | |
+| `[x]` | ADMIN_IMPL | ✅✅✅ | finding=0（fix後），5輪，MAX_ROUNDS，最終2LOW全修復 |
 | `[ ]` | RESOURCE | ✅✅✅ | |
 | `[ ]` | CICD | ✅✅✅ | |
 | `[ ]` | DEVELOPER_GUIDE | ✅✅✅ | |
@@ -55,4 +55,5 @@
 | CONSTANTS | 2026-05-02 | 3 | 0 | 7620407 |
 | AUDIO | 2026-05-02 | 6 | 0 | 534cbe9 |
 | ANIM | 2026-05-02 | 7 | 0 | 2b01803 |
-| CLIENT_IMPL | 2026-05-02 | 9 | 0 | (pending) |
+| CLIENT_IMPL | 2026-05-02 | 9 | 0 | f1fea52 |
+| ADMIN_IMPL | 2026-05-02 | 11 | 0 | (pending) |

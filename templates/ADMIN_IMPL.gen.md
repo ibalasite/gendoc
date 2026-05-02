@@ -24,14 +24,18 @@ upstream-docs:
 output-paths:
   - docs/ADMIN_IMPL.md
 quality-bar:
+  - "§2 技術棧版本表：所有依賴有明確版本號，無 latest 或空版本"
   - "§3 目錄結構完整，包含 admin/ 子目錄 + views/layout/store/utils"
   - "§4 路由表涵蓋所有 admin 功能頁面（不含 placeholder）"
   - "§5 RBAC 完整：Role/Permission 定義 + PermissionGuard 實作 + Token 管理"
+  - "§6 Layout 系統：HeaderBar/SidebarMenu/BreadCrumb/Content 區域四個子項均有說明"
   - "§7 頁面規格：login/dashboard/user-mgmt/role-mgmt/audit-log 全部有欄位或操作說明"
   - "§8 API 整合：baseURL、interceptor、所有 /admin/* endpoint 對應表"
   - "§9 三個 Pinia Store（authStore/permissionStore/userStore）有完整 state + actions"
+  - "§10 Element Plus 規範：Table 三狀態 + Form 驗證規則 + ElMessageBox 確認範例均存在"
+  - "§11 共用組件：SearchableTable 和 AuditLogDetail 均有 Props TypeScript 型別定義"
+  - "§14 效能目標有具體數值（bundle < 150KB gzipped，首屏 < 2s），無殘留 {{N}} placeholder（骨架中的 {{150}} 屬合法模板佔位，生成時必須替換為具體數值）"
   - "§15 部署配置：env 變數 + Nginx /admin 路由規則"
-  - "§14 效能目標有具體數值（bundle < 150KB gzipped，首屏 < 2s），無殘留 {{N}} placeholder"
   - "禁止保留任何 {{PLACEHOLDER}} 或 TODO 空欄"
 condition: has_admin_backend
 ---
@@ -145,7 +149,7 @@ TECH_DEFAULTS = {
 
 ---
 
-## Step 2：生成 §1 Admin Portal 定位
+## Step 2：生成 §1 Admin Portal 概覽
 
 讀取 `docs/PRD.md` 的 Admin 使用情境段落（若存在），提取：
 - Admin Portal 目標用戶（Super Admin, Operator, Auditor...）
@@ -417,17 +421,21 @@ location /admin/api/ {
 
 生成後必須對照以下清單確認，所有項目需明確通過（✅）才算完成：
 
+> **分層說明**：Step 17 為生成時自查（AI 執行），§16 為交付驗收自查（開發者執行），兩者分層定義不同職責。Step 17 重點驗證生成完整性，§16 重點驗證可交付性。
+
 ```markdown
 | # | 檢查項目                                    | 狀態 |
 |---|-------------------------------------------|------|
 | 1 | §3 目錄結構完整，含 views/store/router/api  | ✅/❌ |
 | 2 | §4 路由表覆蓋所有頁面，含權限欄位          | ✅/❌ |
 | 3 | §5 RBAC：Role+Permission 定義 + Guard 程式碼 | ✅/❌ |
-| 4 | §7 頁面規格：必要頁面全部有欄位說明        | ✅/❌ |
-| 5 | §8 /admin/* endpoint 對應表完整            | ✅/❌ |
-| 6 | §9 三個 Pinia Store 有 state+actions       | ✅/❌ |
-| 7 | §15 部署：env 變數 + Nginx 配置            | ✅/❌ |
-| 8 | 全文無 {{PLACEHOLDER}} / TODO 空欄         | ✅/❌ |
+| 4 | §5.1 Permission 清單有具體 routes/buttons 對應說明 | ✅/❌ |
+| 5 | §7 頁面規格：必要頁面全部有欄位說明        | ✅/❌ |
+| 6 | §8 Axios 配置有 baseURL + request interceptor（Token 注入）+ response interceptor（401/403 處理）說明 | ✅/❌ |
+| 7 | §8 /admin/* endpoint 對應表完整            | ✅/❌ |
+| 8 | §9 三個 Pinia Store 有 state+actions       | ✅/❌ |
+| 9 | §15 部署：env 變數 + Nginx 配置            | ✅/❌ |
+| 10 | 全文無 {{PLACEHOLDER}} / TODO 空欄        | ✅/❌ |
 ```
 
 若有 ❌，必須返回相應 Step 補完後再輸出。
@@ -446,7 +454,7 @@ location /admin/api/ {
 ✅ Pinia：authStore + permissionStore + userStore 三個 Store 完整
 ✅ 部署：Nginx /admin/ try_files + env 變數清單
 ✅ §14 效能目標：bundle size 有具體數值（< 150KB gzipped）+ 首屏時間（< 2s）+ 無殘留 {{N}} placeholder
-✅ Self-Check Checklist 全部通過（8/8）
+✅ Self-Check Checklist 全部通過（10/10）
 ```
 
 ---
