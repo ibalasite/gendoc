@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Currentanalysis — gendoc</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+</head>
+<body>
+  <header class="top-nav">
+    <a href="index.html" class="nav-brand">gendoc</a>
+    <div class="nav-controls">
+      <div class="search-wrap">
+        <input class="search-input" type="search" placeholder="搜尋文件...">
+        <div class="search-results"></div>
+      </div>
+      <a class="nav-gh-link" href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener">⌥ GitHub</a>
+      <button class="sidebar-toggle" id="sidebarToggle" title="收合/展開側欄">☰</button>
+    </div>
+  </header>
+  <div class="doc-page-banner">
+    <p class="banner-breadcrumb"><a href="index.html">gendoc</a> › Currentanalysis</p>
+    <h1 class="banner-title">Currentanalysis</h1>
+  </div>
+  <div class="page-wrapper">
+    <aside class="sidebar" aria-label="文件導覽">
+      <div class="sidebar__section">
+<div class="sidebar__label">文件</div>
+<a class="sidebar__link" href="index.html">🏠 首頁</a>
+<a class="sidebar__link" href="prd.html">📝 產品需求文件 (PRD)</a>
+<a class="sidebar__link" href="client.html">📄 Client</a>
+<a class="sidebar__link active" href="currentanalysis.html">📄 Currentanalysis</a>
+<a class="sidebar__link" href="gendoc-redesign-decisions.html">📄 Gendoc-Redesign-Decisions</a>
+<a class="sidebar__link" href="ha-spof-modification-plan.html">📄 Ha-Spof-Modification-Plan</a>
+</div>
+    </aside>
+    <div class="sidebar-resizer" id="sidebarResizer"></div>
+    <main class="doc-content"><h1>gendoc 專案現況分析 — 專家評估報告</h1>
+<p>&lt;!-- 評估日期：2026-05-03 | 評估人：Claude Sonnet 4.6 --&gt;</p>
+<hr>
+<h2>核心問題：「讓 AI 或工程師按規格書直接建置系統」—— 這個目標合理嗎？</h2>
+<h3>結論</h3>
+<p><strong>目標合理，而且是正確的方向。但有三個結構性風險值得正視。</strong></p>
+<hr>
+<h2>合理的部分（做對的事）</h2>
+<h3>1. 文件分層設計是對的</h3>
+<p>BRD / PRD / PDD / EDD 分層，對應 Why / What / How it works / How to build，與 IEEE 29148、Wiegers 的實踐完全一致。跨職能團隊最大的溝通成本來自「不同角色看同一份文件卻期待不同的東西」，分層從根本上解決了這個問題。</p>
+<h3>2. 以「可實作」而非「可閱讀」為品質標準</h3>
+<p>市面上 99% 的文件工具產出的是說明書，gendoc 要求 EDD 到 class/method 層級、API 到欄位 validation、Schema 到 DDL、test-plan 到具體邊界值。這個標準讓文件真的能驅動實作，而不只是「參考資料」。</p>
+<table>
+<tr><th>普通技術文件</th><th>gendoc 開發藍圖</th></tr>
+<tr><td>描述功能意圖</td><td>定義到 class、method 簽名、參數型別</td></tr>
+<tr><td>說明 API 端點</td><td>包含每個欄位的型別、驗證規則、錯誤回應範例</td></tr>
+<tr><td>提及需要測試</td><td>列出具體測試情境、邊界值、等價類劃分</td></tr>
+<tr><td>描述資料結構</td><td>給出 Schema DDL、index 策略、constraint 定義</td></tr>
+<tr><td>說明架構組件</td><td>包含 sequence diagram、component 間呼叫合約</td></tr>
+</table>
+<h3>3. Cumulative Upstream Reading 是結構性創新</h3>
+<p>每份文件讀所有上游文件，從機制上保證了知識繼承。大多數文件系統（包括人工撰寫）最大的問題是「下游文件的前提假設和上游不一致」。cumulative upstream reading 防止了這個問題。</p>
+<h3>4. AI-native 雙受眾設計是時代正確的押注</h3>
+<blockquote><p>如果文件細到 AI 能直接實作，人類一定也能。但反過來不成立。</p></blockquote>
+<p>MetaGPT（ICLR 2024）和 ChatDev（ACL 2024）都驗證了：給 AI 模糊輸入，就得到模糊輸出；給精確的分層文件，品質才會收斂。gendoc 在這個方向上走在業界前面。</p>
+<hr>
+<h2>三個結構性風險</h2>
+<h3>風險一：文件品質 ≠ 實作品質（The Last Mile Problem）</h3>
+<p>gendoc 產出的是<strong>規格書</strong>，但規格書到「系統可以跑起來」之間還有一個 Last Mile：</p>
+<ul><li>Schema DDL 寫了，但 migration 順序、rollback 策略、seed data 的邊界條件是否覆蓋？</li><li>API 合約定義了，但 concurrent request 時的 race condition 規格書是否定義到？</li><li>EDD 的 class 設計合理，但 dependency injection container 的 lifecycle 誰決定？</li></ul>
+<p><strong>改善方向</strong>：CONTRACTS + MOCK 已經在往這個方向走（OpenAPI → 可測試合約）。下一步是讓 DRYRUN 的量化基線更精準，以及把可驗證的測試 spec 自動綁定到規格書條目，讓「規格書有無漏洞」可以被 CI/CD 自動驗收。</p>
+<h3>風險二：規格收斂假設（「文件寫完就是正確的」）</h3>
+<p>目前設計假設：只要每份文件的 review loop finding = 0，文件就是正確的。但「語法正確」≠「語義正確」——EDD 可以完全符合模板要求，但 class 設計可能選錯了架構模式（例如在需要 event-driven 的場景硬用 request-response）。</p>
+<p><strong>改善方向</strong>：ALIGN check 已在做跨文件一致性，但還缺一個「設計合理性」層面的 review——例如 EDD 的架構選擇是否符合 PRD 的非功能需求（latency / throughput / consistency）。這是比語法更難自動化的問題，可能需要引入架構 ADR（Architecture Decision Record）驗證機制。</p>
+<h3>風險三：Context Window 與知識遞減（The Knowledge Decay Problem）</h3>
+<p>每份文件讀所有上游文件，在前幾份時沒問題。但到 Phase B 尾端（SCHEMA → FRONTEND → test-plan），上游已累積 IDEA + BRD + PRD + CONSTANTS + PDD + VDD + EDD + ARCH + API，context 可能超過 100k tokens。AI 在深層 context 的注意力是否均勻分配值得懷疑——早期文件（BRD 的商業需求）可能被稀釋。</p>
+<p><strong>改善方向</strong>：Phase D-2 Agent subagent 包裝隔離 context 是正確的方向。下一步可以讓每份文件的 gen 規則明確指定「必須讀哪幾份上游的哪些章節」，而不是「讀所有上游的全文」——精確的知識索引比全量 context 更可靠。</p>
+<hr>
+<h2>整體評分</h2>
+<table>
+<tr><th>維度</th><th>評分</th><th>說明</th></tr>
+<tr><td>設計理念</td><td>★★★★★</td><td>分層、精確、可傳遞——理論上最先進的方向</td></tr>
+<tr><td>工程執行</td><td>★★★★☆</td><td>Pipeline 完整、有 review loop、有 DRYRUN gate</td></tr>
+<tr><td>AI 可用性</td><td>★★★★☆</td><td>MetaGPT / ChatDev 都在做類似的事，gendoc 走在前面</td></tr>
+<tr><td>最後一哩</td><td>★★★☆☆</td><td>規格書到「可跑」還有 gap，CONTRACTS + MOCK 是在填</td></tr>
+<tr><td>知識收斂</td><td>★★★☆☆</td><td>Context 遞減問題在長 pipeline 裡真實存在</td></tr>
+</table>
+<hr>
+<h2>下一個里程碑建議</h2>
+<p>讓 gendoc 產出的規格書<strong>可被 CI/CD 自動驗收</strong>：</p>
+<ol><li><strong>合約測試自動化</strong> — OpenAPI spec → Pact consumer-driven contract test，每次 push 自動跑</li><li><strong>Schema 遷移可驗證</strong> — DDL diff → migration script → 自動回滾測試</li><li><strong>知識索引精確化</strong> — 每份文件 gen 規則改為「讀上游的指定章節」而非全文</li><li><strong>ADR 驗證機制</strong> — 架構決策記錄（Architecture Decision Record）綁定到 EDD，review 時驗證決策前提是否仍成立</li></ol>
+<p>當這四項完成，「按規格書建置系統」才會真正閉環——不只是人工確認，而是機器可驗收。</p>
+<hr>
+<p><em>評估基準：ISO/IEC/IEEE 29148:2018、MetaGPT (ICLR 2024)、ChatDev (ACL 2024)、Wiegers &amp; Beatty Software Requirements 3rd ed.</em></p></main>
+  </div>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({startOnLoad:true,theme:'default',
+      flowchart:{curve:'basis',nodeSpacing:60,rankSpacing:80},
+      er:{layoutDirection:'TD',minEntityWidth:100,fontSize:12},
+      sequence:{actorMargin:60,messageMargin:30}});
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-go.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

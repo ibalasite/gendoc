@@ -14,6 +14,11 @@
     "title": "Client",
     "excerpt": "CLIENT — Client Frontend Design Document (FDD)\n&lt;!-- SDLC Client Layer — Frontend Architecture, Screen Flow, Cross-platform Compatibility --&gt;\n&lt"
   },
+  "currentanalysis.html": {
+    "url": "currentanalysis.html",
+    "title": "Currentanalysis",
+    "excerpt": "gendoc 專案現況分析 — 專家評估報告\n&lt;!-- 評估日期：2026-05-03 | 評估人：Claude Sonnet 4.6 --&gt;\n\n核心問題：「讓 AI 或工程師按規格書直接建置系統」—— 這個目標合理嗎？\n結論\n目標合理，而且是正確的方向。但有三個結構性風險值得正視。\n\n"
+  },
   "gendoc-redesign-decisions.html": {
     "url": "gendoc-redesign-decisions.html",
     "title": "Gendoc-Redesign-Decisions",
