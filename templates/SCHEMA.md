@@ -34,6 +34,24 @@
 - Schema 命名空間：`public`（PostgreSQL）/ `{{DB_NAME}}`（MySQL）
 - 最大連線數（Connection Pool）：依 §7 計算
 
+### 1.1 Schema Boundary Declaration
+
+> **Spring Modulith 硬約束（HC-1）：每個 Bounded Context 擁有且只擁有自己的 DB Schema；跨 BC 資料存取只能透過對方的 Public API 或 Domain Event，絕對禁止 DB-level JOIN 或 FK 跨越 BC 邊界。**
+
+| 欄位 | 值 |
+|------|-----|
+| **唯一擁有服務（Owning BC）** | **{{BC_NAME}}**（對應 ARCH §4 / EDD §3.4） |
+| Schema 命名空間 | `{{SCHEMA_NAMESPACE}}`（此 BC 專屬，禁止其他 BC 直接讀寫） |
+
+**外部不得直接 JOIN 的表清單**（其他 BC 或服務禁止對下列表建立 DB-level FK）：
+
+| 表名稱 | 原因 |
+|--------|------|
+| `{{TABLE_1}}` | 屬 {{BC_NAME}} 核心聚合根，跨 BC 存取須透過 Public API |
+| `{{TABLE_2}}` | 屬 {{BC_NAME}} 內部領域物件，跨 BC 引用改為 ID-only 策略 |
+
+> **跨 BC 引用規範**：若其他 BC 需要引用本 Schema 的實體，一律使用應用層管理的 ID-only 欄位，不建立 DB FK。SQL 注釋格式：`-- Cross-BC reference: enforced at application layer, no DB FK.`
+
 ---
 
 ## 2. 通用欄位規範
