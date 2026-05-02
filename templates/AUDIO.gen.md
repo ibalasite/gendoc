@@ -10,7 +10,7 @@ upstream-docs:
   - docs/VDD.md     # 視覺設計語言 → 音效與視覺事件時序對齊（情緒、氛圍）
   - docs/EDD.md
   - docs/FRONTEND.md
-quality-bar: "§2 每個主要場景都有對應 BGM；§3 所有 P0 User Story 觸發的互動都有對應 SFX；§4 若有劇情/教學則每條 VO 觸發條件精確到事件名稱且無裸 placeholder；§5 音效觸發邏輯完整無歧義；§6 引擎設定代碼可直接複製使用；§7 資產命名符合規範；§8 載入策略與 EDD.md/FRONTEND.md 一致；§9 效能預算已填具體數值；§10 測試清單覆蓋 §3 所有 SFX；無裸 placeholder"
+quality-bar: "§2 每個主要場景都有對應 BGM；§3 所有 P0 User Story 觸發的互動都有對應 SFX；§4 若有劇情/教學則每條 VO 觸發條件精確到事件名稱且無裸 placeholder；§5 音效觸發邏輯完整無歧義；§6 展開的引擎設定代碼中無裸 {{PLACEHOLDER}}、音量/頻道/路徑均為具體值、API 方法名稱符合 FRONTEND.md 確認的引擎版本；§7 資產命名符合規範；§8 載入策略與 EDD.md/FRONTEND.md 一致；§9 效能預算已填具體數值；§10 測試清單覆蓋 §3 所有 SFX；無裸 placeholder"
 ---
 
 # AUDIO.gen.md — 音效設計文件生成規則
@@ -60,6 +60,8 @@ docs/req/* 中的所有素材也必須全部關聯讀取。
 | `PRD.md` | 所有 User Stories 與 AC、P0/P1/P2 分類 | §3 SFX 清單必須覆蓋所有 P0 User Story 中提到的互動事件；§2 BGM 場景對應 PRD 功能流程 |
 | `EDD.md` | §2 技術棧、§4 安全設計 | 確認引擎（Cocos/Unity/Web）→ 決定 §6 引擎設定章節重點；音效資源載入策略與 EDD 資源管理對齊 |
 | `FRONTEND.md`（若存在）| §2 平台選型、§4 畫面清單、§7 資源管理 | **最重要的上游**：確認確切使用的引擎版本和音效 API；畫面清單 → BGM 切換時機；資源管理策略 → §8 載入策略 |
+| `PDD.md`（若存在）| §2 目標平台、§4 裝置規格 | 補充 §1.3 目標平台音效限制（各平台 codec 支援、同時播放頻道上限、低階裝置規格） |
+| `VDD.md`（若存在）| 全文 | 視覺事件時序（動畫、特效、畫面切換時間點）→ §5.2 觸發時機對齊，確保音效與視覺事件同步 |
 
 ### 引擎偵測規則
 
@@ -162,6 +164,20 @@ if 無法偵測 → 三個引擎設定章節全部展開（通用版）
 - 填入 maxChannels（建議 16~24）
 - 填入 BGM 淡入時間（秒，與 §2.1 一致）
 - AudioSource 元件設定表使用實際值
+- **代碼範例說明（重要）**：AUDIO.md §6.1 的代碼範例基於 `AudioManager.getInstance()` 自定義封裝層撰寫，此為一種常見的封裝假設。填寫時須依目標專案實際情況選擇：
+  - **若目標專案已有自定義 AudioManager**：使用其現有 API（如 `AudioManager.play()`、`AudioManager.setBGMVolume()` 等），並在 AUDIO.md §6.1 代碼上方加入注釋說明封裝假設（例：`// 以下代碼基於專案自定義 AudioManager 封裝`）。
+  - **若目標專案無自定義 AudioManager**：改用 Cocos Creator 3.x 原生 AudioSource Component：
+    ```typescript
+    // 原生 AudioSource Component 用法（Cocos Creator 3.x）
+    // 在 Node 上掛載 AudioSource Component，通過 getComponent 取得
+    const audioSource = this.node.getComponent(AudioSource);
+    audioSource.clip = audioClip;       // AudioClip 資源
+    audioSource.loop = true;            // BGM 設 true，SFX 設 false
+    audioSource.volume = 0.8;           // 音量 0.0 ~ 1.0
+    audioSource.play();                 // 播放
+    audioSource.stop();                 // 停止
+    ```
+  - **不得**在填寫代碼範例時混用 Cocos 2.x 的 `cc.audioEngine` API 與 3.x 的 AudioSource Component。
 
 **§6.2 Unity（若適用）：**
 - AudioMixer 樹必須反映 §3 的分組（BGM/SFX_UI/SFX_Game/VO）
@@ -226,6 +242,7 @@ if 無法偵測 → 三個引擎設定章節全部展開（通用版）
 | 命名規範 | 所有 ID 符合 BGM-xxx / SFX-UI-xxx / SFX-GAME-xxx / VO-xxx 格式 |
 | 測試清單 | §10 測試數 ≥ §3 SFX 數量 + 8 個基礎測試 |
 | VO 覆蓋 | 若 PRD 含劇情/教學，§4 每條 VO 的觸發條件精確到事件名稱，無裸 {{TEXT}}/{{TRIGGER}}/{{LANG}} placeholder；無 VO 則明確標注「本專案無語音/旁白設計」 |
+| 上游衝突 | 上游衝突偵測已執行；所有衝突已標注並修正（若無衝突則明確說明「上游一致，無衝突」）|
 
 若任何檢查未通過，在 AUDIO.md 末尾附加警告區塊：
 ```markdown

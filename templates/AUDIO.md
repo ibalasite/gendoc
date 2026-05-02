@@ -9,6 +9,8 @@ upstream:
   - docs/PRD.md
   - docs/EDD.md
   - docs/FRONTEND.md
+  - docs/PDD.md     # 若存在：目標平台/裝置規格 → 補充 §1.3 平台 codec 限制
+  - docs/VDD.md     # 若存在：視覺事件時序 → §5.2 觸發時機對齊
 ---
 
 # 音效設計文件（Audio Design Document）
@@ -27,7 +29,7 @@ upstream:
 | **作者** | {{AUTHOR}} |
 | **日期** | {{DATE}} |
 | **適用引擎** | {{ENGINE}} （Cocos Creator / Unity / HTML5 Web Audio / Howler.js） |
-| **上游文件** | IDEA.md · BRD.md · PRD.md · EDD.md · FRONTEND.md |
+| **上游文件** | IDEA.md · BRD.md · PRD.md · EDD.md · FRONTEND.md · PDD.md（若存在）· VDD.md（若存在）|
 | **審閱者** | 音效設計師、技術音效工程師 |
 
 ---
@@ -107,7 +109,10 @@ upstream:
 
 | ID | 名稱 | 文本內容 | 觸發條件 | 優先級 | 語言 | 檔案路徑 |
 |----|------|---------|---------|-------|------|---------|
-| VO-001 | {{NAME}} | {{TEXT}} | {{TRIGGER}} | {{PRIORITY}} | {{LANG}} | `audio/vo/{{LANG}}/{{FILENAME}}.mp3` |
+| VO-001 | {{NAME}} | {{TEXT}} | {{TRIGGER}} | {{PRIORITY}} | zh | `audio/vo/zh/{{FILENAME}}.mp3` |
+| VO-001 | {{NAME}} | {{TEXT_EN}} | {{TRIGGER}} | {{PRIORITY}} | en | `audio/vo/en/{{FILENAME}}.mp3` |
+
+> **多語言 VO**：同一 ID 的不同語言版本各占一行，語言碼使用 ISO 639-1 雙字母碼（如 `zh`、`en`、`ja`、`ko`）。
 
 > **優先級說明**：VO 通常設 HIGH（確保劇情不被 SFX 打斷）；教學旁白設 CRITICAL（必播，不得被任何音效打斷）。
 
@@ -268,7 +273,7 @@ document.addEventListener('click', () => {
 ### §7.3 資產目錄結構
 
 ```
-assets/audio/              （或依引擎調整路徑）
+assets/audio/              （根目錄依引擎不同，見下表）
 ├── bgm/
 │   └── bgm_*.mp3
 ├── sfx/
@@ -279,6 +284,18 @@ assets/audio/              （或依引擎調整路徑）
     ├── zh/
     └── en/
 ```
+
+**各引擎音效資產根目錄對照：**
+
+| 引擎 | 音效資產根目錄 | 說明 |
+|------|-------------|------|
+| Cocos Creator 3.x | `assets/audio/` | 預設資產路徑，支援 Bundle 分包 |
+| Cocos Creator 2.x | `resources/audio/` | 需放在 resources 目錄下才能動態載入 |
+| Unity（Resources.Load 方式） | `Assets/Resources/Audio/` | 使用 `Resources.Load<AudioClip>()` 載入 |
+| Unity（AssetBundle 方式） | `Assets/Audio/` | 使用 AssetBundle 打包，不限於 Resources 目錄 |
+| HTML5（Vite / Create React App / Next.js） | `public/audio/` 或 `src/assets/audio/` | `public/` 直接映射到根 URL；`src/assets/` 需透過打包工具引用 |
+
+> 填寫 §2/§3/§4 清單的「檔案路徑」時，必須使用上表中對應引擎的根目錄作為前綴，不得保留 `assets/audio/` 作為通用路徑套用到非 Cocos Creator 3.x 專案。
 
 ---
 

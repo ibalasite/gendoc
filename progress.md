@@ -21,7 +21,7 @@
 | 狀態 | Step | 三件套完整度 | 備注 |
 |------|------|------------|------|
 | `[x]` | CONSTANTS | ✅✅✅ | finding=0，5輪，11個findings全修復 |
-| `[ ]` | AUDIO | ✅✅✅ | |
+| `[x]` | AUDIO | ✅✅✅ | finding=0，3輪，9個findings全修復 |
 | `[ ]` | ANIM | ✅✅✅ | |
 | `[ ]` | CLIENT_IMPL | ✅✅✅ | |
 | `[ ]` | ADMIN_IMPL | ✅✅✅ | |
@@ -52,4 +52,5 @@
 
 | Step | 完成時間 | 初始 Finding | 最終 Finding | Commit |
 |------|---------|------------|------------|--------|
-| CONSTANTS | 2026-05-02 | 3 | 0 | (pending push) |
+| CONSTANTS | 2026-05-02 | 3 | 0 | 7620407 |
+| AUDIO | 2026-05-02 | 6 | 0 | (pending) |
