@@ -544,56 +544,158 @@ echo "DRYRUN_STALE:$_DRYRUN_STALE"
 
 ---
 
-## Step 2：若無缺漏且語意完整 → 結束
+## Step 2：全清檢查 → 若無任何問題則結束
 
-若 `_MISSING_COUNT == 0` 且 `_SEMANTIC_COUNT == 0`：
+**[AI 指令]** 若以下四項全為 0，輸出完成框並結束：
+- `_MISSING_COUNT == 0`
+- `_SEMANTIC_COUNT == 0`
+- `_QUALITY_FAIL_COUNT == 0`
+- `_DRYRUN_STATUS` 為 `OK` 或 pipeline 中無 DRYRUN 步驟
 
 ```
-╔══════════════════════════════════════════════════════╗
-║  /gendoc-repair 完成                                  ║
-╠══════════════════════════════════════════════════════╣
-║  ✅ 所有步驟已完成，輸出驗證通過，pipeline 完整無缺     ║
-╚══════════════════════════════════════════════════════╝
+╔══════════════════════════════════════════════════════════════════╗
+║  /gendoc-repair 完成                                              ║
+╠══════════════════════════════════════════════════════════════════╣
+║  ✅ Phase A 完整 · DRYRUN OK · Phase B 完整 · 品質驗證通過          ║
+║  文件狀態與 gendoc-auto + gendoc-flow 全新執行結果完全一致           ║
+╚══════════════════════════════════════════════════════════════════╝
 ```
 
 輸出 `DONE`，結束。
 
-若 `_MISSING_COUNT == 0` 但 `_SEMANTIC_COUNT > 0`（有步驟已記錄完成但輸出缺失）：
-→ 設定 `_FIRST_MISSING` 為 `_SEMANTIC_IDS` 中的第一個 ID，繼續 Step 3。
+**邊緣情況處理**：
+- `_MISSING_COUNT == 0` 但 `_SEMANTIC_COUNT > 0`：設 `_FIRST_MISSING = _SEMANTIC_IDS` 的第一個 ID，繼續 Step 3。
+- `_QUALITY_FAIL_COUNT > 0` 但 `_MISSING_COUNT == 0` 且 `_SEMANTIC_COUNT == 0`：設 `_FIRST_MISSING = _QUALITY_FAIL_IDS` 的第一個 ID，繼續 Step 3（情境 D）。
+- `_DRYRUN_STATUS == "STALE"` 或 `_DRYRUN_STALE == "true"`：顯示過時警告，繼續 Step 3（情境 B'）。
 
 ---
 
-## Step 3：若有缺漏或語意不完整 → 詢問是否補跑
+## Step 3：Phase-Aware 補跑引導
 
-`_SPAWNED == "true"` 時自動選 [1]（補跑），跳過提問。
+**[AI 指令]** 根據下方情境判斷邏輯，選擇對應提示模板，用 `AskUserQuestion` 詢問使用者。`_SPAWNED == "true"` 時自動選 [1]，跳過提問。
 
-否則用 `AskUserQuestion` 詢問（依狀況組合說明文字）：
+---
+
+### 情境判斷邏輯
 
 ```
-[缺漏] 發現 {_MISSING_COUNT} 個未執行步驟，從 {_FIRST_MISSING} 開始。
-[語意] 發現 {_SEMANTIC_COUNT} 個步驟已標記完成但輸出缺失：{_SEMANTIC_IDS}
-
-（以上為實際有問題的行，若某項為 0 則省略該行）
-
-要從 {_FIRST_MISSING} 補跑 gendoc-flow 嗎？
-
-[1] 是，從 {_FIRST_MISSING} 補跑（設定 start_step 並呼叫 gendoc-flow）
-[2] 否，只看報告，不補跑
-```
-
-補充：若 `_MISSING_COUNT == 0` 但 `_SEMANTIC_COUNT > 0`，說明文字改為：
-```
-發現 {_SEMANTIC_COUNT} 個步驟輸出缺失（{_SEMANTIC_IDS}）。
-這些步驟在 state 中標記為已完成，但輸出檔案不存在或不完整。
-建議從 {_FIRST_MISSING} 重新執行。
+if _PHASE_A_MISSING_COUNT > 0:
+    → 情境 A（Phase A 缺漏）
+elif _DRYRUN_STATUS == "NONE" and _PHASE_B_MISSING_COUNT > 0:
+    → 情境 B（Phase A 完整，DRYRUN 未執行，Phase B 有缺漏）
+elif _DRYRUN_STATUS == "NONE" and _PHASE_B_MISSING_COUNT == 0:
+    → 情境 B0（Phase A + B 完整，但 DRYRUN 未跑）
+elif (_DRYRUN_STATUS == "DEFAULTS" or _DRYRUN_STALE == "true") and _PHASE_B_MISSING_COUNT > 0:
+    → 情境 B'（DRYRUN 品質基線可疑，Phase B 有缺漏）
+elif _PHASE_B_MISSING_COUNT > 0:
+    → 情境 C（DRYRUN OK，Phase B 有缺漏）
+elif _SEMANTIC_COUNT > 0 or _QUALITY_FAIL_COUNT > 0:
+    → 情境 D（步驟輸出或品質不符）
 ```
 
 ---
 
-## Step 4：若選擇補跑 → 更新 start_step + 呼叫 gendoc-flow
+### 情境 A：Phase A 缺漏
+
+```
+發現 Phase A（內容層）缺 {_PHASE_A_MISSING_COUNT} 個步驟，從 {_FIRST_PHASE_A} 開始。
+（Phase A 補完後，DRYRUN 將自動計算品質基線，再繼續 Phase B）
+
+（若同時有語意/品質問題，也在此一併列出）
+
+[1] 從 {_FIRST_MISSING} 一次補到底（gendoc-flow 自動完成 Phase A → DRYRUN → Phase B）
+[2] 只看報告，不補跑
+```
+
+---
+
+### 情境 B：Phase A 完整，DRYRUN 未執行
+
+```
+✅ Phase A（{N} 個步驟）已完整
+
+⚠️  DRYRUN 尚未執行
+    Phase B 共 {_PHASE_B_MISSING_COUNT} 個步驟目前沒有量化品質門檻（.gendoc-rules/ 不存在）
+    跳過 DRYRUN 直接補 Phase B = 品質審查無法量化
+
+（若 _UPSTREAM_READY == "false"，加顯上游就緒度警告）
+
+[1] 先執行 DRYRUN，再從 {_FIRST_PHASE_B} 補跑 Phase B（推薦）
+[2] 直接從 {_FIRST_PHASE_B} 補跑 Phase B（無量化品質基線）
+[3] 只看報告，不補跑
+```
+
+---
+
+### 情境 B0：Phase A + B 完整但 DRYRUN 未跑
+
+```
+✅ Phase A 完整 · ✅ Phase B 完整 · ⚠️ DRYRUN 尚未執行
+
+所有步驟均標記完成，但尚未生成量化品質基線。
+建議執行 DRYRUN 以鎖定品質門檻，後續修改可用 gate-check 自動驗證。
+
+[1] 執行 DRYRUN（生成 .gendoc-rules/*.json 品質基線）
+[2] 不執行，保持現狀
+```
+
+---
+
+### 情境 B'：DRYRUN 品質基線可疑 + Phase B 缺漏
+
+```
+⚠️  DRYRUN 品質基線可疑：
+    狀態：{_DRYRUN_STATUS}（DEFAULTS = 上游文件不足時使用了預設值）
+    （若 _DRYRUN_STALE == "true"，加顯過時警告及時間戳差異）
+
+Phase B 缺 {_PHASE_B_MISSING_COUNT} 個步驟。
+
+[1] 先重新執行 DRYRUN（更新品質基線），再從 {_FIRST_PHASE_B} 補跑 Phase B（推薦）
+[2] 直接從 {_FIRST_PHASE_B} 補跑 Phase B（使用現有基線）
+[3] 只看報告，不補跑
+```
+
+---
+
+### 情境 C：DRYRUN OK，Phase B 缺漏
+
+```
+✅ Phase A 完整 · ✅ DRYRUN 已執行（{_DRYRUN_RULES_COUNT} 個 rules files）
+
+Phase B 缺 {_PHASE_B_MISSING_COUNT} 個步驟，品質基線可用。
+
+（若有 QUALITY_FAIL，加顯品質失敗摘要）
+
+[1] 從 {_FIRST_PHASE_B} 補跑 Phase B
+[2] 只看報告，不補跑
+```
+
+---
+
+### 情境 D：語意/品質失敗，無缺漏步驟
+
+```
+所有步驟均標記完成，但發現以下問題：
+（若 _SEMANTIC_COUNT > 0）語意不完整：{_SEMANTIC_IDS}
+（若 _QUALITY_FAIL_COUNT > 0）品質不足：{_QUALITY_FAIL_IDS}
+
+建議從 {_FIRST_MISSING} 重新執行對應步驟。
+
+[1] 從 {_FIRST_MISSING} 重新執行
+[2] 只看報告，不補跑
+```
+
+---
+
+## Step 4：執行補跑
+
+**[AI 指令]** 依使用者選擇執行對應模式：
+
+---
+
+### 模式 A：標準補跑（情境 A / C / D 選 [1]）
 
 ```bash
-# 更新 state file 的 start_step
 _NOW=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 _TMP="${_STATE_FILE}.repair.tmp"
 python3 - <<PYEOF
@@ -612,17 +714,90 @@ PYEOF
 
 ---
 
-## Step 5：若選擇不補跑 → 輸出建議
+### 模式 B：兩階段補跑（情境 B / B' 選 [1]）
+
+**階段 1**：執行 DRYRUN（Skill tool 呼叫 `gendoc-gen-dryrun`）：
+
+```
+先執行 gendoc-gen-dryrun 以生成/更新品質基線...
+```
+
+呼叫 **Skill tool**：`gendoc-gen-dryrun`，等待完成。
+
+**階段 2**：重讀 state file，取得最新 completed_steps，確認 DRYRUN 已在其中。然後設 start_step 為第一個 Phase B 缺漏步驟，呼叫 gendoc-flow：
+
+```bash
+_NOW=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+_TMP="${_STATE_FILE}.repair.tmp"
+# 重新計算 Phase B 第一個缺漏（DRYRUN 完成後 state 已更新）
+_NEXT_STEP=$(python3 - "$_PIPELINE" "$_STATE_FILE" <<'PY2'
+import json, sys
+pipe  = json.load(open(sys.argv[1], encoding="utf-8"))
+state = json.load(open(sys.argv[2], encoding="utf-8"))
+completed   = set(state.get("completed_steps", []))
+client_type = state.get("client_type", "")
+has_admin   = bool(state.get("has_admin_backend", False))
+all_steps = []
+if "steps" in pipe:
+    for s in pipe["steps"]:
+        sid = s.get("id", "")
+        if not sid:
+            continue
+        cond = s.get("condition", "")
+        if cond == "client_type != api-only" and client_type == "api-only": continue
+        if cond == "client_type == api-only" and client_type != "api-only": continue
+        if cond == "client_type != none" and client_type in ("none", ""): continue
+        if cond == "client_type == game" and client_type != "game": continue
+        if cond == "has_admin_backend" and not has_admin: continue
+        all_steps.append(sid)
+dryrun_idx = next((i for i, s in enumerate(all_steps) if s == "DRYRUN"), None)
+phase_b = all_steps[dryrun_idx + 1:] if dryrun_idx is not None else []
+missing_b = [s for s in phase_b if s not in completed]
+print(missing_b[0] if missing_b else "")
+PY2
+)
+
+if [[ -n "$_NEXT_STEP" ]]; then
+  python3 - <<PYEOF
+import json, os
+d = json.load(open("$_STATE_FILE", encoding="utf-8"))
+d["start_step"]   = "$_NEXT_STEP"
+d["last_updated"] = "$_NOW"
+with open("$_TMP", "w", encoding="utf-8") as f:
+    json.dump(d, f, indent=2, ensure_ascii=False)
+os.replace("$_TMP", "$_STATE_FILE")
+print(f"[repair] Phase B start_step → $_NEXT_STEP")
+PYEOF
+  # 呼叫 gendoc-flow 繼續 Phase B
+else
+  echo "[repair] Phase B 無缺漏步驟，補跑完成。"
+fi
+```
+
+若 `_NEXT_STEP` 不為空，用 **Skill tool** 呼叫 `gendoc-flow`（無額外 args）。
+
+---
+
+### 模式 B0：只跑 DRYRUN（情境 B0 選 [1]）
+
+直接用 **Skill tool** 呼叫 `gendoc-gen-dryrun`（無額外 args）。
+
+---
+
+## Step 5：若選擇不補跑 → 輸出摘要報告
 
 ```
 ╔══════════════════════════════════════════════════════════════════╗
-║  /gendoc-repair — 缺漏步驟報告（不補跑）                          ║
+║  /gendoc-repair — 診斷報告（不補跑）                              ║
 ╠══════════════════════════════════════════════════════════════════╣
-║  缺漏：{_MISSING_COUNT} 個步驟（首個：{_FIRST_MISSING}）           ║
+║  Phase A 缺漏：{_PHASE_A_MISSING_COUNT} 個（首個：{_FIRST_PHASE_A}）║
+║  DRYRUN Gate ：{_DRYRUN_STATUS}                                  ║
+║  Phase B 缺漏：{_PHASE_B_MISSING_COUNT} 個（首個：{_FIRST_PHASE_B}）║
+║  語意不完整  ：{_SEMANTIC_COUNT} 個                               ║
+║  品質不足   ：{_QUALITY_FAIL_COUNT} 個                            ║
 ║                                                                  ║
-║  手動補跑方法：                                                    ║
-║    /gendoc-config  → 選「從某個 STEP 重新開始」→ 選 {_FIRST_MISSING}  ║
-║    /gendoc-flow    → 從 {_FIRST_MISSING} 繼續                    ║
+║  手動補跑：/gendoc-config → 選「從某個 STEP 重新開始」              ║
+║            → 選 {_FIRST_MISSING}，再執行 /gendoc-flow             ║
 ╚══════════════════════════════════════════════════════════════════╝
 ```
 
