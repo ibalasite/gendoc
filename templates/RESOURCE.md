@@ -46,8 +46,8 @@ last-updated: "{{LAST_UPDATED_DATE}}"
 
 ## §1 VDD 視覺資產清單（圖片 / 圖示 / 插畫）
 
-> **上游**：`docs/VDD.md §4 角色設計` + `docs/VDD.md §5 UI 視覺系統`  
-> 每個 VDD 角色、UI 元件、場景背景均應有對應的 RES-IMG 行。
+> **上游**：`docs/VDD.md §4 角色設計` + `docs/VDD.md §5 UI 視覺系統` + `docs/VDD.md §6 場景/背景設計`（若存在）  
+> 每個 VDD 角色、UI 元件、場景背景均應有對應的 RES-IMG 行（§6 若有場景定義則一同納入）。
 
 | ID | 檔名 | type | source_tool | prompt | dimensions | file_size_budget | status | output_path | description |
 |----|------|------|------------|--------|-----------|-----------------|--------|-------------|-------------|
@@ -55,7 +55,7 @@ last-updated: "{{LAST_UPDATED_DATE}}"
 | RES-IMG-002 | {{IMG_002_FILENAME}} | image | {{IMG_002_TOOL}} | {{IMG_002_PROMPT}} | {{IMG_002_DIMENSIONS}} | {{IMG_002_BUDGET}} | needed | {{IMG_002_PATH}} | {{IMG_002_DESC}} |
 | {{RES_IMG_ID}} | {{FILENAME}} | image | {{TOOL}} | {{PROMPT}} | {{DIMENSIONS}} | {{BUDGET}} | needed | {{PATH}} | {{DESC}} |
 
-<!-- 生成規則：從 VDD §4 提取每個角色（hero、NPC、monster 等）各生成至少 1 行；從 VDD §5 提取每個主要 UI 場景（主頁、戰鬥、商城等）各生成 1 行背景圖；UI 圖示集視為 1 組，生成 1 行。 -->
+<!-- 生成規則：從 VDD §4 提取每個角色（hero、NPC、monster 等）各生成至少 1 行；從 VDD §5 提取每個主要 UI 場景（主頁、戰鬥、商城等）各生成 1 行背景圖；UI 圖示集視為 1 組，生成 1 行；若 VDD §6 存在，每個場景背景各生成 1 行。 -->
 
 ---
 
@@ -77,13 +77,14 @@ last-updated: "{{LAST_UPDATED_DATE}}"
 
 ## §3 AUDIO 音效資產清單（BGM / SFX / VO）
 
-> **上游**：`docs/AUDIO.md §2 BGM 清單` + `docs/AUDIO.md §3 SFX 清單`（若存在）  
-> 每個 AUDIO.md BGM-xxx 和 SFX-xxx 均應有對應的 RES-SFX / RES-BGM 行。
+> **上游**：`docs/AUDIO.md §2 BGM 清單` + `docs/AUDIO.md §3 SFX 清單` + `docs/AUDIO.md VO 清單`（若存在）  
+> 每個 AUDIO.md BGM-xxx 均應有對應的 RES-BGM 行；每個 SFX-xxx 均應有對應的 RES-SFX 行；若有 VO → 每個 VO 項目均應有對應的 RES-VO 行。
 
 | ID | 檔名 | type | source_tool | prompt | dimensions | file_size_budget | status | output_path | description |
 |----|------|------|------------|--------|-----------|-----------------|--------|-------------|-------------|
 | RES-BGM-001 | {{BGM_001_FILENAME}} | bgm | {{BGM_001_TOOL}} | {{BGM_001_PROMPT}} | {{BGM_001_DURATION}}s | {{BGM_001_BUDGET}} | needed | {{BGM_001_PATH}} | {{BGM_001_DESC}} |
 | RES-SFX-001 | {{SFX_001_FILENAME}} | sfx | {{SFX_001_TOOL}} | {{SFX_001_PROMPT}} | {{SFX_001_DURATION}}s | {{SFX_001_BUDGET}} | needed | {{SFX_001_PATH}} | {{SFX_001_DESC}} |
+| RES-VO-001 | {{VO_001_FILENAME}} | vo | {{VO_001_TOOL}} | {{VO_001_PROMPT}} | {{VO_001_DURATION}}s | {{VO_001_BUDGET}} | needed | {{VO_001_PATH}} | {{VO_001_DESC}} |
 | {{RES_AUDIO_ID}} | {{FILENAME}} | {{AUDIO_TYPE}} | {{TOOL}} | {{PROMPT}} | {{DURATION}}s | {{BUDGET}} | needed | {{PATH}} | {{DESC}} |
 
 <!-- 生成規則：AUDIO.md 的每個 BGM-xxx → RES-BGM 行；每個 SFX-xxx → RES-SFX 行；若有 VO → RES-VO 行；若無 AUDIO.md，填入「本專案無音效資產需求，略過本節」。 -->
@@ -93,18 +94,21 @@ last-updated: "{{LAST_UPDATED_DATE}}"
 ## §4 Review Checklist
 
 - [ ] §1 VDD 視覺資產：VDD.md §4 所有角色均有對應 RES-IMG 行
-- [ ] §1 VDD 視覺資產：VDD.md §5 所有主要 UI 場景均有對應 RES-IMG 行
+- [ ] §1 VDD 視覺資產：VDD.md §5 所有主要 UI 場景背景圖及 UI 圖示集均有對應 RES-IMG 行（圖示集含圖示數量與單個尺寸說明）
+- [ ] §1 VDD 視覺資產：VDD.md §6 所有場景均有對應 RES-IMG 行（若 VDD.md §6 存在）
 - [ ] §2 ANIM 動態資產：ANIM.md 所有 SKEL-xxx 均有對應 RES-ANIM 行（若 ANIM.md 存在）
 - [ ] §2 ANIM 動態資產：ANIM.md 所有 VFX-xxx 均有對應 RES-ANIM 行（若 ANIM.md 存在）
 - [ ] §3 AUDIO 音效資產：AUDIO.md 所有 BGM-xxx 均有對應 RES-BGM 行（若 AUDIO.md 存在）
 - [ ] §3 AUDIO 音效資產：AUDIO.md 所有 SFX-xxx 均有對應 RES-SFX 行（若 AUDIO.md 存在）
 - [ ] §3 AUDIO 語音資產：AUDIO.md 所有 VO 項目均有對應 RES-VO 行（若 AUDIO.md 含 VO 清單）
-- [ ] 所有 `file_size_budget` 欄位有具體數值（非空白），符合平台限制（手遊 ≤ 2MB/texture，Web ≤ 200KB/image）
+- [ ] 所有 `file_size_budget` 欄位有具體數值（非空白），符合平台限制（手遊圖片 ≤ 2 MB；Web 圖片 ≤ 200 KB（關鍵路徑）/ ≤ 1 MB（懶加載）；BGM ≤ 5 MB；SFX ≤ 500 KB；VO ≤ 1 MB；骨骼動畫 ≤ 2 MB；粒子貼圖 ≤ 512 KB）
 - [ ] 所有 `prompt` 欄位：`prompt_ready` / `generating` / `generated` / `approved` 狀態的資產 prompt 非空白
 - [ ] 所有 `output_path` 與實際 repo 目錄結構一致
 - [ ] 無裸 placeholder（`{{...}}`）殘留（除本 template 範例行外）
+- [ ] 同前綴 ID 無重複（RES-IMG-001 不重複出現，RES-ANIM/RES-BGM/RES-SFX/RES-VO 同理）
 - [ ] §5 授權管理：所有 §1/§2/§3 資產 ID 均在 §5 有對應授權記錄
-- [ ] §5 授權管理：purchased / commissioned 資產已填入 license_ref（授權證明或合約編號）
+- [ ] §5 授權管理：purchased / commissioned / CC-BY / CC-BY-SA 資產已填入 license_ref（授權證明、合約編號或姓名標示來源連結）
+- [ ] 所有資產 source_tool 與目標引擎/平台一致（參照 RESOURCE.gen.md 引擎/平台偵測規則表，如 Unity → Spine/.skel；Web → Lottie/CSS Animation；Cocos Creator → DragonBones/.json；Unreal → Unreal Motion Capture；Godot → Godot AnimationPlayer）
 
 ---
 
