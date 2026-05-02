@@ -29,6 +29,7 @@
 | **上游 VDD** | [VDD.md](VDD.md)（若有） |
 | **上游 ANIM** | [ANIM.md](ANIM.md)（若有） |
 | **上游 AUDIO** | [AUDIO.md](AUDIO.md)（若有） |
+| **上游 ARCH** | [ARCH.md](ARCH.md)（若有） |
 
 ---
 
@@ -197,6 +198,7 @@ src/
 
 ### §5.3 動畫狀態機（State Machine）
 
+<!-- 格式提示：描述主要動畫狀態（Idle/Walk/Attack/Die）及其轉換條件；文字圖或表格均可；若有 ANIM.md 請提取後填入，否則依遊戲類型推斷 -->
 <!-- 若有複雜狀態切換，描述狀態機設計 -->
 
 ```
@@ -312,6 +314,8 @@ src/
 | {{DATA_TYPE}} | {{SYNC_METHOD}} | {{FREQUENCY}} | {{CONFLICT}} |
 
 ### §9.3 離線 / 弱網處理
+
+<!-- 格式提示：填入三個場景的離線/弱網策略表格，格式：| 場景 | 客戶端行為 | 重試策略 | 使用者提示 |，三個場景：請求超時 / 完全離線 / 弱網 -->
 
 {{OFFLINE_STRATEGY}}
 

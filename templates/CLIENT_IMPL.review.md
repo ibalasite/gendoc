@@ -9,12 +9,17 @@ quality-bar: |
   - 無裸 {{PLACEHOLDER}}
   - §3 有具體場景 / Node 樹結構
   - §5–§7 觸發表格有具體條目
+  - §5 動畫觸發表格有至少 3 條觸發事件（若 ANIM.md 存在）
+  - §6 音效觸發表格有至少 3 條觸發事件（若 AUDIO.md 存在）
+  - §4.4 資源 Budget 四欄均有具體數字（不允許「待定」）
+  - §9.3 離線/弱網三場景策略已填入（非裸 {{OFFLINE_STRATEGY}}）
   - §10 效能規範有具體數字
 upstream-alignment:
   - EDD.md §3.3 客戶端引擎
   - ANIM.md 動畫清單
   - AUDIO.md 音效清單
   - VDD.md 特效清單
+  - ARCH.md §API端點清單 → §9 API 整合規格
 ---
 
 # CLIENT_IMPL Review Rules
@@ -34,11 +39,14 @@ upstream-alignment:
 
 ### [CRITICAL] 0-A — ENGINE 欄位一致性
 
-**Check**：`CLIENT_IMPL.md §1.1 CLIENT_ENGINE` 是否與 `EDD.md §3.3 客戶端引擎` 完全一致？
+**Check**：
+1. `CLIENT_IMPL.md §1.1 CLIENT_ENGINE` 是否與 `EDD.md §3.3 客戶端引擎` 完全一致？
+2. `ENGINE_VERSION` 欄位是否填入具體版本號（例如 Cocos Creator 3.8.x、Unity 2022.3 LTS、React 18.x），而非留裸佔位符或泛稱「最新版」？
+3. §2–§7 中的代碼範例 API 是否與 `ENGINE_VERSION` 一致？（例如 Cocos 3.x 應使用 `cc.assetManager` 而非已棄用的 `cc.loader`；Unity 2022.3 使用 URP / Addressables 2.x；React 18.x 使用 `createRoot` 而非 `ReactDOM.render`）
 
-**Risk**：引擎不一致 → 所有引擎專用章節（場景結構、資源載入、AudioManager）全部錯誤，無法直接使用。
+**Risk**：引擎不一致或版本號缺失 → 所有引擎專用章節（場景結構、資源載入、AudioManager）全部錯誤，且不同大版本間 API 差異極大（尤其 Cocos 2.x → 3.x），代碼範例無法直接使用。
 
-**Fix**：讀取 EDD.md §3.3，將 `CLIENT_ENGINE` 欄位更正為完全一致的值（包括版本號）。
+**Fix**：讀取 EDD.md §3.3，將 `CLIENT_ENGINE` 和 `ENGINE_VERSION` 欄位更正為完全一致的具體值；逐一檢查 §2–§7 代碼範例中的 API，依版本替換為正確的引擎 API。
 
 ---
 
@@ -52,11 +60,11 @@ upstream-alignment:
 
 ---
 
-### [HIGH] 0-C — 無裸 {{PLACEHOLDER}}
+### [CRITICAL] 0-C — 無裸 {{PLACEHOLDER}}
 
 **Check**：全文件是否有未填入的 `{{UPPERCASE}}` 佔位符（不含「格式範例佔位符：...」說明型）？
 
-**Risk**：裸佔位符 → 開發人員看到未完成的欄位，不知道填什麼，文件可信度下降。
+**Risk**：裸佔位符 → 開發人員看到未完成的欄位，不知道填什麼，文件可信度下降；與 quality-bar「所有 §章節無裸 {{PLACEHOLDER}}」等同 CRITICAL 條件。
 
 **Fix**：逐一填入具體值，或加上「格式範例佔位符：<說明>」說明型。
 
@@ -76,17 +84,95 @@ upstream-alignment:
 
 ---
 
-### [MEDIUM] 0-E — §10 效能規範有具體數字
+### [HIGH] 0-E — §10 效能規範有具體數字
 
 **Check**：§10.1–§10.3 是否所有 `{{TARGET_FPS}}`, `{{LCP}}`, `{{MAX_BUNDLE}}` 等數字欄位都已填入？
 
-**Risk**：無具體數字 → 開發人員不知道優化目標，無法進行效能測試。
+**Risk**：無具體數字 → 開發人員不知道優化目標，無法進行效能測試；§10 效能規範屬 quality-bar 必要條件，數字空缺等同文件未完成。
 
 **Fix**：依引擎類型填入合理預設值（遊戲：60fps；Web：LCP < 2.5s；首包 < 200KB）。
 
 ---
 
-### [LOW] 0-F — §12 已知限制有填入
+### [HIGH] 0-F — §4.4 資源 Budget 有具體數字
+
+**Check**：§4.4 資源 Budget 表格的「單張貼圖」「音效（SFX）」「背景音樂」「總包體大小」欄位是否都已填入具體數字（不允許「待定」或裸佔位符）？
+
+**Risk**：無具體 Budget → 美術資源無從控制規格，包體超限時才發現已難以修復。
+
+**Fix**：依引擎填入對應預設值（參見 gen.md §4.4 資源 Budget 生成規則），確認 §4.4 每欄均有具體數字。
+
+---
+
+### [HIGH] 0-G — §8 UI 狀態機完整性
+
+**Check**：
+1. §8.1 UI 狀態清單是否有 ≥ 3 個狀態（且必須包含 Loading、Error、NetworkLost）？
+2. §8.3 Loading / Error / Network Lost 各列的「逾時處理（TIMEOUT）」和「重試策略（RETRY）」欄位是否已填入具體策略（非裸佔位符）？
+
+**Risk**：缺少錯誤狀態 → 網路異常時無 fallback UI，使用者看到空白畫面。
+
+**Fix**：在 §8.1 補充 Loading、Error、NetworkLost 三個狀態；在 §8.3 補充逾時秒數（如 10s）和重試策略（如「最多 3 次，間隔 2s 指數退避」）。
+
+---
+
+### [HIGH] 0-H — §9 API 整合有具體內容
+
+**Check**：
+1. §9.1 API 呼叫清單是否有 ≥ 1 條具體 API（非裸 `{{API_NAME}}` 佔位符）？
+2. §9.3 離線 / 弱網處理是否已填入具體策略（非裸 `{{OFFLINE_STRATEGY}}`）？
+
+**Risk**：API 清單空白 → 開發人員不知道需要整合哪些後端端點；離線策略缺失 → 弱網環境崩潰無 fallback。
+
+**Fix**：從 ARCH.md 或 EDD §4 提取至少 1 條 API 端點；§9.3 填入離線 / 弱網處理策略（可參照 §9.3 格式提示表格）。
+
+---
+
+### [MEDIUM] 0-I — §5.1 / §6.1 / §7.1 清單非空（若上游存在）
+
+**Check**：若 ANIM.md / AUDIO.md / VDD.md 存在，對應的 §5.1 動畫清單 / §6.1 音效清單 / §7.1 特效清單是否有至少 1 條具體條目（非裸佔位符）？
+
+**Risk**：清單空白但上游有資料 → 開發人員需重新查找上游文件，CLIENT_IMPL.md 失去整合價值。
+
+**Fix**：從對應上游文件提取清單條目填入；若上游文件確實不存在，在章節頂部加「<!-- 上游 ANIM.md / AUDIO.md / VDD.md 不存在，本章節留空 -->」標注。
+
+---
+
+### [MEDIUM] 0-J — §11.2 整合測試清單有具體場景
+
+**Check**：§11.2 整合測試清單是否有 ≥ 3 條具體測試場景（含前置條件和預期結果），而非裸佔位符？
+
+**Risk**：測試清單空白 → QA 無法依文件執行測試，品質無從保障。
+
+**Fix**：從 EDD 功能模組推斷至少 3 個端到端整合場景（如：載入流程、API 呼叫錯誤回復、場景切換音效觸發）。
+
+---
+
+### [MEDIUM] 0-K — §5.2 / §6.2 / §7.2 觸發表各有具體條目
+
+**Check**：§5.2 動畫觸發事件表格是否有 ≥ 3 條具體條目（若 ANIM.md 存在）？§6.2 音效觸發事件表格是否有 ≥ 3 條？§7.2 特效觸發對應表是否有 ≥ 3 條？
+
+**Risk**：觸發表空白 → 開發人員無法得知哪些事件需要播放音效 / 特效，容易遺漏。
+
+**Fix**：從 AUDIO.md / VDD.md 提取觸發條目；若上游不存在，填入至少 3 條推斷的代表性觸發場景（如：按鈕點擊 → sfx_ui_click、勝利事件 → sfx_win 等）。
+
+---
+
+### [MEDIUM] 0-L — §5.3 / §5.4 / §6.4 / §7.3 效能與狀態機規格完整性
+
+**Check**：
+1. §5.3 是否有具體的狀態轉換圖或文字圖（非裸 `{{ANIMATION_STATE_MACHINE}}` 佔位符）？
+2. §5.4 同屏動畫數上限、骨骼/層數上限是否均有具體數字？
+3. §6.4 同時播放 SFX 上限、音效快取大小是否均有具體數字？
+4. §7.3 同屏特效數上限、粒子數上限是否均有具體數字？
+
+**Risk**：裸 Placeholder 或缺少數字 → 開發人員無從得知效能限制與狀態機設計，無法實作與測試；動畫狀態機缺失尤其影響遊戲類專案的邏輯正確性。
+
+**Fix**：補充具體數字或狀態圖，參照 gen.md §5.3 / §5.4 / §6.4 / §7.3 生成規則填入對應引擎的預設值。
+
+---
+
+### [LOW] 0-M — §12 已知限制有填入
 
 **Check**：§12 是否至少有 1 條已知限制或技術債（或明確標注「暫無」）？
 
@@ -326,9 +412,11 @@ upstream-alignment:
 
 ## Review Output Format
 
+> **通過判定**：`passed: true` 當且僅當 finding 中無 CRITICAL 項；有任何 CRITICAL 項則 `passed: false`（HIGH 項記錄但不阻止通過，需在下一輪追蹤修復）。
+
 ```
 REVIEW_RESULT:
-  step_id: CLIENT_IMPL
+  step_id: CLIENT_IMPL  # pipeline 步驟唯一識別碼，固定填 CLIENT_IMPL
   type: CLIENT_IMPL
   round: {round}
   finding_total: N
