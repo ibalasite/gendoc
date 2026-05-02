@@ -190,6 +190,22 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
   - 純後端（N/A）→ 無 web Dockerfile 說明，整個段落標記「純後端服務，無前端 image」
 
 **§4.5 部署所有 K8s 資源**：
+
+> **Iron Constraint — Replicas ≥ 2（K8s Deployment）**：生成 K8s Deployment YAML 時，`api-server` 的 `spec.replicas` 不得低於 2；若有 `worker` Deployment，其 `spec.replicas` 亦不得低於 2。若上游 EDD §3.7 定義了 `min_replicas`，以 EDD 為準，但不得低於 2。HPA 的 `minReplicas` 同樣不得低於 2。
+>
+> 生成的 Deployment YAML 範例（合規）：
+> ```yaml
+> spec:
+>   replicas: 2  # 本地 HA 最小副本數，禁止填 1
+> ```
+> 生成後必須在文件中加入副本數驗證步驟：
+> ```bash
+> kubectl get pods -n {{K8S_NAMESPACE}} -l app=api-server
+> # Expected: 至少 2 個 api-server Pod 狀態為 Running
+> kubectl get pods -n {{K8S_NAMESPACE}} -l app=worker 2>/dev/null
+> # Expected: 若有 worker，至少 2 個 worker Pod 狀態為 Running
+> ```
+
 - `kubectl apply -k k8s/overlays/local/`
 - `kubectl wait --for=condition=Ready pods --all -n {{K8S_NAMESPACE}} --timeout=180s`
 
@@ -375,6 +391,25 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 - Docker Compose Service 名稱使用短名稱（如 `api`、`web`、`db`）
 - Image 欄使用 `{{PROJECT_SLUG}}/服務名:local`，DB/Cache 使用官方 image + 版本號（來自 EDD §3.5）
 - **禁止保留裸 `{{SERVICE_NAME}}`、`{{IMAGE_NAME}}` placeholder**；服務名稱必須從 EDD 填入
+
+> **Iron Constraint — Replicas ≥ 2（Docker Compose）**：生成 docker-compose.yml 時，
+> `services.api` 的 `deploy.replicas` 不得低於 2；若有 `worker` service，
+> 其 `deploy.replicas` 亦不得低於 2。
+>
+> 合規 YAML 範例：
+> ```yaml
+> services:
+>   api:
+>     image: {{PROJECT_SLUG}}/api:local
+>     deploy:
+>       replicas: 2  # 本地 HA 最小副本數，禁止填 1
+> ```
+>
+> 副本數驗證步驟（生成至 §19 啟動驗證小節）：
+> ```bash
+> docker compose ps
+> # Expected：api 服務顯示 2 個 Running 實例
+> ```
 
 **啟動步驟生成規則**：
 - `{{MIGRATE_CMD}}` 與 §4.6 Migration 章節保持完全一致（同一來源）
