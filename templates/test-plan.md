@@ -623,6 +623,78 @@ curl http://localhost:8080/health  # 應在 5s 內繼續回應 200
 
 ---
 
+### §3.8 Spring Modulith 可拆解性驗證（Decomposability Test Suite）
+
+> 本節定義以 Spring Modulith 框架驗證系統 HC-1～HC-5 邊界約束的完整測試策略。
+
+**目標**：確保系統從 Day 1 符合 Bounded Context 邊界，具備微服務拆解能力（HC-1 Schema 隔離 / HC-2 公開介面 / HC-3 事件驅動 / HC-4 無共享可變狀態 / HC-5 DAG 依賴圖）。
+
+#### §3.8.1 ApplicationModules 全局驗證（對應 HC-5）
+
+| 測試 ID | 測試類型 | 工具 | 驗證目標 | 合格標準 |
+|---------|---------|------|---------|---------|
+| SM-TEST-00 | Architecture Test | Spring Modulith `ApplicationModules.verify()` | 全域模組邊界 + 循環依賴偵測 | `verify()` 無 AssertionError（CI 強制 gate） |
+
+```java
+// src/test/java/com/{{package}}/ModulithVerificationTest.java
+@SpringBootTest
+class ModulithVerificationTest {
+    @Test
+    void modules_comply_with_all_hc_constraints() {
+        ApplicationModules modules = ApplicationModules.of({{APPLICATION_CLASS}}.class);
+        modules.verify();
+    }
+
+    @Test
+    void modules_have_no_circular_dependencies() {
+        ApplicationModules modules = ApplicationModules.of({{APPLICATION_CLASS}}.class);
+        // 列印模組依賴圖（便於 Review 確認）
+        modules.forEach(module -> System.out.println(module.getName() + ": " + module.getDependencies()));
+        modules.verify();
+    }
+}
+```
+
+#### §3.8.2 Per-BC 邊界隔離測試（對應 HC-1 / HC-2）
+
+| 測試 ID | BC 名稱 | 測試方式 | 合格標準 |
+|---------|--------|---------|---------|
+| SM-TEST-01-{{BC_NAME_1}} | {{BC_NAME_1}} | `@ApplicationModuleTest` 單 BC context 啟動 | 所有 API endpoints 正常回應 2XX（無跨 BC 依賴滲漏） |
+| SM-TEST-01-{{BC_NAME_2}} | {{BC_NAME_2}} | `@ApplicationModuleTest` 單 BC context 啟動 | 所有 API endpoints 正常回應 2XX |
+
+> **生成規則**：每個 EDD §3.4 Bounded Context 各一列，BC 名稱對應 `{{BC_NAME}}` 欄位。
+
+#### §3.8.3 Event Contract 測試（對應 HC-3）
+
+依 EDD §4.6.1 Domain Events 完整清單，每個跨 BC Domain Event pair（Owning BC → Consumer BC）產生一組 Contract Test：
+
+| Consumer BC | Event Class | Producer BC | Contract Type | 合格標準 |
+|------------|------------|------------|--------------|---------|
+| {{BC_NAME_CONSUMER}} | `{{EventClass}}` | {{BC_NAME_PRODUCER}} | Pact Consumer-Driven | Provider 端 pact verify 100% 通過 |
+
+*（依 EDD §4.6.1 所有 Consumer BC(s) 欄中的跨 BC pair 填入）*
+
+#### §3.8.4 Schema 隔離驗證（對應 HC-1）
+
+```
+驗證方法：在 Integration Test 中啟用 SQL 查詢日誌攔截器，
+          記錄每個 BC 的程式碼所執行的所有 SQL，
+          驗證無任何 SQL 存取其他 BC 的 Schema Tables。
+合格標準：CROSS_BC_SQL_COUNT = 0
+測試工具：P6Spy（Java）/ DataSource Proxy / DB Proxy SQL log analysis
+```
+
+#### §3.8.5 Redis Namespace 隔離驗證（對應 HC-4）
+
+```
+驗證方法：Redis Key Monitor（MONITOR 命令）在 Integration Test 中
+          記錄所有 Redis 操作，驗證每個 BC 的 Key 符合 {BC_NAME}:{type}:{id} 格式，
+          且無跨 BC Key 操作（如 member BC 讀取 wallet BC 的 key）。
+合格標準：所有 Redis Key 符合各 BC 的 Key Pattern（無跨 BC Key 存取）
+```
+
+---
+
 ## §4 Test Environment Specification
 
 > 每個環境用途不同，資料策略嚴格隔離，避免測試汙染 Production。

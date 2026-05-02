@@ -311,5 +311,5 @@ Then('I receive HTTP status {int}', async (statusCode) => {
 | 數值非 TBD/N/A | 回應碼、Payload 欄位填有實際值 | 從 API.md 對應定義填入 |
 | 測試資料真實 | 請求體範例非 "string" / 1 / true，使用符合業務語義的真實格式 | 替換為業務語義資料 |
 | 錯誤路徑覆蓋 | 每個 endpoint 至少有 1 個錯誤 Scenario（4XX/5XX） | 補充錯誤 Scenario |
-| Modulith 架構 BDD | `features/architecture/` 目錄存在，@modulith @p0 Scenario ≥ 4 個（HC-1/HC-2/HC-3/HC-5）| 依 BDD.md §18 生成缺失 Modulith Feature |
-| Event Contract 覆蓋 | @event-contract Scenario 覆蓋所有跨 BC Domain Event consumer pair | 依 BDD.md §18.3 補充 Pact consumer 驗證 Scenario |
+| Modulith 架構 BDD | `features/architecture/` 目錄存在，@modulith @p0 Scenario **≥ 5 個**（HC-1 Schema 隔離 / HC-2 Public Interface / HC-3 Event Contract / HC-4 Redis Namespace / HC-5 DAG verify 各至少 1 個）| 依 BDD.md §18 生成缺失 Modulith Feature；5 個 HC 每個至少對應 1 個 Scenario |
+| Event Contract 覆蓋 | @event-contract Scenario 覆蓋所有跨 BC Domain Event consumer pair（來自 EDD §4.6.1，Consumer BC(s) 非空的每個 pair 各對應 ≥1 個 Scenario）| 依 BDD.md §18.3 補充 Pact consumer 驗證 Scenario；若 EDD §4.6.1 缺失先標注 BLOCKED |

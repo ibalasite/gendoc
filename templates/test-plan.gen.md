@@ -283,6 +283,27 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 
 - **執行策略**：SAST 整合 PR CI；DAST 在 Staging 環境每週執行；Dependency audit 每日 Nightly
 
+### §3.8 Spring Modulith 可拆解性驗證
+
+**必填規則**（所有 Spring Boot 後端系統強制，不可省略）：
+
+1. **§3.8.1 全局驗證**：
+   - 從 `APPLICATION_CLASS` 欄位（`.gendoc-state.json` 或 EDD §3.1 技術選型）讀取 Spring Boot Application 主類名
+   - 生成 `ModulithVerificationTest.java` 含 `ApplicationModules.verify()` 的完整 test class skeleton
+   
+2. **§3.8.2 Per-BC 邊界隔離**：
+   - **迭代規則**：對 EDD §3.4 Bounded Context Map 中的每個 BC，生成一列 SM-TEST-01-{BC_NAME}
+   - 每個 BC 至少一列，BC 名稱必須對應 EDD §3.4 的實際 BC 名稱（非 placeholder）
+   
+3. **§3.8.3 Event Contract（BC pair 規則）**：
+   - 讀取 EDD §4.6.1 Domain Events 完整清單
+   - 對每個 `Consumer BC(s)` 欄位中的跨 BC pair（Owning BC → Consumer BC），生成一列 Pact Contract Test
+   - **最低要求**：若系統有任何跨 BC Domain Event（EDD §4.6.1 Consumer BC(s) 非空），Contract Test 列數 ≥ 跨 BC pair 總數；若系統無跨 BC Event 則標注「（本系統無跨 BC Domain Event，§3.8.3 跳過）」
+   - 不得省略或用 placeholder 替代已知的 Domain Event pair
+
+4. **§3.8.4 Schema 隔離**：按 lang_stack 選擇正確工具（Java → P6Spy；Python → SQLAlchemy event listener）
+5. **§3.8.5 Redis Namespace**：對每個 BC 填入其 Redis Key Pattern（與 ARCH.md §7.1 一致）
+
 ---
 
 ## §4 Test Environment 生成規則
