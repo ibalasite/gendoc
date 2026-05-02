@@ -409,11 +409,17 @@ make k8s-delete-bc BC=member
 
 | 服務 | URL | 說明 |
 |------|-----|------|
-| web-app (client) | `http://{{PROJECT_SLUG}}.local` | 前端應用 |
+| web-app (client) | `http://{{PROJECT_SLUG}}.local` | 前端應用（/ 路徑） |
 | api-server | `http://{{PROJECT_SLUG}}.local/api` | REST API |
+| admin-app（若 has_admin_backend=true）| `http://{{PROJECT_SLUG}}.local/admin` | Admin 後台 SPA（/admin 路徑）|
 | mailpit web UI | `http://{{PROJECT_SLUG}}.local/mailpit` | 攔截所有 outgoing email |
 | minio console | `http://{{PROJECT_SLUG}}.local/minio-console` | 物件儲存 web UI |
 | pgadmin | `http://{{PROJECT_SLUG}}.local/pgadmin` | 資料庫瀏覽器 |
+
+> **Admin SPA 路由重要限制（has_admin_backend=true 時必讀）：**  
+> Admin 前端打包時 **必須**設定 `base: '/admin/'`（Vite）或 `PUBLIC_URL=/admin`（CRA）。  
+> Ingress 必須對 `/admin` 路徑配置 nginx SPA fallback（所有子路徑回傳 `/admin/index.html`），  
+> 否則 Admin SPA 在 deep link reload 時會 404。詳見下方 §5 Ingress YAML 片段。
 
 ### kubectl port-forward 存取（直連 Pod）
 
@@ -427,6 +433,106 @@ make k8s-delete-bc BC=member
 | pgadmin | `kubectl port-forward -n {{K8S_NAMESPACE}}-local deploy/pgadmin {{PGADMIN_PORT}}:80` | `http://localhost:{{PGADMIN_PORT}}` |
 
 > **Make shortcuts：** `make pf-api`、`make pf-db`、`make pf-redis` 等會在背景啟動 port-forward 並記錄 PID。`make pf-stop` 停止全部。
+
+### Admin SPA Ingress 設定（has_admin_backend=true 時必填）
+
+當專案有 Admin 後台前端時，K8s Ingress 必須正確路由 `/admin` 路徑並支援 SPA deep link reload。
+
+**`k8s/overlays/local/ingress.yaml`（含 admin 路徑的完整 Ingress 設定）：**
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{PROJECT_SLUG}}-local
+  namespace: {{K8S_NAMESPACE}}-local
+  annotations:
+    # k3s 內建 traefik；若使用 nginx-ingress，改為 nginx.ingress.kubernetes.io/
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    # Admin SPA fallback：/admin/* 所有路徑回傳 /admin/index.html（支援 deep link reload）
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      location /admin {
+        try_files $uri $uri/ /admin/index.html;
+      }
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: {{PROJECT_SLUG}}.local
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api-server-svc
+                port:
+                  number: {{API_PORT}}
+          - path: /admin
+            pathType: Prefix
+            backend:
+              service:
+                name: admin-app-svc
+                port:
+                  number: {{ADMIN_PORT}}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web-app-svc
+                port:
+                  number: {{WEB_PORT}}
+```
+
+> **Traefik 版本注意：** k3s 內建 Traefik 不支援 `configuration-snippet` annotation。  
+> 若使用 Traefik，SPA fallback 需透過 `Middleware` + `IngressRoute` 實作，  
+> 或將 Admin SPA nginx container 的 `nginx.conf` 加入 `try_files $uri $uri/ /admin/index.html;`（推薦）。
+
+**Admin SPA nginx.conf（admin-app container 內建，支援 base path `/admin/`）：**
+
+```nginx
+server {
+    listen 80;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # SPA deep link fallback（配合 base: '/admin/' 打包設定）
+    location /admin {
+        try_files $uri $uri/ /admin/index.html;
+    }
+
+    # 健康檢查（K8s liveness / readiness probe）
+    location /healthz {
+        return 200 "ok\n";
+        add_header Content-Type text/plain;
+    }
+}
+```
+
+**Admin 前端打包設定（必須與 Ingress base path 一致）：**
+
+```ts
+// vite.config.ts（Admin SPA）
+export default defineConfig({
+  base: '/admin/',   // 必須與 Ingress /admin 路徑一致；若改為其他路徑，nginx.conf 須同步更新
+  // ...
+})
+```
+
+**驗證 Admin SPA Ingress 正確性：**
+
+```bash
+# 1. 驗證 /admin 根路徑可存取
+curl -s -o /dev/null -w "%{http_code}" http://{{PROJECT_SLUG}}.local/admin/
+# Expected: 200
+
+# 2. 驗證 deep link reload（SPA 子路徑）
+curl -s -o /dev/null -w "%{http_code}" http://{{PROJECT_SLUG}}.local/admin/users/123
+# Expected: 200（不得回傳 404）
+
+# 3. 驗證靜態資源路徑正確（必須含 /admin/ 前綴）
+curl -s http://{{PROJECT_SLUG}}.local/admin/ | grep -o 'src="/admin/[^"]*"' | head -3
+# Expected: src="/admin/assets/index-xxx.js" 等（不得出現 src="/assets/xxx.js"）
+```
 
 ---
 
@@ -1207,7 +1313,126 @@ curl -s -o /dev/null -w "%{http_code}" http://localhost:{{WEB_PORT}}
 | minio | `{{MINIO_PORT}}` | 物件儲存 |
 | mailpit | `{{MAIL_PORT}}` | Email 預覽 UI |
 
-> **注意**：docker-compose 模式無 Ingress，各服務各自對外暴露 port，與 K8s 單一 port 80 不同。這是兩者唯一的架構差異。
+> **注意**：docker-compose 模式預設各服務各自對外暴露 port。如需與 K8s 一致的單一 port 80 模式，  
+> 需額外加入 nginx reverse proxy 容器（見下方 §19.1 單一 port nginx proxy 方案）。
+
+### 19.1 Docker Compose 單一 Port Nginx Proxy（整合 client + admin + api）
+
+此方案讓 Docker Compose 模式與 K8s Ingress 行為完全一致：對外只暴露 port 80，  
+適合分享測試連結（AI agent 測試 / QA 驗收 / 跨團隊協作）。
+
+**`docker/nginx-proxy/nginx.conf`：**
+
+```nginx
+# docker/nginx-proxy/nginx.conf
+# 單一對外 port 80；路由規則與 K8s Ingress 保持一致
+
+events { worker_connections 1024; }
+
+http {
+    upstream api_backend {
+        server api:{{API_PORT}};
+    }
+
+    upstream web_frontend {
+        server web:{{WEB_PORT}};
+    }
+
+    # admin upstream（has_admin_backend=true 時啟用）
+    upstream admin_frontend {
+        server admin:{{ADMIN_PORT}};
+    }
+
+    server {
+        listen 80;
+        server_name localhost;
+
+        # API 路由
+        location /api/ {
+            proxy_pass http://api_backend;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+
+        # Admin SPA（has_admin_backend=true 時啟用）
+        location /admin {
+            proxy_pass http://admin_frontend;
+            proxy_set_header Host $host;
+            # SPA fallback：nginx proxy 無法直接 try_files，由 admin container 自身 nginx 處理
+            proxy_intercept_errors on;
+            error_page 404 = /admin/index.html;
+        }
+
+        # Client SPA（/ 根路徑，所有非 /api / /admin 的請求）
+        location / {
+            proxy_pass http://web_frontend;
+            proxy_set_header Host $host;
+        }
+    }
+}
+```
+
+**`docker-compose.yml`（新增 nginx proxy service）：**
+
+```yaml
+services:
+  # ... 現有 services（api, web, db, cache 等）...
+
+  # 單一 port nginx proxy（與 K8s Ingress 行為一致）
+  proxy:
+    image: nginx:alpine
+    ports:
+      - "80:80"        # 對外只暴露 port 80
+    volumes:
+      - ./docker/nginx-proxy/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+      - web
+      # - admin        # has_admin_backend=true 時取消註解
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Admin SPA（has_admin_backend=true 時啟用）
+  # admin:
+  #   image: {{PROJECT_SLUG}}/admin:local
+  #   expose:
+  #     - "{{ADMIN_PORT}}"
+  #   # Admin container 自身 nginx 處理 SPA fallback（見 §5 nginx.conf）
+```
+
+**啟動並驗證單一 port 模式：**
+
+```bash
+# 啟動含 proxy 的完整環境
+docker compose up -d
+
+# 驗證單一 port 路由
+curl -s -o /dev/null -w "%{http_code}" http://localhost/
+# Expected: 200（client SPA）
+
+curl -s -o /dev/null -w "%{http_code}" http://localhost/api/health
+# Expected: 200（API）
+
+# Admin SPA（has_admin_backend=true 時）
+curl -s -o /dev/null -w "%{http_code}" http://localhost/admin/
+# Expected: 200
+
+curl -s -o /dev/null -w "%{http_code}" http://localhost/admin/users/123
+# Expected: 200（SPA deep link，不得 404）
+
+# 確認沒有其他 port 對外暴露（api, web 只 expose，不 ports）
+docker compose ps --format json | python3 -c "
+import json,sys
+for line in sys.stdin:
+    svc = json.loads(line)
+    print(svc.get('Name','?'), '→', svc.get('Publishers','[]'))
+"
+# Expected: 只有 proxy 有 0.0.0.0:80->80/tcp；其他服務無對外 port
+```
 
 ### 測試（docker-compose 模式）
 

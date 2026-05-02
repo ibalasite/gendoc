@@ -533,7 +533,7 @@ LOCAL_DEPLOY.md 必須包含服務啟動和關閉的依賴順序圖：
 
 | 檢查項 | 合格標準 | 不合格處理 |
 |--------|---------|-----------|
-| 所有 §章節齊全 | 對照 LOCAL_DEPLOY.md 章節清單（§1–§18），無缺失章節 | 補寫缺失章節 |
+| 所有 §章節齊全 | 對照 LOCAL_DEPLOY.md 章節清單（§1–§19），無缺失章節 | 補寫缺失章節 |
 | 無裸 placeholder | 每個 `{{...}}` 後有「: 說明」或具體範例值 | 補全說明或替換為具體值 |
 | 技術棧一致 | 所有工具、套件管理器、執行指令與 state.lang_stack 一致 | 修正至一致 |
 | 前置需求有版本號 | 每個前置工具（Rancher Desktop / kubectl / helm 等）都指定具體版本號 | 從 EDD §環境規格 提取版本號 |
@@ -541,8 +541,10 @@ LOCAL_DEPLOY.md 必須包含服務啟動和關閉的依賴順序圖：
 | Smoke Test 存在 | 部署完成後有驗證步驟（至少一個 curl / HTTP 請求驗證服務正常） | 補充 smoke test 指令 |
 | §17 Tunnel Access 存在 | 包含 ngrok + cloudflare 兩種 tunnel 方式 + 驗證 curl 指令 | 生成 §17 |
 | §18 AI Quick Start 可執行 | ai-quickstart.sh 腳本可被 AI 直接執行，6 步驟完整，末尾輸出前端 URL | 修正腳本使每步驟無需人工介入 |
-| K8s-First 合規 | 文件主架構為 k8s（非 Docker Compose）；若有 docker-compose 提及，僅出現在 §14 輔助說明 | 移除 Docker Compose 主架構引用 |
+| K8s-First 合規 | 文件主架構為 k8s（非 Docker Compose）；若有 docker-compose 提及，僅出現在 §19 輔助說明 | 移除 Docker Compose 主架構引用 |
 | Local HA ≥ 2 Replicas | API Server 副本數 ≥ 2、Worker 副本數 ≥ 2（遵循 EDD §3.7 圖 B），含 HA 驗證指令 | 修正 Deployment replicas 設定及補充驗證步驟 |
+| Admin Ingress 路徑（has_admin_backend=true）| §5 Ingress 表含 `/admin` 路由；admin SPA nginx.conf 含 `try_files` SPA fallback；`base: '/admin/'` 打包設定有說明 | 依 §5 Admin SPA Ingress 設定補充 YAML + nginx.conf |
+| Docker Compose 單一 port（has_admin_backend=true）| §19 含 nginx proxy service + nginx.conf + 驗證指令（含 /admin deep link reload 驗證）| 依 §19.1 補充 nginx proxy 方案 |
 
 ---
 
@@ -603,21 +605,31 @@ if _has_admin:
     # 從 docs/ADMIN_IMPL.md 讀取 §15 部署配置（Vite config / env vars / Nginx）
     # 在 LOCAL_DEPLOY.md 中加入 Admin Portal 本地啟動章節：
     #
-    # § Admin Portal 本地啟動：
-    #   Prerequisites：Node.js >= 18 / pnpm >= 8
-    #   環境變數設定：
-    #     VITE_API_BASE_URL=http://localhost:<backend_port>
-    #     VITE_ADMIN_BASE_PATH=/admin
-    #   啟動指令：
-    #     cd admin && pnpm install && pnpm dev
-    #     Admin Portal 運行於：http://localhost:5173（或依 vite.config.ts 設定）
+    # § Admin Portal 本地啟動（K8s 模式）：
+    #   打包設定（必須在 admin/vite.config.ts 設定）：
+    #     base: '/admin/'   ← 必須，否則靜態資源路徑錯誤
+    #   K8s Image Build：
+    #     make image-build-admin   # 使用 docker/admin/Dockerfile（含 nginx.conf SPA fallback）
+    #     make k8s-restart-admin   # Rolling restart admin-app Deployment
+    #   驗證 Admin Ingress 路由：
+    #     curl -s -o /dev/null -w "%{http_code}" http://{{PROJECT_SLUG}}.local/admin/
+    #     # Expected: 200
+    #     curl -s -o /dev/null -w "%{http_code}" http://{{PROJECT_SLUG}}.local/admin/dashboard
+    #     # Expected: 200（SPA deep link reload 不得 404）
+    #     curl -s http://{{PROJECT_SLUG}}.local/admin/ | grep -o 'src="/admin/[^"]*"' | head -1
+    #     # Expected: src="/admin/assets/index-xxx.js"（必須含 /admin/ 前綴）
     #   初始 Admin 帳號（本地開發用）：
-    #     Email: admin@local.dev（從 db/seed/admin.sql 建立）
+    #     Email: admin@{{PROJECT_SLUG}}.local（從 db/seed/admin.sql 建立）
     #     Password: 見 k8s/overlays/local/secrets.env ADMIN_INIT_PASSWORD
-    #   驗證步驟：
-    #     1. 瀏覽器開啟 http://localhost:5173/admin/login
-    #     2. 使用初始 Admin 帳號登入
-    #     3. 確認 Dashboard 正常顯示、側邊欄顯示所有功能模組
+    #
+    # § Admin Portal Docker Compose 模式（§19.1 nginx proxy）：
+    #   docker/nginx-proxy/nginx.conf 的 /admin location 代理至 admin container
+    #   admin container 自身 nginx 處理 SPA fallback（try_files $uri /admin/index.html）
+    #   驗證：
+    #     curl -s -o /dev/null -w "%{http_code}" http://localhost/admin/
+    #     # Expected: 200
+    #     curl -s -o /dev/null -w "%{http_code}" http://localhost/admin/users/1
+    #     # Expected: 200（不得 404）
 else:
     pass  # 不加入 Admin Portal 啟動說明
 ```
