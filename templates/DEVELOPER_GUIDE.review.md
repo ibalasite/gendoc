@@ -16,6 +16,8 @@ upstream-alignment:
   - LOCAL_DEPLOY.md §6 Make targets match §3.1 Quick Reference entries
   - CICD.md §8 Gitea Webhook URL matches §2.1 diagnosis curl command
   - EDD.md §3.4 K8S_NAMESPACE used consistently (with -local suffix) in all kubectl commands
+  - runbook.md scope matches §6 document boundary description for '生產環境 incident 處理'
+  - SCHEMA.md migration-tool value used to select single tool in §1 場景 B and §4 DB Migration FAQ
 ---
 
 # DEVELOPER_GUIDE.review.md — 開發者指南審查標準
@@ -60,7 +62,7 @@ upstream-alignment:
 
 ---
 
-## Layer 2：K8s 命名一致性（共 3 項）
+## Layer 2：K8s 命名一致性（共 4 項）
 
 ### [CRITICAL] R-04：§4 FAQ 未明確回答 -local namespace 問題
 
@@ -72,9 +74,21 @@ upstream-alignment:
 
 ---
 
+### [CRITICAL] R-04b：§4 FAQ 程式碼區塊含非合法 shell 指令
+
+**Check**：掃描 §4 所有程式碼區塊（```bash ... ```），確認每一行均為合法 shell 指令或合法 shell 註解（以 `#` 開頭）。特別檢查：
+- 不得出現 `bash <文件名稱> §N.N <腳本名稱>` 格式的偽指令（例：`bash LOCAL_DEPLOY.md §3.5 bootstrap-secrets.sh`）
+- Secret Bootstrap 指令必須為 `bash scripts/bootstrap-secrets.sh` 或 LOCAL_DEPLOY.md §3.5 中定義的實際腳本路徑
+
+**Risk**：偽指令讓開發者複製貼上後執行失敗，誤以為環境有問題。
+
+**Fix**：將偽指令替換為真實可執行的 shell 指令，並以 `#（詳見 LOCAL_DEPLOY.md §N.N）` 形式標注文件參照。
+
+---
+
 ### [HIGH] R-05：kubectl 指令的 namespace 未一致使用 -local suffix
 
-**Check**：掃描全文所有 `kubectl` 指令，確認 App namespace 均使用 `{{K8S_NAMESPACE}}-local`（非裸 `{{K8S_NAMESPACE}}`）。
+**Check**：掃描全文所有 `kubectl` 指令，確認 App namespace 均使用 `{{K8S_NAMESPACE}}-local`（非裸 `{{K8S_NAMESPACE}}`）。掃描範圍包含 §1.1 啟動開發環境的所有 kubectl 指令（包括 `kubectl get pods`、`kubectl rollout status`、`kubectl logs`、`kubectl exec` 等）。
 
 **Risk**：指令 namespace 錯誤 → 開發者誤操作到錯誤 namespace。
 
@@ -137,13 +151,51 @@ upstream-alignment:
 
 ---
 
+## Layer 5：細節一致性（共 3 項）
+
+### [LOW] R-11：§3.2 Dev-Tools 表格 URL port 號與 LOCAL_DEPLOY.md 不一致
+
+**Check**：確認 §3.2 Dev-Tools 表格中的 URL port 號與 LOCAL_DEPLOY.md 定義的 port-forward 設定一致：
+- Gitea：預期 `http://localhost:3000`
+- Jenkins：預期 `http://localhost:8080`
+- ArgoCD：預期 `https://localhost:8443`
+
+**Risk**：port 號錯誤 → 開發者點擊連結後無法訪問服務，需自行排查。
+
+**Fix**：以 LOCAL_DEPLOY.md 定義的 port-forward 設定為 Source of Truth，更新 §3.2 表格的 URL。
+
+---
+
+### [LOW] R-12：§5.1 定期維護指令與 LOCAL_DEPLOY.md 不一致
+
+**Check**：確認 §5.1 每條維護指令均為有效的 make target 或 kubectl/helm 指令，且與 LOCAL_DEPLOY.md §6 定義一致。
+
+**Risk**：指令錯誤 → 開發者執行無效維護任務。
+
+**Fix**：以 LOCAL_DEPLOY.md §6 為 Source of Truth 更新 §5.1 指令。
+
+---
+
+### [LOW] R-13：§1 場景 B 和 §4 FAQ 未依 migration-tool 欄位選擇單一工具
+
+**Check**：若 SCHEMA.md frontmatter 有 `migration-tool` 欄位：
+- §1 場景 B 和 §4 FAQ「如何確認 DB Migration 已執行？」只能保留對應工具（flyway/liquibase/alembic）的指令，不得同時出現多種工具範例
+若 `migration-tool` 欄位不存在：
+- §4 FAQ DB Migration bash 區塊頂部必須含 TODO 註解（`# TODO: 請依 SCHEMA.md migration-tool 欄位保留對應工具指令，刪除其他兩種`）
+
+**Risk**：偵測邏輯執行有誤 → §1 和 §4 同時出現多種工具指令，開發者不知使用哪個，執行錯誤工具導致 Migration 失效。
+
+**Fix**：依 SCHEMA.md `migration-tool` 值保留唯一對應工具指令，或補充 TODO 註解。
+
+---
+
 ## 審查完成標準
 
 | 級別 | 數量要求 |
 |------|---------|
-| CRITICAL | 0（R-01/R-02/R-04 必須全數修復）|
+| CRITICAL | 0（R-01/R-02/R-04/R-04b 必須全數修復）|
 | HIGH | 0（首次生成）；後續迭代允許 ≤ 1（需附風險說明）|
 | MEDIUM | ≤ 2 |
-| LOW | 不限 |
+| LOW | ≤ 5（R-11 port 號不一致、R-12 §5.1 指令不一致、R-13 migration-tool 選擇不阻斷 commit，但須記錄）|
 
 **CRITICAL 為 0 且 HIGH 為 0 → PASSED，可進行 commit。**

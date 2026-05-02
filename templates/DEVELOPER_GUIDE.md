@@ -8,6 +8,9 @@ upstream-docs:
     - LOCAL_DEPLOY.md
     - CICD.md
     - runbook.md
+  recommended:
+    - SCHEMA.md
+    - EDD.md
 ---
 
 # Developer Guide — {{PROJECT_NAME}}
@@ -67,6 +70,7 @@ make ci-smoke
 #### 場景 B：新增資料庫 Migration
 
 ```bash
+# TODO: 請依 SCHEMA.md migration-tool 欄位保留對應工具指令，刪除其他兩種
 # 1. 新增 migration 檔案（依 SCHEMA.md §N migration tooling）
 # Flyway: src/main/resources/db/migration/V{n}__{description}.sql
 # Liquibase: src/main/resources/db/changelog/db.changelog-{n}.xml
@@ -146,7 +150,7 @@ make ci-dry-run
 
 | 症狀 | 可能原因 | 診斷步驟 |
 |------|---------|---------|
-| push 後 Jenkins 無反應 | Webhook 未設定 | `curl -X POST http://localhost:8080/gitea-webhook/post` 測試 |
+| push 後 Jenkins 無反應 | Webhook 未設定 | `curl -X POST http://jenkins.ci.svc.cluster.local:8080/gitea-webhook/post` 測試 # 從 CICD.md §8.4 Webhook URL |
 | Webhook 顯示 200 但 Pipeline 不跑 | Multibranch Pipeline 未偵測到 branch | Jenkins UI → Scan Multibranch Pipeline |
 | Jenkins Pod 不存在 | Jenkins 未安裝 | `helm install jenkins jenkins/jenkins -n ci -f k8s/ci/jenkins-values.yaml` |
 
@@ -225,6 +229,7 @@ kubectl top nodes
 ### Q: 如何確認 DB Migration 已執行？
 
 ```bash
+# TODO: 請依 SCHEMA.md migration-tool 欄位保留對應工具指令，刪除其他兩種
 # Flyway
 kubectl exec -it deploy/{{PROJECT_SLUG}}-api -n {{K8S_NAMESPACE}}-local \
   -- flyway -url={{DB_URL}} info
@@ -233,7 +238,11 @@ kubectl exec -it deploy/{{PROJECT_SLUG}}-api -n {{K8S_NAMESPACE}}-local \
 kubectl exec -it deploy/{{PROJECT_SLUG}}-api -n {{K8S_NAMESPACE}}-local \
   -- liquibase status
 
-# 直接查 migration history table
+# Alembic
+kubectl exec -it deploy/{{PROJECT_SLUG}}-api -n {{K8S_NAMESPACE}}-local \
+  -- alembic history
+
+# 直接查 migration history table（Flyway 適用）
 kubectl exec -it sts/postgres -n {{K8S_NAMESPACE}}-local \
   -- psql -U {{DB_USER}} -d {{DB_NAME}} -c "SELECT * FROM flyway_schema_history ORDER BY installed_on DESC LIMIT 5;"
 ```
@@ -241,12 +250,13 @@ kubectl exec -it sts/postgres -n {{K8S_NAMESPACE}}-local \
 ### Q: Secret 過期或遺失怎麼辦？
 
 ```bash
-# 重新執行 Secret Bootstrap
-bash LOCAL_DEPLOY.md §3.5 bootstrap-secrets.sh
+# 重新執行 Secret Bootstrap（詳見 LOCAL_DEPLOY.md §3.5）
+bash scripts/bootstrap-secrets.sh
 
 # 或只重設特定 Secret
 kubectl delete secret app-secrets -n {{K8S_NAMESPACE}}-local
 # 重跑 bootstrap 腳本
+bash scripts/bootstrap-secrets.sh
 ```
 
 ---
