@@ -63,7 +63,7 @@
 <tr><td><code>gendoc-gen-prototype</code></td><td><code>/gendoc-gen-prototype</code></td><td>Interactive HTML prototype — UI flow (web/game) or API Explorer with mock engine (api-only)</td></tr>
 <tr><td><code>gendoc-gen-diagrams</code></td><td><code>/gendoc-gen-diagrams</code></td><td>Generate Server 9 UML types + Frontend 16 UML types (UML) + class-inventory.md; 30+ precision validation checks; enforces no <code>&lt;br/&gt;</code> in stateDiagram-v2 / sequenceDiagram; bans experimental charts (pie/xychart-beta/bar)</td></tr>
 <tr><td><code>gendoc-gen-client-bdd</code></td><td><code>/gendoc-gen-client-bdd</code></td><td>Client-facing BDD feature files (web/game projects)</td></tr>
-<tr><td><code>gendoc-repair</code></td><td><code>/gendoc-repair</code></td><td>Diff completed_steps vs pipeline.json, list missing steps, and optionally resume gendoc-flow from the first gap</td></tr>
+<tr><td><code>gendoc-repair</code></td><td><code>/gendoc-repair</code></td><td>Phase-aware backfill — brings any incomplete project to the same state as <code>gendoc-auto</code> + <code>gendoc-flow</code> would produce. Categorizes gaps into Phase A (pre-DRYRUN) / DRYRUN Gate / Phase B (post-DRYRUN); detects DRYRUN state (none / defaults / ok); validates completed docs against <code>.gendoc-rules/*.json</code> quality gates; two-phase repair mode: complete Phase A → trigger DRYRUN → continue Phase B</td></tr>
 <tr><td><code>gendoc-rebuild-templates</code></td><td><code>/gendoc-rebuild-templates</code></td><td>Rebuild all document templates from scratch</td></tr>
 <tr><td><code>gendoc-update</code></td><td><code>/gendoc-update</code></td><td>Manual skill upgrade</td></tr>
 <tr><td><code>reviewtemplate</code></td><td><code>/reviewtemplate &lt;TYPE&gt;</code></td><td>Review &amp; iteratively fix a template three-file set (TYPE.md + .gen.md + .review.md)</td></tr>
@@ -141,6 +141,27 @@ git clone https://github.com/ibalasite/gendoc.git &quot;$env:USERPROFILE\.claude
 <tr><td>HC-5</td><td>Module dependency graph must be a DAG (no circular dependencies)</td></tr>
 </table>
 <p>References: Martin Fowler &quot;MonolithFirst&quot; (2015) · Sam Newman <em>Monolith to Microservices</em> (O&#x27;Reilly 2019) · Spring Modulith (spring.io, 2022)</p>
+<hr>
+<h2>Document Architecture — SDLC Foundation</h2>
+<p>gendoc&#x27;s document pipeline is grounded in established <strong>Software Development Lifecycle (SDLC)</strong> theory. The Requirements Engineering and Design phases are decomposed into four distinct layers, each answering a single question for a specific audience:</p>
+<table>
+<tr><th>Layer</th><th>Documents</th><th>Question</th><th>Audience</th></tr>
+<tr><td><strong>L1 — Business Requirements</strong></td><td>IDEA · BRD</td><td><strong>Why</strong> — market opportunity &amp; business value</td><td>Executives, Product Owners</td></tr>
+<tr><td><strong>L2 — System Requirements</strong></td><td>PRD · CONSTANTS</td><td><strong>What</strong> — feature scope &amp; acceptance criteria</td><td>PM, QA, Stakeholders</td></tr>
+<tr><td><strong>L3 — UX / Interaction Design</strong></td><td>PDD · VDD · FRONTEND</td><td><strong>How it works</strong> — user flows &amp; experience design</td><td>UX Designers, Frontend Devs</td></tr>
+<tr><td><strong>L4 — Architecture / Detailed Design</strong></td><td>EDD · ARCH · API · SCHEMA</td><td><strong>How to build</strong> — system architecture &amp; implementation</td><td>Engineers, DevOps</td></tr>
+</table>
+<p>Each layer speaks to its audience in its own language. Downstream layers inherit and refine upstream decisions via gendoc&#x27;s <strong>cumulative upstream reading</strong> mechanism — ensuring SCHEMA.md cannot contradict API.md, and EDD.md cannot contradict PRD.md.</p>
+<h3>Theoretical Basis</h3>
+<p><strong>International Standards</strong></p>
+<ul><li><strong>ISO/IEC/IEEE 29148:2018</strong> — Requirements Engineering life cycle: BRS → StRS → SyRS hierarchy maps directly to L1 → L2</li><li><strong>ISO/IEC/IEEE 42010:2011</strong> — Architecture Description: establishes L4 as a separate artifact from L1–L3 requirements</li><li><strong>IEEE Std 830-1998</strong> — SRS &quot;what, not how&quot; principle: canonical basis for L2 / L4 separation</li></ul>
+<p><strong>Academic References</strong></p>
+<ul><li>Wiegers &amp; Beatty, <em>Software Requirements</em> 3rd ed. (Microsoft Press, 2013) — three-tier business / user / system decomposition</li><li>Robertson &amp; Robertson, <em>Mastering the Requirements Process</em> 3rd ed. (Addison-Wesley, 2012) — Volere Template: project purpose (L1) → product scope (L2) → behavioral requirements (L3)</li><li>Cockburn, <em>Writing Effective Use Cases</em> (Addison-Wesley, 2000) — goal-level hierarchy: organization (L1) → user-goal (L2) → sub-function (L3/L4)</li><li>Kruchten, &quot;Architectural Blueprints: The 4+1 View Model&quot; (<em>IEEE Software</em>, 1995) — use-case view (L2/L3) vs. logical/physical architecture views (L4)</li><li>Nuseibeh &amp; Easterbrook, &quot;Requirements Engineering: A Roadmap&quot; (<em>ICSE 2000</em>) — problem space (L1/L2) vs. solution space (L3/L4)</li></ul>
+<p><strong>Industry Frameworks</strong></p>
+<ul><li>IIBA BABOK v3 (2015) — business requirements vs. solution requirements as distinct knowledge areas</li><li>IREB CPRE Syllabus (2022) — professional RE certification: system context → elicitation → specification layers</li><li>TOGAF Standard 10th Ed. (The Open Group, 2022) — Business → Data → Application → Technology architecture, adopted by 80% of Global 50 companies</li></ul>
+<p><strong>AI-Driven SDLC Research</strong></p>
+<ul><li>Hong et al., &quot;MetaGPT&quot; (<em>ICLR 2024</em>, arXiv:2308.00352) — SOP-encoded multi-agent pipeline (PRD → System Design → Code) outperforms single-LLM approaches, validating layered document decomposition as a prerequisite for reliable AI software engineering</li><li>Qian et al., &quot;ChatDev&quot; (<em>ACL 2024</em>, arXiv:2307.07924) — multi-agent SDLC automation following requirements → design → implementation phases; confirms ambiguous upstream documents cause cascading implementation failures</li></ul>
+<blockquote><p><strong>Core insight</strong>: Decomposing SDLC into explicit document layers is not bureaucratic overhead — it is the structural prerequisite for reliable AI-assisted development. Ambiguous upstream documents cause cascading failures downstream; precise layered specifications enable AI agents (and human engineers) to implement without guesswork.</p></blockquote>
 <hr>
 <h2>Template Architecture</h2>
 <pre><code class="">templates/
