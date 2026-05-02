@@ -96,6 +96,8 @@ graph TD
 | Error Rate (Normal Load) | ≤ 0.1% | k6 / Locust | 每週 |
 | Security High/Critical Issues | 0 | Semgrep / ZAP | 每次 PR |
 | Flaky Test Rate | ≤ 2% | CI Dashboard | 每週 |
+| **Pact Contract Test Pass Rate** | **100%（PR merge 前，必要）** | Pact Broker / PactFlow | 每次 PR |
+| **跨 Schema SQL 違規** | **0（CROSS_BC_SQL_COUNT = 0）** | DB Proxy / SQL Analyzer | 每次 PR |
 
 ---
 
@@ -125,6 +127,7 @@ graph TD
 
 **非功能性測試（NFR）：**
 
+- Module 可拆解性驗證（**必填 NFR**）：Spring Modulith HC-1～HC-5 的 SM-TEST-01～SM-TEST-04 均需通過（見 §3.2 Module Decomposability Tests）
 - 效能測試：{{CORE_API_ENDPOINTS}} 所有 public API endpoints
 - 安全測試：所有 authenticated endpoints、用戶資料處理流程
 - UAT：所有 Must-have 功能的 Critical User Flows
@@ -285,6 +288,35 @@ func TestUserService_CreateUser_ErrorWhenInvalidEmail(t *testing.T)
 - [ ] Token 竄改：修改 JWT role 欄位不得影響後端授權結果（後端必須重新驗證 role）
 - [ ] 批次操作邊界：批次刪除 N 筆後，Audit Log 必須記錄完整操作（操作者、時間、影響筆數）
 - [ ] Session 逾時後操作：過期 Token 呼叫任何 admin API 得到 401
+
+#### Module Decomposability Tests（Spring Modulith，必填）
+
+> 驗證各子系統（Bounded Context）的邊界隔離性，確保系統具備微服務可拆解能力。
+
+| 場景 ID | 測試名稱 | 測試方法 | 合格標準 |
+|---------|---------|---------|---------|
+| SM-TEST-01 | Schema 隔離測試 | 使用 db-query-analyzer 或 DB Proxy 攔截 SQL，驗證子系統 A 的程式碼不執行子系統 B 的 Schema 的 SQL | 零跨 BC SQL 記錄（CROSS_BC_SQL_COUNT = 0） |
+| SM-TEST-02 | Consumer-Driven Contract Tests（Pact）| **必要**（非可選）；每個跨子系統 API pair 均有 Pact contract test；Provider 必須在 CI 中執行 Pact 驗證 | 所有 Pact contracts 驗證 100% 通過 |
+| SM-TEST-03 | Async Event Contract Tests | 每個 Domain Event 的 Producer schema 與 Consumer schema 版本兼容性測試（使用 Avro/JSON Schema 校驗） | 所有 event_schema_version 配對相容（無解析錯誤） |
+| SM-TEST-04 | 單一子系統冷啟動測試 | 僅啟動一個子系統（其他子系統以 WireMock stub 取代），驗證其全部端點可正常運作 | 冷啟動後所有 API endpoint 返回 2XX（無因其他 BC 不存在而 5XX） |
+
+**Pact 設定範例（Consumer 端）：**
+
+```javascript
+// Consumer: lobby BC 呼叫 member BC 的 /api/v1/members/{id}
+const { PactV3 } = require("@pact-foundation/pact");
+const provider = new PactV3({ consumer: "lobby", provider: "member" });
+
+provider.addInteraction({
+  uponReceiving: "a request for member profile",
+  withRequest: { method: "GET", path: "/api/v1/members/1" },
+  willRespondWith: {
+    status: 200,
+    body: { id: "1", username: like("user1"), status: like("active") },
+  },
+});
+// Provider 端（member BC）在 CI 中執行 pact verify
+```
 
 #### Test Database 策略
 
