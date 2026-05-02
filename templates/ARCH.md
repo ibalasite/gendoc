@@ -1159,12 +1159,14 @@ graph LR
 |---------|---------|---------|---------|
 | EC2 / ECS | 使用 Spot Instances（批次/非關鍵工作負載） | 60-80% | 中 |
 | EC2 / ECS | Savings Plans / Reserved Instances（基礎負載） | 30-40% | 低 |
-| RDS | 非生產環境縮減副本（週末/深夜 scale to 1，非 scale to 0） | 20-40% | 低 |
+| RDS | 非生產環境縮減副本（週末/深夜 scale to 1，非 scale to 0）**⚠️ 僅限非生產** | 20-40% | 低 |
 | RDS | 使用 Aurora Serverless v2（低流量服務） | 可變 | 中 |
 | S3 | Intelligent-Tiering（存取模式不規律） | 20-40% | 低 |
 | S3 | Lifecycle Policy（日誌歸檔至 Glacier） | 60-70% | 低 |
 | Lambda | 正確配置 Memory 大小（影響 CPU 比例） | 10-30% | 低 |
 | Data Transfer | 使用 VPC Endpoints（避免 NAT Gateway 費用） | 可觀 | 中 |
+
+> ⚠️ **Production 環境 HA 強制約束**：Production 環境不得排程停機或縮副本。上表中「非生產環境縮減副本」策略**僅適用於 dev / staging 環境**。Production 環境必須全天候維持 HA 要求（API ≥ 2 replica，DB Primary+Standby，Redis Sentinel），任何 `scale to 1` 或計劃性停機均違反 SLA 承諾。
 
 ### 16.4 Kubernetes 成本優化
 
