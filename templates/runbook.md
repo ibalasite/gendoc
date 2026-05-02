@@ -187,6 +187,25 @@
 
 ---
 
+### 1.3 子系統邊界參考（Subsystem Boundary Reference）
+
+> 對應 EDD §3.4 Schema Ownership 和 ARCH §4 服務邊界。On-call 工程師快速識別每個 K8s Deployment 歸屬哪個 BC、擁有哪些 DB Schema、對外提供哪些 API Prefix 和 Event Topics。
+
+| Bounded Context | K8s Deployment | Owning DB Schema | Public API Prefix | Event Topics |
+|----------------|---------------|-----------------|------------------|-------------|
+| `member` | `{{PROD_NAMESPACE}}/member-api` | `member`: `users`, `sessions` | `/api/v1/members/` | `member.users.*` |
+| `wallet` | `{{PROD_NAMESPACE}}/wallet-api` | `wallet`: `wallets`, `transactions` | `/api/v1/wallets/` | `wallet.transactions.*` |
+| `deposit` | `{{PROD_NAMESPACE}}/deposit-api` | `deposit`: `deposit_requests` | `/api/v1/deposits/` | `deposit.requests.*` |
+| `lobby` | `{{PROD_NAMESPACE}}/lobby-api` | `lobby`: `games`, `categories` | `/api/v1/lobby/` | `lobby.games.*` |
+| `game` | `{{PROD_NAMESPACE}}/game-api` | `game`: `game_rounds`, `bets` | `/api/v1/games/` | `game.rounds.*` |
+| `{{bc_name}}` | `{{namespace}}/{{deployment}}` | `{{schema}}`: `{{tables}}` | `/api/v1/{{prefix}}/` | `{{bc}}.{{entity}}.*` |
+
+> 跨子系統 API 呼叫路徑（Troubleshooting 參考）：
+> - 不同 BC 的 API 有獨立的 `/api/v1/{bc}/` prefix
+> - 任何跨 BC 呼叫失敗，先確認對方 BC 的 Deployment 是否健康（見 §7.X 跨子系統 API 呼叫失敗）
+
+---
+
 ## 2. Architecture
 
 <!-- FILL-IN INSTRUCTIONS — Architecture
@@ -415,6 +434,39 @@ graph TB
 - Error budget remaining < 20%: change freeze on non-emergency deployments; SRE review required for any production change.
 - Error budget remaining < 5%: incident declared, executive escalation, all engineering focus on reliability.
 
+#### Subsystem-level SLO Label Design (Spring Modulith HC-1)
+
+Each instrumented service must emit a `subsystem` label on all HTTP and event metrics so that SLOs can be sliced per Bounded Context. This enables independent error-budget tracking when individual subsystems are extracted to separate deployments.
+
+**Required Prometheus label on every HTTP metric:**
+
+```yaml
+# Kubernetes Deployment template — add to each Spring Boot container
+env:
+  - name: MANAGEMENT_METRICS_TAGS_SUBSYSTEM
+    value: "{{bc_name}}"   # e.g. member | wallet | deposit | lobby | game
+```
+
+**Per-subsystem availability SLI (example):**
+
+```promql
+# Availability for the "member" subsystem only
+sum(rate(http_requests_total{status=~"2..|3..",path!~"/health.*",subsystem="member"}[5m]))
+/ sum(rate(http_requests_total{path!~"/health.*",subsystem="member"}[5m]))
+```
+
+**Subsystem SLO reference table (fill in concrete targets):**
+
+| Subsystem | `subsystem=` label | Availability SLO | p99 Latency SLO | Grafana Panel |
+|-----------|-------------------|------------------|-----------------|---------------|
+| Member | `member` | {{MEMBER_AVAIL_SLO}}% | ≤ {{MEMBER_P99_MS}} ms | [Link]({{GRAFANA_MEMBER_PANEL}}) |
+| Wallet | `wallet` | {{WALLET_AVAIL_SLO}}% | ≤ {{WALLET_P99_MS}} ms | [Link]({{GRAFANA_WALLET_PANEL}}) |
+| Deposit | `deposit` | {{DEPOSIT_AVAIL_SLO}}% | ≤ {{DEPOSIT_P99_MS}} ms | [Link]({{GRAFANA_DEPOSIT_PANEL}}) |
+| Lobby | `lobby` | {{LOBBY_AVAIL_SLO}}% | ≤ {{LOBBY_P99_MS}} ms | [Link]({{GRAFANA_LOBBY_PANEL}}) |
+| Game | `game` | {{GAME_AVAIL_SLO}}% | ≤ {{GAME_P99_MS}} ms | [Link]({{GRAFANA_GAME_PANEL}}) |
+
+> **Cross-subsystem call latency alert**: When a caller subsystem's p99 degrades but internal metrics are healthy, the root cause is often a downstream BC. Use `upstream_subsystem` label on outbound HTTP client metrics to pinpoint the provider BC.
+
 ### 3.3 Customer SLA
 
 | Commitment | Target | Measurement Period | Breach Consequence |
@@ -620,6 +672,48 @@ kubectl get pods -n {{K8S_NAMESPACE}} -l app={{API_APP_LABEL}}
 # Expected: exit code 0 (all assertions pass)
 # If exit code 2 (critical flow failed): initiate rollback immediately.
 # If exit code 1 (non-critical): open incident and continue monitoring.
+```
+
+---
+
+### 4.4 子系統提取程序（Subsystem Extraction Procedure）
+
+> 將某個 BC 從合部署（Modular Monolith）切換至獨立部署（Microservice）的標準操作步驟。  
+> 執行前提：該 BC 的 Pact Contract Tests 已全部通過，Schema 隔離已確認（無跨 BC FK）。
+
+**前置確認清單：**
+- [ ] EDD §3.4 該 BC 的 Schema Ownership Table 已填寫且確認無跨 BC DB-level FK
+- [ ] §3.2 SM-TEST-01（Schema 隔離）和 SM-TEST-02（Pact Contract）已通過
+- [ ] 已通知所有呼叫該 BC 的其他 BC 工程師（Service Discovery 將變更）
+
+**提取步驟：**
+
+```bash
+# Step 1: 建立新 Namespace（避免污染現有服務）
+kubectl create namespace {{bc_name}}
+
+# Step 2: 為新 Namespace 部署獨立 DB Schema（若尚未 Schema-per-BC）
+# 確認 DB 遷移只包含本 BC 的 Tables（見 SCHEMA.md §9.5 Owning Tables 清單）
+kubectl apply -f k8s/{{bc_name}}/db-migration-job.yaml -n {{bc_name}}
+
+# Step 3: 部署子系統 Deployment 到新 Namespace
+kubectl apply -f k8s/{{bc_name}}/deployment.yaml -n {{bc_name}}
+kubectl rollout status deployment/{{bc_name}}-api -n {{bc_name}}
+# Expected: deployment "{{bc_name}}-api" successfully rolled out
+
+# Step 4: 更新 Ingress 規則（新增 /api/v1/{{bc_name}}/ 路由到新 Namespace）
+kubectl apply -f k8s/ingress/{{bc_name}}-ingress.yaml
+
+# Step 5: 執行 Pact Provider 驗證（確認新部署的 Provider 合約相容）
+pact-verifier --provider {{bc_name}} --provider-base-url http://{{bc_name}}-api.{{bc_name}}.svc.cluster.local
+
+# Step 6: 逐步切換流量（先切 10% 觀察 Error Rate，再切 100%）
+# 更新 Service Discovery / Ingress 權重
+kubectl patch ingress main-ingress --patch '...'
+
+# Step 7: 從原部署移除該 BC 的服務（待流量切換穩定 ≥ 30min 後）
+kubectl delete deployment {{bc_name}}-api -n {{main_namespace}}
+# Expected：原部署 Error Rate 不變（已無流量流向此 Deployment）
 ```
 
 ---
@@ -1523,6 +1617,122 @@ kubectl logs -n {{K8S_NAMESPACE}} -f job/"${JOB_NAME}"
 kubectl get cronjob {{CRON_JOB_NAME}} -n {{K8S_NAMESPACE}} -o jsonpath='{.spec.concurrencyPolicy}'
 # If "Allow" and many active jobs exist: jobs are piling up — check if previous run is stuck
 kubectl get jobs -n {{K8S_NAMESPACE}} | grep {{CRON_JOB_NAME}}
+```
+
+### 7.11 Cross-Subsystem API Call Failure (Spring Modulith HC-2)
+
+**Symptoms:** A feature spanning multiple Bounded Contexts fails; errors surface in the *calling* subsystem but the root cause is in a *provider* subsystem. Typical alerts: `upstream_5xx_rate > threshold` or Pact contract test failures in CI.
+
+```mermaid
+flowchart TD
+    Start["Alert: cross-subsystem call failure\nOR feature X broken (spans multiple BCs)"]
+    Step1["1. Identify caller BC and provider BC\nfrom §1.3 Subsystem Boundary Reference"]
+    Step2["2. Is provider BC healthy?\nkubectl get pods -n {{K8S_NAMESPACE}} -l subsystem=<provider_bc>"]
+    ProviderDown{{"Provider BC\ndown / crashing?"}}
+
+    FixProvider["→ Treat as Section 7.1 / 7.2\nfor the provider BC deployment"]
+
+    Step3["3. Check Public API contract violation\n(Pact verification)"]
+    PactFail{{"Pact contract\ntest failing?"}}
+
+    FixPact["→ API breaking change — see Pact remediation\nbelow"]
+
+    Step4["4. Check caller is using only Public API\n(not internal class/DAO — HC-2 violation)"]
+    HC2Violation{{"HC-2 violation\ndetected?"}}
+
+    FixHC2["→ File HC-2 violation issue\nRevert direct internal call, use Public API"]
+
+    Step5["5. Check event topic / schema mismatch\n(HC-3 async path)"]
+    EventMismatch{{"Schema\nmismatch?"}}
+
+    FixEvent["→ Increment event_schema_version\nDeploy consumer first, then producer"]
+
+    Step6["6. Check namespace / network policy\nkubectl get networkpolicy -n {{K8S_NAMESPACE}}"]
+    NetPolicyBlock{{"Network policy\nblocking?"}}
+    FixNet["→ Apply correct NetworkPolicy\nfor provider BC egress/ingress"]
+
+    Escalate["→ Collect traces from APM\nEscalate to platform team via §12"]
+
+    Start --> Step1 --> Step2
+    Step2 --> ProviderDown
+    ProviderDown -->|Yes| FixProvider
+    ProviderDown -->|No| Step3
+    Step3 --> PactFail
+    PactFail -->|Yes| FixPact
+    PactFail -->|No| Step4
+    Step4 --> HC2Violation
+    HC2Violation -->|Yes| FixHC2
+    HC2Violation -->|No| Step5
+    Step5 --> EventMismatch
+    EventMismatch -->|Yes| FixEvent
+    EventMismatch -->|No| Step6
+    Step6 --> NetPolicyBlock
+    NetPolicyBlock -->|Yes| FixNet
+    NetPolicyBlock -->|No| Escalate
+```
+
+**Diagnostic commands:**
+
+```bash
+# 1. Identify which BCs are involved
+# See §1.3 for bc_name → Namespace / API Prefix mapping
+# Caller logs
+kubectl logs -n {{K8S_NAMESPACE}} -l subsystem=<caller_bc> --tail=200 | grep -E 'error|5[0-9]{2}|circuit'
+
+# 2. Provider BC pod health
+kubectl get pods -n {{K8S_NAMESPACE}} -l subsystem=<provider_bc>
+# Expected: all Running and Ready
+
+# 3. End-to-end trace (APM)
+# Open Jaeger/Zipkin UI and search for trace_id from caller error log
+# Identify which span failed and which BC it belongs to
+
+# 4. Pact contract verification (run locally or trigger CI)
+# Consumer side: replay recorded interactions
+./mvnw test -Dtest=*PactConsumerTest -pl <caller_module>
+# Provider side: verify all registered consumers
+./mvnw test -Dtest=*PactProviderTest -pl <provider_module>
+# Expected: all interactions verified — exit code 0
+
+# 5. HC-2 audit — check for illegal internal class references
+# No production code in caller_bc should import packages from provider_bc's internal package
+grep -r "import com.{{PROJECT_SLUG}}.<provider_bc>.internal" src/<caller_bc>/src/main
+# Expected: no matches — any match is a HC-2 violation
+
+# 6. Event schema compatibility
+# Check consumer schema registry (Avro / JSON Schema)
+curl -s {{SCHEMA_REGISTRY_URL}}/subjects/<topic_name>-value/versions/latest | jq .
+# Compare with producer schema version in event headers:
+kubectl logs -n {{K8S_NAMESPACE}} -l subsystem=<producer_bc> --tail=100 | grep event_schema_version
+
+# 7. Network policy test
+kubectl exec -n {{K8S_NAMESPACE}} deploy/<caller_bc>-api -- \
+  curl -s -o /dev/null -w "%{http_code}" http://<provider_bc>-svc:{{PROVIDER_PORT}}/actuator/health
+# Expected: 200 — if connection refused, NetworkPolicy is blocking
+```
+
+**Pact contract breaking-change remediation:**
+
+If a Pact verification failure is caused by a provider adding a new required field or changing response shape:
+
+```bash
+# Step 1: Provider MUST NOT break existing consumers — add the field as optional first
+# Step 2: Notify all consumers to update their Pact expectations
+# Step 3: Deploy consumers with updated Pact tests
+# Step 4: Re-run provider Pact verification — all consumers must pass
+# Step 5: Deploy provider only after all consumer verifications are green
+# Step 6: Mark old field/behaviour as deprecated for next major version
+```
+
+**Rollback for event schema mismatch:**
+
+```bash
+# Option A: Roll back producer to previous image (if consumer cannot be updated quickly)
+kubectl rollout undo deployment/<producer_bc>-api -n {{K8S_NAMESPACE}}
+kubectl rollout status deployment/<producer_bc>-api -n {{K8S_NAMESPACE}}
+
+# Option B: Deploy event schema bridge (consumer reads both old + new schema)
+# See §4.4 for subsystem extraction procedure as reference for namespace-scoped rollout
 ```
 
 ---
