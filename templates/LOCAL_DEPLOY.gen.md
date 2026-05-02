@@ -659,6 +659,29 @@ else:
 - LOCAL_DEPLOY.md §6：確認 ci-build / ci-test-unit / ci-test-integration / ci-deploy / ci-smoke / ci-rollback / ci-dry-run 全部存在
 - LOCAL_DEPLOY.md §3.5：Secret Bootstrap 策略（確認 §21.4 CI secrets 分類正確）
 
+**§21.0 Local Developer Platform 整體架構**：
+
+生成 §21.0 架構圖與元件表時，依以下順序讀取設定：
+
+1. **優先讀取 CICD.md §8**（若已生成）：從中提取 Gitea ClusterIP port（預設 3000）、Jenkins port（預設 8080）、ArgoCD port（預設 443）。
+2. **若 CICD.md §8 不存在**：使用以下預設值：
+
+| 欄位 | 預設值 |
+|-----|-------|
+| Gitea ClusterIP port | `3000` |
+| Jenkins ClusterIP port | `8080` |
+| ArgoCD ClusterIP port | `443`（port-forward 映射至 8443）|
+| Gitea persistence size | `256Mi` |
+| Gitea resources.requests.cpu | `100m` |
+| Gitea resources.requests.memory | `128Mi` |
+| Gitea resources.limits.cpu | `500m` |
+| Gitea resources.limits.memory | `512Mi` |
+
+**填充規則**：
+- `{{K8S_NAMESPACE}}`：從 EDD.md §3.5 環境矩陣 Local 欄填入（格式 `{{PROJECT_SLUG}}-local`）
+- `{{PROJECT_SLUG}}`：從 EDD.md Document Control 填入
+- Mermaid 圖 App namespace 標籤：使用真實 `K8S_NAMESPACE`（非 placeholder）
+
 **§21.1 Jenkins on k3s 安裝**：
 - 若 EDD.md CI_TOOL = Jenkins：生成完整 helm install 指令
 - 若 EDD.md CI_TOOL = GitHub Actions 或 GitLab CI：將 §21 改為「CI 本地模擬（act runner）」，使用 `act` CLI 替代 jenkinsfile-runner

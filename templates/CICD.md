@@ -590,6 +590,8 @@ metadata:
 spec:
   project: default
   source:
+    # Production / Staging: repoURL: https://github.com/{{GITHUB_ORG}}/{{REPO_NAME}}
+    # LOCAL mode (Rancher Desktop): repoURL: http://gitea.dev-tools.svc.cluster.local:3000/dev/{{PROJECT_SLUG}}.git
     repoURL: https://github.com/{{GITHUB_ORG}}/{{REPO_NAME}}
     targetRevision: main
     path: k8s/overlays/{{DEPLOY_ENV}}
@@ -627,7 +629,147 @@ sequenceDiagram
 
 ---
 
-## §8 Security & Secret Management in CI
+## §8 Local Developer Platform（Gitea）
+
+> Gitea 作為本地 Git Server，讓 CI/CD Pipeline 在 Rancher Desktop 環境中完全自給自足——不依賴外部 GitHub/GitLab。開發者 push 到本地 Gitea → 觸發 Jenkins Webhook → Jenkins CI 執行 Pipeline → ArgoCD 從 Gitea 讀取 helm values → K8s Cluster 同步。
+
+### 8.1 架構圖
+
+```mermaid
+graph LR
+    subgraph DevMachine["開發者本機（Rancher Desktop k3s）"]
+        subgraph DevTools["dev-tools namespace"]
+            Gitea["Gitea\ngit.local:3000\n(ClusterIP)"]
+        end
+        subgraph CI["ci namespace"]
+            Jenkins["Jenkins\njenkins.local:8080"]
+        end
+        subgraph ArgoNS["argocd namespace"]
+            Argo["ArgoCD"]
+        end
+        subgraph App["{{K8S_NAMESPACE}}-local namespace"]
+            AppPods["App Pods"]
+        end
+    end
+    Dev["Developer\ngit push"] --> Gitea
+    Gitea -->|"Webhook\nPOST /gitea-webhook/post"| Jenkins
+    Jenkins -->|"build + push image\nupdate helm values"| Gitea
+    Argo -->|"watch Gitea repo"| Gitea
+    Argo -->|"sync"| AppPods
+```
+
+### 8.2 Gitea 安裝（Helm）
+
+```bash
+# 加入 Gitea Helm repo
+helm repo add gitea-charts https://dl.gitea.com/charts/
+helm repo update
+
+# 建立 dev-tools namespace
+kubectl create namespace dev-tools
+
+# 安裝 Gitea
+helm upgrade --install gitea gitea-charts/gitea \
+  -n dev-tools \
+  -f k8s/dev-tools/gitea-values.yaml \
+  --wait
+```
+
+### 8.3 gitea-values.yaml 範例
+
+```yaml
+# k8s/dev-tools/gitea-values.yaml
+gitea:
+  admin:
+    username: "admin"
+    password: "{{GITEA_ADMIN_PASSWORD}}"   # OS Keychain / ephemeral secret
+    email: "admin@local.dev"
+  config:
+    server:
+      DOMAIN: gitea.dev-tools.svc.cluster.local
+      ROOT_URL: http://gitea.dev-tools.svc.cluster.local:3000/
+
+service:
+  type: ClusterIP
+  port: 3000
+
+persistence:
+  enabled: true
+  size: 256Mi
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+```
+
+### 8.4 Jenkins Webhook 設定
+
+Gitea → Jenkins Webhook URL（ClusterIP 直連，不需 Ingress）：
+
+```
+http://jenkins.ci.svc.cluster.local:8080/gitea-webhook/post
+```
+
+在 Gitea 倉庫 Settings → Webhooks → Add Webhook → Gitea，填入上述 URL，Secret 使用 Jenkins 的 webhook token。
+
+### 8.5 ArgoCD 從 Gitea 讀取
+
+```yaml
+# k8s/argocd/app-local.yaml（本地環境專用）
+spec:
+  source:
+    repoURL: http://gitea.dev-tools.svc.cluster.local:3000/dev/{{PROJECT_SLUG}}.git
+    targetRevision: main
+    path: k8s/overlays/local
+  destination:
+    namespace: {{K8S_NAMESPACE}}-local
+```
+
+> **Port 分離原則**：App domain（{{K8S_NAMESPACE}}-local）對外 port 為 80（統一透過 nginx Ingress）。Dev-tools domain（gitea/jenkins/argocd）使用各自獨立 port（3000/8080/8443），不與 App port 衝突。
+
+---
+
+## §9 Makefile dev-tools Targets
+
+在 `Makefile` 中加入以下 dev-tools 管理 target，與 §4 Shared Make Targets 配套使用：
+
+```makefile
+# ── Dev-Tools 管理 ────────────────────────────────
+dev-tools-install:  ## 安裝 Gitea + Jenkins + ArgoCD 到 dev-tools / ci / argocd namespace
+	kubectl create namespace dev-tools --dry-run=client -o yaml | kubectl apply -f -
+	kubectl create namespace ci --dry-run=client -o yaml | kubectl apply -f -
+	helm upgrade --install gitea gitea-charts/gitea -n dev-tools -f k8s/dev-tools/gitea-values.yaml --wait
+	helm upgrade --install jenkins jenkins/jenkins -n ci -f k8s/ci/jenkins-values.yaml --wait
+	kubectl apply -n argocd -f k8s/argocd/app-local.yaml
+
+dev-tools-status:   ## 檢查 dev-tools 所有元件狀態
+	kubectl get pods -n dev-tools
+	kubectl get pods -n ci
+	kubectl get pods -n argocd
+
+dev-tools-forward:  ## Port-forward dev-tools（背景執行）
+	kubectl port-forward -n dev-tools svc/gitea 3000:3000 &
+	kubectl port-forward -n ci svc/jenkins 8080:8080 &
+	kubectl port-forward -n argocd svc/argocd-server 8443:443 &
+	@echo "Gitea:   http://localhost:3000"
+	@echo "Jenkins: http://localhost:8080"
+	@echo "ArgoCD:  https://localhost:8443"
+
+dev-tools-clean:    ## 卸載 dev-tools（保留資料 PVC）
+	helm uninstall gitea -n dev-tools || true
+	helm uninstall jenkins -n ci || true
+
+ci-setup-credentials:  ## 設定 CI 所需的 K8s Secrets（見 §10 Secret 表格）
+	@echo "請執行 LOCAL_DEPLOY.md §21.4 中的 bootstrap-secrets 腳本"
+```
+
+---
+
+## §10 Security & Secret Management in CI
 
 | Secret | 存放位置 | 使用方式 |
 |--------|---------|---------|
@@ -640,7 +782,7 @@ sequenceDiagram
 
 ---
 
-## §9 Observability
+## §11 Observability
 
 ### 9.1 Pipeline Metrics（Prometheus）
 

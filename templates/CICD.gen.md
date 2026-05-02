@@ -24,6 +24,9 @@ quality-bar:
   - §4 Make targets match LOCAL_DEPLOY.md §6 exactly (ci-build / ci-test-unit / ci-test-integration / ci-deploy / ci-smoke / ci-rollback)
   - §5 required-status-checks list matches §4 stage names exactly
   - §6 Jenkins on k3s namespace matches §1 Agent Pod namespace
+  - §8 Gitea Helm chart uses ClusterIP service type (not NodePort/LoadBalancer)
+  - §8 adminPassword uses {{GITEA_ADMIN_PASSWORD}} placeholder (not hardcoded plaintext)
+  - §9 Makefile dev-tools targets include all 5 required targets (dev-tools-install / dev-tools-status / dev-tools-forward / dev-tools-clean / ci-setup-credentials)
 ---
 
 # CICD.gen.md — CI/CD Pipeline 文件生成規則
@@ -198,7 +201,7 @@ kubectl create secret docker-registry registry-credentials \
 
 **Application YAML** 中填入：
 - `metadata.name`：`{{PROJECT_SLUG}}-local`
-- `spec.source.repoURL`：從 EDD.md / ARCH.md git repo URL
+- `spec.source.repoURL`：從 EDD.md / ARCH.md git repo URL；LOCAL mode 改為 Gitea ClusterIP URL（見 §7.2 注釋）
 - `spec.source.targetRevision`：從 EDD.md branch strategy（通常 `main`）
 - `spec.source.path`：`k8s/overlays/local`（固定）
 - `spec.destination.namespace`：`{{K8S_NAMESPACE}}-local`
@@ -207,13 +210,53 @@ kubectl create secret docker-registry registry-credentials \
 
 ---
 
-### Step 9：§8 Security + §9 Observability
+### Step 9：§8 Local Developer Platform（Gitea）
 
-**§8 Secret location 表格**：
+**讀取來源**：若 LOCAL_DEPLOY.md §21.0 存在，優先從中讀取 Gitea 設定；否則使用以下預設值。
+
+**gitea-values.yaml 填充規則**：
+| 欄位 | 來源 | 預設值 |
+|-----|------|-------|
+| `gitea.admin.password` | OS Keychain bootstrap（LOCAL_DEPLOY.md §3.5）| `{{GITEA_ADMIN_PASSWORD}}`（不得填明文）|
+| `service.type` | 固定 | `ClusterIP`（禁止 NodePort / LoadBalancer）|
+| `persistence.size` | EDD.md §3.5 資源規格（若無）| `256Mi` |
+| `resources.requests.cpu` | EDD.md §3.5（若無）| `100m` |
+| `resources.requests.memory` | EDD.md §3.5（若無）| `128Mi` |
+| `resources.limits.cpu` | EDD.md §3.5（若無）| `500m` |
+| `resources.limits.memory` | EDD.md §3.5（若無）| `512Mi` |
+
+**§8.5 ArgoCD app-local.yaml** 中：
+- `spec.source.repoURL`：填入 `http://gitea.dev-tools.svc.cluster.local:3000/dev/{{PROJECT_SLUG}}.git`（替換 PROJECT_SLUG）
+- `spec.destination.namespace`：填入 `{{K8S_NAMESPACE}}-local`（替換 K8S_NAMESPACE）
+
+**Port 分離原則驗證**：確認 App Ingress port 80 與 dev-tools ports（3000/8080/8443）無衝突。
+
+---
+
+### Step 10：§9 Makefile dev-tools Targets
+
+**從骨架複製 5 個必要 target**，替換以下 placeholder：
+- `{{PROJECT_SLUG}}`：從 EDD.md 專案名稱（kebab-case）填入
+- `{{K8S_NAMESPACE}}`：從 EDD.md §3.5 環境矩陣填入
+
+**5 個必要 target 清單**（缺一不可）：
+1. `dev-tools-install` — 安裝 Gitea + Jenkins + ArgoCD
+2. `dev-tools-status` — 檢查所有元件 Pod 狀態
+3. `dev-tools-forward` — Port-forward（背景執行）
+4. `dev-tools-clean` — 卸載（保留 PVC）
+5. `ci-setup-credentials` — 引導執行 §21.4 bootstrap-secrets
+
+**確認**：這 5 個 target 不得與 §4 Shared Make Targets 的 `ci-*` target 命名衝突。
+
+---
+
+### Step 11：§10 Security + §11 Observability
+
+**§10 Secret location 表格**：
 - 讀取 LOCAL_DEPLOY.md §3.5 Secret Bootstrap 確認 ephemeral vs OS Keychain vs mittwald 各自對應的 secret 類型
-- 在 CICD.md §8 表格中對應標注
+- 在 CICD.md §10 表格中對應標注
 
-**§9 Prometheus metrics 清單**：
+**§11 Prometheus metrics 清單**：
 - 讀取 ARCH.md §7（若有 Observability 章節）確認 metrics endpoint 路徑
 - 若 ARCH.md 未定義，使用骨架預設值（`/actuator/prometheus` for Spring Boot）
 
@@ -232,6 +275,9 @@ kubectl create secret docker-registry registry-credentials \
 | §6 RBAC namespace 一致 | 比對 §1 Agent Pod namespace | 均為 `ci` |
 | §3 dry-run path 正確 | 比對 §2 Jenkinsfile path | 路徑一致 |
 | Secret 無明文 | 確認無 hardcoded password 值 | 全用 `${SECRET}` 引用 |
+| §8 Gitea service type | 確認 gitea-values.yaml `service.type: ClusterIP` | 非 NodePort / LoadBalancer |
+| §8 adminPassword 無明文 | 確認 `{{GITEA_ADMIN_PASSWORD}}` placeholder 存在 | 非任何靜態密碼字串 |
+| §9 dev-tools targets 完整 | 確認 5 個必要 target 均存在 | dev-tools-install / dev-tools-status / dev-tools-forward / dev-tools-clean / ci-setup-credentials |
 
 **若任一項不通過 → 立即修正，不得產出含錯誤的文件。**
 
@@ -245,4 +291,7 @@ kubectl create secret docker-registry registry-credentials \
 | §5 PR Gate 的 required-status-checks 引用不存在的 stage | 從 §4 table 逐項複製 stage 名稱 |
 | Jenkinsfile 使用 DinD | 一律使用 Kaniko；DinD 需 privileged container，禁止 |
 | §7 ArgoCD Application namespace 與 §1 不符 | 統一從 EDD.md §3.4 K8S_NAMESPACE 取值 |
-| §8 Secret 類型誤標（OS Keychain 標為 ephemeral）| 對照 LOCAL_DEPLOY.md §3.5 三層策略 |
+| §8 Gitea service type 不是 ClusterIP | 強制使用 ClusterIP；NodePort/LoadBalancer 違反 Port 分離原則 |
+| §8 adminPassword 明文寫入 gitea-values.yaml | 使用 `{{GITEA_ADMIN_PASSWORD}}` placeholder，值來自 OS Keychain bootstrap |
+| §9 dev-tools Makefile target 缺失 | 對照 5 個必要 target 清單逐一確認 |
+| §10 Secret 類型誤標（OS Keychain 標為 ephemeral）| 對照 LOCAL_DEPLOY.md §3.5 三層策略 |

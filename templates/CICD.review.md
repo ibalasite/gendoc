@@ -13,6 +13,8 @@ quality-bar:
   - §5 required-status-checks matches §4 stage names
   - No Docker-in-Docker; Kaniko used for image build
   - No hardcoded secrets anywhere in document
+  - §8 Gitea uses ClusterIP service type (not NodePort/LoadBalancer)
+  - §9 has all 5 dev-tools make targets (dev-tools-install / dev-tools-status / dev-tools-forward / dev-tools-clean / ci-setup-credentials)
 upstream-alignment:
   - EDD.md §3.4 CI_TOOL / CD_TOOL / K8s cluster / registry matches §6 Jenkins + §7 ArgoCD
   - LOCAL_DEPLOY.md §6 Make targets matches §4 Shared Make Targets
@@ -187,12 +189,55 @@ container('kaniko') {
 
 ---
 
+## Layer 5：Local Developer Platform（共 3 項）
+
+### [HIGH] R-14：§8 Gitea service type 非 ClusterIP
+
+**Check**：確認 `k8s/dev-tools/gitea-values.yaml`（或文件中的 gitea-values.yaml 範例）的 `service.type` 欄位為 `ClusterIP`，而非 `NodePort` 或 `LoadBalancer`。
+
+**Risk**：NodePort / LoadBalancer 會將 Gitea dev-tools 對外暴露，違反 Port 分離原則——App domain（port 80）與 dev-tools domain（3000/8080/8443）應完全隔離。外部可直連 Gitea 意味著任何能存取 cluster 的人都可以推送程式碼。
+
+**Fix**：在 `gitea-values.yaml` 中設定：
+```yaml
+service:
+  type: ClusterIP
+  port: 3000
+```
+若需本地存取，使用 `kubectl port-forward` 或 `make dev-tools-forward`（§9），而非對外暴露 NodePort。
+
+---
+
+### [HIGH] R-15：§8 Gitea adminPassword 明文寫入
+
+**Check**：確認 §8.3 gitea-values.yaml 範例中的 `gitea.admin.password` 欄位值為 `{{GITEA_ADMIN_PASSWORD}}` placeholder，而非任何靜態明文密碼（如 `admin123`、`password`、`gitea`）。
+
+**Risk**：明文密碼進入 git 歷史，所有有 repo 存取權限的人都能讀取 → Gitea admin 帳號遭接管，攻擊者可篡改 CI Pipeline 觸發惡意 build。
+
+**Fix**：確認文件使用 `{{GITEA_ADMIN_PASSWORD}}` placeholder，並加入說明：值應由 `scripts/bootstrap-secrets.sh` 透過 OS Keychain 生成，或使用 `openssl rand -hex 16` 一次性生成並存入 OS Keychain，不得以任何靜態值替換 placeholder。
+
+---
+
+### [MEDIUM] R-16：§9 Makefile dev-tools targets 不完整
+
+**Check**：確認 §9 Makefile 包含全部 5 個必要 target：
+1. `dev-tools-install`
+2. `dev-tools-status`
+3. `dev-tools-forward`
+4. `dev-tools-clean`
+5. `ci-setup-credentials`
+
+**Risk**：缺少任何 target → 開發者無法透過標準化命令設定本地 CI 平台，導致每個人各自手動操作，環境一致性無法保證；新進工程師第一天無法自助完成 dev-tools 安裝。
+
+**Fix**：從 §9 骨架補全缺少的 target，並確認 target 名稱與文件 §8 的說明一致。
+
+---
+
 ## 審查完成標準
 
 | 級別 | 數量要求 |
 |------|---------|
 | CRITICAL | 0（所有 R-01/R-02/R-05/R-09 必須全數修復） |
-| HIGH | 0（首次生成）；後續迭代允許 ≤ 1（需附風險說明） |
+| HIGH | 0（首次生成）；後續迭代允許 ≤ 1（需附風險說明）；R-14/R-15 需全數修復 |
 | MEDIUM | ≤ 2 |
 | LOW | 不限 |
 

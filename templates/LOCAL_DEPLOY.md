@@ -1786,6 +1786,44 @@ make k9s   # 等同 k9s -n {{K8S_NAMESPACE}}-local
 
 > 本節讓開發者在本機完整重現 CI/CD Pipeline，確保 `Jenkinsfile` 和 `make ci-*` targets 在 commit 前可驗證，避免 PR 被 pipeline 失敗 reject。
 
+### 21.0 Local Developer Platform 整體架構
+
+本節說明本地 CI/CD 平台的整體架構。所有元件均在 Rancher Desktop k3s cluster 內執行，開發者 push 到本地 Gitea 即可觸發完整 CI/CD 流程，不依賴任何外部服務。
+
+```mermaid
+graph LR
+    subgraph DevMachine["開發者本機（Rancher Desktop k3s）"]
+        subgraph DevTools["dev-tools namespace"]
+            Gitea["Gitea\n(ClusterIP:3000)\nLocal Git Server"]
+        end
+        subgraph CI["ci namespace"]
+            Jenkins["Jenkins\n(ClusterIP:8080)\nCI Pipeline"]
+        end
+        subgraph ArgoNS["argocd namespace"]
+            Argo["ArgoCD\n(ClusterIP:443)\nCD GitOps"]
+        end
+        subgraph App["{{K8S_NAMESPACE}}-local namespace"]
+            AppPods["App Pods\n(Ingress port 80)"]
+        end
+    end
+    Dev["Developer\ngit push"] --> Gitea
+    Gitea -->|"Webhook POST"| Jenkins
+    Jenkins -->|"build image\nupdate helm values"| Gitea
+    Argo -->|"watch repo"| Gitea
+    Argo -->|"sync"| AppPods
+```
+
+**元件說明**：
+
+| 元件 | Namespace | ClusterIP Port | 本地存取（port-forward）|
+|------|-----------|---------------|----------------------|
+| Gitea（Local Git）| `dev-tools` | 3000 | `make dev-tools-forward` → http://localhost:3000 |
+| Jenkins（CI）| `ci` | 8080 | `make dev-tools-forward` → http://localhost:8080 |
+| ArgoCD（CD）| `argocd` | 443 | `make dev-tools-forward` → https://localhost:8443 |
+| App Ingress | `{{K8S_NAMESPACE}}-local` | 80 | http://{{PROJECT_SLUG}}.local |
+
+> **Port 分離原則**：App domain（port 80 via Ingress）與 dev-tools domain（3000/8080/8443 via port-forward）完全隔離，不互相干擾。詳細 Gitea 安裝與 Jenkins Webhook 設定見 CICD.md §8；Makefile dev-tools targets 見 CICD.md §9。
+
 ### 21.1 Jenkins on k3s 安裝
 
 **前提**：Rancher Desktop 已執行（見 §1），k3s cluster 可用。
