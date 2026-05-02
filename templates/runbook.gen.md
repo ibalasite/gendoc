@@ -142,6 +142,8 @@ SLO Burn Rate PromQL（Google SRE Workbook 標準）：
 
 ### §4 Deployment Procedures
 
+> **Iron Constraint — Replicas ≥ 2**：§4 中任何涉及 `kubectl scale`、`spec.replicas`、`replicas:` 的指令或範例，數值不得低於 2。若上游 EDD §3.7 有定義最小副本數，以 EDD 為準，但不得低於 2。違規範例（禁止生成）：`kubectl scale deployment/api-server --replicas=1`。合規範例：`kubectl scale deployment/api-server --replicas=2`（或更高）。
+
 - Pre-Deployment Checklist 中 URL 使用格式範例佔位符
 - 所有 kubectl 命令使用真實 deployment 名稱（`API_DEPLOYMENT_NAME`）和真實 namespace（`K8S_NAMESPACE`）
 
@@ -207,6 +209,8 @@ SLO Burn Rate PromQL（Google SRE Workbook 標準）：
 - `{{LOG_RETENTION_DAYS}}`：從 BRD 資料分類或 EDD §13.5 保留期限推斷（若無，預設 30）
 - `{{LOGGING_PLATFORM}}` + `{{LOGGING_URL}}`：從 EDD §10 或 ARCH.md 日誌平台推斷；若無集中日誌平台，替換為 `kubectl logs` 替代說明
 - **若所有 pod 日誌均輸出至 stdout（K8s 標準）**：移除 `find /app/logs` 行並加注釋「日誌輸出至 stdout，由 containerd log driver 管理，無需手動輪換」
+
+**§8.4 Capacity Review（Iron Constraint — Replicas ≥ 2）**：§8.4 中任何 `kubectl scale` 擴縮容指令或 HPA minReplicas 設定，數值不得低於 2。Scale-down 指令（如故障演練後縮容）的目標值下限亦為 2，禁止縮到 1。若上游 EDD §3.7 有定義 min_replicas，以 EDD 為準，但不得低於 2。
 
 **§8.4 Capacity Review** — 填入真實值：
 - `{{GRAFANA_INFRA_DASHBOARD}}`：從 EDD §10 Grafana 設定提取；若無，使用格式範例佔位符
@@ -365,3 +369,4 @@ else:
 | 指令可直接執行 | 所有 shell 指令可直接 copy-paste 執行（非概念描述或虛構路徑） | 改寫為基於 LOCAL_DEPLOY 環境的具體指令 |
 | Rollback 步驟存在 | 每個部署/更新步驟都有對應的回滾指令 | 補充缺失的回滾步驟 |
 | 緊急聯絡非虛構 | 緊急聯絡人欄位（若有）有格式說明（非 "Alice" / "Bob" 等虛構名稱） | 替換為 `{{ONCALL_CONTACT}}: 填入值班聯絡人姓名/Email` 格式 |
+| All replicas ≥ 2 | 全文所有 `replicas:`、`--replicas=`、`minReplicas:` 數值均 ≥ 2；任何 replicas=1 視為不合格 | 逐一修正副本數值至 ≥ 2，Scale-down 目標下限亦不得低於 2 |
