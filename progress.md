@@ -9,7 +9,7 @@
 
 | 符號 | 意義 |
 |------|------|
-| `[ ]` | 待執行 |
+| `[x]` | 待執行 |
 | `[x]` | 已完成 + commit done |
 | `[~]` | 進行中 |
 
@@ -37,10 +37,10 @@
 
 | 狀態 | 子任務 |
 |------|-------|
-| `[ ]` | 修改 Step 1 Python diff 腳本，在 diff 計算後加入三區分類邏輯 |
-| `[ ]` | 更新 Step 1 輸出格式：分區表格 + 機器可讀標記 |
-| `[ ]` | 更新 Step 2（無缺漏判斷）也檢查三區均為 0 |
-| `[ ]` | commit [done]: TASK-R1 |
+| `[x]` | 修改 Step 1 Python diff 腳本，在 diff 計算後加入三區分類邏輯 |
+| `[x]` | 更新 Step 1 輸出格式：分區表格 + 機器可讀標記 |
+| `[x]` | 更新 Step 2（無缺漏判斷）也檢查三區均為 0 |
+| `[x]` | commit [done]: TASK-R1 |
 
 ---
 
@@ -55,10 +55,10 @@
 
 | 狀態 | 子任務 |
 |------|-------|
-| `[ ]` | 在 Step 1 之後、Step 2 之前，新增 Step 1.6 區塊 |
-| `[ ]` | 實作三態偵測邏輯（bash + python3） |
-| `[ ]` | 提取 `_DRYRUN_STATUS`、`_RULES_COUNT`、`_DRYRUN_USED_DEFAULTS` 三個變數 |
-| `[ ]` | commit [done]: TASK-R2 |
+| `[x]` | 在 Step 1 之後、Step 2 之前，新增 Step 1.6 區塊 |
+| `[x]` | 實作三態偵測邏輯（bash + python3） |
+| `[x]` | 提取 `_DRYRUN_STATUS`、`_RULES_COUNT`、`_DRYRUN_USED_DEFAULTS` 三個變數 |
+| `[x]` | commit [done]: TASK-R2 |
 
 ---
 
@@ -73,9 +73,9 @@
 
 | 狀態 | 子任務 |
 |------|-------|
-| `[ ]` | 在 Step 1.6 末尾加入上游就緒度掃描（bash grep 計數）|
-| `[ ]` | 不足時設 `_UPSTREAM_READY=false` 並顯示詳細說明 |
-| `[ ]` | commit [done]: TASK-R3 |
+| `[x]` | 在 Step 1.6 末尾加入上游就緒度掃描（bash grep 計數）|
+| `[x]` | 不足時設 `_UPSTREAM_READY=false` 並顯示詳細說明 |
+| `[x]` | commit [done]: TASK-R3 |
 
 ---
 
@@ -90,10 +90,10 @@
 
 | 狀態 | 子任務 |
 |------|-------|
-| `[ ]` | 在 Step 1.6 加入 git log 時間戳比對邏輯 |
-| `[ ]` | 比對 EDD/PRD/ARCH 最新 commit vs .gendoc-rules/ 最新 commit |
-| `[ ]` | 過時時設 `_DRYRUN_STALE=true` + 警告訊息 |
-| `[ ]` | commit [done]: TASK-R4 |
+| `[x]` | 在 Step 1.6 加入 git log 時間戳比對邏輯 |
+| `[x]` | 比對 EDD/PRD/ARCH 最新 commit vs .gendoc-rules/ 最新 commit |
+| `[x]` | 過時時設 `_DRYRUN_STALE=true` + 警告訊息 |
+| `[x]` | commit [done]: TASK-R4 |
 
 ---
 
@@ -108,12 +108,12 @@
 
 | 狀態 | 子任務 |
 |------|-------|
-| `[ ]` | 在 Step 1.5 Python 腳本末尾加入 rules.json 品質驗證 loop |
-| `[ ]` | 驗 min_h2_sections（數標題行數 vs 門檻）|
-| `[ ]` | 驗 required_sections（grep section 標題是否存在）|
-| `[ ]` | 驗 no_placeholder_strings（grep `{{[A-Z_]+}}` pattern）|
-| `[ ]` | 新增 QUALITY_FAIL 輸出段落 + 機器可讀標記 `QUALITY_FAIL_COUNT:N` |
-| `[ ]` | commit [done]: TASK-R5 |
+| `[x]` | 在 Step 1.5 Python 腳本末尾加入 rules.json 品質驗證 loop |
+| `[x]` | 驗 min_h2_sections（數標題行數 vs 門檻）|
+| `[x]` | 驗 required_sections（grep section 標題是否存在）|
+| `[x]` | 驗 no_placeholder_strings（grep `{{[A-Z_]+}}` pattern）|
+| `[x]` | 新增 QUALITY_FAIL 輸出段落 + 機器可讀標記 `QUALITY_FAIL_COUNT:N` |
+| `[x]` | commit [done]: TASK-R5 |
 
 ---
 
@@ -128,11 +128,11 @@
 
 | 狀態 | 子任務 |
 |------|-------|
-| `[ ]` | 重構 Step 3 為三條件分支（依 `_PHASE_A_MISSING_COUNT`、`_DRYRUN_STATUS`、`_PHASE_B_MISSING_COUNT` 判斷）|
-| `[ ]` | 情境 B：新增 DRYRUN 引導說明文字 + 選項 [1] 先跑 DRYRUN |
-| `[ ]` | 情境 C：顯示 rules files 數量 + 選項 [1] 兩階段補跑 |
-| `[ ]` | SPAWNED_SESSION 時情境 B/C 自動選擇合理預設 |
-| `[ ]` | commit [done]: TASK-R6 |
+| `[x]` | 重構 Step 3 為三條件分支（依 `_PHASE_A_MISSING_COUNT`、`_DRYRUN_STATUS`、`_PHASE_B_MISSING_COUNT` 判斷）|
+| `[x]` | 情境 B：新增 DRYRUN 引導說明文字 + 選項 [1] 先跑 DRYRUN |
+| `[x]` | 情境 C：顯示 rules files 數量 + 選項 [1] 兩階段補跑 |
+| `[x]` | SPAWNED_SESSION 時情境 B/C 自動選擇合理預設 |
+| `[x]` | commit [done]: TASK-R6 |
 
 ---
 
@@ -149,12 +149,12 @@
 
 | 狀態 | 子任務 |
 |------|-------|
-| `[ ]` | 在 Step 4 新增兩階段模式分支 |
-| `[ ]` | Phase A 補跑：設 `start_step` = first Phase A missing，呼叫 gendoc-flow |
-| `[ ]` | DRYRUN 觸發：Skill tool 呼叫 `gendoc-gen-dryrun` |
-| `[ ]` | Phase B 補跑：重讀 state file，更新 `start_step`，呼叫 gendoc-flow |
-| `[ ]` | 加入重新讀取 state file 的邏輯（Phase A 完成後 state 已更新）|
-| `[ ]` | commit [done]: TASK-R7 |
+| `[x]` | 在 Step 4 新增兩階段模式分支 |
+| `[x]` | Phase A 補跑：設 `start_step` = first Phase A missing，呼叫 gendoc-flow |
+| `[x]` | DRYRUN 觸發：Skill tool 呼叫 `gendoc-gen-dryrun` |
+| `[x]` | Phase B 補跑：重讀 state file，更新 `start_step`，呼叫 gendoc-flow |
+| `[x]` | 加入重新讀取 state file 的邏輯（Phase A 完成後 state 已更新）|
+| `[x]` | commit [done]: TASK-R7 |
 
 ---
 
