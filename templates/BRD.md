@@ -164,12 +164,13 @@
 
 > RTM 確保每一個業務目標都有對應的成功指標，每一個成功指標都有對應的功能需求。
 
-| 業務目標 | 成功指標 | 功能需求（PRD REQ-ID）| 測試覆蓋 | 狀態 |
-|---------|---------|---------------------|---------|------|
-| O1：{{BUSINESS_GOAL_1}} | {{METRIC_1}}（§7） | REQ-001, REQ-002 | BDD Scenario S-001 | 🔲 待填 |
-| O2：{{BUSINESS_GOAL_2}} | {{METRIC_2}}（§7） | REQ-003 | BDD Scenario S-002 | 🔲 待填 |
+| 業務目標 | 成功指標 | **Owning Subsystem** | 功能需求（PRD REQ-ID）| 測試覆蓋 | 狀態 |
+|---------|---------|:-------------------:|---------------------|---------|------|
+| O1：{{BUSINESS_GOAL_1}} | {{METRIC_1}}（§7） | `{{bc_name}}` | REQ-001, REQ-002 | BDD Scenario S-001 | 🔲 待填 |
+| O2：{{BUSINESS_GOAL_2}} | {{METRIC_2}}（§7） | `{{bc_name}}` | REQ-003 | BDD Scenario S-002 | 🔲 待填 |
 
-*RTM 在 BRD → PRD 過渡時由 PM 維護；PRD 確定後以 REQ-ID 填入並鎖定。*
+*RTM 在 BRD → PRD 過渡時由 PM 維護；PRD 確定後以 REQ-ID 填入並鎖定。*  
+*「Owning Subsystem」欄：填入負責實現此業務目標的子系統（Bounded Context）名稱，確保業務目標可追溯到具體子系統。*
 
 ---
 
@@ -290,6 +291,27 @@ graph TD
 
 ---
 
+### 5.5 子系統分解（Bounded Context）
+
+> 依 Spring Modulith 架構原則，從 Day 1 以 Bounded Context 為邊界設計業務邊界。  
+> 此表是 EDD §3.4 Schema Ownership 和 ARCH §4 服務邊界的**業務層輸入**。
+
+| 子系統名 | 業務領域（Domain） | 擁有的業務規則 | 不擁有的業務規則 | 業務不變量（Invariant） |
+|---------|------------------|--------------|----------------|----------------------|
+| `member` | 會員管理 | 帳號創建/驗證/停用、KYC、個人資料 | 餘額計算、遊戲入局 | 每個 member_id 對應唯一的認證身份 |
+| `wallet` | 電子錢包 | 餘額、交易紀錄、凍結/解凍 | 儲值發起、遊戲扣款業務規則 | wallet.balance 永遠 ≥ 0 |
+| `deposit` | 儲值 / 充值 | 儲值請求、支付確認、退款 | 餘額實際變更（呼叫 wallet BC）| 儲值確認後 wallet 必須變更餘額（最終一致） |
+| `lobby` | 遊戲大廳 | 遊戲清單、上下架、分類、限額 | 遊戲實際邏輯、帳號狀態 | 大廳顯示的遊戲狀態與 game BC 一致（最終一致） |
+| `game` | 遊戲系統 | 下注、開獎、RNG、遊戲紀錄 | 玩家餘額儲存（呼叫 wallet BC）| 每局遊戲結果不可修改；RNG 公平性可驗證 |
+| `{{bc_name}}` | {{domain}} | {{owned_rules}} | {{not_owned}} | {{invariant}} |
+
+> **填寫指引：**  
+> - 「擁有的業務規則」= 此子系統是決策者和資料擁有者  
+> - 「不擁有的業務規則」= 此子系統需要透過 API 或 Event 請求其他 BC 執行  
+> - 「業務不變量」= 任何時刻都必須成立的業務條件（用於 EDD Domain Invariant 設計）
+
+---
+
 ## 6. Market & Competitive Analysis
 
 ### 6.1 競品分析
@@ -379,6 +401,7 @@ Input（我們可控的行動）
 | 基礎設施：{{INFRA_CONSTRAINT}}（e.g. 必須用 AWS / 自建機房 / 無限制） | 硬性/軟性 | 採購合約 / 現有環境 | ARCH 雲端平台選型 |
 | 資料庫：{{DB_CONSTRAINT}}（e.g. 必須用 PostgreSQL / 無限制） | 硬性/軟性 | 現有授權 / DBA 規定 | EDD DB 選型 |
 | 開源授權：{{LICENSE_CONSTRAINT}}（e.g. 禁用 GPL / 僅允許 MIT+Apache） | 硬性 | 法務規定 | 所有第三方套件選型 |
+| **子系統可拆解性（Spring Modulith HC-1～HC-5）**：各子系統（§5.5）從 Day 1 以 BC 邊界設計；HC-1 禁止跨 BC DB-level FK；HC-2 跨 BC 只透過 Public API 或 Domain Event；HC-3 跨 BC 通訊優先 Async Event；HC-4 無跨 BC Shared Mutable State；HC-5 BC 間依賴為 DAG | **硬性** | 架構可拆解性設計需求（Spring Modulith 2022+） | EDD §3.4、ARCH §4、SCHEMA §9.5、API §1.1 所有設計約束 |
 
 > **填寫指引：**
 > - 硬性（Hard）= EDD 不得違反，需書面豁免才能排除
