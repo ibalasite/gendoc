@@ -33,7 +33,7 @@
 
 | 狀態 | Step | 三件套完整度 | 備注 |
 |------|------|------------|------|
-| `[B]` | DRYRUN | ✅✅❌ | 缺 `DRYRUN.review.md`；建立後可執行 reviewtemplate |
+| `[x]` | DRYRUN | ✅✅✅ | finding=0（passed），4輪，新建 review.md + 修復 gen.md Step 5 覆蓋 + 多項一致性 |
 
 ## Part C — special_skill 步驟（N/A）
 
@@ -60,3 +60,4 @@
 | RESOURCE | 2026-05-02 | 23 | 0 | ea0c7c0 |
 | CICD | 2026-05-02 | 10 | 0 | c03ce03 |
 | DEVELOPER_GUIDE | 2026-05-02 | 8 | 0 | 90040e9 |
+| DRYRUN | 2026-05-02 | 15 | 0 | ac51cf7 |
