@@ -82,34 +82,62 @@ options:
 
 ---
 
-## Step 1：選擇目標
+## Step 1：選擇目標（第一層）
 
 **注意：`gendoc-config` 本質上是互動式工具，固定以互動模式執行，不受 state file 中 `execution_mode` 影響。**
+
+**背景說明**：`AskUserQuestion` 每題最多 4 個選項，原本 6 個選項須拆成兩層。
 
 用 `AskUserQuestion` 詢問：
 
 ```
 question: "你想做什麼？"
 options:
-  - "重新跑全部流程（從頭開始，保留文件）"
-  - "從某個 STEP 重新開始"
-  - "只更換審查強度（不重設進度）"
-  - "手動設定 client_type（web / game / api-only）"
-  - "手動設定 has_admin_backend（Admin 後台）"
+  - "重設流程進度（重新跑全部 / 從某步開始）"
+  - "修改審查強度（不重設進度）"
+  - "修改專案設定（client_type / Admin 後台）"
   - "清除全部設定（刪除所有 state file）"
 ```
 
 ---
 
+## Step 1b：第二層選單（依第一層觸發）
+
+### 第一層選「重設流程進度」→ 繼續詢問
+
+用 `AskUserQuestion` 詢問：
+
+```
+question: "要從哪裡重新開始？"
+options:
+  - "重新跑全部流程（從頭，保留文件）"
+  - "從某個 STEP 重新開始"
+```
+
+### 第一層選「修改專案設定」→ 繼續詢問
+
+用 `AskUserQuestion` 詢問：
+
+```
+question: "要修改哪個設定？"
+options:
+  - "client_type（web / game / api-only）"
+  - "has_admin_backend（Admin 後台開關）"
+```
+
+### 第一層選「修改審查強度」或「清除全部設定」→ 直接進入 Step 2
+
+---
+
 ## Step 2：依選擇分流
 
-### 選「重新跑全部流程」
+### 選「重設流程進度」→「重新跑全部流程」
 
 → 設 `_NEW_STEP = "0"`，繼續 Step 3（審查強度）→ Step 4 寫入
 
 ---
 
-### 選「從某個 STEP 重新開始」
+### 選「重設流程進度」→「從某個 STEP 重新開始」
 
 **[AI 指令]** 先執行以下 bash + python3 取得動態清單，再呼叫 `AskUserQuestion`：
 
@@ -170,13 +198,13 @@ AskUserQuestion(
 
 ---
 
-### 選「只更換審查強度」
+### 選「修改審查強度」
 
 → 設 `_NEW_STEP = $_STEP`（維持現有進度），繼續 Step 3（審查強度）→ Step 4 寫入
 
 ---
 
-### 選「手動設定 client_type」
+### 選「修改專案設定」→「client_type」
 
 用 `AskUserQuestion` 詢問：
 
@@ -195,7 +223,7 @@ options:
 
 ---
 
-### 選「手動設定 has_admin_backend（Admin 後台）」
+### 選「修改專案設定」→「has_admin_backend」
 
 用 `AskUserQuestion` 詢問：
 
