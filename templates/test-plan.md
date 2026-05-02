@@ -253,6 +253,18 @@ func TestUserService_CreateUser_ErrorWhenInvalidEmail(t *testing.T)
 | Service Boundary | Service A 呼叫 Service B 的 contract | Mock server (msw / WireMock) / Contract Testing (Pact) |
 | Message Queue | 訊息發佈/訂閱、retry、dead letter queue | testcontainers (Kafka/RabbitMQ) |
 | Cache Layer | Cache hit/miss、TTL、invalidation | testcontainers (Redis) / in-memory fake |
+| **HA 行為** | Pod 重啟後服務恢復、DB Failover 後連線重連、分散式鎖競爭 | chaoskube（K8s 環境）/ toxiproxy（網路注入）|
+
+#### HA Integration Test 標準場景
+
+> 以下場景依 EDD §12.2 HA-01~HA-04 執行，驗證 ≥ 2 replica 環境下的 HA 程式邏輯正確性：
+
+| 場景 ID | 測試名稱 | 注入方式 | 預期行為 |
+|---------|---------|---------|---------|
+| HA-INT-01 | 分散式鎖競爭（≥ 2 API replica）| 同時發送 2 個相同冪等操作請求 | 只有 1 個成功寫入，另 1 個收到 409 或排隊等待 |
+| HA-INT-02 | Session 外置驗證 | Kill API Pod 後用原 Session Token 重新請求 | 新 Pod 能正確驗證原 Session，無需重新登入 |
+| HA-INT-03 | DB 連線重連 | toxiproxy 斷開 DB 連線 5s 後恢復 | 應用層在連線恢復後自動重連，請求不丟失 |
+| HA-INT-04 | Circuit Breaker 觸發 | toxiproxy 注入 500ms 延遲到外部依賴 | CB 在閾值後開啟，回傳降級響應（非 5xx 崩潰）|
 
 #### Test Database 策略
 
