@@ -168,6 +168,46 @@ References: Martin Fowler "MonolithFirst" (2015) · Sam Newman *Monolith to Micr
 
 ---
 
+## Document Architecture — SDLC Foundation
+
+gendoc's document pipeline is grounded in established **Software Development Lifecycle (SDLC)** theory. The Requirements Engineering and Design phases are decomposed into four distinct layers, each answering a single question for a specific audience:
+
+| Layer | Documents | Question | Audience |
+|-------|-----------|----------|----------|
+| **L1 — Business Requirements** | IDEA · BRD | **Why** — market opportunity & business value | Executives, Product Owners |
+| **L2 — System Requirements** | PRD · CONSTANTS | **What** — feature scope & acceptance criteria | PM, QA, Stakeholders |
+| **L3 — UX / Interaction Design** | PDD · VDD · FRONTEND | **How it works** — user flows & experience design | UX Designers, Frontend Devs |
+| **L4 — Architecture / Detailed Design** | EDD · ARCH · API · SCHEMA | **How to build** — system architecture & implementation | Engineers, DevOps |
+
+Each layer speaks to its audience in its own language. Downstream layers inherit and refine upstream decisions via gendoc's **cumulative upstream reading** mechanism — ensuring SCHEMA.md cannot contradict API.md, and EDD.md cannot contradict PRD.md.
+
+### Theoretical Basis
+
+**International Standards**
+- **ISO/IEC/IEEE 29148:2018** — Requirements Engineering life cycle: BRS → StRS → SyRS hierarchy maps directly to L1 → L2
+- **ISO/IEC/IEEE 42010:2011** — Architecture Description: establishes L4 as a separate artifact from L1–L3 requirements
+- **IEEE Std 830-1998** — SRS "what, not how" principle: canonical basis for L2 / L4 separation
+
+**Academic References**
+- Wiegers & Beatty, *Software Requirements* 3rd ed. (Microsoft Press, 2013) — three-tier business / user / system decomposition
+- Robertson & Robertson, *Mastering the Requirements Process* 3rd ed. (Addison-Wesley, 2012) — Volere Template: project purpose (L1) → product scope (L2) → behavioral requirements (L3)
+- Cockburn, *Writing Effective Use Cases* (Addison-Wesley, 2000) — goal-level hierarchy: organization (L1) → user-goal (L2) → sub-function (L3/L4)
+- Kruchten, "Architectural Blueprints: The 4+1 View Model" (*IEEE Software*, 1995) — use-case view (L2/L3) vs. logical/physical architecture views (L4)
+- Nuseibeh & Easterbrook, "Requirements Engineering: A Roadmap" (*ICSE 2000*) — problem space (L1/L2) vs. solution space (L3/L4)
+
+**Industry Frameworks**
+- IIBA BABOK v3 (2015) — business requirements vs. solution requirements as distinct knowledge areas
+- IREB CPRE Syllabus (2022) — professional RE certification: system context → elicitation → specification layers
+- TOGAF Standard 10th Ed. (The Open Group, 2022) — Business → Data → Application → Technology architecture, adopted by 80% of Global 50 companies
+
+**AI-Driven SDLC Research**
+- Hong et al., "MetaGPT" (*ICLR 2024*, arXiv:2308.00352) — SOP-encoded multi-agent pipeline (PRD → System Design → Code) outperforms single-LLM approaches, validating layered document decomposition as a prerequisite for reliable AI software engineering
+- Qian et al., "ChatDev" (*ACL 2024*, arXiv:2307.07924) — multi-agent SDLC automation following requirements → design → implementation phases; confirms ambiguous upstream documents cause cascading implementation failures
+
+> **Core insight**: Decomposing SDLC into explicit document layers is not bureaucratic overhead — it is the structural prerequisite for reliable AI-assisted development. Ambiguous upstream documents cause cascading failures downstream; precise layered specifications enable AI agents (and human engineers) to implement without guesswork.
+
+---
+
 ## Template Architecture
 
 ```
