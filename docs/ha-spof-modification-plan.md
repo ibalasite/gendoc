@@ -788,15 +788,86 @@
 
 ---
 
-共 48 項修改（M-01 至 M-48），跨 36+ 個檔案。
+## M-49
 
-*版本：2026-05-02 v13（新增 M-47：D-prefix 命名清理 ~120 處；新增 M-48：Pipeline Dryrun + Gate 機制設計）*
+| 欄位 | 內容 |
+|------|------|
+| **需求來源** | Spring Modulith 架構符合性審查（2026-05-02）：HC-1「無跨模組 DB 直接存取」在 ARCH.md §4 缺少可追溯的三層映射表，工程師無法從任何 API Endpoint 反查「哪個 BC 擁有哪些 Table」。 |
+| **問題描述** | ARCH.md §4「服務邊界」現有模板要求填入「擁有資料」欄，但（1）模板中只有 `{{SERVICE_A_DATA}}` 等 placeholder，無對應的示例列格式；（2）ARCH.gen.md 未要求「從 EDD §3.4 BC 清單 + API.md Endpoints 自動生成三層映射表」；（3）即使 review checklist AM-01 能攔截違規，生成的 ARCH.md 本身若缺少此表，新工程師在 PR 之前仍無法自查。缺口具體表現：目前生成的 ARCH.md 中，無法從 `POST /api/v1/members/login` 直接看到「此 endpoint 屬於 Member BC → 操作 member_schema.users / sessions 表」的明確聲明。 |
+| **專家評估** | CRITICAL 缺口。Spring Modulith HC-1 的核心是「Schema Ownership is explicit and traceable」—— 若在主架構文件中沒有正式的 BC ↔ Table 所有權聲明，開發者只能靠 SCHEMA.md 的「Owning BC」欄隱性推斷，容易在跨 BC 功能開發時誤操作他人的 Table。三層映射表（API Endpoint → Owning BC → Owned Tables）是消除歧義的最直接工具，且製作成本低（從已有的 EDD §3.4 和 API.md 直接提取）。 |
+| **建議怎麼改** | **(1) ARCH.md §4 新增子節「§4.0 API-BC-Schema 映射表」**：位置在 §4「服務邊界」現有 BC 描述表之後、§4.1 之前；格式為 3 欄表格：`API Endpoint（Method + Path）` ｜ `Owning Bounded Context` ｜ `Owned DB Tables`；需涵蓋所有「寫入操作 Endpoint」（GET 僅 Query，不強制列出）；至少包含 EDD §3.4 定義的每個 BC 的代表性 endpoint ≥ 1 條。**(2) ARCH.gen.md 加入生成規則**：在「Step 4：§4 服務邊界」的指令中新增：「必須從 EDD.md §3.4 Bounded Context 清單 + API.md §3 Endpoints 逐一提取，自動生成 §4.0 映射表；每個 BC 至少 1 條 endpoint 且 Table 名稱必須與 SCHEMA.md Document Control 的 Owning BC 欄一致」。**(3) ARCH.review.md AM-01 擴展 Check 內容**：在現有 AM-01「Schema 隔離缺失」的 Check 中新增：「§4.0 映射表是否存在且每個 BC 至少有 1 行；Table 名稱是否與 SCHEMA.md 對應 BC 一致」。 |
+| **目標檔案** | `templates/ARCH.md`（§4 新增 §4.0 子節，提供表格骨架）；`templates/ARCH.gen.md`（Step 4 生成規則新增三層映射表指令）；`templates/ARCH.review.md`（AM-01 Check 擴展） |
+| **影響範圍** | 生成的 ARCH.md 頁數增加 1~2 頁（映射表）；ARCH review loop 多 1 個量化 check；SCHEMA.md 的「Owning BC」欄成為 ARCH §4.0 的驗證依據（兩個文件需保持一致） |
+| **工作量評估** | 小（3 個文件，各新增 10~30 行）；ARCH.md 新增表格骨架、ARCH.gen.md 新增生成指令、ARCH.review.md 擴展 Check |
+| **依賴關係** | 依賴 EDD.md §3.4 BC 清單（M-28 已修，現有 §3.4 有 Bounded Context 表）；依賴 API.md §3 Endpoints（現有 API.md 已有 Endpoints 章節）；依賴 SCHEMA.md Document Control Owning BC 欄（現有 SCHEMA.md 已有此欄） |
+| **決策** | 待確認 |
 
-**M-48 執行優先順序建議**：
-1. 先完成 M-47 + M-46（pipeline ID 穩定）
-2. 設計 `templates/DRYRUN.gen.md`（最複雜，需確定所有 step 的量化規則計算邏輯）
-3. 實作 `tools/bin/gate-check.sh`（確認 bash grep 可正確計算各種量化指標）
-4. 新建 `skills/gendoc-gen-dryrun/SKILL.md`（整合 DRYRUN gen agent）
-5. 修改 `skills/gendoc-flow/SKILL.md`（加入 gate_check 呼叫 — 風險最高，需充分測試）
+---
 
-*版本：2026-05-02 v13（新增 M-47：pipeline.json + 9 個 SKILL + 1 個 template 的 D-prefix 命名全面清除 — 共 11 個檔案 ~120 處，消除「數字暗示執行順序」的系統性誤導；M-46 與 M-47 建議合併執行）*
+## M-50
+
+| 欄位 | 內容 |
+|------|------|
+| **需求來源** | Spring Modulith 架構符合性審查（2026-05-02）：HC-1～HC-5 全部 5 條約束缺少自動化測試場景定義。BDD-server.gen.md 雖提到「@modulith @p0 Scenario ≥ 4」，但 test-plan.md 本身無對應章節，CI 無法自動跑 Spring Modulith 隔離驗證。 |
+| **問題描述** | 目前情況：（1）`templates/test-plan.md` 缺少 Spring Modulith 可拆解性測試的正式章節；（2）`templates/test-plan.gen.md` 無「為每對 BC 自動生成 HC-1/HC-2 isolation scenario」的生成規則；（3）`BDD-server.gen.md` 有「@modulith @p0 Scenario ≥ 4」的要求，但格式是 quality-bar 中的一行條件，而非 Feature 檔的具體骨架；（4）結果：生成的 test-plan.md 可能完全沒有 ArchUnit / @ApplicationModuleTest 相關內容，CI pipeline 中的 `make test-modulith` 步驟缺少依據。影響：Spring Modulith 的 5 條約束在系統建置後完全依賴人工 Code Review 發現，無機械式驗證防護網。 |
+| **專家評估** | CRITICAL 缺口。Spring Modulith 提供的 `@ApplicationModuleTest` 是其核心價值之一 —— 它能在 unit test 層級驗證「模組邊界是否被突破」，不需要啟動完整 Spring Context。若 test-plan.md 不定義這些測試場景，工程師不會主動寫這類測試。有了 DRYRUN（M-48）的 gate-check 機制後，test-plan.md 的完整性已有量化基線，現在更需要確保基線本身包含 Modulith 測試場景。 |
+| **建議怎麼改** | **(1) test-plan.md 新增「§X Spring Modulith 可拆解性驗證」章節**（位置：在整合測試章節之後）：定義 ≥ 5 個測試場景骨架，每個對應一條 HC 約束：`TC-SM-01: HC-1 Schema Isolation — BC-A 不得直接 SELECT BC-B 的 Table`（工具：ArchUnit + SQL query log）；`TC-SM-02: HC-2 Public Interface — BC-A 不得 import BC-B 的 internal package`（工具：`@ApplicationModuleTest`）；`TC-SM-03: HC-3 Event-Driven — BC 間異步操作必須透過 Domain Event，不得直接 method call`（工具：`@ApplicationModuleTest` + mock event bus）；`TC-SM-04: HC-4 Shared State — Redis Key 必須以 `${BC_NAME}:` 為 prefix，不得跨 BC 讀寫`（工具：integration test + Redis key log）；`TC-SM-05: HC-5 DAG — 模組依賴圖無循環`（工具：`spring-modulith-core` 的 `ApplicationModules.verify()`）。**(2) test-plan.gen.md 加入生成規則**：在現有 Step N（整合測試章節）後新增：「必須從 EDD §3.4 BC 清單自動為每對 BC 生成 HC-1 + HC-2 隔離 scenario，總 scenario 數 ≥ BC 數 × 2」。**(3) BDD-server.gen.md quality-bar 強化**：將「@modulith @p0 Scenario ≥ 4」改為「@modulith @p0 Scenario ≥ 5（TC-SM-01 到 TC-SM-05 各一個）」，並要求每個 Scenario 的 Given/When/Then 具體到工具層級（如「Given Spring ApplicationModules.verify() is configured」）。 |
+| **目標檔案** | `templates/test-plan.md`（新增 §X Spring Modulith 可拆解性驗證章節）；`templates/test-plan.gen.md`（新增 BC pair 自動生成規則）；`templates/BDD.md` 或 `BDD-server.gen.md`（@modulith Scenario 數量和格式要求加強） |
+| **影響範圍** | 生成的 test-plan.md 新增 1 個章節（~1 頁）；BDD feature files 新增 ≥ 5 個 @modulith Scenario；CI 新增 `make test-modulith` 目標（需 LOCAL_DEPLOY.md 同步新增） |
+| **工作量評估** | 小～中（3 個文件，各 20~40 行）；test-plan.md 骨架最複雜，需確定 ≥ 5 個 Scenario 的 Given/When/Then 內容 |
+| **依賴關係** | 依賴 EDD.md §3.4 BC 清單（M-28 已修）；依賴 LOCAL_DEPLOY.md `make` 系列指令（M-50 完成後需在 LOCAL_DEPLOY.md 新增 `make test-modulith`）；不依賴 M-49（可並行） |
+| **決策** | 待確認 |
+
+---
+
+## M-51
+
+| 欄位 | 內容 |
+|------|------|
+| **需求來源** | Spring Modulith 架構符合性審查（2026-05-02）：EDD.md §4.6 Domain Events 清單表完整性不確定；§4.3 服務間依賴 DAG 圖生成是否確實執行無法驗證。EDD.gen.md 的生成指令對兩者都不夠明確，導致 AI 可能跳過或生成空殼。 |
+| **問題描述** | 具體問題：**(A) §4.6 Domain Events 清單**：EDD.review.md SM-04（HIGH）要求 Domain Event Schema 包含 `event_schema_version` 和 `topic_name`，但 EDD.gen.md 的「生成 §4.6 Domain Events」步驟沒有「遍歷所有 BC 逐一列出發布的 Event」的強制指令；AI gen agent 可能只為 2-3 個 BC 示範，其餘 BC 的 events 缺漏。缺漏後果：ARCH §5.3 Event-Driven Communication 無法追溯「哪個 BC 發布了哪些事件」，Kafka Topic 設計無 source of truth。**(B) §4.3 服務間依賴 DAG 圖**：EDD.review.md SM-03（HIGH）要求「模組依賴圖含循環依賴 HC-5」的 check，但 EDD.gen.md 對 §4.3 DAG 圖的生成指令只說「生成跨 BC 依賴圖」，沒有「必須覆蓋所有 BC、必須標示依賴方向、必須透過 `ApplicationModules.verify()` 可驗證」的強制要求；AI 可能生成不完整的 DAG 或遺漏邊界。 |
+| **專家評估** | CRITICAL 缺口。Domain Events 清單是 Spring Modulith 合部署 → 拆微服務的關鍵橋梁 —— 合部署時事件走 in-process bus，拆出後改 Kafka topic 名稱，若清單不完整，拆分時會遺漏事件。DAG 圖則是 HC-5 的唯一可視化工具，若不強制生成完整版本，循環依賴可能在 6 個月後才被 production 事故發現。兩個問題都源自 EDD.gen.md 生成規則的「強制程度」不足。 |
+| **建議怎麼改** | **(1) EDD.md §4.6 骨架加強**：在現有 §4.6 Domain Events 後新增「§4.6.1 Domain Events 完整清單」表格骨架（6 欄：Owning BC ｜ Event Class Name ｜ Trigger ｜ Payload 欄位 ｜ Consumer BC(s) ｜ topic_name ｜ event_schema_version）；表格後補充「Event Schema 升版規則」2-3 行說明（破壞性變更需遞增 major version；舊版本保留 ≤ 14 天）。**(2) EDD.gen.md §4.6 生成指令強化**：在「生成 §4.6」的步驟中新增強制規則：「**必須**逐一遍歷 §3.4 的每個 BC，對每個 BC 列出其發布的所有 Domain Event（至少 1 個；若某 BC 無事件，明確標示「無」而非略過）；topic_name 格式為 `{系統縮寫}.{bc_name}.{event_type}.{v1}`；禁止只示範 1-2 個 BC」。**(3) EDD.md §4.3 DAG 圖骨架加強**：在現有 §4.3 後新增明確要求：「Mermaid graph LR 圖必須節點 = 全部 BC（無遺漏）、邊 = 依賴方向（A → B 表示 A 依賴 B 的 Public API）、附加 @ApplicationModules.verify() 測試程式碼骨架（3-5 行 Java）說明如何自動驗證此圖」。**(4) EDD.gen.md §4.3 生成指令強化**：新增：「DAG 圖節點數必須等於 §3.4 BC 清單的 BC 數（可用 bash 驗證：`grep -c 'class ' §4.3 Mermaid block == BC count`）；若圖中出現 A → B → A 的路徑，必須標示 ⚠️ 循環依賴並在 §4.3 下方加入修復建議」。**(5) EDD.review.md SM-03 / SM-04 Check 加強**：SM-03 新增量化 check：「DAG 圖的節點數是否等於 §3.4 BC 清單數（允差 0）」；SM-04 新增：「Events 清單中每個 BC 是否都有至少 1 行（無論是 event 或『無』聲明）」。 |
+| **目標檔案** | `templates/EDD.md`（§4.3 DAG 圖骨架加強、§4.6.1 Domain Events 清單骨架新增）；`templates/EDD.gen.md`（§4.3 和 §4.6 生成指令各新增 3~5 行強制規則）；`templates/EDD.review.md`（SM-03 和 SM-04 Check 各新增 1~2 個量化驗證條件） |
+| **影響範圍** | 生成的 EDD.md 頁數增加（Events 清單可能 1~2 頁，視 BC 數量）；EDD review loop 多 2 個量化 check；EDD.gen.md 生成指令更嚴格，gen agent 生成時間可能增加 10-20% |
+| **工作量評估** | 小～中（3 個文件，各 20~50 行）；EDD.md §4.6.1 表格骨架設計最需要謹慎（欄位要完整但不能過於複雜） |
+| **依賴關係** | 不依賴其他未完成的 M-item；M-49（ARCH 三層映射表）完成後，EDD §4.6 Events 清單的 Consumer BC 欄可以被 ARCH §4.0 映射表驗證一致性（兩者互為上下游） |
+| **決策** | 待確認 |
+
+---
+
+## M-52
+
+| 欄位 | 內容 |
+|------|------|
+| **需求來源** | Spring Modulith 架構符合性審查（2026-05-02）：HC-2「跨模組只透過 Public Interface」在 API.md 中缺少「每個 Endpoint 所屬 BC」的顯式聲明，導致前端或其他 BC 開發者無法從 API 文件判斷「這個 API 是哪個 BC 的 Public Interface」。 |
+| **問題描述** | API.md §1.1（Document Control）雖有標注「Service Encapsulation（HC-2）」字樣，但整份文件是單一文件涵蓋所有 BC 的 Endpoints，缺少「每個 Endpoint 所屬 BC」的欄位或分組。問題：（1）如果 Member BC 和 Wallet BC 的 endpoint 混合列在同一個 §3 Endpoints 章節，消費者無法判斷「呼叫 `/api/v1/wallets/balance` 時，我是在跨 BC 呼叫嗎？」；（2）API.gen.md 沒有要求「按 BC 分節」或「每個 Endpoint 標示 Owning BC」；（3）review.md 對此無 check 項。 |
+| **專家評估** | HIGH 缺口。HC-2 的實踐關鍵在於「BC 邊界可見」—— 開發者在寫 frontend 代碼時必須知道「我正在呼叫哪個 BC 的 Public API」，才能在之後的拆分中正確配置 API Gateway 的路由。若 API.md 不標示所屬 BC，整個 Modulith 可拆解性只存在於 EDD/ARCH 理論層，不落到實際 API 契約上。 |
+| **建議怎麼改** | **(1) API.md §3 Endpoints 按 BC 分節**：將現有的扁平式 Endpoints 清單改為「§3.1 {BC_NAME} BC — Public API」的結構，每個 BC 一個小節；或在每個 Endpoint 行首加入「Owning BC」欄（若保持表格格式）。**(2) API.md §1 Document Control 新增「Bounded Context Scope」欄**：說明「本文件涵蓋以下 BC 的 Public API：`{{BC_LIST}}`」。**(3) API.gen.md 新增生成規則**：在「生成 §3 Endpoints」步驟中新增：「Endpoints 必須按 Owning BC 分組，每組以 `### §3.N {BC_NAME} Bounded Context Public API` 為標題；BC 名稱必須與 EDD §3.4 BC 清單完全一致（禁止自創 BC 名稱）」。**(4) API.review.md（若存在）或 ARCH.review.md AM-02 擴展**：新增 check：「§3 Endpoints 是否按 BC 分節或標示 Owning BC；每個 Endpoint 的 Owning BC 是否能在 EDD §3.4 找到對應」。 |
+| **目標檔案** | `templates/API.md`（§1 Document Control 新增 BC Scope 欄、§3 Endpoints 結構改為按 BC 分節）；`templates/API.gen.md`（若存在，新增分節生成規則）；`templates/ARCH.review.md`（AM-02 擴展 API BC 標示 check） |
+| **影響範圍** | 生成的 API.md 結構調整（§3 從扁平改為按 BC 分節）；現有 API.review.md（若有）需同步更新 section check |
+| **工作量評估** | 小（2~3 個文件，各 10~20 行調整）；主要工作是 API.md 骨架的結構重組 |
+| **依賴關係** | 依賴 M-49（ARCH §4.0 映射表）完成後，API BC 分節可作為 §4.0 映射表的驗證來源；不阻塞 M-49 |
+| **決策** | 待確認 |
+
+---
+
+## M-53
+
+| 欄位 | 內容 |
+|------|------|
+| **需求來源** | Spring Modulith 架構符合性審查（2026-05-02）：HC-4「無跨模組 Shared Mutable State」的 Redis Key Namespace 隔離設計，僅在 EDD.review.md SM-05 的 check 範例（`member:*`, `wallet:*`）中隱性出現，未在正式架構文件中有專屬設計章節，工程師難以發現和執行。 |
+| **問題描述** | ARCH.md §7 高可用設計提及 Redis 配置（Sentinel / Cluster），但未包含「BC 維度的 Redis Key Prefix 設計規範」。ARCH.review.md AM-04 能在 review 時發現違規，但「Cache Invalidation 跨 BC 影響」、「Session 共享 Redis 如何隔離」等設計決策完全缺失。結果：工程師在寫 Redis 相關代碼時，沒有官方參考文件說明「Wallet BC 的 Redis key 應以 `wallet:` 為 prefix，不得以 `member:wallet:` 這種跨 BC namespace 存取」。 |
+| **專家評估** | MEDIUM 缺口。Redis Namespace 隔離的設計成本低，但若缺少正式規範，在 3-6 個月後的 BC 拆分時，發現 Redis Key 沒有隔離（例如 `session:{user_id}` 跨 BC 共用），遷移成本極高。現在在架構文件中正式化只需 10-20 行，但拆分時修復可能需要 1-2 週。 |
+| **建議怎麼改** | **(1) ARCH.md §7 新增子節「§7.1 Shared State Isolation（HC-4）」**：定義 Redis Key Namespace 分配規範（格式 `{BC_NAME}:{entity_type}:{id}`，範例 `member:session:u001`、`wallet:balance_cache:w001`）；列出「禁止的 Key 模式」（如 `user:*` 橫跨多 BC）；說明 Session 存放規則（Session 若存 Redis，必須以所屬 BC prefix 隔離）；說明 Cache Invalidation 政策（BC-A 的 cache 失效操作只能清除 `{BC_A}:*`，不得清除他 BC 的 key）。**(2) ARCH.gen.md 新增生成規則**：在「生成 §7 高可用設計」步驟後新增：「必須從 EDD §3.4 BC 清單自動為每個 BC 分配 Redis Key Prefix，生成 §7.1 表格（至少涵蓋 Session、Cache、Lock、Pub/Sub 4 種 key 類型）」。**(3) ARCH.review.md AM-04 擴展**：在現有 AM-04「無跨服務共享可變狀態說明」的 Check 中新增：「§7.1 是否存在；表格中每個 BC 是否都有 Redis Key Prefix 定義；Key Prefix 是否互斥（無重疊）」。 |
+| **目標檔案** | `templates/ARCH.md`（§7 新增 §7.1 Shared State Isolation 子節）；`templates/ARCH.gen.md`（§7 生成步驟後新增 §7.1 生成指令）；`templates/ARCH.review.md`（AM-04 Check 擴展） |
+| **影響範圍** | 生成的 ARCH.md 新增 §7.1（~0.5 頁）；DRYRUN gate-check 的 ARCH.md min_h2_sections 需從 5 調整為 6（新增 §7.1） |
+| **工作量評估** | 小（3 個文件，各 10~20 行）；§7.1 骨架設計最關鍵，需確定 Key 格式和 4 種 key 類型 |
+| **依賴關係** | 不依賴其他未完成 M-item；M-53 完成後，`templates/DRYRUN.gen.md` 的 ARCH.md min_h2_sections 規則需從 5 更新為 6（小 follow-up 修改） |
+| **決策** | 待確認 |
+
+---
+
+共 53 項修改（M-01 至 M-53），跨 40+ 個檔案。
+
+*版本：2026-05-02 v14（新增 M-49～M-53：Spring Modulith 架構符合性審查缺口修復 — 3 個 CRITICAL（ARCH 三層映射表、Modulith BDD 測試場景、EDD Events/DAG 強化）+ 2 個 HIGH/MEDIUM（API BC 分節、Redis Namespace 設計）；審查基礎：5 條 HC 約束逐項驗證，覆蓋 17 個核心模板文件，整體評分 4.0/5）*
