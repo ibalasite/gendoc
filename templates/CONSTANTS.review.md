@@ -2,7 +2,7 @@
 reviewer-roles:
   - "PRD 數值稽核師（PRD Value Auditor）：逐一核對 CONSTANTS.md 每個數值與 PRD 對應來源，驗證數值正確性"
   - "一致性審查員（Consistency Reviewer）：確認 constants.json 與 CONSTANTS.md 數值完全吻合，確認下游文件引用的數值與本文件一致"
-quality-bar: "全文無 {{PLACEHOLDER}}；每個數值有 PRD §來源；constants.json 已生成且與 .md 一致；§4 SLO 三項均有量化數值；§8 容量三項均有量化數值"
+quality-bar: "全文無 {{PLACEHOLDER}}；每個數值有 PRD §來源；constants.json 已生成且與 .md 一致；§4 SLO 三項均有量化數值；§8 容量三項均有量化數值；§7 業務規則已填入或明確標記「本 PRD 無額外業務規則數值」"
 status: DEPRECATED
 deprecated-since: pipeline-v3.0
 replaced-by: EDD Pass-0 (in EDD.gen.md)
@@ -73,7 +73,17 @@ upstream-alignment:
 
 ---
 
-## [HIGH] 6 — 每個數值缺乏 PRD §來源標注
+## [HIGH] 6 — §2 倍率數值完整性與範圍驗證
+
+**Check**：確認 §2 所有倍率數值均已填入（無空白行/placeholder），並與 PRD 倍率定義章節比對，驗證最大倍率未超過 PRD 上限。
+
+**Risk**：倍率錯誤直接導致遊戲賠率計算錯誤，影響 EDD 的機率引擎設計。
+
+**Fix**：對照 PRD 倍率章節逐一核驗，確認每個倍率數值與觸發條件均已正確填入；非遊戲類型確認 §2 已標記 N/A。
+
+---
+
+## [HIGH] 7 — 每個數值缺乏 PRD §來源標注
 
 **Check**：§1-§8 的每個數值的「PRD 來源」欄位是否填寫了具體的 §章節編號。
 
@@ -83,7 +93,17 @@ upstream-alignment:
 
 ---
 
-## [MEDIUM] 7 — §3 觸發條件缺乏完整觸發-結果描述
+## [MEDIUM] 8 — §7 業務規則數值完整性
+
+**Check**：確認 §7 中的項目涵蓋了 PRD 中所有未被 §1-§6 歸類的量化業務規則；若 PRD 確實無此類數值，§7 應標記「本 PRD 無額外業務規則數值」而非保留 placeholder。
+
+**Risk**：§7 空白或僅有 placeholder 導致下游 BDD 的業務規則測試案例缺少數值依據。
+
+**Fix**：重新掃描 PRD，找出未被 §1-§6 涵蓋的量化業務規則補入 §7；確無則明確標記「本 PRD 無額外業務規則數值」（不得保留 placeholder）。
+
+---
+
+## [MEDIUM] 9 — §3 觸發條件缺乏完整觸發-結果描述
 
 **Check**：§3 每條觸發條件是否同時描述了「觸發條件」和「觸發後的行為/結果」。
 
@@ -93,7 +113,7 @@ upstream-alignment:
 
 ---
 
-## [MEDIUM] 8 — 發現 PRD 章節間數值衝突未標注
+## [MEDIUM] 10 — 發現 PRD 章節間數值衝突未標注
 
 **Check**：比對 §1-§8 中同類數值（如：不同章節提到的同一倍率），確認是否有衝突。
 
@@ -103,7 +123,7 @@ upstream-alignment:
 
 ---
 
-## [MEDIUM] 9 — §5 RTP（遊戲類型）缺乏多情境拆分
+## [MEDIUM] 11 — §5 RTP（遊戲類型）缺乏多情境拆分
 
 **Check**：遊戲類型的 §5 是否涵蓋所有遊戲情境（Main/ExtraBet/BuyFG 等）的獨立 RTP 值。
 
@@ -113,7 +133,7 @@ upstream-alignment:
 
 ---
 
-## [LOW] 10 — §6 Rate Limit 未覆蓋主要業務端點
+## [LOW] 12 — §6 Rate Limit 未覆蓋主要業務端點
 
 **Check**：§6 是否至少涵蓋登入、主要業務 API、管理後台的 rate limit 設定。
 
