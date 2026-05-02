@@ -1209,6 +1209,13 @@ aws elbv2 describe-target-health --target-group-arn {{TARGET_GROUP_ARN}}
 # If cause is still unclear: escalate to platform team — see Section 12 for escalation contacts
 ```
 
+> **k9s 等效操作（互動式）**
+> 1. 啟動：`k9s -n {{K8S_NAMESPACE}}`
+> 2. 查看 Pods：`:pod` → `/{{API_APP_LABEL}}` 篩選 → 確認 STATUS / READY
+> 3. 查看 logs：選中 pod → 按 `l`（即時串流）
+> 4. 查看 Deployment history：`:deploy` → 選中 → 按 `d`（Events 區可見 rollout 記錄）
+> 5. 查看 Events：`:event` → `/{{API_APP_LABEL}}` 篩選
+
 ### 7.2 Service Is Completely Unavailable
 
 **Symptoms:** Health check returns non-200, all requests timing out, PagerDuty `availability_breach` alert.
@@ -1252,6 +1259,13 @@ kubectl drain "${NOT_READY_NODE}" --ignore-daemonsets --delete-emptydir-data --t
 #   kubectl get pdb -n {{K8S_NAMESPACE}}
 # and consider --force only after confirming no stateful workloads will lose data (DATA LOSS WARNING)
 ```
+
+> **k9s 等效操作（互動式）**
+> 1. 啟動：`k9s -n {{K8S_NAMESPACE}}`
+> 2. 查看所有 Pods：`:pod` → 確認各 pod STATUS
+> 3. Scale Deployment：`:deploy` → 選中 `{{API_DEPLOYMENT_NAME}}` → 按 `s` → 輸入新 replica 數
+> 4. 查看 Nodes：`:node` → 確認所有 Node STATUS=Ready
+> 5. 查看 Node 詳情：選中 Node → 按 `d`（Events 區見 DiskPressure / MemoryPressure）
 
 ### 7.3 High Latency
 
@@ -1306,6 +1320,13 @@ kubectl exec -n {{REDIS_NAMESPACE}} $(kubectl get pods -n {{REDIS_NAMESPACE}} -l
 # Open: {{GRAFANA_LATENCY_DASHBOARD}} — group by path
 ```
 
+> **k9s 等效操作（互動式）**
+> 1. 啟動：`k9s -n {{K8S_NAMESPACE}}`
+> 2. 查看 HPA：`:hpa` → 確認 TARGETS 是否接近 MAXPODS
+> 3. Scale Deployment：`:deploy` → 選中 `{{API_DEPLOYMENT_NAME}}` → 按 `s`
+> 4. DB exec：`:ns` → 切到 `{{DB_NAMESPACE}}` → `:pod` → `/{{DB_APP_LABEL}}` → 選中 → 按 `s`（進 psql）
+> 5. Redis exec：`:ns` → 切到 `{{REDIS_NAMESPACE}}` → `:pod` → 選中 → 按 `s`
+
 ### 7.4 Job Queue Backlog
 
 **Symptoms:** `{{PROJECT_SLUG}}_queue_depth_high` alert, delayed processing, stale data in UI.
@@ -1340,6 +1361,13 @@ watch -n 10 'kubectl exec -n {{REDIS_NAMESPACE}} $(kubectl get pods -n {{REDIS_N
 # Step 6: After queue is drained, scale workers back to normal
 kubectl scale deployment/{{WORKER_DEPLOYMENT_NAME}} --replicas={{MIN_WORKER_COUNT}} -n {{K8S_NAMESPACE}}  # MIN_WORKER_COUNT ≥ 2
 ```
+
+> **k9s 等效操作（互動式）**
+> 1. 啟動：`k9s -n {{K8S_NAMESPACE}}`
+> 2. 查看 Worker Pods：`:pod` → `/{{WORKER_APP_LABEL}}` 篩選
+> 3. 查看 Worker logs：選中 pod → 按 `l`（觀察 failed/retry 訊息）
+> 4. Scale Workers：`:deploy` → 選中 `{{WORKER_DEPLOYMENT_NAME}}` → 按 `s`
+> 5. Redis exec：`:ns` → 切 `{{REDIS_NAMESPACE}}` → `:pod` → 選中 → 按 `s` → `redis-cli llen {{QUEUE_NAME}}`
 
 ### 7.5 Database Issues
 
@@ -1409,6 +1437,13 @@ kubectl rollout status deployment/{{API_DEPLOYMENT_NAME}} -n {{K8S_NAMESPACE}}
 # Expected value: "connected"
 ```
 
+> **k9s 等效操作（互動式）**
+> 1. 啟動：`k9s -n {{DB_NAMESPACE}}`
+> 2. 查看 DB Pod：`:pod` → `/{{DB_APP_LABEL}}` 篩選 → 確認 STATUS=Running
+> 3. 進入 DB shell：選中 DB pod → 按 `s` → 執行 `psql -U {{DB_USER}} -d {{DB_NAME}}`
+> 4. 查看 DB events：選中 pod → 按 `d`（Events 區見 OOMKilled / Evicted 原因）
+> 5. 重啟 API（DB 恢復後）：`:ns` → 切 `{{K8S_NAMESPACE}}` → `:deploy` → 選中 → 按 `ctrl-r`（rollout restart）
+
 ### 7.6 Pod CrashLoopBackOff
 
 ```bash
@@ -1449,6 +1484,13 @@ kubectl describe pod "${CRASH_POD}" -n {{K8S_NAMESPACE}} | grep -A5 "Events:"
 # See Section 9.1
 ```
 
+> **k9s 等效操作（互動式）**
+> 1. 啟動：`k9s -n {{K8S_NAMESPACE}}`
+> 2. 找崩潰 Pod：`:pod` → 找 STATUS=CrashLoopBackOff（紅色標示）
+> 3. 查看前次 crash logs：選中 pod → 按 `l` → 按 `p`（previous container logs）
+> 4. 查看 describe：選中 pod → 按 `d`（Events 區看 Reason: OOMKilled / ExitCode）
+> 5. 調整 memory limit：`:deploy` → 選中 → 按 `e`（edit YAML，修改 resources.limits.memory）
+
 ### 7.7 Disk Pressure
 
 ```bash
@@ -1485,6 +1527,13 @@ aws ec2 modify-volume --volume-id <ebs-volume-id> --size <new-size-gb>
 # Then resize the filesystem inside the pod (varies by OS and filesystem type)
 ```
 
+> **k9s 等效操作（互動式）**
+> 1. 啟動：`k9s`（不指定 namespace，全 cluster 視圖）
+> 2. 查看 Nodes：`:node` → 找到 DiskPressure 的 node（k9s 以黃/紅色標示條件異常的 node）
+> 3. 查看 Node 詳情：選中 node → 按 `d`（Conditions 區確認 DiskPressure=True）
+> 4. 查看該 Node 上的所有 Pods：選中 node → 按 Enter（列出 node 上所有 pod）
+> 5. 查看 PVC：`:pvc` → 確認 CAPACITY 和 STATUS
+
 ### 7.8 External Dependency Failure
 
 ```bash
@@ -1517,6 +1566,12 @@ kubectl set env deployment/{{API_DEPLOYMENT_NAME}} \
   -n {{K8S_NAMESPACE}}
 # The - suffix removes the env var (restores default behavior)
 ```
+
+> **k9s 等效操作（互動式）**
+> 1. 啟動：`k9s -n {{K8S_NAMESPACE}}`
+> 2. 進入 API Pod shell：`:pod` → `/{{API_APP_LABEL}}` → 選中 → 按 `s`
+> 3. 在 shell 中測試：`curl -sf https://api.{{EXTERNAL_SERVICE_HOST}}/health`
+> 4. 修改 circuit breaker env：`:deploy` → 選中 → 按 `e`（edit YAML，修改 env.{{CIRCUIT_BREAKER_ENV_VAR}}）
 
 ### 7.9 Backup Failure
 
@@ -1570,6 +1625,12 @@ zcat /tmp/backup-test.sql.gz | head -20
 # For compressed plain text integrity check only: gunzip -t /tmp/backup-test.sql.gz && echo "OK"
 ```
 
+> **k9s 等效操作（互動式）**
+> 1. 啟動：`k9s -n {{K8S_NAMESPACE}}`
+> 2. 查看 CronJobs：`:cronjob` → 確認 `{{BACKUP_CRONJOB_NAME}}` 的 LAST SCHEDULE
+> 3. 查看 Jobs：`:job` → `/backup` 篩選 → 找最近的 backup job
+> 4. 查看 Job logs：選中 job → 按 `l`（確認是否有 "Backup completed successfully"）
+
 ### 7.10 Cron Job / Batch Failure
 
 **Symptoms:** Scheduled job has not run at the expected time, or job ran but failed; stale data or missing reports.
@@ -1618,6 +1679,13 @@ kubectl get cronjob {{CRON_JOB_NAME}} -n {{K8S_NAMESPACE}} -o jsonpath='{.spec.c
 # If "Allow" and many active jobs exist: jobs are piling up — check if previous run is stuck
 kubectl get jobs -n {{K8S_NAMESPACE}} | grep {{CRON_JOB_NAME}}
 ```
+
+> **k9s 等效操作（互動式）**
+> 1. 啟動：`k9s -n {{K8S_NAMESPACE}}`
+> 2. 查看 CronJobs：`:cronjob` → 找到 `{{CRON_JOB_NAME}}`（確認 SUSPEND=false）
+> 3. 查看 Jobs：`:job` → `/{{CRON_JOB_NAME}}` 篩選 → 找 COMPLETIONS=0/N 的 job
+> 4. 查看 Job logs：選中 job → 按 `l`（確認 error message）
+> 5. 手動觸發：`:cronjob` → 選中 → 按 `t`（trigger job 快捷鍵，部分 k9s 版本支援）
 
 ### 7.11 Cross-Subsystem API Call Failure (Spring Modulith HC-2)
 
@@ -1734,6 +1802,13 @@ kubectl rollout status deployment/<producer_bc>-api -n {{K8S_NAMESPACE}}
 # Option B: Deploy event schema bridge (consumer reads both old + new schema)
 # See §4.4 for subsystem extraction procedure as reference for namespace-scoped rollout
 ```
+
+> **k9s 等效操作（互動式）**
+> 1. 啟動：`k9s -n {{K8S_NAMESPACE}}`
+> 2. 按 BC 篩選 Pods：`:pod` → `/<bc_name>` 篩選（例如 `/member` 查看 member BC）
+> 3. 查看 caller BC logs：選中 pod → 按 `l` → 按 `/` 搜尋 `error` 或 `circuit`
+> 4. 查看 NetworkPolicy：`:netpol` → 確認跨 BC ingress/egress 規則
+> 5. 查看 provider BC health：`:ns` 切換至 provider BC namespace → `:pod` 確認狀態
 
 ---
 

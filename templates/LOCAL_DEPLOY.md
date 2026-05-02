@@ -29,7 +29,7 @@ Install and verify every tool before proceeding. The setup will not work without
 | kubectl | 1.29 | Bundled with Rancher Desktop | `kubectl version --client` |
 | helm | 3.14 | Bundled with Rancher Desktop | `helm version` |
 | nerdctl | 1.7 | Bundled with Rancher Desktop | `nerdctl version` |
-| k9s（選配）| 0.32 | `brew install k9s` | `k9s version` |
+| k9s（選配）| ≥ 0.32 | macOS/Linux: `brew install derailed/k9s/k9s`<br>Windows: `choco install k9s` 或 `scoop install k9s` | `k9s version` |
 | skaffold（選配）| 2.11 | `brew install skaffold` | `skaffold version` |
 | psql client | 15 | `brew install libpq && brew link libpq` | `psql --version` |
 | mkcert | 1.4 | `brew install mkcert` | `mkcert --version` |
@@ -1459,4 +1459,101 @@ docker compose down
 # 完全重置（移除 container + volume）
 docker compose down -v
 # Warning: 所有 DB、minio 資料永久刪除
+```
+
+---
+
+## 20. k9s Quick Reference（互動式 K8s 操作）
+
+> **定位**：k9s 是 kubectl 的互動式補充層，適合 on-call 快速診斷與資源瀏覽。所有操作等同 kubectl 指令，但以鍵盤驅動，不適合腳本化。`kubectl` 仍是 canonical 工具（腳本、CI、Makefile 均用 kubectl）；k9s 是 power user 效率層。
+
+### 啟動
+
+```bash
+# 指定 namespace 啟動（推薦）
+k9s -n {{K8S_NAMESPACE}}-local
+
+# 全 cluster 啟動
+k9s --all-namespaces
+```
+
+### 資源切換（命令模式，按 `:` 進入後輸入）
+
+| 命令 | 說明 |
+|------|------|
+| `:pod` | 查看所有 Pod |
+| `:deploy` | 查看 Deployment |
+| `:svc` | 查看 Service |
+| `:cm` | 查看 ConfigMap |
+| `:secret` | 查看 Secret |
+| `:hpa` | 查看 HorizontalPodAutoscaler |
+| `:job` | 查看 Job |
+| `:cronjob` | 查看 CronJob |
+| `:node` | 查看 Node |
+| `:ns` | 切換 Namespace |
+| `:netpol` | 查看 NetworkPolicy |
+| `:pvc` | 查看 PersistentVolumeClaim |
+| `:event` | 查看 Events（等同 `kubectl get events`） |
+
+### 常用按鍵（Resource 選中後）
+
+| 按鍵 | 說明 | kubectl 等效 |
+|------|------|------------|
+| `l` | 查看 logs（即時串流） | `kubectl logs -f` |
+| `p` | 查看前次容器 logs（CrashLoopBackOff 用） | `kubectl logs --previous` |
+| `s` | exec 進入 container shell | `kubectl exec -it -- sh` |
+| `d` | describe | `kubectl describe` |
+| `e` | edit（直接編輯 YAML） | `kubectl edit` |
+| `ctrl-d` | delete resource（會要求確認） | `kubectl delete` |
+| `shift-f` | port-forward | `kubectl port-forward` |
+| `f` | fullscreen logs 切換 | — |
+| `/` | 文字篩選（過濾清單，支援正則） | `grep` |
+| `Esc` | 返回上層 / 清除篩選 | — |
+| `?` | 顯示所有按鍵說明 | — |
+| `q` | 退出 k9s | — |
+
+### 篩選技巧
+
+```bash
+# 在 :pod 清單中篩選 api server
+/{{API_APP_LABEL}}
+
+# 在 :event 中篩選 Warning 事件
+/Warning
+
+# 在 :pod 中篩選崩潰中的 Pod
+/CrashLoop
+
+# 在 :pod 中按 subsystem 篩選（Spring Modulith）
+/subsystem=member
+```
+
+### Scale Deployment（互動式）
+
+```
+1. 進入 k9s -n {{K8S_NAMESPACE}}-local
+2. 輸入 :deploy
+3. 選中目標 Deployment
+4. 按 s → 輸入新 replica 數 → 確認
+```
+
+### 皮膚與設定
+
+```bash
+# k9s 設定目錄
+ls ~/.config/k9s/
+
+# 設定 default namespace（config.yml 範例）
+# currentContext: rancher-desktop
+# namespace: {{K8S_NAMESPACE}}-local
+
+# 推薦 skin（deep sea 或 dracula）
+# 下載：https://github.com/derailed/k9s/tree/master/skins
+```
+
+### 與 Makefile 整合
+
+```bash
+# §6 Development Commands 已提供
+make k9s   # 等同 k9s -n {{K8S_NAMESPACE}}-local
 ```
