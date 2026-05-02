@@ -658,3 +658,32 @@
 6. 更新 EDD.md（§3.4 本地 Git Server 欄位）
 
 *版本：2026-05-02 v9（新增 M-43：Local Developer Platform — Gitea + Production Parity + 非開發者可用 CI/CD + Port 域分離設計文件化）*
+
+---
+
+## M-44
+
+| 欄位 | 內容 |
+|------|------|
+| **需求來源** | 新功能需求（2026-05-02）：開發者日常操作手冊 — DEVELOPER_GUIDE.md 三件套，填補「建置之後的每日操作層」空白 |
+| **問題描述** | 目前三份主要文件均未覆蓋「建置完成後，開發者每天如何操作」：(1) `LOCAL_DEPLOY.md` 負責第一次建置（1,973 行，一次性使用），建好後開發者不會每天翻它；(2) `runbook.md` 負責生產事故（namespace 是 `{{K8S_NAMESPACE}}`，不是 local 的 `{{K8S_NAMESPACE}}-local`），且目標讀者是 SRE / on-call 工程師，開發者用錯 namespace 會出事；(3) `CICD.md` 是 pipeline 設計文件，描述架構，不是操作手冊；(4) 實際缺少的場景：「我 git push 了，Jenkins 沒有觸發，怎麼辦？」「Pipeline 第 3 個 stage 失敗了，要去哪裡看 log？怎麼只重跑那個 stage？」「ArgoCD 一直顯示 OutOfSync，原因是什麼？」「密碼要換，要跑哪個指令？」—— 這些問題三份文件都沒有完整的 step-by-step 答案。 |
+| **專家評估** | **需求真實存在，填補的是實際開發者體驗的空白，不是理論上的文件完整性。** 評估依據：(A) **受眾分離是設計原則，不是文件數量問題**：On-call 工程師凌晨收到告警打開 runbook.md，不應看到「如何設定 Gitea webhook」；開發者遇到 Jenkins 未觸發打開 runbook.md，找到的指令 namespace 是生產環境 → 誤操作風險。混合受眾的文件兩邊都爛掉。(B) **LOCAL_DEPLOY.md 已達合理上限（1,973 行）**：繼續在 LOCAL_DEPLOY.md 裡加「日常操作」章節，文件定位模糊（建置 + 操作混合），且開發者找東西找不到。(C) **業界對應實踐**：GitHub Engineering 有獨立的 「Developer Guide」；Stripe Engineering 有獨立的「Local Development Handbook」；AWS 有「Getting Started」vs「Day 2 Operations」分開文件。這是業界慣例，不是過度設計。(D) **DEVELOPER_GUIDE.md 的具體內容有明確邊界**：覆蓋「環境建好之後，到生產事故之前」的這段操作空間；不重複 LOCAL_DEPLOY.md 的建置步驟；不重複 runbook.md 的生產事故處理；不重複 CICD.md 的 pipeline 架構說明。 |
+| **建議怎麼改** | **(A) 新增 `templates/DEVELOPER_GUIDE.md`（骨架）**，章節結構：(1) **Document Control**（doc-type: DEVELOPER_GUIDE；前提：LOCAL_DEPLOY.md §21 CI/CD 環境已建置完成；適用對象：開發者，非 SRE）；(2) **§1 每日開發工作流程**：完整 step-by-step 涵蓋 6 個場景 —— ①新功能開發（feature branch push → CI → deploy → verify）；②Hotfix（直接 main branch，緊急流程）；③只改前端（跳過 integration test？說明 Make target 邏輯）；④只改 schema（migration 如何在 CI 裡執行）；⑤多人協作（同一 Gitea repo，branch 保護規則，PR 合併後 ArgoCD 自動部署）；⑥Dry-Run 驗證（jenkinsfile-runner，push 前先本地跑）；(3) **§2 CI/CD 診斷與修復（Jenkins / ArgoCD / Gitea）**：逐場景 step-by-step —— ①Jenkins 未收到 Webhook（Gitea webhook 設定驗證 3 步驟）；②Pipeline stage 失敗（去哪裡看 log：Console Output path；怎麼只重跑一個 stage：Replay 功能 + 限制；怎麼完整重跑：Rebuild）；③ArgoCD OutOfSync（3 種原因分類：git 有改動但未 push 到 Gitea / helm values 漂移 / manifest 語法錯誤；各自解法）；④Image pull 失敗（registry credentials 過期的排查 3 步驟）；⑤Agent Pod 起不來（k3s 資源不足 / image pull policy / RBAC 問題）；(4) **§3 本地環境快速指令（Quick Reference）**：表格格式，Make target + 說明 + 何時用 ——`make dev-status`（所有 pod 狀態）、`make dev-logs service=api`（特定服務 log）、`make dev-restart service=api`（重啟特定服務，不重建 image）、`make dev-health`（curl 所有 health endpoint，含 Jenkins / ArgoCD / Gitea / App）、`make gitea-ui / jenkins-ui / argocd-ui`（開 browser + port-forward）、`make dev-tools-status`（CI/CD 工具 pod 狀態）、`make k9s`（互動式 k8s 管理）；(5) **§4 常見問題 + 解法（本地環境版）**：與 runbook.md §7 明確區隔（runbook = 生產 namespace；本節 = local namespace），條目：①Pod CrashLoopBackOff（本地版，排查 4 步驟）；②Port 衝突（哪個 process 佔用，kill 方式）；③密碼 / secret 失效（重跑 bootstrap-secrets.sh 的時機和方式）；④Namespace 狀態混亂（make k8s-clean 的執行條件，防止誤刪）；⑤Local image 未更新（build cache 問題，`--no-cache` 時機）；⑥Gitea push 被 reject（credentials 或 repo 不存在，3 種原因）；⑦Jenkins 初始密碼忘記（重新取得指令）；(6) **§5 環境維護（排程建議）**：每日（無需動作，自動監控）；每週（清理舊 image：`make dev-cleanup`；確認所有 pod healthy：`make dev-health`）；每月（helm repo update；確認 Gitea / Jenkins / ArgoCD 版本）；secret rotate（`make secrets-rotate`，觸發條件說明）；完全重置（`make dev-tools-down && make k8s-clean && make dev-setup`，步驟和預期耗時）；(7) **§6 與其他文件的邊界**：明確表格說明本文件 vs LOCAL_DEPLOY.md vs runbook.md vs CICD.md 各自負責的範圍，防止未來章節混淆。**(B) 新增 `templates/DEVELOPER_GUIDE.gen.md`（生成規則）**：(1) Iron Law：生成前必須讀取 `LOCAL_DEPLOY.md`（確認 §21 CI/CD 工具安裝指令）、`CICD.md`（確認 Make targets 名稱、Jenkinsfile stages）、`runbook.md`（確認 §7 各診斷場景，避免重複）；(2) 兩個專家角色：Developer Experience Engineer（§1/§3/§4 工作流程與快速指令）+ DevOps Diagnostics Expert（§2/§5 CI/CD 診斷與維護）；(3) 逐章節生成規則：§1 工作流程必須從 `CICD.md §4 Shared Make Targets` 取得正確 target 名稱；§2 Jenkins 診斷 log path 必須與 `CICD.md §2 Jenkinsfile` 的 stage 名稱一致；§3 Make targets 必須驗證 `LOCAL_DEPLOY.md §6` 所有 target 均存在；§4 本地 namespace 必須使用 `{{K8S_NAMESPACE}}-local`（不得使用生產 namespace）；(4) Quality Gate：無 `{{PLACEHOLDER}}` 殘留；§2 Jenkins log path 與 CICD.md 一致；§3 所有 Make target 均可在 LOCAL_DEPLOY.md §6 找到對應；§4 所有指令的 namespace 均含 `-local` 後綴；**(C) 新增 `templates/DEVELOPER_GUIDE.review.md`（審查標準）**，4 層共 10 項：Layer 1 工作流程完整性（CRITICAL：§1 是否涵蓋 6 個開發場景；HIGH：step-by-step 指令中 Make target 名稱是否與 LOCAL_DEPLOY.md §6 一致）；Layer 2 CI/CD 診斷可操作性（CRITICAL：§2 是否有 Jenkins 未觸發的排查步驟；HIGH：Jenkins log path 是否與 CICD.md Jenkinsfile 一致）；Layer 3 本地環境隔離（CRITICAL：§4 所有指令 namespace 是否含 `-local`，與生產隔離；MEDIUM：§6 邊界表格是否列出與 runbook.md 的區隔）；Layer 4 維護可操作性（HIGH：§5 完全重置步驟是否有預期耗時說明；MEDIUM：secret rotate 觸發條件是否明確）；**(D) `templates/pipeline.json` 新增 D21-DEVELOPER_GUIDE step**：`{"id": "D21-DEVELOPER_GUIDE", "name": "DEVELOPER_GUIDE", "template": "templates/DEVELOPER_GUIDE.md", "condition": "always"}`（無條件生成，所有專案都需要）；**(E) `docs/PRD.md` v2.9 changelog + LOCAL_DEPLOY 標準 #6 擴充（已完成）**；**(F) `README.md` 更新（已完成）**：新增 `developer-guide` 至 Supported Document Types；新增 Developer Daily Operations Manual 至 Key capabilities。 |
+| **目標檔案** | 新增：`templates/DEVELOPER_GUIDE.md`、`templates/DEVELOPER_GUIDE.gen.md`、`templates/DEVELOPER_GUIDE.review.md`；修改：`templates/pipeline.json`（D21-DEVELOPER_GUIDE）；已更新：`docs/PRD.md`（v2.9 changelog + 標準 #6）、`README.md`（capabilities + 文件類型）。 |
+| **影響範圍** | 新增 3 個 template（DEVELOPER_GUIDE 三件套）；pipeline.json 新增 D21 step；PRD / README 已更新 |
+| **工作量評估** | 中（三件套設計明確，§1~§6 章節邊界清晰，主要工作是生成規則與審查標準的細節設計） |
+| **依賴關係** | 依賴 LOCAL_DEPLOY.md（§6 Make targets、§21 CI/CD 工具）；依賴 CICD.md（§2 Jenkinsfile stages、§4 Shared Make Targets、§8/§9 Local Developer Platform）；依賴 runbook.md（§7 各診斷場景，避免內容重複）；建議在 M-43 完成後執行（確認 Gitea / Make targets 設計定案） |
+| **決策** | |
+
+---
+
+共 44 項修改（M-01 至 M-44），跨 33+ 個檔案。
+
+**M-44 執行優先順序建議**：
+1. 確認 M-43 決策（DEVELOPER_GUIDE §2 的 Gitea webhook 診斷依賴 M-43 的 Gitea 設計）
+2. 建立 DEVELOPER_GUIDE.md 骨架（§1~§6）
+3. 建立 DEVELOPER_GUIDE.gen.md（生成規則，含 upstream 讀取清單）
+4. 建立 DEVELOPER_GUIDE.review.md（4 層 10 項審查標準）
+5. 更新 pipeline.json（D21-DEVELOPER_GUIDE）
+
+*版本：2026-05-02 v10（新增 M-44：DEVELOPER_GUIDE.md 三件套 — 開發者日常操作手冊，填補 LOCAL_DEPLOY 建置後的每日操作空白）*

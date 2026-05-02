@@ -29,6 +29,7 @@ Key capabilities:
 - **Centralized state file guard** — `gendoc-shared` is the single executable entry point for R-01 guard logic; `gendoc-config` is the sole creator of state files; `gendoc-auto` and `gendoc-flow` delegate via one-line Skill call
 - **Uniform review loops** — IDEA and BRD review loops in `gendoc-auto` use the same Phase D-2 pattern as `gendoc-flow`: main Claude directly drives Review→Fix→Round Summary→Commit per round with full output visibility
 - **Local Developer Platform (Production Parity)** — `/gendoc cicd` generates a complete CI/CD platform design: Gitea (local git server, Port 3000) + Jenkins on k3s (CI, Port 8080) + ArgoCD (CD GitOps, Port 8443); dev-tool ports are fully separate from the app's single Port 80; `make dev-tools-up` starts everything in one command; non-developers can run the full pipeline without knowing Kubernetes; local environment uses the exact same toolchain as production (only scale and TLS differ) — compliant with 12-Factor App #10 Dev/Prod Parity
+- **Developer Daily Operations Manual** — `/gendoc developer-guide` generates the day-to-day developer operations handbook that pairs with `local-deploy`: covers the complete daily workflow (git push → Jenkins trigger → pipeline monitoring → ArgoCD sync → app verification), CI/CD troubleshooting (Jenkins not triggered, stage failed, ArgoCD OutOfSync, Gitea webhook issues), quick-reference make targets (`make dev-status` / `make dev-logs` / `make dev-restart`), common local environment issues with step-by-step fixes, and environment maintenance procedures (secret rotation, image cleanup, full reset); distinct from `runbook.md` which targets production on-call SREs
 - **Auto-update via SessionStart hook** — harness-enforced, LLM-independent, runs in background
 - **Windows native support** — Python-based hook for Windows, bash for macOS/Linux
 
@@ -58,11 +59,12 @@ Key capabilities:
 
 ### Supported Document Types
 
-`idea` · `brd` · `prd` · `pdd` · `vdd` · `edd` · `arch` · `api` · `schema` · `frontend` · `audio` · `anim` · `client-impl` · `test-plan` · `bdd` · `rtm` · `runbook` · `local-deploy` · `cicd` · `readme` · `contracts` · `mock`
+`idea` · `brd` · `prd` · `pdd` · `vdd` · `edd` · `arch` · `api` · `schema` · `frontend` · `audio` · `anim` · `client-impl` · `test-plan` · `bdd` · `rtm` · `runbook` · `local-deploy` · `cicd` · `developer-guide` · `readme` · `contracts` · `mock`
 
 > `audio` and `anim` are only generated for `client_type=game` projects (games, HTML5 game engines).
 > `client-impl` is generated for any project with a client (`client_type ≠ api-only`). Aliases: `cocos`, `unity`, `react-impl`, `vue-impl`, `client_impl`.
 > `cicd` generates the full CI/CD pipeline design document — Jenkinsfile skeleton, Shared Make Targets, PR Gate, Jenkins on k3s, ArgoCD GitOps, **Local Developer Platform** (Gitea + production parity).
+> `developer-guide` generates the developer daily operations manual — pairs with `local-deploy` (setup) to cover day-to-day workflow: git push → CI trigger → pipeline monitoring → ArgoCD sync → app verification; CI/CD troubleshooting; local quick commands; common issues; environment maintenance.
 
 ---
 
