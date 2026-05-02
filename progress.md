@@ -24,7 +24,7 @@
 | `[x]` | AUDIO | ✅✅✅ | finding=0，3輪，9個findings全修復 |
 | `[x]` | ANIM | ✅✅✅ | finding=0，2輪，7個findings全修復 |
 | `[x]` | CLIENT_IMPL | ✅✅✅ | finding=0，5輪，28個findings全修復 |
-| `[x]` | ADMIN_IMPL | ✅✅✅ | finding=0（fix後），5輪，MAX_ROUNDS，最終2LOW全修復 |
+| `[x]` | ADMIN_IMPL | ✅✅✅ | finding=0（fix後），5輪，MAX_ROUNDS，29個findings全修復（重審） |
 | `[x]` | RESOURCE | ✅✅✅ | finding=0（fix後），5輪，MAX_ROUNDS，最終4 MEDIUM/LOW全修復 |
 | `[x]` | CICD | ✅✅✅ | finding=0，9輪，§8.4 Webhook URL namespace 硬編碼+Quality Gate 五處一致性 |
 | `[x]` | DEVELOPER_GUIDE | ✅✅✅ | finding=0，7輪，R-04b 偽指令/DB migration tool/§5 維護表/frontmatter 品質宣告全修復 |
@@ -61,3 +61,4 @@
 | CICD | 2026-05-02 | 10 | 0 | c03ce03 |
 | DEVELOPER_GUIDE | 2026-05-02 | 8 | 0 | 90040e9 |
 | DRYRUN | 2026-05-02 | 15 | 0 | ac51cf7 |
+| ADMIN_IMPL（重審）| 2026-05-02 | 12 | 0 | 9151a2e |
