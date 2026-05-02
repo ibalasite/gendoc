@@ -298,6 +298,20 @@ sequenceDiagram
 - 避免分散式交易；優先使用 Saga Pattern 或最終一致性
 - 服務間不共享 ORM Entity 或 Domain Object
 
+### §4.0 API-BC-Schema 映射表（API Endpoint → Bounded Context → Owned Tables）
+
+> 此表為 HC-1 可視化工具：每列對應一個 API Endpoint，可追溯至其 Owning Bounded Context 及該 BC 擁有的 DB Tables。
+> **生成規則**：從 `docs/API.md` §3 列出所有 Endpoint，每個 Endpoint 對應一列；`Owning Bounded Context` 必須與本節 §4 服務邊界表的「服務/模組」欄一致。
+
+| API Endpoint（Method + Path） | Owning Bounded Context | Owned DB Tables |
+|-------------------------------|------------------------|-----------------|
+| POST /api/v1/{{bc1_resource}} | {{BC_NAME_1}} | `{{schema_1}}`: `{{table_a}}`, `{{table_b}}` |
+| GET /api/v1/{{bc1_resource}}/{id} | {{BC_NAME_1}} | `{{schema_1}}`: `{{table_a}}` |
+| POST /api/v1/{{bc2_resource}} | {{BC_NAME_2}} | `{{schema_2}}`: `{{table_c}}`, `{{table_d}}` |
+| GET /api/v1/{{bc2_resource}} | {{BC_NAME_2}} | `{{schema_2}}`: `{{table_c}}` |
+
+*（依 API.md §3 完整填入所有 Endpoint；每個 BC 至少有 ≥1 列；不得有孤立 Endpoint）*
+
 ---
 
 ## 5. 通訊模式

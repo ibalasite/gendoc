@@ -184,9 +184,9 @@ upstream-alignment:
 ### Layer 5B: 微服務可拆解性（Spring Modulith HC-1～HC-4，由 Software Architect 主審，共 4 項）
 
 #### [CRITICAL] AM-01 — Schema 隔離缺失（HC-1）
-**Check**: §4 服務邊界表的「擁有資料」欄是否填入具體 DB Schema / Table 名稱（非模糊描述如「自身資料」「業務資料」）？是否有任何兩個服務聲明擁有同一 Table？§4 邊界原則是否包含跨服務 DB 存取禁止宣告？任一缺失視為 CRITICAL。
-**Risk**: 無具體 Schema Ownership 宣告，工程師默認可以跨服務 JOIN，形成隱性 Schema 耦合；BC 提取時 DB Migration 必然失敗。
-**Fix**: 補填 §4 表格「擁有資料」欄為具體 Table 清單；確認 §4 邊界原則含 HC-1 禁止宣告；識別並移除所有跨服務 DB-level FK。
+**Check**: §4 服務邊界表的「擁有資料」欄是否填入具體 DB Schema / Table 名稱（非模糊描述如「自身資料」「業務資料」）？是否有任何兩個服務聲明擁有同一 Table？§4 邊界原則是否包含跨服務 DB 存取禁止宣告？**§4.0 API-BC-Schema 映射表是否存在？是否覆蓋 API.md §3 全部 Endpoint（每個 Endpoint 一列）？每個 BC 是否至少出現 ≥1 列？** 任一缺失視為 CRITICAL。
+**Risk**: 無具體 Schema Ownership 宣告，工程師默認可以跨服務 JOIN，形成隱性 Schema 耦合；BC 提取時 DB Migration 必然失敗。無 §4.0 映射表則 API Endpoint 與 BC 邊界脫節，無法在 Code Review 中機械式驗證 HC-1。
+**Fix**: 補填 §4 表格「擁有資料」欄為具體 Table 清單；確認 §4 邊界原則含 HC-1 禁止宣告；識別並移除所有跨服務 DB-level FK。若 §4.0 缺失，依 `API.md §3` 完整列出所有 Endpoint 並填入對應 BC 和 Owned Tables。
 
 #### [HIGH] AM-02 — 跨服務通訊路徑未明確（HC-2）
 **Check**: §4 或 §5 通訊模式是否明確說明所有跨服務通訊只透過 Public API 或 Domain Event？是否有設計允許直接呼叫其他服務的 Repository 或 DAO？若有直接呼叫視為 HIGH。

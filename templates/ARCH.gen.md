@@ -190,6 +190,18 @@ type UserService interface {
   格式：`POST /api/v1/users → UserService（本節 §4 Bounded Context "User Management"）`
   確保每個 Endpoint 可追溯至對應 Service，無孤立端點。
 
+**§4.0 API-BC-Schema 映射表（必填）**：
+
+1. 讀取 `docs/API.md` §3 Endpoints，列出所有 Method + Path
+2. 對照本節 §4 服務邊界表，確認每個 Endpoint 的 Owning BC
+3. 對照 `docs/SCHEMA.md`（或 EDD §3.4 Schema Ownership），填入每個 BC 的 Owned DB Tables
+4. 輸出 3 欄表格：`API Endpoint（Method + Path）| Owning Bounded Context | Owned DB Tables`
+5. **驗證規則**：
+   - 每個 API.md §3 的 Endpoint 必須對應到一列（不得有孤立端點）
+   - `Owning Bounded Context` 欄名稱必須與 §4 服務邊界表的「服務/模組」欄完全一致（無「自身資料」等模糊名稱）
+   - `Owned DB Tables` 欄格式：`` `schema_name`: `table_a`, `table_b` ``（具體 Table 名稱，非模糊描述）
+   - 每個 BC 至少出現 ≥1 列；若某 BC 無 Endpoint 則在表格末尾標注「無直接對外 API（僅接收 Domain Event）」
+
 ### §5 通訊模式
 
 **§5.1 同步/非同步通訊矩陣**：
