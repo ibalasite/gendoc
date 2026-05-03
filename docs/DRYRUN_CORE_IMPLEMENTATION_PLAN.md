@@ -12,13 +12,13 @@ status: 規劃階段
 ### 雙層獨立驗證架構
 
 ```
-Phase A 上游文件
+DRYRUN 前的文件
     ↓
 [DRYRUN 推導層] → 期望規格（計劃）
     ↓
 .gendoc-rules/*.json（DRYRUN 推導結果）
     ↓
-Phase B 各 STEP 實現
+DRYRUN 后的 step 各 STEP 實現
     ↓
 [各 STEP template 實現層] → 實際生成（獨立實現）
     ↓
@@ -37,7 +37,7 @@ docs/<STEP>.md（實際生成結果）
 
 ---
 
-## Phase A（上游分析）- DRYRUN 推導
+## DRYRUN 前的 step（上游分析）- DRYRUN 推導
 
 ### 需要提取的參數
 
@@ -67,11 +67,11 @@ docs/<STEP>.md（實際生成結果）
 - 期望：`min_scenario_count = ceil(user_story_count * 0.8)`
 - 存儲：`.gendoc-rules/BDD-server-rules.json` → `{"min_scenario_count": <數字>}`
 
-（其他 Phase B steps 類似推導）
+（其他 DRYRUN 后的 step 類似推導）
 
 ---
 
-## Phase B（實現分析）- 各 STEP 獨立實現
+## DRYRUN 后的 step（實現分析）- 各 STEP 獨立實現
 
 ### SCHEMA.gen.md 的實現邏輯
 
@@ -94,7 +94,7 @@ docs/<STEP>.md（實際生成結果）
 ### review.sh 邏輯
 
 ```bash
-# 對於每個 Phase B step：
+# 對於每個 DRYRUN 后的 step：
 1. 讀取 .gendoc-rules/<step>-rules.json（DRYRUN 期望）
 2. 掃描 docs/<step>.md（實際生成）
 3. 計算實際數量（table、endpoint、scenario 等）
@@ -121,7 +121,7 @@ docs/<STEP>.md（實際生成結果）
 **輸出**：`docs/DRYRUN_PARAMETER_EXTRACTION.md`（定義每個參數的提取方法）
 
 ### STEP 2：DRYRUN 規格推導公式設計
-**目標**：定義每個 Phase B step 的期望規格公式
+**目標**：定義每個 DRYRUN 后的 step 的期望規格公式
 - SCHEMA：`min_table_count = max(entity_count, 3)`
 - API：`min_endpoint_count = max(rest_endpoint_count, 5)`
 - test-plan：`min_h2_sections = arch_layer_count + 2`
@@ -179,7 +179,7 @@ grep -r "entity_count\|endpoint_count\|user_story" skills/ templates/ --include=
 - [ ] STEP 4：hardcoded 規格掃描報告
 - [ ] STEP 5：所有 hardcoded 規格已修正
 - [ ] STEP 6：審查工具 review.sh 實現完成
-- [ ] 全迴歸測試：用一個實際專案跑完整 DRYRUN → Phase B → review 流程
+- [ ] 全迴歸測試：用一個實際專案跑完整 DRYRUN → DRYRUN 后的 step → review 流程
 
 ---
 
