@@ -21,6 +21,19 @@ class DRYRUNEngine:
         self.state_file = Path(state_file)
         self.metrics = {}
         self.step_specs = {}
+        self.pipeline = {}
+
+    def _load_pipeline(self) -> dict:
+        """Load pipeline.json from templates/ — SSOT for metrics and spec_rules"""
+        pipeline_path = self.cwd / "templates" / "pipeline.json"
+        if not pipeline_path.exists():
+            raise FileNotFoundError(f"pipeline.json not found at {pipeline_path}")
+        try:
+            pipeline = json.loads(pipeline_path.read_text(encoding='utf-8'))
+            self.pipeline = pipeline
+            return pipeline
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON in pipeline.json: {e}")
 
     def validate_phase_a(self) -> bool:
         """Verify all 8 Phase A files exist"""
@@ -38,149 +51,19 @@ class DRYRUNEngine:
         return True
 
     def extract_metrics(self) -> dict:
-        """Extract 20 quantitative metrics from Phase A files"""
+        """Extract metrics from Phase A files — dynamically read from pipeline['metrics']"""
+        if not self.pipeline:
+            self._load_pipeline()
 
         metrics = {}
+        for metric_def in self.pipeline.get('metrics', []):
+            metric_id = metric_def['id']
+            source_step = metric_def['source_step']
+            grep_pattern = metric_def['grep_pattern']
+            fallback = metric_def.get('fallback', 0)
 
-        # 1. persona_count (IDEA.md)
-        metrics['persona_count'] = self._grep_count(
-            self.docs_dir / "IDEA.md",
-            r'^\## Persona:',
-            fallback=1
-        )
-
-        # 2. moscow_p0_count (BRD.md)
-        metrics['moscow_p0_count'] = self._grep_count(
-            self.docs_dir / "BRD.md",
-            r'^\## P0|^\| P0',
-            fallback=3
-        )
-
-        # 3. kpi_count (BRD.md) - KPI rows in table
-        metrics['kpi_count'] = self._grep_count(
-            self.docs_dir / "BRD.md",
-            r'^\|.*:\s*[0-9]+',
-            fallback=1
-        )
-
-        # 4. user_story_count (PRD.md)
-        metrics['user_story_count'] = self._grep_count(
-            self.docs_dir / "PRD.md",
-            r'^(##|###) US-',
-            fallback=1
-        )
-
-        # 5. feature_count (PRD.md)
-        metrics['feature_count'] = self._grep_count(
-            self.docs_dir / "PRD.md",
-            r'^(##|###) FE-',
-            fallback=1
-        )
-
-        # 6. use_case_count (PRD.md)
-        metrics['use_case_count'] = self._grep_count(
-            self.docs_dir / "PRD.md",
-            r'^(##|###) UC-',
-            fallback=1
-        )
-
-        # 7. total_ac_count (PRD.md) - acceptance criteria checkboxes
-        metrics['total_ac_count'] = self._grep_count(
-            self.docs_dir / "PRD.md",
-            r'- \[ \]',
-            fallback=5
-        )
-
-        # 8. constant_count (CONSTANTS.md) - table rows
-        metrics['constant_count'] = self._grep_count(
-            self.docs_dir / "CONSTANTS.md",
-            r'^\| [A-Z_]',
-            fallback=3
-        )
-
-        # 9. screen_count (PDD.md)
-        metrics['screen_count'] = self._grep_count(
-            self.docs_dir / "PDD.md",
-            r'^### Screen',
-            fallback=1
-        )
-
-        # 10. flow_count (PDD.md)
-        metrics['flow_count'] = self._grep_count(
-            self.docs_dir / "PDD.md",
-            r'^### (User Flow|Flow)',
-            fallback=1
-        )
-
-        # 11. total_component_count (PDD.md) - component list items
-        metrics['total_component_count'] = self._grep_count(
-            self.docs_dir / "PDD.md",
-            r'^\- (Button|Input|Card|Modal|Header|Footer)',
-            fallback=3
-        )
-
-        # 12. design_token_count (VDD.md)
-        metrics['design_token_count'] = self._grep_count(
-            self.docs_dir / "VDD.md",
-            r'^\- `',
-            fallback=5
-        )
-
-        # 13. color_count (VDD.md) - color palette
-        metrics['color_count'] = self._grep_count(
-            self.docs_dir / "VDD.md",
-            r'^\| #[0-9A-Fa-f]',
-            fallback=5
-        )
-
-        # 14. entity_count (EDD.md) - UML class definitions
-        metrics['entity_count'] = self._grep_count(
-            self.docs_dir / "EDD.md",
-            r'^\s*class ',
-            fallback=3
-        )
-
-        # 15. relationship_count (EDD.md) - associations
-        metrics['relationship_count'] = self._grep_count(
-            self.docs_dir / "EDD.md",
-            r'(--|<\|--|o--|o\|)',
-            fallback=3
-        )
-
-        # 16. rest_endpoint_count (EDD.md)
-        metrics['rest_endpoint_count'] = self._grep_count(
-            self.docs_dir / "EDD.md",
-            r'(<<REST>>|<<Interface>>|GET|POST|PUT|DELETE)',
-            fallback=5
-        )
-
-        # 17. domain_count (EDD.md) - domain sections
-        metrics['domain_count'] = self._grep_count(
-            self.docs_dir / "EDD.md",
-            r'^### ',
-            fallback=2
-        )
-
-        # 18. layer_count (ARCH.md) - tech stack rows
-        metrics['layer_count'] = self._grep_count(
-            self.docs_dir / "ARCH.md",
-            r'^\| [A-Za-z0-9_]',
-            fallback=4
-        )
-
-        # 19. service_count (ARCH.md)
-        metrics['service_count'] = self._grep_count(
-            self.docs_dir / "ARCH.md",
-            r'^#### ',
-            fallback=3
-        )
-
-        # 20. nfr_count (ARCH.md) - NFR list items
-        metrics['nfr_count'] = self._grep_count(
-            self.docs_dir / "ARCH.md",
-            r'^- \[',
-            fallback=12
-        )
+            source_file = self.docs_dir / f"{source_step}.md"
+            metrics[metric_id] = self._grep_count(source_file, grep_pattern, fallback=fallback)
 
         self.metrics = metrics
         return metrics
@@ -198,167 +81,57 @@ class DRYRUNEngine:
             return fallback
 
     def derive_specifications(self) -> dict:
-        """Derive 31 step specifications from 20 metrics"""
+        """Derive specifications from pipeline['steps'][*]['spec_rules'] — SSOT"""
+        if not self.pipeline:
+            self._load_pipeline()
 
         m = self.metrics
         specs = {}
 
-        # Helper: calculate safe division
-        def safe_ceil(val, factor):
-            return max(1, math.ceil(val * factor)) if val > 0 else 1
+        # Read spec_rules from each step in pipeline
+        for step in self.pipeline.get('steps', []):
+            step_id = step['id']
+            spec_rules = step.get('spec_rules', {
+                'quantitative_specs': {},
+                'content_mapping': {},
+                'cross_file_validation': {}
+            })
 
-        # ─── PHASE B STEPS ───
+            # Process quantitative_specs (substitute metric values)
+            quantitative = {}
+            for key, value in spec_rules.get('quantitative_specs', {}).items():
+                quantitative[key] = self._evaluate_spec_value(value, m)
 
-        # API
-        specs['API'] = {
-            'quantitative_specs': {
-                'min_endpoint_count': max(5, m.get('rest_endpoint_count', 5))
-            },
-            'content_mapping': {
-                'entity_coverage': f"All {m.get('entity_count', 3)} EDD entities must be referenced in API request/response models"
-            },
-            'cross_file_validation': {
-                'entity_parity': f"API.md endpoints >= EDD entity count ({m.get('entity_count', 3)})"
+            # Process content_mapping (substitute metric values)
+            content = {}
+            for key, value in spec_rules.get('content_mapping', {}).items():
+                content[key] = self._evaluate_spec_value(value, m)
+
+            # Cross_file_validation (substitute metric values)
+            cross_file = {}
+            for key, value in spec_rules.get('cross_file_validation', {}).items():
+                cross_file[key] = self._evaluate_spec_value(value, m)
+
+            specs[step_id] = {
+                'quantitative_specs': quantitative,
+                'content_mapping': content,
+                'cross_file_validation': cross_file
             }
-        }
-
-        # SCHEMA
-        specs['SCHEMA'] = {
-            'quantitative_specs': {
-                'min_table_count': max(3, m.get('entity_count', 3))
-            },
-            'content_mapping': {
-                'entity_coverage': f"All {m.get('entity_count', 3)} EDD entities must have corresponding database tables"
-            },
-            'cross_file_validation': {
-                'entity_parity': f"SCHEMA tables == EDD entities ({m.get('entity_count', 3)})"
-            }
-        }
-
-        # test-plan
-        specs['test-plan'] = {
-            'quantitative_specs': {
-                'min_h2_sections': m.get('layer_count', 4) + 4
-            },
-            'content_mapping': {
-                'layer_coverage': f"Test strategy for all {m.get('layer_count', 4)} architecture layers"
-            },
-            'cross_file_validation': {
-                'architecture_alignment': "test-plan sections >= ARCH layers + 4"
-            }
-        }
-
-        # BDD-server
-        specs['BDD-server'] = {
-            'quantitative_specs': {
-                'min_scenario_count': safe_ceil(m.get('user_story_count', 1), 0.8)
-            },
-            'content_mapping': {
-                'user_story_coverage': f"All {m.get('user_story_count', 1)} user stories have corresponding BDD scenarios"
-            },
-            'cross_file_validation': {
-                'scenario_coverage': f"BDD scenarios >= {safe_ceil(m.get('user_story_count', 1), 0.8)} (80% of US)"
-            }
-        }
-
-        # BDD-client
-        specs['BDD-client'] = {
-            'quantitative_specs': {
-                'min_scenario_count': safe_ceil(m.get('user_story_count', 1), 0.6)
-            },
-            'content_mapping': {
-                'ui_scenario_coverage': f"Client UI scenarios for {safe_ceil(m.get('user_story_count', 1), 0.6)} key flows"
-            },
-            'cross_file_validation': {
-                'scenario_coverage': f"Client BDD >= {safe_ceil(m.get('user_story_count', 1), 0.6)} (60% of US)"
-            }
-        }
-
-        # RTM
-        specs['RTM'] = {
-            'quantitative_specs': {
-                'min_row_count': max(1, m.get('user_story_count', 1))
-            },
-            'content_mapping': {
-                'requirement_traceability': f"All {m.get('user_story_count', 1)} user stories traced to test cases"
-            },
-            'cross_file_validation': {
-                'coverage': f"RTM rows >= user_story_count ({m.get('user_story_count', 1)})"
-            }
-        }
-
-        # FRONTEND
-        specs['FRONTEND'] = {
-            'quantitative_specs': {
-                'min_component_count': max(3, m.get('total_component_count', 3))
-            },
-            'content_mapping': {
-                'screen_coverage': f"Components for all {m.get('screen_count', 1)} screens from PDD"
-            },
-            'cross_file_validation': {
-                'pdd_alignment': f"FRONTEND components >= PDD components ({m.get('total_component_count', 3)})"
-            }
-        }
-
-        # RESOURCE
-        specs['RESOURCE'] = {
-            'quantitative_specs': {
-                'min_resource_entries': max(5, m.get('constant_count', 5))
-            },
-            'content_mapping': {
-                'asset_inventory': f"List all {max(5, m.get('constant_count', 5))} resources with IDs, types, prompts"
-            },
-            'cross_file_validation': {
-                'constant_mapping': f"Resources >= constants ({max(5, m.get('constant_count', 5))})"
-            }
-        }
-
-        # AUDIO, ANIM, CLIENT_IMPL, ADMIN_IMPL
-        specs['AUDIO'] = {
-            'quantitative_specs': {'min_bgm_entries': 1, 'min_sfx_entries': 1},
-            'content_mapping': {'audio_triggers': 'Sound event mapping for game scenarios'},
-            'cross_file_validation': {}
-        }
-
-        specs['ANIM'] = {
-            'quantitative_specs': {'min_animation_defs': 3},
-            'content_mapping': {'animation_coverage': 'All character/UI animations defined'},
-            'cross_file_validation': {}
-        }
-
-        specs['CLIENT_IMPL'] = {
-            'quantitative_specs': {},
-            'content_mapping': {'scene_structure': 'All PDD screens have implementation details'},
-            'cross_file_validation': {}
-        }
-
-        specs['ADMIN_IMPL'] = {
-            'quantitative_specs': {'min_rbac_roles': 2},
-            'content_mapping': {'role_coverage': 'All user roles from ARCH defined'},
-            'cross_file_validation': {}
-        }
-
-        # Phase A docs (IDEA through ARCH) - already have minimal specs
-        for step_id in ['IDEA', 'BRD', 'PRD', 'CONSTANTS', 'PDD', 'VDD', 'EDD', 'ARCH']:
-            if step_id not in specs:
-                specs[step_id] = {
-                    'quantitative_specs': {},
-                    'content_mapping': {'note': 'Phase A document'},
-                    'cross_file_validation': {}
-                }
-
-        # Other Phase B steps
-        for step_id in ['UML', 'runbook', 'LOCAL_DEPLOY', 'CICD', 'DEVELOPER_GUIDE',
-                        'UML_CICD', 'ALIGN', 'CONTRACTS', 'MOCK', 'PROTOTYPE', 'HTML']:
-            if step_id not in specs:
-                specs[step_id] = {
-                    'quantitative_specs': {},
-                    'content_mapping': {'note': 'Derived from Phase A metrics'},
-                    'cross_file_validation': {}
-                }
 
         self.step_specs = specs
         return specs
+
+    def _evaluate_spec_value(self, value: str, metrics: dict) -> str:
+        """Evaluate spec value strings (substitute metrics, calculate expressions)"""
+        if not isinstance(value, str):
+            return value
+
+        result = value
+        for metric_key, metric_val in metrics.items():
+            placeholder = '{' + metric_key + '}'
+            result = result.replace(placeholder, str(metric_val))
+
+        return result
 
     def embed_in_state_file(self) -> bool:
         """Embed specifications in state file and write back"""
@@ -517,19 +290,29 @@ def main():
 
     engine = DRYRUNEngine(cwd, state_file)
 
-    # Step 0: Validate Phase A
+    # Step 0a: Load pipeline.json (SSOT)
+    print("[DRYRUN] Step 0a: Loading pipeline.json (SSOT)...")
+    try:
+        engine._load_pipeline()
+        print(f"✅ [DRYRUN] Pipeline loaded (v{engine.pipeline.get('version', 'unknown')})")
+    except Exception as e:
+        print(f"❌ [DRYRUN] Failed to load pipeline.json: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Step 0b: Validate Phase A
+    print("\n[DRYRUN] Step 0b: Validating Phase A...")
     if not engine.validate_phase_a():
         sys.exit(1)
 
     # Step 1: Extract metrics
-    print("\n[DRYRUN] Step 1: Extracting 20 quantitative metrics...")
+    print("\n[DRYRUN] Step 1: Extracting quantitative metrics (from pipeline.json)...")
     engine.extract_metrics()
     engine.print_metrics_summary()
 
     # Step 2: Derive specifications
-    print("[DRYRUN] Step 2: Deriving 31 step specifications...")
+    print("[DRYRUN] Step 2: Reading and evaluating spec_rules (from pipeline.json)...")
     engine.derive_specifications()
-    print(f"✅ [DRYRUN] Derived specifications for {len(engine.step_specs)} steps")
+    print(f"✅ [DRYRUN] Processed specifications for {len(engine.step_specs)} steps")
 
     # Step 3: Embed in state file
     print("\n[DRYRUN] Step 3: Embedding specifications in state file...")
