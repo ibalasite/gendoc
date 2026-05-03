@@ -18,7 +18,7 @@
 | **Requirement 1：20 個量化指標** | ✅ 代碼完成 | 100% | ✅ 完成 |
 | **Requirement 2：31 個 step 規格** | ✅ 代碼完成 | 100% | ✅ 完成 |
 | **Requirement 3：4 種檢查模式** | ✅ 代碼完成 | 100% | ✅ 完成 |
-| **Requirement 4：Phase B 雙層檢查** | ✅ 代碼完成 | 100% | ✅ 完成 |
+| **Requirement 4：DRYRUN 后的 step 雙層檢查** | ✅ 代碼完成 | 100% | ✅ 完成 |
 | **總計** | ✅ 全部完成 | **100%** | 待測試 |
 
 ---
@@ -57,7 +57,7 @@
   - [x] JSON 語法正確
   - **完成**：commit ce42ddb (2026-05-03)
 
-##### 任務 D-SSOT-1.2：為所有 Phase B steps 新增 `spec_rules` 欄位
+##### 任務 D-SSOT-1.2：為所有 DRYRUN 后的 step 新增 `spec_rules` 欄位
 - **目標**：將規格推導規則移入 pipeline.json
 - **實現內容**：
   ```json
@@ -131,12 +131,12 @@
 - **測試 1**：新增虛擬 metric 到 pipeline.json
   - ⏳ DRYRUN 能自動提取該 metric（待 D-ARCH-SSOT-3 驗證執行）
   
-- **測試 2**：新增虛擬 Phase B step 到 pipeline.json
+- **測試 2**：新增虛擬 DRYRUN 后的 step 到 pipeline.json
   - ⏳ DRYRUN 能自動生成該 step 的 spec_rules（待 D-ARCH-SSOT-3 驗證執行）
   - ⏳ state file 包含新 step 的規格（待 D-ARCH-SSOT-3 驗證執行）
   
-- **測試 3**：新增虛擬 Phase A step 到 pipeline.json
-  - ⏳ 添加 REVIEW.md 到 Phase A（待實際測試）
+- **測試 3**：新增虛擬 DRYRUN 前的 step 到 pipeline.json
+  - ⏳ 添加 REVIEW.md 到 DRYRUN 前的 step（待實際測試）
   - ⏳ DRYRUN extract_metrics() 能自動感知並提取（待實際測試）
 
 **D-ARCH-SSOT 進度**：
@@ -200,9 +200,9 @@
 #### 任務 R2-V1：驗證規格質量
 - **實現**：validate_spec_quality() 方法
 - **檢查項目**：
-  - [x] Phase B step 有量化規則
-  - [x] Phase B step 有內容映射
-  - [x] Phase B step 有跨檔案驗證
+  - [x] DRYRUN 后的 step 有量化規則
+  - [x] DRYRUN 后的 step 有內容映射
+  - [x] DRYRUN 后的 step 有跨檔案驗證
   - [x] 無未解決的佔位符
   - [x] 所有描述非空
 - **完成**：commit 99861bd (2026-05-03)
@@ -210,7 +210,7 @@
 
 ---
 
-### ✅ **Requirement 4：Phase B 整合驗證（✅ 代碼完成）**
+### ✅ **Requirement 4：DRYRUN 后的 step 整合驗證（✅ 代碼完成）**
 
 #### 任務 R4-V1：驗證整合流程
 - **實現**：review_integration.sh 升級版本
@@ -249,7 +249,7 @@ Requirement 1-2：DRYRUN 驗證
   ├─ R1-V1：執行驗證
   └─ R2-V1：質量驗證
         ↓
-Requirement 4：Phase B 驗證
+Requirement 4：DRYRUN 后的 step 驗證
   └─ R4-V1：整合驗證
 ```
 
@@ -274,7 +274,7 @@ Requirement 4：Phase B 驗證
 - [ ] cross_file ✅
 - [ ] all ✅
 
-### Requirement 4：Phase B 雙層檢查
+### Requirement 4：DRYRUN 后的 step 雙層檢查
 - [ ] AI findings + Shell findings 合併成功
 - [ ] AI Fix 基於合併 findings 修復成功
 
@@ -364,8 +364,8 @@ Requirement 4：Phase B 驗證
 **SSOT 原則落實**：
 - ✅ Metrics 定義：100% 從 pipeline.json 讀取（無硬編碼）
 - ✅ Spec Rules 定義：100% 從 pipeline.json 讀取（無硬編碼）
-- ✅ 新增 Phase A 節點：只需修改 JSON + 三件套模板（零代碼改動）
-- ✅ 新增 Phase B 節點：只需修改 JSON + 三件套模板（零代碼改動）
+- ✅ 新增 DRYRUN 前的 step 節點：只需修改 JSON + 三件套模板（零代碼改動）
+- ✅ 新增 DRYRUN 后的 step 節點：只需修改 JSON + 三件套模板（零代碼改動）
 
 **品質驗證層次**：
 - Layer 1：AI Review（語義完整性）
@@ -374,7 +374,7 @@ Requirement 4：Phase B 驗證
 
 **可擴展性承諾**：
 - metrics[] 可添加無限個新指標
-- steps[] 可添加無限個新 Phase B step
+- steps[] 可添加無限個新 DRYRUN 后的 step
 - 每添加 1 個新 step，需編修時間：5 分鐘（改 JSON + 複製三件套模板）
 - DRYRUN 自動適應，零額外代碼改動
 
@@ -389,9 +389,9 @@ Requirement 4：Phase B 驗證
 
 **待用戶在獨立環境執行**：
 1. ⏳ 執行 `/gendoc-gen-dryrun` 驗證動態指標提取
-2. ⏳ 執行 `/gendoc-flow` Phase B 驗證規格應用
+2. ⏳ 執行 `/gendoc-flow` DRYRUN 后的 step 驗證規格應用
 3. ⏳ 添加虛擬 metric 到 pipeline.json，驗證自動提取
-4. ⏳ 添加虛擬 Phase B step，驗證自動規格生成
+4. ⏳ 添加虛擬 DRYRUN 后的 step，驗證自動規格生成
 
 ---
 
