@@ -33,7 +33,7 @@ version: 1.0
 
 ## 進行中 → 下一步（D-SSOT-4.X 系列）
 
-### D-LANG-1：Phase A/B 用語統一（2026-05-04）
+### D-LANG-1：DRYRUN 前后用語統一（2026-05-04）
 **目標**：全專案用語標準化，替換 "Phase A/B" 為 "DRYRUN 前的 step / DRYRUN 后的 step"
 
 **替換規則**：
@@ -55,21 +55,21 @@ version: 1.0
    - 驗證：grep 確認無遺漏 ✅
 
 2. [✅] **tools/bin/dryrun_core.py — 9 個替換**（Commit 8cafc42）
-   - Line 4-8（docstring）：Phase A→B → DRYRUN 前/后轉換 ✅
-   - Line 50（函數名）：validate_phase_a() → validate_dryrun_upstream() ✅
-   - Line 51（變數名）：phase_a_files → upstream_files ✅
-   - Line 58（日誌）：Missing Phase A files → Missing upstream files ✅
-   - Line 61（日誌）：Phase A complete → DRYRUN 前的檔案齊全 ✅
-   - Line 68（函數說明）：Phase A files → DRYRUN 前的檔案 ✅
-   - Line 106（函數說明）：Phase A files → DRYRUN 前的檔案 ✅
-   - Line 196（函數說明）：Phase A files → DRYRUN 前的檔案 ✅
-   - Line 225、245、472、593（多個）：Phase B steps → DRYRUN 后的 step ✅
+   - Line 4-8（docstring）：DRYRUN 前→后轉換 ✅
+   - Line 50（函數名）：validate_dryrun_upstream() ✅
+   - Line 51（變數名）：upstream_files ✅
+   - Line 58（日誌）：Missing upstream files ✅
+   - Line 61（日誌）：DRYRUN 前的檔案齊全 ✅
+   - Line 68（函數說明）：DRYRUN 前的檔案 ✅
+   - Line 106（函數說明）：DRYRUN 前的檔案 ✅
+   - Line 196（函數說明）：DRYRUN 前的檔案 ✅
+   - Line 225、245、472、593（多個）：DRYRUN 后的 step ✅
    - 驗證：grep 確認無遺漏 ✅
 
 3. [✅] **README.md — 3 個替換**（Commit 98e2ae2）
-   - Line 56：Phase-aware → DRYRUN-aware；Phase A → DRYRUN 前的 step；Phase B → DRYRUN 后的 step ✅
-   - Line 175：Phase A step → DRYRUN 前的 step ✅
-   - Line 176：Phase B step → DRYRUN 后的 step ✅
+   - Line 56：DRYRUN-aware；DRYRUN 前的 step；DRYRUN 后的 step ✅
+   - Line 175：DRYRUN 前的 step ✅
+   - Line 176：DRYRUN 后的 step ✅
    - 驗證：grep 確認無遺漏 ✅
 
 4. [✅] **progress.md — 本檔案 5 個替換**（Commit 待執行）
@@ -80,22 +80,25 @@ version: 1.0
    - 第 165 行：執行 Phase B 步驟 → 執行 DRYRUN 后的 step ✅
    - 驗證：grep 確認無遺漏 ✅
 
-5. [ ] **skills/gendoc-flow/SKILL.md — Phase 參考清理**
-   - 搜尋所有 Phase A/B 參考
-   - 替換為對應新用語
-   - 驗證：grep 確認無遺漏
+5. [✅] **skills/gendoc-flow/SKILL.md — Phase 參考清理**（Commit 17974a3：已在 gendoc-repair 完成）
+   - 搜尋結果：此檔案無 Phase A/B 引用，無需修改 ✅
+   - 驗證：grep 確認無遺漏 ✅
 
-6. [ ] **skills/gendoc-repair/SKILL.md — Phase-aware 邏輯清理**
-   - 搜尋所有 Phase A/B 和 phase-aware 參考
-   - 替換為對應新用語（phase-aware → DRYRUN-aware）
-   - 驗證：grep 確認無遺漏
+6. [✅] **skills/gendoc-repair/SKILL.md — Phase-aware 邏輯清理**（Commit 17974a3）
+   - Line 3（description）：phase-aware → DRYRUN-aware ✅
+   - Line 15：Phase-Aware → DRYRUN-Aware ✅
+   - Line 25：Phase A/B → DRYRUN 前/后的 step ✅
+   - Line 99、101：phase-aware → DRYRUN-aware；Phase A/B 敘述 ✅
+   - Line 171、182、196：Phase A/B 輸出 → DRYRUN 前/后的 step ✅
+   - Line 559、592、659、662、738、740：其餘 6 個引用 ✅
+   - 驗證：grep 確認無遺漏 ✅
 
-7. [ ] **其他 skills/*.md 檔案掃描**
-   - gendoc-shared、gendoc-config 等其他 skill
+7. [⏳] **其他 skills/*.md 檔案掃描**
+   - gendoc-shared、gendoc-config、gendoc-flow 等其他 skill
    - 搜尋並替換所有 Phase 相關敘述
    - 驗證：全專案 grep 無 "Phase A" 或 "Phase B"（除 git 歷史外）
 
-8. [ ] **全專案最終驗證**
+8. [⏳] **全專案最終驗證**
    - 執行：`grep -r "Phase A\|Phase B" --include="*.md" --include="*.py" --include="*.sh" .`（不含 .git/）
    - 確認無遺漏
    - 確認邏輯上下文自然流暢
@@ -116,7 +119,7 @@ version: 1.0
    - 輸出：`docs/DRYRUN_PARAMETER_EXTRACTION.md`（已完成）
 
 2. [✅] **規格推導公式設計**（2 小時）
-   - 定義所有 Phase B steps 的期望規格公式
+   - 定義所有 DRYRUN 后的 step 的期望規格公式
    - 輸出：`docs/DRYRUN_SPEC_FORMULAS.md`（已完成）
 
 3. [✅] **實現 dryrun_core.py**（3 小時）
