@@ -106,7 +106,7 @@ TOTAL_MEDIUM=$((${QUANT_MED:-0} + ${CONTENT_MED:-0} + ${CROSS_MED:-0}))
 ################################################################################
 # STEP 3: Merge AI findings + Shell findings
 #
-# Phase B Document Review is TWO-LAYER:
+# DRYRUN 后的 step Document Review is TWO-LAYER:
 # - Layer 1 (AI): Semantic review (clarity, completeness, alignment with intent)
 # - Layer 2 (Shell): Quantitative/structural review via review.sh (DRYRUN gate validation)
 #
