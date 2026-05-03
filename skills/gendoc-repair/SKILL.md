@@ -572,6 +572,29 @@ echo "DRYRUN_STALE:$_DRYRUN_STALE"
 
 ## Step 1.7：Input 依賴鏈驗證
 
+**前置條件**：repair 只能補充「生成文件」（CONSTANTS 之後），不能補充「源文件」（IDEA/BRD）。
+
+```python
+# [AI 指令] 源文件存在性檢查（DFS 開始前必須通過）
+
+_IDEA_OK = file_exists_and_nonempty("docs/IDEA.md")
+_BRD_OK = file_exists_and_nonempty("docs/BRD.md")
+
+if not _BRD_OK:
+    print("[Stop] docs/BRD.md 不存在或為空，無法進行補充")
+    print("       BRD 是核心源文件，需先執行 /gendoc-auto 或手動建立")
+    exit(1)
+
+if not _IDEA_OK:
+    # IDEA 是選用的，但若 state 完全空則無法補充
+    if not _COMPLETED:
+        print("[Stop] docs/IDEA.md 不存在，state 為空，無法進行補充")
+        print("       請先執行 /gendoc-auto 或 /gendoc-flow BRD PRD ... 完成 Phase A 基礎")
+        exit(1)
+    else:
+        print("[Info] docs/IDEA.md 不存在但 state 有內容，以 BRD 作為最高層需求繼續")
+```
+
 **目的**：對所有缺失/失敗的步驟，遞迴驗證其 input[] 是否都存在，建立補充序列。
 
 ```python
@@ -620,15 +643,17 @@ def build_repair_sequence(step_id, visited=None, max_depth=50):
 _REPAIR_SEQUENCE = []
 _repair_visited = set()
 
-# 從所有缺失/失敗的步驟開始
+# 從所有缺失/失敗的步驟開始（排除源文件）
 missing_or_failed = set(all_missing) | set(_SEMANTIC_IDS or []) | set(_QUALITY_FAIL_IDS or [])
+missing_or_failed.discard("IDEA")  # 源文件不應被補充
+missing_or_failed.discard("BRD")   # 源文件不應被補充
 
 for step_id in missing_or_failed:
     sub = build_repair_sequence(step_id, _repair_visited, max_depth=50)
     for s in sub:
-        if s not in _REPAIR_SEQUENCE:
+        if s not in ("IDEA", "BRD") and s not in _REPAIR_SEQUENCE:  # 再度過濾源文件
             _REPAIR_SEQUENCE.append(s)
-    if step_id not in _REPAIR_SEQUENCE:
+    if step_id not in ("IDEA", "BRD") and step_id not in _REPAIR_SEQUENCE:
         _REPAIR_SEQUENCE.append(step_id)
 
 # DRYRUN 必須排在 Phase A 之後、Phase B 之前（若在序列中）
