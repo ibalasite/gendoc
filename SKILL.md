@@ -95,7 +95,7 @@ options:
 # local-deploy  → LOCAL_DEPLOY
 # idea          → IDEA
 # readme        → README
-# uml-class     → UML-CLASS-GUIDE
+# uml-class     → UML-CLASS.gen
 # frontend      → FRONTEND
 # client        → FRONTEND  （向後相容別名）
 # client-impl   → CLIENT_IMPL

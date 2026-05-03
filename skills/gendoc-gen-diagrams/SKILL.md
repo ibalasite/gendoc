@@ -722,6 +722,9 @@ for md_file in sorted(diagrams.glob("*.md")):
 - [ ] Domain Layer 含 ≥ 1 `<<AggregateRoot>>`、≥ 2 `<<Entity>>`、≥ 1 `<<Repository>>` interface
 - [ ] 每個 `<<DomainEvent>>` class 在 EDD §4.6 Domain Events 表中有對應行
 - [ ] class 名稱與 ARCH.md §3 Domain 模型和 SCHEMA.md Table 名稱完全一致
+- [ ] 每張 class diagram（含前端 class diagram）含 ≥ 6 個 class，其中 ≥ 1 個 `<<interface>>`
+- [ ] 每張 class diagram 的關聯線涵蓋全部 6 種類型各 ≥ 1 次：Inheritance（`<|--`）/ Realization（`<|..`）/ Composition（`*--`）/ Aggregation（`o--`）/ Association（`-->`）/ Dependency（`..>`）
+- [ ] 每張 class diagram 檔案末端附「技術說明」段落（工程語言說明該層的職責邊界與設計決策）和「白話說明」段落（任何非技術人員都能理解的業務意義，≤ 3 句）
 
 **Object Diagram 實作完整度**：
 - [ ] 每個 `<<AggregateRoot>>` 有 ≥ 1 張 Object Diagram
