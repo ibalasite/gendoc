@@ -12,7 +12,7 @@ allowed-tools:
 upstream-docs:
   input-files: templates/pipeline.json input[] array (DRYRUN step)
   description: |
-    DRYRUN step's input[] array in pipeline.json specifies which Phase A files
+    DRYRUN step's input[] array in pipeline.json specifies which DRYRUN 前的 step files
     are needed (IDEA, BRD, PRD, CONSTANTS, PDD, VDD, EDD, ARCH).
     get-upstream reads these from the target project and returns JSON with file contents.
     Metric extraction logic (grep patterns) remains in dryrun.gen.md §2.
