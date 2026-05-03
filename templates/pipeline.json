@@ -185,14 +185,16 @@
       "type": "DRYRUN",
       "layer": "設計層-規劃",
       "output": [
-        "docs/MANIFEST.md"
+        "docs/MANIFEST.md",
+        ".gendoc-rules/"
       ],
-      "multi_file": false,
+      "output_glob": "docs/MANIFEST.md|.gendoc-rules/*.json",
+      "multi_file": true,
       "condition": "always",
       "handled_by": "gendoc-flow",
       "special_skill": "gendoc-gen-dryrun",
       "commit_prefix": "docs(gendoc)[DRYRUN]",
-      "note": "Phase A→B 邊界：根據 pipeline.json metrics[] 動態讀取所有 Phase A 文件，計算 20 個量化指標，推導 34 個 Phase B step 的規格。生成 docs/MANIFEST.md + .gendoc-rules/*.json。不跑 review→fix loop（special_skill 直接處理）。",
+      "note": "Phase A→B 邊界：根據 pipeline.json 動態讀取所有 Phase A 文件，計算量化指標，推導 Phase B step 的規格。生成 docs/MANIFEST.md + .gendoc-rules/*.json。【重要】.gendoc-rules/*.json 是後續所有 gate-check 的量化門檻依據，必須完整生成並在 pipeline output 中宣告。不跑 review→fix loop（special_skill 直接處理）。",
       "spec_rules": {
         "quantitative_specs": {
           "manifest_generated": "docs/MANIFEST.md 必須存在且無未解決的 {{PLACEHOLDER}}",
@@ -242,6 +244,7 @@
         }
       },
       "input": [
+        "docs/PRD.md",
         "docs/EDD.md",
         "docs/CONSTANTS.md"
       ]
@@ -270,7 +273,8 @@
       },
       "input": [
         "docs/EDD.md",
-        "docs/CONSTANTS.md"
+        "docs/CONSTANTS.md",
+        "docs/PDD.md"
       ]
     },
     {
@@ -365,7 +369,7 @@
       "condition": "client_type != none",
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[CLIENT_IMPL]",
-      "note": "客戶端實作規格書：依 EDD §3.3 偵測引擎（Cocos Creator / Unity WebGL / React / Vue / HTML5），自動展開對應的場景結構、資源載入策略、動畫觸發規格、AudioManager 架構、VFX 整合規格。上游：EDD + VDD + ANIM + AUDIO。",
+      "note": "客戶端實作規格書：依 EDD §3.3 偵測引擎（Cocos Creator / Unity WebGL / React / Vue / HTML5），自動展開對應的場景結構、資源載入策略、動畫觸發規格、AudioManager 架構、VFX 整合規格。上游：EDD + FRONTEND + VDD + ANIM + AUDIO。",
       "spec_rules": {
         "quantitative_specs": {},
         "content_mapping": {
@@ -375,7 +379,10 @@
       },
       "input": [
         "docs/EDD.md",
-        "docs/FRONTEND.md"
+        "docs/FRONTEND.md",
+        "docs/VDD.md",
+        "docs/ANIM.md",
+        "docs/AUDIO.md"
       ]
     },
     {
@@ -428,8 +435,9 @@
         }
       },
       "input": [
-        "docs/EDD.md",
-        "docs/ARCH.md"
+        "docs/VDD.md",
+        "docs/ANIM.md",
+        "docs/AUDIO.md"
       ]
     },
     {
@@ -541,6 +549,7 @@
         }
       },
       "input": [
+        "docs/PRD.md",
         "docs/PDD.md",
         "docs/FRONTEND.md"
       ]
@@ -634,7 +643,7 @@
       "condition": "always",
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[CICD]",
-      "note": "CI/CD Pipeline 設計文件。上游：EDD.md（CI_TOOL/CD_TOOL）、ARCH.md（Tech Stack）、LOCAL_DEPLOY.md（Make targets/Secret Bootstrap）。排在 LOCAL_DEPLOY 之後，確保 §4 Make targets 可從 LOCAL_DEPLOY.md §6 讀取。",
+      "note": "CI/CD Pipeline 設計文件。上游：EDD.md（CI_TOOL/CD_TOOL）、ARCH.md（Tech Stack）、LOCAL_DEPLOY.md（Make targets/Secret Bootstrap）。排在 LOCAL_DEPLOY 之後，確保 §4 Make targets 可從 LOCAL_DEPLOY.md §6 讀取。【重要】quality-bar 要求「§4 Make targets = LOCAL_DEPLOY.md §6 exact character match」。",
       "spec_rules": {
         "quantitative_specs": {},
         "content_mapping": {
@@ -644,7 +653,8 @@
       },
       "input": [
         "docs/EDD.md",
-        "docs/ARCH.md"
+        "docs/ARCH.md",
+        "docs/LOCAL_DEPLOY.md"
       ]
     },
     {
@@ -658,7 +668,7 @@
       "condition": "always",
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[DEVELOPER_GUIDE]",
-      "note": "開發者日常操作指南（非初次建置）。上游：LOCAL_DEPLOY.md（§6 Make targets）、CICD.md（§4 Shared Make Targets、§8 Gitea）、runbook.md（incident 邊界）。排在 CICD 之後確保 CICD.md 存在可讀取。",
+      "note": "開發者日常操作指南（非初次建置）。上游：LOCAL_DEPLOY.md（§6 Make targets）、CICD.md（§4 Shared Make Targets、§8 Gitea）、runbook.md（incident 邊界）。排在 CICD 之後確保 CICD.md 存在可讀取。【重要】本 step 同層讀取 CICD 和 runbook，必須遵循 pipeline 拓撲序（runbook → LOCAL_DEPLOY → CICD → DEVELOPER_GUIDE），禁止重排或提前執行到同層依賴之前。",
       "spec_rules": {
         "quantitative_specs": {},
         "content_mapping": {
@@ -668,7 +678,9 @@
       },
       "input": [
         "docs/EDD.md",
-        "docs/LOCAL_DEPLOY.md"
+        "docs/LOCAL_DEPLOY.md",
+        "docs/CICD.md",
+        "docs/runbook.md"
       ]
     },
     {
@@ -684,7 +696,7 @@
       "special_skill": "gendoc-gen-diagrams",
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[UML-CICD]",
-      "note": "特殊步驟：呼叫 gendoc-gen-diagrams skill 的 Step 2D，生成 5 張 CI/CD UML 圖（cicd-pipeline-sequence / cicd-pr-gate-activity / infra-local-topology / developer-workflow-activity / cicd-secret-flow）。排在 CICD 和 DEVELOPER_GUIDE 之後，確保 CICD.md 存在可作為 Step 2D 的上游。",
+      "note": "特殊步驟：呼叫 gendoc-gen-diagrams skill 的 Step 2D，生成 5 張 CI/CD UML 圖（cicd-pipeline-sequence / cicd-pr-gate-activity / infra-local-topology / developer-workflow-activity / cicd-secret-flow）。排在 CICD 和 DEVELOPER_GUIDE 之後，確保 CICD.md 存在可作為 Step 2D 的上游。Secret Bootstrap 與 Make targets 視覺化需要讀取 LOCAL_DEPLOY.md。",
       "spec_rules": {
         "quantitative_specs": {},
         "content_mapping": {
@@ -694,7 +706,8 @@
       },
       "input": [
         "docs/CICD.md",
-        "docs/EDD.md"
+        "docs/EDD.md",
+        "docs/LOCAL_DEPLOY.md"
       ]
     },
     {
