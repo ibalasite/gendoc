@@ -47,8 +47,8 @@
 
 | 狀態 | 子任務 |
 |------|-------|
-| `[ ]` | 修改 `skills/gendoc-gen-diagrams/SKILL.md` §2.9 末端 |
-| `[ ]` | 確認三條驗收項與已有 checklist 格式一致 |
+| `[x]` | 修改 `skills/gendoc-gen-diagrams/SKILL.md` §2.9 末端 |
+| `[x]` | 確認三條驗收項與已有 checklist 格式一致 |
 
 ---
 
@@ -64,9 +64,9 @@
 
 | 狀態 | 子任務 |
 |------|-------|
-| `[ ]` | 建立 `templates/UML-CLASS.md` |
-| `[ ]` | 建立 `templates/UML-CLASS.gen.md`（從 SKILL.md §2.2-2.4, §2B-2~2B-4 inline copy） |
-| `[ ]` | 建立 `templates/UML-CLASS.review.md` |
+| `[x]` | 建立 `templates/UML-CLASS.md` |
+| `[x]` | 建立 `templates/UML-CLASS.gen.md`（從 SKILL.md §2.2-2.4, §2B-2~2B-4 inline copy） |
+| `[x]` | 建立 `templates/UML-CLASS.review.md` |
 
 ---
 
@@ -76,7 +76,7 @@
 
 | 狀態 | 子任務 |
 |------|-------|
-| `[ ]` | 刪除 UML-CLASS-GUIDE.md 該行，改寫為 UML-CLASS.gen.md 的正確說明 |
+| `[x]` | 刪除 UML-CLASS-GUIDE.md 該行，改寫為 UML-CLASS.gen.md 的正確說明 |
 
 ---
 
@@ -88,8 +88,8 @@
 
 | 狀態 | 子任務 |
 |------|-------|
-| `[ ]` | `EDD.review.md:76` Fix hint：改為「執行 `/gendoc uml` 補生成，或人工補 §4.5 對應 Mermaid 程式碼塊」 |
-| `[ ]` | `EDD.review.md:86` Fix hint：改為「執行 `/gendoc uml` 重新生成 class-inventory，或人工補 Class Inventory 表格（欄位：class 名稱 / stereotype / 架構層 / src 路徑 / test 路徑）」 |
+| `[x]` | `EDD.review.md:76` Fix hint：改為「執行 `/gendoc uml` 補生成，或人工補 §4.5 對應 Mermaid 程式碼塊」 |
+| `[x]` | `EDD.review.md:86` Fix hint：改為「執行 `/gendoc uml` 重新生成 class-inventory，或人工補 Class Inventory 表格（欄位：class 名稱 / stereotype / 架構層 / src 路徑 / test 路徑）」 |
 
 ---
 
@@ -99,8 +99,8 @@
 
 | 狀態 | 子任務 |
 |------|-------|
-| `[ ]` | `SKILL.md:98`：`uml-class → UML-CLASS-GUIDE` 改為 `uml-class → UML-CLASS.gen` |
-| `[ ]` | `skills/reviewdoc/SKILL.md:69`：`uml-class → UML-CLASS-GUIDE` 改為 `uml-class → UML-CLASS.review` |
+| `[x]` | `SKILL.md:98`：`uml-class → UML-CLASS-GUIDE` 改為 `uml-class → UML-CLASS.gen` |
+| `[x]` | `skills/reviewdoc/SKILL.md:69`：`uml-class → UML-CLASS-GUIDE` 改為 `uml-class → UML-CLASS.review` |
 
 ---
 
@@ -110,7 +110,7 @@
 
 | 狀態 | 子任務 |
 |------|-------|
-| `[ ]` | `git rm templates/UML-CLASS-GUIDE.md` |
+| `[x]` | `git rm templates/UML-CLASS-GUIDE.md` |
 
 ---
 
