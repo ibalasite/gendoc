@@ -313,11 +313,11 @@ if [[ -f "$_CWD/templates/pipeline.yml" ]]; then
 elif [[ -f "$_CWD/templates/pipeline.json" ]]; then
   _TEMPLATE_DIR="${_TEMPLATE_DIR:-$_CWD/templates}"
   _PIPELINE_FILE="$_CWD/templates/pipeline.json"
-elif [[ -f "$HOME/.claude/gendoc/templates/pipeline.yml" ]]; then
-  _TEMPLATE_DIR="${_TEMPLATE_DIR:-$HOME/.claude/gendoc/templates}"
-  _PIPELINE_FILE="$HOME/.claude/gendoc/templates/pipeline.yml"
+elif [[ -f "$HOME/.claude/skills/gendoc/templates/pipeline.yml" ]]; then
+  _TEMPLATE_DIR="${_TEMPLATE_DIR:-$HOME/.claude/skills/gendoc/templates}"
+  _PIPELINE_FILE="$HOME/.claude/skills/gendoc/templates/pipeline.yml"
 else
-  _TEMPLATE_DIR="${_TEMPLATE_DIR:-$HOME/.claude/gendoc/templates}"
+  _TEMPLATE_DIR="${_TEMPLATE_DIR:-$HOME/.claude/skills/gendoc/templates}"
   _PIPELINE_FILE="${_TEMPLATE_DIR}/pipeline.json"
 fi
 _BRD_OK=false
