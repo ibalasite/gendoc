@@ -421,18 +421,20 @@ Requirement 4：Phase B 驗證
 #### 任務 D-SSOT-3.1：pipeline.json 改動
 - **目標**：刪除冗餘、加入 input 字段
 - **具體改動**：
-  - [ ] 刪除 `condition_syntax` 物件
-  - [ ] 刪除 `metrics[]` 陣列
-  - [ ] 各 step 加 `input: [...]` 字段
+  - [x] 刪除 `condition_syntax` 物件
+  - [x] 刪除 `metrics[]` 陣列
+  - [x] 各 step 加 `input: [...]` 字段
     - DRYRUN: `input: ["docs/IDEA.md", "docs/BRD.md", "docs/PRD.md", "docs/CONSTANTS.md", "docs/PDD.md", "docs/VDD.md", "docs/EDD.md", "docs/ARCH.md"]`
-    - API、SCHEMA、FRONTEND 等根據現有 .gen.md 的上游文件清單填入
+    - API: `input: ["docs/EDD.md", "docs/CONSTANTS.md"]`
+    - SCHEMA: `input: ["docs/EDD.md", "docs/CONSTANTS.md"]`
+    - FRONTEND: `input: ["docs/PDD.md", "docs/VDD.md", "docs/CONSTANTS.md"]`
 - **完成標準**：
-  - [ ] JSON 語法正確
-  - [ ] 所有 step 的 input 已定義
-  - [ ] git commit 記錄
+  - [x] JSON 語法正確
+  - [x] 所有 step 的 input 已定義
+  - [x] git commit 記錄（d0a9ed1：2026-05-03）
 
 #### 任務 D-SSOT-3.2：編寫 get-upstream 工具
-- **位置**：`tools/bin/get-upstream.sh` 或 `.py`（效率優先選擇）
+- **位置**：`tools/bin/get-upstream.sh`（Bash + embedded Python）
 - **功能**：讀取 pipeline.json 的 input、讀取目標項目檔案/章節、返回 JSON
 - **調用方式**：`get-upstream --step DRYRUN --output json`
 - **輸出格式**：
@@ -448,40 +450,54 @@ Requirement 4：Phase B 驗證
   }
   ```
 - **完成標準**：
-  - [ ] 能讀 pipeline.json 的 input 字段
-  - [ ] 能讀目標項目檔案並篩選章節（"docs/BRD.md§2" 只讀 §2 部分）
-  - [ ] 正確返回 JSON
+  - [x] 能讀 pipeline.json 的 input 字段
+  - [x] 能讀目標項目檔案並篩選章節（"docs/BRD.md§2" 只讀 §2 部分）
+  - [x] 正確返回 JSON
+- **實現細節**：
+  - Bash wrapper 驗證 .gendoc-state.json 存在（目標項目標記）
+  - 支援本地 templates/pipeline.json 或 ~/.claude/gendoc/templates/pipeline.json fallback
+  - embedded Python：JSON 解析 + file I/O + section filtering
+  - 輸出 160+ 行完整工具
+- **git commit**：a87bc94（2026-05-04）
 
-#### 任務 D-SSOT-3.3：DRYRUN.gen.md Step 0 改動
+#### 任務 D-SSOT-3.3：DRYRUN.gen.md 整合 get-upstream
 - **目標**：改為調用 get-upstream，獲得 INPUT_DATA
 - **具體改動**：
-  ```bash
-  INPUT_DATA=$(get-upstream --step DRYRUN --output json)
-  IDEA_CONTENT=$(echo "$INPUT_DATA" | jq -r '.inputs["docs/IDEA.md"]')
-  PERSONA_COUNT=$(echo "$IDEA_CONTENT" | grep "^## Persona:" | wc -l)
-  # ... 後續步驟使用這些值
-  ```
+  - [x] upstream-docs 更新，標註 SSOT 來源為 pipeline.json input[]
+  - [x] Step 1-A：呼叫 `tools/bin/get-upstream --step DRYRUN`
+  - [x] Step 1-B：解析 JSON，提取各檔案內容
+  - [x] Step 1-C：讀取 .gendoc-state.json（client_type, has_admin_backend）
+  - [x] Step 2A-E：從 Step 1 提取的 JSON 內容執行 grep（而非直接讀檔案）
 - **完成標準**：
-  - [ ] 刪除硬編碼的檔案清單
-  - [ ] 調用 get-upstream
-  - [ ] 從 INPUT_DATA 提取 metrics（原有邏輯保持）
+  - [x] 移除對已刪除 metrics[] array 的依賴
+  - [x] 使用新的 input[] array 定義
+  - [x] 呼叫新的 get-upstream 工具
+- **git commit**：ebff0b2（2026-05-04）
 
-#### 任務 D-SSOT-3.4：其他 step .gen.md 改動
-- **涉及 steps**：API、SCHEMA、FRONTEND、test-plan 等（按現有 .gen.md 的上游文件清單）
+#### 任務 D-SSOT-3.4：API、SCHEMA、FRONTEND.gen.md 整合 get-upstream
+- **涉及 steps**：API、SCHEMA、FRONTEND（根據 pipeline.json 定義的 input[]）
 - **改動模式**：同 D-SSOT-3.3
+- **具體改動**：
+  - [x] API.gen.md：upstream-docs 更新、Step 0 添加 `get-upstream --step API` 呼叫
+  - [x] SCHEMA.gen.md：upstream-docs 更新、Step 0 添加 `get-upstream --step SCHEMA` 呼叫
+  - [x] FRONTEND.gen.md：upstream-docs 更新、Step 0 添加 `get-upstream --step FRONTEND` 呼叫
 - **完成標準**：
-  - [ ] 各 step 調用 `get-upstream --step <STEP_ID>`
-  - [ ] 獲得 INPUT_DATA
-  - [ ] 提取所需資料
+  - [x] API：核心輸入 EDD + CONSTANTS
+  - [x] SCHEMA：核心輸入 EDD + CONSTANTS
+  - [x] FRONTEND：核心輸入 PDD + VDD + CONSTANTS
+  - [x] 各 step 均添加統一的「步驟 0」模式
+- **git commit**：d7e22e7（2026-05-04）
 
-#### 任務 D-SSOT-3.5：實測與驗收（⏸️ 待暫停）
-- **前置條件**：需要生成新的目標項目
+#### 任務 D-SSOT-3.5：實測與驗收（⏸️ 暫停）
+- **狀態**：⏸️ 暫停（如用戶備註：驗收需要新建目標專案，實測在另一臺電腦進行）
+- **前置條件**：需要生成新的目標項目、在獨立環境測試
 - **測試清單**：
   - [ ] 在目標項目執行 `/gendoc dryrun`
-  - [ ] 驗證 DRYRUN 正常執行
-  - [ ] 在目標項目執行 `/gendoc api`、`/gendoc schema` 等
+  - [ ] 驗證 DRYRUN 正常執行、get-upstream 能正確讀取檔案
+  - [ ] 在目標項目執行 `/gendoc api`、`/gendoc schema`、`/gendoc frontend` 等
   - [ ] 所有文件正確生成，無缺漏
-- **狀態**：D-SSOT-3.1～3.4 可先執行，D-SSOT-3.5 待實測環境準備
+  - [ ] get-upstream 支援章節篩選（§notation）正確運作
+- **備註**：D-SSOT-3.1～3.4 已全部實作完成（2026-05-04），待用戶測試環境準備後進行 D-SSOT-3.5
 
 ### 總工時估計
 - 改 pipeline.json：1h
