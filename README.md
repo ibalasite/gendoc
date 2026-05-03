@@ -168,6 +168,85 @@ References: Martin Fowler "MonolithFirst" (2015) · Sam Newman *Monolith to Micr
 
 ---
 
+## Pipeline Architecture — Single Source of Truth (SSOT)
+
+The `gendoc-gen-dryrun` step enforces a complete **Single Source of Truth (SSOT)** architecture for all quantitative metrics and document specification rules. This ensures that:
+
+1. **Adding a new Phase A step** (e.g., REVIEW.md before DRYRUN) automatically contributes its metrics — no code changes needed
+2. **Adding a new Phase B step** (e.g., PERFORMANCE after SCHEMA) automatically generates complete specification rules — no code changes needed
+3. All 20 quantitative indicators and 34 step specifications are defined in **one authoritative location**: `templates/pipeline.json`
+
+### pipeline.json Structure
+
+```json
+{
+  "metrics": [
+    {
+      "id": "persona_count",
+      "source_step": "IDEA",
+      "grep_pattern": "^## Persona:",
+      "fallback": 1,
+      "description": "Number of personas defined in IDEA"
+    },
+    // ... 19 more metrics
+  ],
+  "steps": [
+    {
+      "id": "API",
+      "spec_rules": {
+        "quantitative_specs": {
+          "min_endpoint_count": "max(5, rest_endpoint_count)"
+        },
+        "content_mapping": {
+          "entity_coverage": "All {entity_count} entities from EDD must appear in API request/response models"
+        },
+        "cross_file_validation": {
+          "entity_parity": "API endpoints >= EDD entity definitions"
+        }
+      }
+    },
+    // ... 33 more steps
+  ]
+}
+```
+
+### How It Works
+
+**`dryrun_core.py` — Dynamic Metric Extraction & Spec Derivation**
+
+Instead of hardcoding 20 metrics and 34 step specifications:
+
+```python
+# OLD (hardcoded, violates SSOT):
+def extract_metrics(self):
+    self.persona_count = self._count_personas()  # ← hardcoded
+    self.moscow_p0_count = self._count_moscow()  # ← hardcoded
+    # ... repeat 18 times
+
+# NEW (dynamic from pipeline.json):
+def extract_metrics(self):
+    for metric_def in self.pipeline['metrics']:
+        grep_pattern = metric_def['grep_pattern']
+        source_step = metric_def['source_step']
+        source_file = self.docs_dir / f"{source_step}.md"
+        metrics[metric_id] = self._grep_count(source_file, grep_pattern)
+```
+
+**Result**: Code is 44% shorter, 100% data-driven, and adding new metrics/steps requires editing only `pipeline.json` + adding the three-file template set (`.md`, `.gen.md`, `.review.md`).
+
+### Validation Layers
+
+The DRYRUN output (`MANIFEST.md` + `.gendoc-rules/*.json`) is validated against four layers:
+
+1. **Quantitative** — 10 structural checks (placeholder count, section count, endpoint count, etc.)
+2. **Content Mapping** — 4 cross-document reference checks (entity coverage, user story traceability, etc.)
+3. **Cross-File Validation** — 4 inter-document consistency checks (entity parity, relationship mapping, etc.)
+4. **Integration** — AI findings + Shell findings merged and deduplicated
+
+See `tools/bin/review.sh` for all 18 built-in rules. Each rule includes a `suggested_fix` hint for automated or manual remediation.
+
+---
+
 ## Document Architecture — SDLC Foundation
 
 gendoc's document pipeline is grounded in established **Software Development Lifecycle (SDLC)** theory. The Requirements Engineering and Design phases are decomposed into four distinct layers, each answering a single question for a specific audience:
