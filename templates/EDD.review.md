@@ -73,7 +73,7 @@ upstream-alignment:
 (8) Component Diagram（§4.5.8 或等效段落）：是否有元件依賴圖？
 (9) Deployment Diagram（§4.5.9 或等效段落）：是否有部署拓撲圖？
 **Risk**: UML 圖缺失使工程師只能讀文字推斷系統結構，無法基於圖示進行精確實作，不同工程師對同一系統的理解會出現分歧，導致實作偏差。Class Diagram 缺失更直接導致無法推導 unit test skeleton，測試覆蓋率無從保證。
-**Fix**: 執行 `/gendoc uml` 補生成所有缺失的 UML 圖（`gendoc-gen-diagrams` 會自動從 EDD 提取並生成）；若需單獨補強 Class Diagrams，執行 `/gendoc UML-CLASS`。Class Diagram 生成規則見 `templates/UML-CLASS.gen.md`。多圖原則：每個主要業務流程一張 Sequence Diagram（≥ 3 張），每個有狀態 Entity 一張 State Machine，每個 P0 User Story 一張 Activity Diagram（≥ 3 張）。
+**Fix**: 透過 `gendoc-repair` 補跑 UML pipeline 步驟（`gendoc-gen-diagrams`，會自動從 EDD 提取並生成全部 9 種 UML 圖）。Class Diagram 生成規則見 `templates/UML-CLASS.gen.md`。多圖原則：每個主要業務流程一張 Sequence Diagram（≥ 3 張），每個有狀態 Entity 一張 State Machine，每個 P0 User Story 一張 Activity Diagram（≥ 3 張）。
 
 #### [CRITICAL] 5b-sm — State Machine Diagram 使用 `<br/>` 語法
 **Check**: EDD §4.5.6 的所有 `stateDiagram-v2` 程式碼塊中，是否有任何 transition label 包含 `<br/>`？掃描方式：搜尋每個 `stateDiagram-v2` 區塊內的 `-->` 行，確認無 `<br/>` 出現。
@@ -83,7 +83,7 @@ upstream-alignment:
 #### [CRITICAL] 5c — Class Diagram class inventory 缺失
 **Check**: EDD §4.5.2 的 Class Diagram 段落之後是否提供 Class Inventory 表格（列出所有 class 名稱、stereotype、架構層次、推斷的 src 路徑、推斷的 test 路徑）？缺少 Class Inventory 表格視為 CRITICAL。
 **Risk**: 無 Class Inventory，test-plan 撰寫者必須人工掃描 classDiagram 程式碼塊提取 class 清單，容易遺漏，導致部分 class 完全沒有 unit test 覆蓋，在驗收時才被發現。
-**Fix**: 執行 `/gendoc uml` 或 `/gendoc UML-CLASS` 重新生成，`class-inventory.md` 由生成工具自動從三張 Server Class Diagrams 提取；若需人工補充，表格欄位為：Class 名稱 / Stereotype / 架構層 / 推斷 src 路徑 / 推斷 test 路徑，必須覆蓋所有出現在 classDiagram 中的 class。
+**Fix**: 透過 `gendoc-repair` 補跑 UML pipeline 步驟（`gendoc-gen-diagrams`），`class-inventory.md` 由工具自動從三張 Server Class Diagrams 提取；若需人工補充，表格欄位為：Class 名稱 / Stereotype / 架構層 / 推斷 src 路徑 / 推斷 test 路徑，必須覆蓋所有出現在 classDiagram 中的 class。
 
 ---
 
