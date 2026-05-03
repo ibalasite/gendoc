@@ -78,7 +78,7 @@
       "condition": "always",
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[CONSTANTS]",
-      "note": "從 PRD 提取所有關鍵業務數值（倍率、閾值、SLO、RTP、rate-limit 等）到 docs/CONSTANTS.md（並同步輸出 docs/constants.json）。下游所有文件（EDD/BDD/test-plan/runbook）生成時必須讀取此文件並引用，確保跨文件數值一致性。這是 AI 可實作性的核心機制。",
+      "note": "從 PRD 提取業務數值（倍率、閾值、SLO、rate-limit）為數值 SSOT，下游所有文件參照確保一致性。",
       "spec_rules": {
         "quantitative_specs": {},
         "content_mapping": {
@@ -115,7 +115,7 @@
     {
       "id": "VDD",
       "type": "VDD",
-      "layer": "設計層",
+      "layer": "需求層",
       "output": [
         "docs/VDD.md"
       ],
@@ -145,7 +145,7 @@
       "condition": "always",
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[EDD]",
-      "note": "EDD 生成採用三 subagent 多 pass 架構（見 EDD.gen.md）：Pass-A 生成 §1-§8，Pass-B 生成 §4.5 UML，Pass-C 生成 §9-§21。三個 pass 均輸出到同一個 docs/EDD.md，review loop 在全部完成後執行。",
+      "note": "三 pass 架構（Pass-A §1-§8 / Pass-B §4.5 UML / Pass-C §9-§21），三 pass 完成後才執行 review loop。",
       "spec_rules": {
         "quantitative_specs": {},
         "content_mapping": {
@@ -232,6 +232,7 @@
       "condition": "always",
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[API]",
+      "note": "從 PRD（user story 範圍）+ EDD（entity 模型）+ CONSTANTS（rate-limit/SLO）推導 endpoint 規格。",
       "spec_rules": {
         "quantitative_specs": {
           "min_endpoint_count": "max(5, rest_endpoint_count)"
@@ -260,6 +261,7 @@
       "condition": "always",
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[SCHEMA]",
+      "note": "從 EDD（entity 模型）+ CONSTANTS（capacity 限制）+ PDD（client-specific entities）推導資料庫 schema。",
       "spec_rules": {
         "quantitative_specs": {
           "min_table_count": "max(3, entity_count)"
@@ -369,7 +371,7 @@
       "condition": "client_type != none",
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[CLIENT_IMPL]",
-      "note": "客戶端實作規格書：依 EDD §3.3 偵測引擎（Cocos Creator / Unity WebGL / React / Vue / HTML5），自動展開對應的場景結構、資源載入策略、動畫觸發規格、AudioManager 架構、VFX 整合規格。上游：EDD + FRONTEND + VDD + ANIM + AUDIO。",
+      "note": "依 EDD §3.3 偵測引擎（Cocos / Unity WebGL / React / Vue / HTML5），展開場景結構、資源載入、動畫觸發、AudioManager、VFX 整合規格。",
       "spec_rules": {
         "quantitative_specs": {},
         "content_mapping": {
@@ -396,7 +398,7 @@
       "condition": "has_admin_backend",
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[ADMIN_IMPL]",
-      "note": "Admin 後台實作規格（預設技術棧：Vue3 + Element Plus + Vite）。包含：RBAC 架構、Component 規範、路由設計、API 串接、Pinia Store、部署配置。上游：EDD（§3.3 _ADMIN_FRAMEWORK, §5.5 RBAC 模型）+ ARCH + API + SCHEMA。觸發條件：has_admin_backend=true（在 gendoc-auto Session Config 中設定）。",
+      "note": "Admin 後台實作規格（預設 Vue3 + Element Plus + Vite）：RBAC 架構、路由設計、API 串接、Pinia Store、部署配置。觸發條件：has_admin_backend=true。",
       "spec_rules": {
         "quantitative_specs": {
           "min_rbac_roles": 2
@@ -422,7 +424,7 @@
       "condition": "client_type != none",
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[RESOURCE]",
-      "note": "AI 資產生產訂單：從 VDD.md（必讀）、ANIM.md（若存在）、AUDIO.md（若存在）推導出需要哪些具體資產檔案，生成包含 ID/檔名/type/source_tool/prompt/dimensions/file_size_budget/status/output_path/description 的結構化清單。設計師確認 prompt 後即可送入 AI 工具（Midjourney/Suno/ElevenLabs 等）執行生產。觸發條件：client_type != none（有前端/客戶端的專案）。",
+      "note": "AI 資產生產訂單：從 VDD/ANIM/AUDIO 推導資產清單，每筆含 ID/檔名/type/source_tool/prompt/dimensions/file_size_budget/status/output_path，可直接送入 AI 工具。",
       "spec_rules": {
         "quantitative_specs": {
           "min_resource_entries": "max(5, constant_count)"
@@ -453,7 +455,7 @@
       "special_skill": "gendoc-gen-diagrams",
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[UML]",
-      "note": "特殊步驟：呼叫 gendoc-gen-diagrams skill，生成 9 大 UML 圖 + class-inventory.md。排在所有設計文件（API/SCHEMA/FRONTEND/AUDIO/ANIM/CLIENT_IMPL/ADMIN_IMPL/RESOURCE）之後，確保所有上游文件已存在。class-inventory.md 供 test-plan 和 RTM 讀取。has_admin_backend=true 時額外生成 3 張 Admin 圖（RBAC Entity Diagram / Admin Login Sequence / Admin-Server C4 Container）。",
+      "note": "特殊步驟：gendoc-gen-diagrams 生成 9 張 UML 圖 + class-inventory.md（後者供 test-plan/RTM 讀取）。排在所有設計文件之後以確保上游就緒。has_admin_backend=true 時額外輸出 3 張 Admin 圖。",
       "spec_rules": {
         "quantitative_specs": {},
         "content_mapping": {
@@ -643,7 +645,7 @@
       "condition": "always",
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[CICD]",
-      "note": "CI/CD Pipeline 設計文件。上游：EDD.md（CI_TOOL/CD_TOOL）、ARCH.md（Tech Stack）、LOCAL_DEPLOY.md（Make targets/Secret Bootstrap）。排在 LOCAL_DEPLOY 之後，確保 §4 Make targets 可從 LOCAL_DEPLOY.md §6 讀取。【重要】quality-bar 要求「§4 Make targets = LOCAL_DEPLOY.md §6 exact character match」。",
+      "note": "CI/CD Pipeline 設計文件。排在 LOCAL_DEPLOY 之後以讀取 §6 Make targets / Secret Bootstrap。§4 Make targets 必須與 LOCAL_DEPLOY §6 完全一致（quality-bar 強制）。",
       "spec_rules": {
         "quantitative_specs": {},
         "content_mapping": {
@@ -668,7 +670,7 @@
       "condition": "always",
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[DEVELOPER_GUIDE]",
-      "note": "開發者日常操作指南（非初次建置）。上游：LOCAL_DEPLOY.md（§6 Make targets）、CICD.md（§4 Shared Make Targets、§8 Gitea）、runbook.md（incident 邊界）。排在 CICD 之後確保 CICD.md 存在可讀取。【重要】本 step 同層讀取 CICD 和 runbook，必須遵循 pipeline 拓撲序（runbook → LOCAL_DEPLOY → CICD → DEVELOPER_GUIDE），禁止重排或提前執行到同層依賴之前。",
+      "note": "開發者日常操作指南。排在 CICD 之後讀取 §4 Shared Make targets 與 §8 Gitea。",
       "spec_rules": {
         "quantitative_specs": {},
         "content_mapping": {
@@ -696,7 +698,7 @@
       "special_skill": "gendoc-gen-diagrams",
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[UML-CICD]",
-      "note": "特殊步驟：呼叫 gendoc-gen-diagrams skill 的 Step 2D，生成 5 張 CI/CD UML 圖（cicd-pipeline-sequence / cicd-pr-gate-activity / infra-local-topology / developer-workflow-activity / cicd-secret-flow）。排在 CICD 和 DEVELOPER_GUIDE 之後，確保 CICD.md 存在可作為 Step 2D 的上游。Secret Bootstrap 與 Make targets 視覺化需要讀取 LOCAL_DEPLOY.md。",
+      "note": "CI/CD UML 圖表。排在 CICD 之後。Secret Bootstrap + Make targets 視覺化需讀 LOCAL_DEPLOY.md。",
       "spec_rules": {
         "quantitative_specs": {},
         "content_mapping": {
@@ -722,7 +724,7 @@
       "special_skill": "gendoc-align-check",
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[ALIGN]",
-      "note": "特殊步驟：呼叫 gendoc-align-check skill，不走標準 gen→review 流程。覆蓋範圍包含 CICD.md（§4 Make targets vs LOCAL_DEPLOY.md §6）和 DEVELOPER_GUIDE.md（§2 Jenkins log path vs CICD.md §2 Jenkinsfile stage 名稱）。",
+      "note": "跨層對齊檢查：CICD.md §4 vs LOCAL_DEPLOY.md §6；DEVELOPER_GUIDE.md §2 vs CICD.md §2。",
       "spec_rules": {
         "quantitative_specs": {},
         "content_mapping": {
@@ -731,10 +733,9 @@
         "cross_file_validation": {}
       },
       "input": [
-        "docs/EDD.md",
-        "docs/API.md",
-        "docs/SCHEMA.md",
-        "docs/FRONTEND.md"
+        "docs/CICD.md",
+        "docs/LOCAL_DEPLOY.md",
+        "docs/DEVELOPER_GUIDE.md"
       ]
     },
     {
@@ -749,7 +750,7 @@
       "special_skill": "gendoc-align-fix",
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[ALIGN-FIX]",
-      "note": "特殊步驟：依 ALIGN_REPORT.md 自動修復對齊問題（all layers），每條 fix verify 後 commit。緊接 ALIGN 執行。完成後必須觸發 ALIGN-VERIFY 重新驗證。",
+      "note": "依 ALIGN_REPORT.md 自動修復對齊問題（all layers），每條 fix verify 後 commit。",
       "spec_rules": {
         "quantitative_specs": {},
         "content_mapping": {
@@ -758,10 +759,9 @@
         "cross_file_validation": {}
       },
       "input": [
-        "docs/EDD.md",
-        "docs/API.md",
-        "docs/SCHEMA.md",
-        "docs/FRONTEND.md"
+        "docs/CICD.md",
+        "docs/LOCAL_DEPLOY.md",
+        "docs/DEVELOPER_GUIDE.md"
       ]
     },
     {
@@ -776,7 +776,7 @@
       "special_skill": "gendoc-align-check",
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[ALIGN-VERIFY]",
-      "note": "特殊步驟：ALIGN-FIX 修復完成後重新執行 gendoc-align-check，更新 ALIGN_REPORT.md 為修復後狀態，確認修復效果。若仍有 CRITICAL/HIGH 問題，繼續修復直到清零。",
+      "note": "ALIGN-FIX 修復後重新執行對齊檢查，確認清零。若仍有問題繼續修復。",
       "spec_rules": {
         "quantitative_specs": {},
         "content_mapping": {
@@ -785,10 +785,9 @@
         "cross_file_validation": {}
       },
       "input": [
-        "docs/EDD.md",
-        "docs/API.md",
-        "docs/SCHEMA.md",
-        "docs/FRONTEND.md"
+        "docs/CICD.md",
+        "docs/LOCAL_DEPLOY.md",
+        "docs/DEVELOPER_GUIDE.md"
       ]
     },
     {
@@ -874,7 +873,7 @@
     {
       "id": "HTML",
       "type": "HTML",
-      "layer": "稽核層",
+      "layer": "輸出層",
       "output": [
         "docs/pages/"
       ],
