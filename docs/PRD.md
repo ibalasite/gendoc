@@ -25,9 +25,9 @@
 | 版本 | 日期 | 作者 | 變更摘要 |
 |------|------|------|---------|
 | v3.5 | 2026-05-03 | PM Agent | **Pipeline.json SSOT 完全化 + get-upstream 輸入抽象層**：(1) **刪除冗餘定義**：移除 `metrics[]` 陣列和 `condition_syntax` 物件，縮小 pipeline.json 規模（metrics 提取規則應在各 step .gen.md 定義，condition 解釋屬於文檔層面，不在 pipeline.json 中）；(2) **各 step 加 `input` 字段**：定義該 step 所需的上游文件清單——無章節標記（`"docs/IDEA.md"`）讀整個檔案，有章節標記（`"docs/BRD.md§2"`）只讀該章節；DRYRUN 例：`input: ["docs/IDEA.md", "docs/BRD.md", ..., "docs/ARCH.md"]`，API 等 step 按現有 .gen.md 的上游文件清單搬遷；(3) **新增 `get-upstream` 工具**（`tools/bin/get-upstream.sh` 或 `.py`，效率優先選擇）：根據 pipeline.json 的 step input 定義，讀取並返回目標項目中的檔案/章節內容（JSON 格式）；無複雜邏輯，純文件讀取 + 章節篩選；(4) **各 step .gen.md 改動**：Step 0 改為調用 `get-upstream --step <STEP_ID>`，取得 INPUT_DATA（包含所有所需文件內容），後續步驟從 INPUT_DATA 中 grep/sed 提取 metrics 和資料（原有邏輯不動）；刪除硬編碼的「上游文件清單」；(5) **職責邊界明確**：pipeline.json 只定義「需要什麼文件」，get-upstream 只負責「讀什麼文件」，.gen.md 仍負責「如何提取和轉換資料」；三層分工，無重複定義。 |
-| v3.4 | 2026-05-03 | PM Agent | **DRYRUN 完全 SSOT 架構 + 動態規格推導引擎**（確定方案）：核心改變為**完全 Single Source of Truth**，所有指標定義與規格規則均從 `templates/pipeline.json` 動態讀取（無硬編碼）。(1) **metrics 陣列**：20 個量化指標定義（id、source_step、grep_pattern、fallback）；(2) **spec_rules 欄位**：每個 Phase B step 的檢查規格（quantitative_specs、content_mapping、cross_file_validation）；(3) **核心承諾**：新增節點時只需修改 pipeline.json + 三件套模板，無需改代碼；(4) **DRYRUN 代碼**：移除 502 行硬編碼，精簡至 205 行，純通用邏輯；(5) **擴展性**：Phase A/B 新增節點時自動適應，DRYRUN 無需改動；(6) **統一檢查工具 review.sh**（200+ 行），支援 4 種完整檢查模式（quantitative/content_mapping/cross_file/all）；(7) **Phase B 雙層檢查**：AI findings + Shell findings 合併驗收。實施順序：D-ARCH-SSOT（3 天）→ R-3（2 天）→ R1-2-4 驗證（1 天）。 |
+| v3.4 | 2026-05-03 | PM Agent | **DRYRUN 完全 SSOT 架構 + 動態規格推導引擎**（確定方案）：核心改變為**完全 Single Source of Truth**，所有指標定義與規格規則均從 `templates/pipeline.json` 動態讀取（無硬編碼）。(1) **metrics 陣列**：20 個量化指標定義（id、source_step、grep_pattern、fallback）；(2) **spec_rules 欄位**：每個 DRYRUN 后的 step 的檢查規格（quantitative_specs、content_mapping、cross_file_validation）；(3) **核心承諾**：新增節點時只需修改 pipeline.json + 三件套模板，無需改代碼；(4) **DRYRUN 代碼**：移除 502 行硬編碼，精簡至 205 行，純通用邏輯；(5) **擴展性**：DRYRUN 前後新增節點時自動適應，DRYRUN 無需改動；(6) **統一檢查工具 review.sh**（200+ 行），支援 4 種完整檢查模式（quantitative/content_mapping/cross_file/all）；(7) **DRYRUN 后的 step 雙層檢查**：AI findings + Shell findings 合併驗收。實施順序：D-ARCH-SSOT（3 天）→ R-3（2 天）→ R1-2-4 驗證（1 天）。 |
 | v3.2 | 2026-05-03 | PM Agent | **UML Class Diagram 品質強化 + UML-CLASS 三件套 + 誤導性引用清除**：(1) **gendoc-gen-diagrams §2.9 補 3 個品質閘門**：每張 class diagram 含 ≥ 6 個 class（含 ≥ 1 `<<interface>>`）、全部 6 種關聯類型（Inheritance / Realization / Composition / Aggregation / Association / Dependency）各 ≥ 1 次、每張圖末端附「技術說明」＋「白話說明」段落；(2) **建立 UML-CLASS 三件套實驗工具**（`templates/UML-CLASS.md` + `templates/UML-CLASS.gen.md` + `templates/UML-CLASS.review.md`）：完全隔離的獨立工具，不進生產流程，供 `/gendoc UML-CLASS` 呼叫；(3) **清除 5 處誤導性 UML-CLASS-GUIDE.md 引用**：`UML-CLASS-GUIDE.md`（1111 行靜態教學文件）確認為 pipeline 完全不讀取的早期手動期遺留物，已 `git rm`；`EDD.review.md` Fix hint（2 處）改為正確指向 `gendoc-gen-diagrams` skill；`PRD.md` UML 輸出描述改為正確的 gendoc-gen-diagrams 四輸出欄位；`SKILL.md` alias `uml-class → UML-CLASS`（修正路由錯誤）；`skills/reviewdoc/SKILL.md` 移除實驗工具 alias；(4) **設計原則寫入 CLAUDE.md**：gendoc-gen-diagrams 是唯一 UML 生成來源，/gendoc UML-CLASS 是實驗性工具完全隔離，不進生產流程或任何生產文件。 |
-| v3.1 | 2026-05-03 | PM Agent | **gendoc-repair v2.0：Phase-Aware 補全 + DRYRUN 整合**：目標從「列出缺漏步驟」升級為「把任何不完整的目標專案補到與 gendoc-auto + gendoc-flow 從頭執行完全一致的狀態」。核心改動：(1) **Phase 邊界識別**：diff 結果分三區顯示——Phase A（pre-DRYRUN：IDEA→ARCH）、DRYRUN Gate（量化基線校準器）、Phase B（post-DRYRUN：API→HTML）；報告清楚顯示三區缺漏，而非 flat list；(2) **DRYRUN 三態偵測**（新 Step 1.6）：偵測 DRYRUN 狀態為「未執行」/「用預設值執行」/「正常執行」，並輸出機器可讀標記 `DRYRUN_STATUS`；(3) **DRYRUN 上游就緒度預檢**：在建議執行 DRYRUN 前，掃描 EDD entity count、PRD US count、ARCH layer count，不足時警告「DRYRUN 將使用保守預設值，品質閘門可能偏鬆」；(4) **DRYRUN 基線過時偵測**：比對 git 時間戳——若 EDD/PRD/ARCH 比 `.gendoc-rules/` 更新，標示基線可能過時並建議重跑；(5) **Step 1.5 品質門檻驗證升級**：原本只查檔案存在，升級為讀取 `.gendoc-rules/<step-id>-rules.json` 驗 min_h2_sections / required_sections 存在 / no_placeholder_strings，新增 QUALITY_FAIL 嚴重性層級；(6) **Phase-aware Step 3 提示**：三條件分支——Phase A 缺漏（維持現有補跑）、Phase A 完整但 DRYRUN 未跑（引導先跑 DRYRUN）、DRYRUN 完整但 Phase B 缺漏（顯示品質基線可用後補跑）；(7) **兩階段補跑模式**：選項「先補 Phase A → 自動觸發 DRYRUN → 再補 Phase B」，完整實作三段接力執行流程。**硬性約束**：本版只修改 gendoc-repair skill，不動其他任何 skill。 |
+| v3.1 | 2026-05-03 | PM Agent | **gendoc-repair v2.0：DRYRUN-aware 補全 + DRYRUN 整合**：目標從「列出缺漏步驟」升級為「把任何不完整的目標專案補到與 gendoc-auto + gendoc-flow 從頭執行完全一致的狀態」。核心改動：(1) **相位邊界識別**：diff 結果分三區顯示——DRYRUN 前的 step（pre-DRYRUN：IDEA→ARCH）、DRYRUN Gate（量化基線校準器）、DRYRUN 后的 step（post-DRYRUN：API→HTML）；報告清楚顯示三區缺漏，而非 flat list；(2) **DRYRUN 三態偵測**（新 Step 1.6）：偵測 DRYRUN 狀態為「未執行」/「用預設值執行」/「正常執行」，並輸出機器可讀標記 `DRYRUN_STATUS`；(3) **DRYRUN 上游就緒度預檢**：在建議執行 DRYRUN 前，掃描 EDD entity count、PRD US count、ARCH layer count，不足時警告「DRYRUN 將使用保守預設值，品質閘門可能偏鬆」；(4) **DRYRUN 基線過時偵測**：比對 git 時間戳——若 EDD/PRD/ARCH 比 `.gendoc-rules/` 更新，標示基線可能過時並建議重跑；(5) **Step 1.5 品質門檻驗證升級**：原本只查檔案存在，升級為讀取 `.gendoc-rules/<step-id>-rules.json` 驗 min_h2_sections / required_sections 存在 / no_placeholder_strings，新增 QUALITY_FAIL 嚴重性層級；(6) **DRYRUN-aware Step 3 提示**：三條件分支——DRYRUN 前缺漏（維持現有補跑）、DRYRUN 前完整但 DRYRUN 未跑（引導先跑 DRYRUN）、DRYRUN 完整但 DRYRUN 后缺漏（顯示品質基線可用後補跑）；(7) **兩階段補跑模式**：選項「先補 DRYRUN 前 → 自動觸發 DRYRUN → 再補 DRYRUN 后」，完整實作三段接力執行流程。**硬性約束**：本版只修改 gendoc-repair skill，不動其他任何 skill。 |
 | v3.0 | 2026-05-03 | PM Agent | **gendoc-config UX 重設計：兩層選單 + 循環修改 + Step 4c 必填補問**：(1) **主選單四項**：「重設流程進度」/ 「修改審查強度」/ 「修改專案設定」/ 「✅ 確認完成，儲存離開」；(2) **兩層設計**：「修改專案設定」展開第二層（client_type / has_admin_backend / 清除全部設定），「重設流程進度」展開第二層（全部重跑 / 從某 STEP 開始），解決 AskUserQuestion 4 選項上限問題；(3) **循環模式**：每個設定完成後回到 Step 1 主選單，使用者可多次修改，完成後選「✅ 確認完成」才儲存離開；(4) **Step 4c 必填強制補問**：選「確認完成」前先檢查 client_type / has_admin_backend / review_strategy 是否均已設定，缺哪項就強制問哪項，確保 state file 無空值；(5) **has_admin_backend 可設定**：從 gendoc-config 互動設定，影響 ADMIN_IMPL 步驟是否執行；(6) **pipeline.json 動態讀取**：step picker 第二層選單從 pipeline.json 動態生成，新增步驟不需改 gendoc-config。 |
 | v2.9 | 2026-05-02 | PM Agent | **DEVELOPER_GUIDE.md — 開發者日常操作手冊（建置之後的每日操作層）**：(1) **填補真實空白**：LOCAL_DEPLOY.md 負責「第一次建起來」（一次性），runbook.md 負責「生產事故處理」，CICD.md 負責「pipeline 設計」；三者均不覆蓋開發者建置完成後的每日操作；(2) **新增 `DEVELOPER_GUIDE.md` template 三件套**：§1 每日開發工作流程 step-by-step（git push → Jenkins 觸發 → pipeline 監控 → ArgoCD sync → 應用驗證）；§2 CI/CD 診斷（Jenkins 未觸發 / stage 失敗重跑 / ArgoCD OutOfSync / Gitea webhook 除錯）；§3 本地環境快速指令（`make dev-status` / `make dev-logs` / `make dev-restart` / `make dev-health`）；§4 常見問題 + 解法（本地 namespace 版本，與 runbook.md 的生產版本明確區隔）；§5 環境維護（密碼 rotate、image 清理、完全重置）；(3) **受眾明確分離**：runbook.md 目標讀者 = SRE / On-call（生產事故）；DEVELOPER_GUIDE.md 目標讀者 = 開發者（日常開發操作），不混用；(4) **pipeline.json 新增 D21-DEVELOPER_GUIDE step**；文件類型 `developer-guide` 可通過 `/gendoc developer-guide` 生成；(5) **PRD LOCAL_DEPLOY 標準 #6 補充**：DEVELOPER_GUIDE.md 作為 LOCAL_DEPLOY.md 的日常操作配套文件納入藍圖品質標準 |
 | v2.8 | 2026-05-02 | PM Agent | **Local Developer Platform：Gitea + Production Parity + 非開發者可用的完整 CI/CD**：(1) **核心需求**：任何人（含非開發者）在本機執行 `make dev-tools-up` 後，即擁有完整的 CI/CD flow——Gitea（本地 git server）→ Jenkins（CI pipeline）→ ArgoCD（CD GitOps）→ 應用自動部署——不需要遠端 GitHub/GitLab 帳號，不需要了解 k8s；(2) **Production Parity 原則**（12-Factor App #10）：本地環境與生產環境使用完全相同的工具鏈（Jenkins + ArgoCD + Kubernetes），差異只在規模與 TLS；本地通過的 pipeline 在生產不會因「工具不同」而失敗；(3) **Port 域分離設計**：應用域（Port 80，面向使用者/測試人員）與開發工具域（Port 3000 Gitea / Port 8080 Jenkins / Port 8443 ArgoCD，面向開發者）明確分開，不衝突、可同時運行；(4) **CICD.md 新增章節**：§8 Local Developer Platform（Gitea pod 設計、dev-tools namespace 架構圖、Gitea→Jenkins webhook、ArgoCD 以 Gitea 為 source）；§9 Makefile dev-tools targets（`make dev-tools-up` / `make gitea-ui` / `make jenkins-ui` / `make argocd-ui` / `make dev-tools-status`）；(5) **LOCAL_DEPLOY.md §21 更新**：完整 Gitea 安裝步驟、本地 git push workflow、Jenkins SCM 指向本地 Gitea、非開發者 onboarding 指引（4 步驟完成完整 CI/CD 環境設置）；(6) **CICD.md 新增**至 pipeline.json（D20-CICD）；文件類型 `cicd` 可通過 `/gendoc cicd` 生成；(7) **PRD LOCAL_DEPLOY 標準 #6 擴充**：CI/CD 工具平台需求加入藍圖品質標準 |
@@ -1084,9 +1084,9 @@ gendoc pipeline 分為兩個相位（Phase），中間由 DRYRUN 作為獨立驗
 
 | 相位 | 步驟 | 特徵 | 品質驗收 |
 |------|------|------|---------|
-| **Phase A（內容相）** | IDEA → BRD → PRD → CONSTANTS → PDD → VDD → EDD → ARCH | 完全由 AI 從上游文件推導，無量化基線 | 文件自身完整性 + 跨文件上下文一致 |
-| **DRYRUN 閘門** | 讀取 Phase A 全部 8 份文件，推導 Phase B 各 step 的期望規格 | 期望規格計算 → `.gendoc-rules/*.json` | — |
-| **Phase B（技術相）** | API → SCHEMA → FRONTEND → ... → HTML（23 個 step） | 各 step **獨立實現**，生成實際檔案 | **機械式審查**：期望規格 vs 實際生成 |
+| **DRYRUN 前的 step（內容相）** | IDEA → BRD → PRD → CONSTANTS → PDD → VDD → EDD → ARCH | 完全由 AI 從上游文件推導，無量化基線 | 文件自身完整性 + 跨文件上下文一致 |
+| **DRYRUN 閘門** | 讀取 DRYRUN 前 全部 8 份文件，推導 DRYRUN 后各 step 的期望規格 | 期望規格計算 → `.gendoc-rules/*.json` | — |
+| **DRYRUN 后的 step（技術相）** | API → SCHEMA → FRONTEND → ... → HTML（23 個 step） | 各 step **獨立實現**，生成實際檔案 | **機械式審查**：期望規格 vs 實際生成 |
 
 ### DRYRUN 設計原則（雙層獨立驗證）
 
@@ -1095,13 +1095,13 @@ gendoc pipeline 分為兩個相位（Phase），中間由 DRYRUN 作為獨立驗
 DRYRUN 採用**雙層獨立驗證**架構，確保品質可驗證：
 
 ```
-Phase A 上游文件
+DRYRUN 前的文件
     ↓
 [DRYRUN 推導層] → 期望規格（計劃）
     ↓
 .gendoc-rules/*.json（DRYRUN 輸出）
     ↓
-Phase B 各 STEP 實現
+DRYRUN 后的 step 實現
     ↓
 [各 STEP template 實現層] → 實際生成（獨立實現）
     ↓
@@ -1125,20 +1125,20 @@ docs/<STEP>.md（實際生成結果）
 
 #### DRYRUN 推導規格清單
 
-| Phase B Step | DRYRUN 推導期望 | 來源上游 | 公式 |
+| DRYRUN 后的 step | DRYRUN 推導期望 | 來源上游 | 公式 |
 |-------------|----------------|--------|------|
 | **SCHEMA** | `min_table_count` | EDD（entity 定義） | `max(entity_count, 3)` |
 | **API** | `min_endpoint_count` | PRD + EDD（endpoint 定義） | `max(rest_endpoint_count, 5)` |
 | **test-plan** | `min_h2_sections` | ARCH（層數） | `arch_layer_count + 2` |
 | **BDD-server** | `min_scenario_count` | PRD（US 數）| `ceil(user_story_count * 0.8)` |
 | **BDD-client** | `min_scenario_count` | PRD（US 數）| `ceil(user_story_count * 0.6)` |
-| （其他 Phase B steps） | （類似推導） | （根據上游） | （對應公式） |
+| （其他 DRYRUN 后的 step） | （類似推導） | （根據上游） | （對應公式） |
 
 #### DRYRUN 的輸出
 
 **1. `.gendoc-rules/<step-id>-rules.json`**
 
-每個 Phase B step 一個 JSON 檔案，包含期望規格：
+每個 DRYRUN 后的 step 一個 JSON 檔案，包含期望規格：
 
 ```json
 {
@@ -1191,12 +1191,12 @@ docs/<STEP>.md（實際生成結果）
       "input": ["docs/EDD.md", "docs/CONSTANTS.md", "docs/PDD.md"],
       "output": ["docs/SCHEMA.md"]
     },
-    // ... 其他 Phase B steps
+    // ... 其他 DRYRUN 后的 steps
   ]
 }
 ```
 
-**執行輸入**：已完成的 Phase A 檔案（IDEA.md、BRD.md、...、ARCH.md）
+**執行輸入**：已完成的 DRYRUN 前文件（IDEA.md、BRD.md、...、ARCH.md）
 
 ---
 
@@ -1212,16 +1212,16 @@ docs/<STEP>.md（實際生成結果）
    - 結果保存在記憶體（不寫檔案）
 
 3. **Step 3：規格推導**
-   - 根據參數和 Phase B 各 step 的 `output[]` 定義推導期望規格
+   - 根據參數和 DRYRUN 后各 step 的 `output[]` 定義推導期望規格
    - 使用內建公式（在 `dryrun_core.py` 中）：
      - SCHEMA：`min_table_count = max(entity_count, 3)`
      - API：`min_endpoint_count = max(rest_endpoint_count, 5)`
      - test-plan：`min_h2_sections = arch_layer_count + 2`
-     - （類似推導其他 Phase B steps）
+     - （類似推導其他 DRYRUN 后的 step）
    - 對每個激活的 step（根據 condition 判斷），生成期望規格
 
 4. **Step 4：規格存儲**
-   - 對每個 Phase B step 生成 `.gendoc-rules/<step-id>-rules.json`
+   - 對每個 DRYRUN 后的 step 生成 `.gendoc-rules/<step-id>-rules.json`
    - 包含期望規格：min_table_count、min_endpoint_count、min_h2_sections 等
 
 5. **Step 5：清單生成**
@@ -1239,7 +1239,7 @@ docs/<STEP>.md（實際生成結果）
 DRYRUN 執行完成後，審查工具會：
 
 ```bash
-# 對每個 Phase B step：
+# 對每個 DRYRUN 后的 step：
 for step_id in API SCHEMA FRONTEND test-plan ...; do
   # 1. 讀取期望（DRYRUN 輸出）
   expected=$(cat .gendoc-rules/$step_id-rules.json | jq '.expectations.min_table_count')
@@ -1262,7 +1262,7 @@ done
 
 #### 擴展性：新增節點時的工作流
 
-**情景：新增 Phase B step（如 COMPLIANCE.md）**
+**情景：新增 DRYRUN 后的 step（如 COMPLIANCE.md）**
 
 ```
 1. 編輯 templates/pipeline.json
@@ -1289,7 +1289,7 @@ done
 
 **核心**：只需改 `templates/pipeline.json` 和新增模板，DRYRUN 和 review.sh 無需改動。
 
-**情景 2：新增 Phase B 節點（如 FOOBAR.md）**
+**情景 2：新增 DRYRUN 后的節點（如 FOOBAR.md）**
 
 ```
 1. 編輯 templates/pipeline.json
@@ -1320,8 +1320,8 @@ done
 |------|--------|------------|
 | metrics 定義 | dryrun_core.py 硬編碼 8 個 | pipeline.json 動態定義（可擴展） |
 | spec_rules 定義 | dryrun_core.py 硬編碼 31 個 | pipeline.json 動態定義（可擴展） |
-| 新增 Phase A 節點 | 需改 Python 代碼 | 只改 JSON + 三件套 |
-| 新增 Phase B 節點 | 需改 Python 代碼 | 只改 JSON + 三件套 |
+| 新增 DRYRUN 前的節點 | 需改 Python 代碼 | 只改 JSON + 三件套 |
+| 新增 DRYRUN 后的節點 | 需改 Python 代碼 | 只改 JSON + 三件套 |
 | 代碼行數 | 502 行 | 205 行（-60%） |
 | 可擴展性 | 低（硬編碼限制） | 高（完全動態） |
 | 維護成本 | 高（改代碼） | 低（改 JSON） |
@@ -1373,9 +1373,9 @@ done
 
 ---
 
-### Phase B 的雙層品質檢查（DRYRUN 啟用）
+### DRYRUN 后的 step 的雙層品質檢查（DRYRUN 啟用）
 
-每個 Phase B step 的 review 環節執行：
+每個 DRYRUN 后的 step 的 review 環節執行：
 
 1. **Layer 1：AI Review**（傳統代碼審查邏輯）
    - 文件完整性、清晰度、格式一致性
@@ -1421,7 +1421,7 @@ templates/
 1. **編輯 `templates/pipeline.json`**：
    - 在 `steps` 陣列加入新 step（id、type、layer、output、condition）
    - **新增 `spec_rules` 欄位**，定義該 step 的檢查規格（quantitative_specs、content_mapping、cross_file_validation）
-   - 如果是 Phase A 節點，同時在 `metrics` 陣列中新增相關量化指標
+   - 如果是 DRYRUN 前的節點，同時在 `metrics` 陣列中新增相關量化指標
 
 2. **建立 `templates/{TYPE}.md`**：
    - 文件結構骨架（章節標題 + placeholder 說明）
