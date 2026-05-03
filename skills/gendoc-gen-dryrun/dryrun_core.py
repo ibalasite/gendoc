@@ -62,7 +62,17 @@ class DRYRUNEngine:
         return True
 
     def extract_metrics(self) -> dict:
-        """Extract metrics from Phase A files — dynamically read from pipeline['metrics']"""
+        """Extract metrics from Phase A files — dynamically read from pipeline['metrics']
+
+        SSOT Principle: All 20 metrics are defined in templates/pipeline.json metrics[] array
+        (id, source_step, grep_pattern, fallback). No hardcoded metrics.
+
+        New Phase A nodes auto-extract: add metric definition to pipeline.json,
+        this method automatically reads and processes it on next DRYRUN execution.
+
+        Returns:
+            dict: {metric_id: count, ...} e.g. {'persona_count': 3, 'moscow_p0_count': 5}
+        """
         if not self.pipeline:
             self._load_pipeline()
 
@@ -92,14 +102,30 @@ class DRYRUNEngine:
             return fallback
 
     def derive_specifications(self) -> dict:
-        """Derive specifications from pipeline['steps'][*]['spec_rules'] — SSOT"""
+        """Derive specifications from pipeline['steps'][*]['spec_rules'] — SSOT
+
+        SSOT Principle: All 34 step specifications are defined in templates/pipeline.json
+        steps[] array, each with spec_rules (quantitative_specs, content_mapping, cross_file_validation).
+        No hardcoded step logic.
+
+        Process:
+        1. Read each step's spec_rules from pipeline.json
+        2. Substitute metric placeholders (e.g., {persona_count}) with actual values
+        3. Return complete specifications for all Phase B steps
+
+        New Phase B nodes auto-generate specs: add step definition to pipeline.json,
+        this method automatically generates specifications on next DRYRUN execution.
+
+        Returns:
+            dict: {step_id: {quantitative_specs, content_mapping, cross_file_validation}, ...}
+        """
         if not self.pipeline:
             self._load_pipeline()
 
         m = self.metrics
         specs = {}
 
-        # Read spec_rules from each step in pipeline
+        # Read spec_rules from each step in pipeline (not hardcoded)
         for step in self.pipeline.get('steps', []):
             step_id = step['id']
             spec_rules = step.get('spec_rules', {
@@ -133,7 +159,18 @@ class DRYRUNEngine:
         return specs
 
     def _evaluate_spec_value(self, value: str, metrics: dict) -> str:
-        """Evaluate spec value strings (substitute metrics, calculate expressions)"""
+        """Evaluate spec value strings (substitute metric placeholders with actual values)
+
+        Example: "API endpoints must support all {rest_endpoint_count} endpoints"
+                → "API endpoints must support all 12 endpoints" (after substitution)
+
+        Args:
+            value: spec rule text with {metric_id} placeholders
+            metrics: {metric_id: value, ...} dictionary from extract_metrics()
+
+        Returns:
+            value with all {metric_id} placeholders replaced by actual metric values
+        """
         if not isinstance(value, str):
             return value
 
