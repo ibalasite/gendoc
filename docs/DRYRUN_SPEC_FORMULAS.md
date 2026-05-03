@@ -9,7 +9,7 @@ status: 實作規範
 
 ## 概述
 
-本文檔定義 Phase B 各 step 的期望規格推導公式。每個公式基於 Phase A 提取的四個核心參數，推導該 step 的期望產出規格（如表格數、endpoint 數、section 數等）。
+本文檔定義 DRYRUN 后各 step 的期望規格推導公式。每個公式基於 DRYRUN 前提取的四個核心參數，推導該 step 的期望產出規格（如表格數、endpoint 數、section 數等）。
 
 **核心原則**：
 - 公式在 `dryrun_core.py` 的 `derive_specifications()` 方法中實現
@@ -30,7 +30,7 @@ status: 實作規範
 
 ---
 
-## Phase B Steps 規格公式
+## DRYRUN 后的 step 規格公式
 
 ### Step: API
 
@@ -530,11 +530,11 @@ status: 實作規範
 
 ### Step: HTML（輸出層，條件：always）
 
-**說明**：HTML 是最終發布步驟，無量化規格要求（內容由所有 Phase B 步驟決定）。
+**說明**：HTML 是最終發布步驟，無量化規格要求（內容由所有 DRYRUN 后的 step 決定）。
 
 ```json
 {
-  "note": "Publication layer - content determined by Phase B outputs",
+  "note": "Publication layer - content determined by DRYRUN 后的 step outputs",
   "requirements": [
     "All phase B documents must be present and error-free",
     "HTML generation must succeed without errors",
@@ -552,7 +552,7 @@ status: 實作規範
 ```python
 def derive_specifications(self, params: dict) -> dict:
     """
-    根據提取的四個核心參數，推導所有 Phase B step 的期望規格。
+    根據提取的四個核心參數，推導所有 DRYRUN 后的 step 的期望規格。
     
     Args:
         params: {
@@ -606,7 +606,7 @@ def derive_specifications(self, params: dict) -> dict:
 
 ## 檢查清單
 
-- [ ] 所有 Phase B steps 都有規格公式定義
+- [ ] 所有 DRYRUN 后的 step 都有規格公式定義
 - [ ] 每個公式包含 min_count 與可選檢查項
 - [ ] 公式使用四個核心參數
 - [ ] Fallback 邏輯清晰
