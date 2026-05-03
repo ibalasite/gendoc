@@ -2,14 +2,13 @@
 doc-type: SCHEMA
 output-path: docs/SCHEMA.md
 upstream-docs:
-  - docs/req/       # 所有 req 素材（IDEA 定義）
-  - docs/IDEA.md
-  - docs/BRD.md
-  - docs/PRD.md
-  - docs/PDD.md
-  - docs/EDD.md
-  - docs/ARCH.md
-  - docs/API.md
+  ssot-source: "templates/pipeline.json step.SCHEMA.input[]"
+  core-inputs:
+    - docs/EDD.md        # 資料模型、Soft Delete 策略
+    - docs/CONSTANTS.md  # 資料庫常數、保留期限等
+  description: |
+    核心上游由 get-upstream 工具讀取並返回 JSON。
+    SCHEMA.gen.md 從 JSON 提取相關內容進行資料庫設計。
 quality-bar: "ER 圖涵蓋所有資料表及 FK 關聯線；DB 欄位覆蓋所有 PDD 顯示欄位；所有 API Response 欄位在 DB 中均存在；索引策略、Soft Delete、Migration、Multi-Tenancy、GDPR 生命週期政策均已定義"
 ---
 
@@ -21,15 +20,34 @@ ER 圖（Mermaid erDiagram）、資料表說明文件、CREATE TABLE SQL（含 i
 
 ---
 
-## Iron Rule: 累積上游讀取
+## 步驟 0：呼叫 get-upstream 讀取上游檔案
 
-每份文件生成時，必須讀取所有上游文件（累積，非僅直接父文件）。
-若某上游文件不存在，靜默跳過；不得因上游缺失而降低覆蓋深度。
-docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取。
+在開始 Schema 設計前，首先讀取所有定義在 `pipeline.json` SCHEMA step 的 `input[]` 檔案：
+
+```bash
+# 呼叫 get-upstream 讀取 SCHEMA step 的 input 檔案
+_UPSTREAM_JSON=$(tools/bin/get-upstream --step SCHEMA --output json 2>&1)
+
+if [[ $? -ne 0 ]]; then
+  echo "ERROR: get-upstream failed for SCHEMA step"
+  echo "$_UPSTREAM_JSON" >&2
+  exit 1
+fi
+
+# 解析 JSON 並提取檔案內容（供後續步驟使用）
+# 結構：{"step": "SCHEMA", "inputs": {"docs/EDD.md": "content...", "docs/CONSTANTS.md": "content..."}}
+```
 
 ---
 
-## 上游文件讀取規則
+## Iron Rule：使用 get-upstream 提供的檔案
+
+所有 Schema 設計邏輯必須基於 `get-upstream` 返回的 JSON 中的檔案內容。
+不得讀取本地檔案或使用預設值，除非該檔案在 JSON 中明確標記為缺失。
+
+---
+
+## 上游檔案讀取規則（從 get-upstream JSON 提取）
 
 ### 必讀上游鏈（依優先順序）
 

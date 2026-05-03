@@ -2,15 +2,14 @@
 doc-type: FRONTEND
 output-path: docs/FRONTEND.md
 upstream-docs:
-  - docs/req/       # 所有 req 素材（IDEA 定義）
-  - docs/IDEA.md
-  - docs/BRD.md
-  - docs/PRD.md
-  - docs/PDD.md
-  - docs/VDD.md     # Layer 3.5 — 視覺設計系統（Design Token 直接引用、資產 URL、元件視覺規格）
-  - docs/EDD.md
-  - docs/ARCH.md    # Layer 5a — 元件邊界、BFF 模式、Service 名稱
-  - docs/API.md
+  ssot-source: "templates/pipeline.json step.FRONTEND.input[]"
+  core-inputs:
+    - docs/PDD.md        # 產品設計（畫面、互動、Design Token）
+    - docs/VDD.md        # 視覺設計（品牌、色彩、資產）
+    - docs/CONSTANTS.md  # 前端常數（Breakpoint、動畫時間等）
+  description: |
+    核心上游由 get-upstream 工具讀取並返回 JSON。
+    FRONTEND.gen.md 從 JSON 提取相關內容進行前端設計。
 quality-bar: "§2 平台選型與 BRD 目標平台一致；§4 每個 PRD User Story 都有對應 Screen；§6 每個 Screen 的 API 呼叫矩陣已填寫；§8 Breakpoint 與 PDD Design Token 一致；§10 E2E 覆蓋所有 P0 Screen Flow；§11 Core Web Vitals 目標已定義；§12 CSP 配置已填寫；無裸 placeholder"
 ---
 
@@ -20,15 +19,34 @@ quality-bar: "§2 平台選型與 BRD 目標平台一致；§4 每個 PRD User S
 
 ---
 
-## Iron Rule: 累積上游讀取
+## 步驟 0：呼叫 get-upstream 讀取上游檔案
 
-每份文件生成時，必須讀取所有上游文件（累積，非僅直接父文件）。
-若某上游文件不存在，靜默跳過；不得因上游缺失而降低覆蓋深度。
-docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取。
+在開始 Frontend 設計前，首先讀取所有定義在 `pipeline.json` FRONTEND step 的 `input[]` 檔案：
+
+```bash
+# 呼叫 get-upstream 讀取 FRONTEND step 的 input 檔案
+_UPSTREAM_JSON=$(tools/bin/get-upstream --step FRONTEND --output json 2>&1)
+
+if [[ $? -ne 0 ]]; then
+  echo "ERROR: get-upstream failed for FRONTEND step"
+  echo "$_UPSTREAM_JSON" >&2
+  exit 1
+fi
+
+# 解析 JSON 並提取檔案內容（供後續步驟使用）
+# 結構：{"step": "FRONTEND", "inputs": {"docs/PDD.md": "content...", "docs/VDD.md": "content...", "docs/CONSTANTS.md": "content..."}}
+```
 
 ---
 
-## 上游文件讀取規則
+## Iron Rule：使用 get-upstream 提供的檔案
+
+所有 Frontend 設計邏輯必須基於 `get-upstream` 返回的 JSON 中的檔案內容。
+不得讀取本地檔案或使用預設值，除非該檔案在 JSON 中明確標記為缺失。
+
+---
+
+## 上游檔案讀取規則（從 get-upstream JSON 提取）
 
 ### 必讀上游鏈（依優先順序）
 

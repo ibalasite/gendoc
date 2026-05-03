@@ -2,13 +2,13 @@
 doc-type: API
 output-path: docs/API.md
 upstream-docs:
-  - docs/req/       # 所有 req 素材（IDEA 定義）
-  - docs/IDEA.md
-  - docs/BRD.md
-  - docs/PRD.md
-  - docs/PDD.md
-  - docs/EDD.md
-  - docs/ARCH.md
+  ssot-source: "templates/pipeline.json step.API.input[]"
+  core-inputs:
+    - docs/EDD.md        # API 設計、認證/授權規格
+    - docs/CONSTANTS.md  # 速率限制、頁面大小、超時等常量
+  description: |
+    核心上游由 get-upstream 工具讀取並返回 JSON。
+    API.gen.md 從 JSON 提取相關內容進行 API 設計。
 quality-bar: "每個 PRD P0 功能都有對應 Endpoint；所有 Endpoint 有完整 Request/Response Schema；認證、分頁、錯誤碼說明完整；§11 API Paradigm Decision 已填寫；§12 OpenAPI 3.1 YAML 已生成；§17 SLO 目標已定義"
 ---
 
@@ -18,15 +18,34 @@ quality-bar: "每個 PRD P0 功能都有對應 Endpoint；所有 Endpoint 有完
 
 ---
 
-## Iron Rule: 累積上游讀取
+## 步驟 0：呼叫 get-upstream 讀取上游檔案
 
-每份文件生成時，必須讀取所有上游文件（累積，非僅直接父文件）。
-若某上游文件不存在，靜默跳過；不得因上游缺失而降低覆蓋深度。
-docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取。
+在開始 API 設計前，首先讀取所有定義在 `pipeline.json` API step 的 `input[]` 檔案：
+
+```bash
+# 呼叫 get-upstream 讀取 API step 的 input 檔案
+_UPSTREAM_JSON=$(tools/bin/get-upstream --step API --output json 2>&1)
+
+if [[ $? -ne 0 ]]; then
+  echo "ERROR: get-upstream failed for API step"
+  echo "$_UPSTREAM_JSON" >&2
+  exit 1
+fi
+
+# 解析 JSON 並提取檔案內容（供後續步驟使用）
+# 結構：{"step": "API", "inputs": {"docs/EDD.md": "content...", "docs/CONSTANTS.md": "content..."}}
+```
 
 ---
 
-## 上游文件讀取規則
+## Iron Rule：使用 get-upstream 提供的檔案
+
+所有 API 設計邏輯必須基於 `get-upstream` 返回的 JSON 中的檔案內容。
+不得讀取本地檔案或使用預設值，除非該檔案在 JSON 中明確標記為缺失。
+
+---
+
+## 上游檔案讀取規則（從 get-upstream JSON 提取）
 
 ### 必讀上游鏈（依優先順序）
 
