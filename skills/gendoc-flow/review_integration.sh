@@ -35,7 +35,15 @@ if [[ ! -f "$STATE_FILE" ]]; then
 fi
 
 ################################################################################
-# STEP 1: Run shell-based checks (review.sh) with all 4 modes
+# STEP 1: Run shell-based checks (review.sh) with all 3 modes
+#
+# review.sh validates documents against DRYRUN spec_rules (three independent checks):
+# 1. quantitative: 10 structural completeness checks (placeholder count, section count, etc.)
+# 2. content_mapping: 4 cross-document traceability checks (entity coverage, US traceability, etc.)
+# 3. cross_file: 4 multi-document parity checks (entity parity, moscow priority, etc.)
+#
+# Each check run produces separate JSON with findings[]: {severity, check, message, suggested_fix}
+# Then merged into unified result (Step 3).
 ################################################################################
 
 SHELL_FINDINGS_QUANTITATIVE="{}"
@@ -97,6 +105,19 @@ TOTAL_MEDIUM=$((${QUANT_MED:-0} + ${CONTENT_MED:-0} + ${CROSS_MED:-0}))
 
 ################################################################################
 # STEP 3: Merge AI findings + Shell findings
+#
+# Phase B Document Review is TWO-LAYER:
+# - Layer 1 (AI): Semantic review (clarity, completeness, alignment with intent)
+# - Layer 2 (Shell): Quantitative/structural review via review.sh (DRYRUN gate validation)
+#
+# Merger strategy:
+# 1. Parse AI findings (from Claude review agent)
+# 2. Extract all shell findings from 3 modes (quantitative, content_mapping, cross_file)
+# 3. Normalize to unified format: {severity, check, message, suggested_fix, source}
+# 4. Deduplicate by message (prevent duplicate findings across modes)
+# 5. Sort by severity (CRITICAL → HIGH → MEDIUM)
+#
+# Result: Single deduplicated list ready for AI Fix agent
 ################################################################################
 
 merge_findings() {
