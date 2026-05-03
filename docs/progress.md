@@ -68,12 +68,32 @@ version: 1.0
 **實際完成**：2026-05-04（9-10 小時，含設計 + 實現）
 
 ### D-SSOT-4.2：get-upstream 工具驗證
-- [ ] 測試 get-upstream 對修正後 pipeline.json input[] 的讀取
-- [ ] 確認返回的 JSON 包含所有必要文件
+- [✅] 驗證 get-upstream 讀取 pipeline.json input[]（已完成）
+- [✅] 確認返回的 JSON 包含所有必要文件（已完成）
+- [✅] 測試文檔：`docs/DRYRUN_GET_UPSTREAM_VERIFICATION.md`
 
-### D-SSOT-4.3：dryrun_core.py 全迴歸測試
-- [ ] 用一個實際專案跑完整流程：DRYRUN → Phase B → review.sh
-- [ ] 驗證期望 vs 實際一致性
+**驗證狀態**：✅ **通過**
+- DRYRUN step input[] 完整：8 個 Phase A 檔案
+- get-upstream.sh 實現正確
+- 與 dryrun_core.py 集成有效
+- 與 .gen.md 模板集成有效
+
+### D-SSOT-4.3：dryrun_core.py 全迴歸測試（待執行）
+**目標**：用實際專案驗證 DRYRUN → Phase B → review.sh 完整流程
+
+**前置條件**（目標專案需要）：
+- ✅ 已執行 gendoc-auto/gendoc-flow 完成 Phase A 文件
+- ✅ 包含：IDEA.md, BRD.md, PRD.md, CONSTANTS.md, PDD.md, VDD.md, EDD.md, ARCH.md
+- ✅ 檔案內容符合規格（有 entity、endpoint、story、layer 定義）
+
+**測試步驟**：
+1. 在目標專案目錄執行：`gendoc dryrun`（調用 dryrun_core.py）
+2. 驗證輸出：`.gendoc-rules/*.json` 包含所有 Phase B steps 的預期規格
+3. 執行 Phase B 步驟（各 step 的 .gen.md 生成實際文件）
+4. 執行：`tools/bin/review.sh .` 機械式驗證
+5. 檢查 `docs/DRYRUN_REVIEW_REPORT.md` — 所有 PASS 即表示成功
+
+**下一步**：選擇或建立目標專案，執行完整測試
 
 ---
 

@@ -564,223 +564,143 @@ echo "DRYRUN_STALE:$_DRYRUN_STALE"
 輸出 `DONE`，結束。
 
 **邊緣情況處理**：
-- `_MISSING_COUNT == 0` 但 `_SEMANTIC_COUNT > 0`：設 `_FIRST_MISSING = _SEMANTIC_IDS` 的第一個 ID，繼續 Step 3。
-- `_QUALITY_FAIL_COUNT > 0` 但 `_MISSING_COUNT == 0` 且 `_SEMANTIC_COUNT == 0`：設 `_FIRST_MISSING = _QUALITY_FAIL_IDS` 的第一個 ID，繼續 Step 3（情境 D）。
-- `_DRYRUN_STATUS == "STALE"` 或 `_DRYRUN_STALE == "true"`：顯示過時警告，繼續 Step 3（情境 B'）。
+- `_MISSING_COUNT == 0` 但 `_SEMANTIC_COUNT > 0`：設 `_FIRST_MISSING = _SEMANTIC_IDS` 的第一個 ID，繼續 Step 1.7。
+- `_QUALITY_FAIL_COUNT > 0` 但 `_MISSING_COUNT == 0` 且 `_SEMANTIC_COUNT == 0`：設 `_FIRST_MISSING = _QUALITY_FAIL_IDS` 的第一個 ID，繼續 Step 1.7。
+- `_DRYRUN_STATUS == "STALE"` 或 `_DRYRUN_STALE == "true"`：顯示過時警告，繼續 Step 1.7。
 
 ---
 
-## Step 3：Phase-Aware 補跑引導
+## Step 1.7：Input 依賴鏈驗證
 
-**[AI 指令]** 根據下方情境判斷邏輯，選擇對應提示模板，用 `AskUserQuestion` 詢問使用者。`_SPAWNED == "true"` 時自動選 [1]，跳過提問。
+**目的**：對所有缺失/失敗的步驟，遞迴驗證其 input[] 是否都存在，建立補充序列。
 
----
+```python
+# [AI 指令] 建立補充序列（DFS 方式）
 
-### 情境判斷邏輯
+def build_repair_sequence(step_id, visited=None, max_depth=50):
+    """
+    遞迴構建補充序列。
+    返回：補充 step_id 所需的有序清單（先補上游，再補自身）
+    BRD 或 IDEA 缺失時拋出 StopRepair 異常（無法補充）
+    """
+    if visited is None:
+        visited = set()
+    if step_id in visited or len(visited) > max_depth:
+        return []  # 防止循環和無限遞迴
+    visited.add(step_id)
+    
+    step = find_step_in_pipeline(step_id)
+    if not step:
+        return []
+    
+    sequence = []
+    for input_file in step.get("input", []):
+        # 找出 input_file 對應的 step_id
+        upstream_step_id = find_step_by_output_file(input_file)
+        if not upstream_step_id:
+            continue  # 找不到對應 step，跳過
+        
+        # BRD 或 IDEA 缺失 → 停止，報錯
+        if upstream_step_id in ("BRD", "IDEA"):
+            if not file_exists_and_nonempty(input_file):
+                print(f"[Stop] {upstream_step_id}.md 缺失，無法補充 {step_id}")
+                print(f"       {upstream_step_id} 是核心源頭，需手動建立或執行 gendoc-auto")
+                exit(1)
+        
+        if not file_exists_and_nonempty(input_file):
+            # 上游 step 的輸出缺失，先遞迴補充上游
+            sub_seq = build_repair_sequence(upstream_step_id, visited, max_depth)
+            sequence.extend(sub_seq)
+            if upstream_step_id not in sequence:
+                sequence.append(upstream_step_id)
+    
+    return sequence
 
-```
-if _PHASE_A_MISSING_COUNT > 0:
-    → 情境 A（Phase A 缺漏）
-elif _DRYRUN_STATUS == "NONE" and _PHASE_B_MISSING_COUNT > 0:
-    → 情境 B（Phase A 完整，DRYRUN 未執行，Phase B 有缺漏）
-elif _DRYRUN_STATUS == "NONE" and _PHASE_B_MISSING_COUNT == 0:
-    → 情境 B0（Phase A + B 完整，但 DRYRUN 未跑）
-elif (_DRYRUN_STATUS == "DEFAULTS" or _DRYRUN_STALE == "true") and _PHASE_B_MISSING_COUNT > 0:
-    → 情境 B'（DRYRUN 品質基線可疑，Phase B 有缺漏）
-elif _PHASE_B_MISSING_COUNT > 0:
-    → 情境 C（DRYRUN OK，Phase B 有缺漏）
-elif _SEMANTIC_COUNT > 0 or _QUALITY_FAIL_COUNT > 0:
-    → 情境 D（步驟輸出或品質不符）
-```
+# 建立全域補充序列
+_REPAIR_SEQUENCE = []
+_repair_visited = set()
 
----
+# 從所有缺失/失敗的步驟開始
+missing_or_failed = set(all_missing) | set(_SEMANTIC_IDS or []) | set(_QUALITY_FAIL_IDS or [])
 
-### 情境 A：Phase A 缺漏
+for step_id in missing_or_failed:
+    sub = build_repair_sequence(step_id, _repair_visited, max_depth=50)
+    for s in sub:
+        if s not in _REPAIR_SEQUENCE:
+            _REPAIR_SEQUENCE.append(s)
+    if step_id not in _REPAIR_SEQUENCE:
+        _REPAIR_SEQUENCE.append(step_id)
 
-```
-發現 Phase A（內容層）缺 {_PHASE_A_MISSING_COUNT} 個步驟，從 {_FIRST_PHASE_A} 開始。
-（Phase A 補完後，DRYRUN 將自動計算品質基線，再繼續 Phase B）
+# DRYRUN 必須排在 Phase A 之後、Phase B 之前（若在序列中）
+if "DRYRUN" in _REPAIR_SEQUENCE:
+    _REPAIR_SEQUENCE.remove("DRYRUN")
+    # 找到第一個 Phase B step 的位置
+    phase_b_idx = next((i for i, s in enumerate(_REPAIR_SEQUENCE) if is_phase_b(s)), len(_REPAIR_SEQUENCE))
+    _REPAIR_SEQUENCE.insert(phase_b_idx, "DRYRUN")
 
-（若同時有語意/品質問題，也在此一併列出）
+# 跳過已在 completed_steps 且 output 存在的步驟
+_REPAIR_SEQUENCE = [s for s in _REPAIR_SEQUENCE if s not in completed or is_output_missing(s)]
 
-[1] 從 {_FIRST_MISSING} 一次補到底（gendoc-flow 自動完成 Phase A → DRYRUN → Phase B）
-[2] 只看報告，不補跑
-```
-
----
-
-### 情境 B：Phase A 完整，DRYRUN 未執行
-
-```
-✅ Phase A（{N} 個步驟）已完整
-
-⚠️  DRYRUN 尚未執行
-    Phase B 共 {_PHASE_B_MISSING_COUNT} 個步驟目前沒有量化品質門檻（.gendoc-rules/ 不存在）
-    跳過 DRYRUN 直接補 Phase B = 品質審查無法量化
-
-（若 _UPSTREAM_READY == "false"，加顯上游就緒度警告）
-
-[1] 先執行 DRYRUN，再從 {_FIRST_PHASE_B} 補跑 Phase B（推薦）
-[2] 直接從 {_FIRST_PHASE_B} 補跑 Phase B（無量化品質基線）
-[3] 只看報告，不補跑
-```
-
----
-
-### 情境 B0：Phase A + B 完整但 DRYRUN 未跑
-
-```
-✅ Phase A 完整 · ✅ Phase B 完整 · ⚠️ DRYRUN 尚未執行
-
-所有步驟均標記完成，但尚未生成量化品質基線。
-建議執行 DRYRUN 以鎖定品質門檻，後續修改可用 gate-check 自動驗證。
-
-[1] 執行 DRYRUN（生成 .gendoc-rules/*.json 品質基線）
-[2] 不執行，保持現狀
-```
-
----
-
-### 情境 B'：DRYRUN 品質基線可疑 + Phase B 缺漏
-
-```
-⚠️  DRYRUN 品質基線可疑：
-    狀態：{_DRYRUN_STATUS}（DEFAULTS = 上游文件不足時使用了預設值）
-    （若 _DRYRUN_STALE == "true"，加顯過時警告及時間戳差異）
-
-Phase B 缺 {_PHASE_B_MISSING_COUNT} 個步驟。
-
-[1] 先重新執行 DRYRUN（更新品質基線），再從 {_FIRST_PHASE_B} 補跑 Phase B（推薦）
-[2] 直接從 {_FIRST_PHASE_B} 補跑 Phase B（使用現有基線）
-[3] 只看報告，不補跑
+print(f"[Plan] 補充序列（{len(_REPAIR_SEQUENCE)} 個步驟）：{' → '.join(_REPAIR_SEQUENCE)}")
 ```
 
 ---
 
-### 情境 C：DRYRUN OK，Phase B 缺漏
+## Step 3：確認補充序列
+
+**[AI 指令]** 顯示補充計畫，並用 `AskUserQuestion` 詢問使用者是否繼續。`_SPAWNED == "true"` 時自動選 [1]，跳過提問。
 
 ```
-✅ Phase A 完整 · ✅ DRYRUN 已執行（{_DRYRUN_RULES_COUNT} 個 rules files）
+[Repair Plan]
+補充序列（{len(_REPAIR_SEQUENCE)} 個步驟）：
+  → {' → '.join(_REPAIR_SEQUENCE)}
 
-Phase B 缺 {_PHASE_B_MISSING_COUNT} 個步驟，品質基線可用。
-
-（若有 QUALITY_FAIL，加顯品質失敗摘要）
-
-[1] 從 {_FIRST_PHASE_B} 補跑 Phase B
-[2] 只看報告，不補跑
-```
-
----
-
-### 情境 D：語意/品質失敗，無缺漏步驟
-
-```
-所有步驟均標記完成，但發現以下問題：
-（若 _SEMANTIC_COUNT > 0）語意不完整：{_SEMANTIC_IDS}
-（若 _QUALITY_FAIL_COUNT > 0）品質不足：{_QUALITY_FAIL_IDS}
-
-建議從 {_FIRST_MISSING} 重新執行對應步驟。
-
-[1] 從 {_FIRST_MISSING} 重新執行
-[2] 只看報告，不補跑
+選擇：
+  [1] 執行補充序列（逐步執行）
+  [2] 只看報告，不補跑
 ```
 
 ---
 
-## Step 4：執行補跑
+## Step 4：執行補充序列
 
-**[AI 指令]** 依使用者選擇執行對應模式：
+**[AI 指令]** 依使用者選擇執行補充序列：
 
----
+若選 [1]：
 
-### 模式 A：標準補跑（情境 A / C / D 選 [1]）
+```python
+# 逐步執行補充序列
+for step_id in _REPAIR_SEQUENCE:
+    print(f"[Repair] 執行 {step_id}...")
+    
+    # 用 Skill tool 呼叫 gendoc-flow，傳入 args：--only <step_id>
+    result = Skill("gendoc-flow", args=f"--only {step_id}")
+    
+    if result.failed:
+        print(f"[Error] {step_id} 執行失敗，停止補充")
+        print(f"[Hint] 手動排查：/gendoc-flow --only {step_id}")
+        exit(1)
+    
+    print(f"[Done] ✅ {step_id} 補充完成")
 
-```bash
-_NOW=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
-_TMP="${_STATE_FILE}.repair.tmp"
-python3 - <<PYEOF
-import json, os
-d = json.load(open("$_STATE_FILE", encoding="utf-8"))
-d["start_step"]   = "$_FIRST_MISSING"
-d["last_updated"] = "$_NOW"
-with open("$_TMP", "w", encoding="utf-8") as f:
-    json.dump(d, f, indent=2, ensure_ascii=False)
-os.replace("$_TMP", "$_STATE_FILE")
-print(f"[repair] start_step → $_FIRST_MISSING")
-PYEOF
+# 補充完成，用 review.sh 驗證
+print("[Verify] 執行 review.sh 驗證...")
+result = Bash("tools/bin/review.sh .")
+
+if result.exit_code == 0:
+    print("[Complete] ✅ 全部 PASS，修復完成")
+    exit(0)
+else:
+    # Review 失敗，需要重複補充
+    print("[Retry] 有步驟仍 FAIL，重新分析...")
+    if _RETRY_COUNT < 3:
+        _RETRY_COUNT += 1
+        print(f"[Retry] 第 {_RETRY_COUNT} 次重試，返回 Step 1...")
+        goto Step_1
+    else:
+        print("[Error] 達到最大重試次數（3），停止")
+        exit(1)
 ```
-
-然後用 **Skill tool** 呼叫 `gendoc-flow`（無額外 args）。
-
----
-
-### 模式 B：兩階段補跑（情境 B / B' 選 [1]）
-
-**階段 1**：執行 DRYRUN（Skill tool 呼叫 `gendoc-gen-dryrun`）：
-
-```
-先執行 gendoc-gen-dryrun 以生成/更新品質基線...
-```
-
-呼叫 **Skill tool**：`gendoc-gen-dryrun`，等待完成。
-
-**階段 2**：重讀 state file，取得最新 completed_steps，確認 DRYRUN 已在其中。然後設 start_step 為第一個 Phase B 缺漏步驟，呼叫 gendoc-flow：
-
-```bash
-_NOW=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
-_TMP="${_STATE_FILE}.repair.tmp"
-# 重新計算 Phase B 第一個缺漏（DRYRUN 完成後 state 已更新）
-_NEXT_STEP=$(python3 - "$_PIPELINE" "$_STATE_FILE" <<'PY2'
-import json, sys
-pipe  = json.load(open(sys.argv[1], encoding="utf-8"))
-state = json.load(open(sys.argv[2], encoding="utf-8"))
-completed   = set(state.get("completed_steps", []))
-client_type = state.get("client_type", "")
-has_admin   = bool(state.get("has_admin_backend", False))
-all_steps = []
-if "steps" in pipe:
-    for s in pipe["steps"]:
-        sid = s.get("id", "")
-        if not sid:
-            continue
-        cond = s.get("condition", "")
-        if cond == "client_type != api-only" and client_type == "api-only": continue
-        if cond == "client_type == api-only" and client_type != "api-only": continue
-        if cond == "client_type != none" and client_type in ("none", ""): continue
-        if cond == "client_type == game" and client_type != "game": continue
-        if cond == "has_admin_backend" and not has_admin: continue
-        all_steps.append(sid)
-dryrun_idx = next((i for i, s in enumerate(all_steps) if s == "DRYRUN"), None)
-phase_b = all_steps[dryrun_idx + 1:] if dryrun_idx is not None else []
-missing_b = [s for s in phase_b if s not in completed]
-print(missing_b[0] if missing_b else "")
-PY2
-)
-
-if [[ -n "$_NEXT_STEP" ]]; then
-  python3 - <<PYEOF
-import json, os
-d = json.load(open("$_STATE_FILE", encoding="utf-8"))
-d["start_step"]   = "$_NEXT_STEP"
-d["last_updated"] = "$_NOW"
-with open("$_TMP", "w", encoding="utf-8") as f:
-    json.dump(d, f, indent=2, ensure_ascii=False)
-os.replace("$_TMP", "$_STATE_FILE")
-print(f"[repair] Phase B start_step → $_NEXT_STEP")
-PYEOF
-  # 呼叫 gendoc-flow 繼續 Phase B
-else
-  echo "[repair] Phase B 無缺漏步驟，補跑完成。"
-fi
-```
-
-若 `_NEXT_STEP` 不為空，用 **Skill tool** 呼叫 `gendoc-flow`（無額外 args）。
-
----
-
-### 模式 B0：只跑 DRYRUN（情境 B0 選 [1]）
-
-直接用 **Skill tool** 呼叫 `gendoc-gen-dryrun`（無額外 args）。
 
 ---
 

@@ -2,6 +2,7 @@
 name: gendoc-flow
 description: |
   Template-driven document pipeline orchestrator（BRD 備妥後接手）。
+  支援兩種模式：(1) 常規流程 - 全流水線執行，(2) --only 單步模式 - 執行單一步驟（驗證 input 和 condition）。
   從 templates/pipeline.yml 動態讀取步驟定義，對每份文件執行：
     專家 Gen subagent → commit(gen) →
     loop: 專家 Review subagent → 專家 Fix subagent → round summary → commit(review-rN) →
@@ -117,6 +118,34 @@ import json
 try: print(json.load(open('${_STATE_FILE}')).get('start_step', ''))
 except: print('')
 " 2>/dev/null || echo "")
+
+# ── Step 0-Args：CLI 參數解析（必須在 state 讀取後）──────────────
+# 若 skill 被以 arg 方式呼叫（如 /gendoc-flow EDD）
+_INVOKE_ARG="${1:-}"
+if [[ -n "$_INVOKE_ARG" ]]; then
+  # 去除 --only / --single 前綴
+  _ARG_STEP="${_INVOKE_ARG#--only }"
+  _ARG_STEP="${_ARG_STEP#--single }"
+  _ARG_STEP="$(echo "$_ARG_STEP" | xargs)"
+  if [[ -n "$_ARG_STEP" ]]; then
+    echo "[Args] CLI 單步模式：$_ARG_STEP"
+    _ONLY_STEP="$_ARG_STEP"
+  fi
+fi
+
+# --only 模式優先：CLI arg 優先於 state（allow override）
+_ONLY_STEP_FROM_STATE=$(python3 -c "
+import json
+try: print(json.load(open('${_STATE_FILE}')).get('only_step', ''))
+except: print('')
+" 2>/dev/null || echo "")
+
+if [[ -n "$_ONLY_STEP" ]]; then   # 來自 Step 0-Args 的 CLI arg
+  echo "[Session] only_step=CLI arg: ${_ONLY_STEP}"
+elif [[ -n "$_ONLY_STEP_FROM_STATE" ]]; then
+  _ONLY_STEP="$_ONLY_STEP_FROM_STATE"
+  echo "[Session] only_step=state: ${_ONLY_STEP}"
+fi
 
 _COMPLETED=$(python3 -c "
 import json
@@ -379,6 +408,66 @@ def _should_skip_before_start(step_id, step_idx, start_step):
         return False  # 找不到起點 → 不跳過（保險）
     return step_idx < start_idx
 
+# 單步執行用的偽函式
+def _check_condition_for_single_step(step):
+    """Condition 不符時 print error 並 exit(1)"""
+    _is_no_client = _CLIENT_TYPE in ("api-only", "none")
+    _is_game = _CLIENT_TYPE == "game"
+    _has_admin = state.get("has_admin_backend", False)
+    
+    cond = step.get("condition", "always")
+    if cond == "client_type != none" and _is_no_client:
+        print(f"[Error] {step['id']} 條件不符：client_type={_CLIENT_TYPE}（需要有 client）")
+        exit(1)
+    if cond == "client_type == game" and not _is_game:
+        print(f"[Error] {step['id']} 條件不符：client_type={_CLIENT_TYPE}（需要 game）")
+        exit(1)
+    if cond == "has_admin_backend" and not _has_admin:
+        print(f"[Error] {step['id']} 條件不符：has_admin_backend=false")
+        exit(1)
+
+def _validate_step_inputs(step):
+    """Input[] 有缺失時 print missing 並 exit(1)"""
+    missing = [f for f in step.get("input", []) if not file_exists_and_nonempty(f)]
+    if missing:
+        print(f"[Error] {step['id']} 上游檔案缺失：")
+        for m in missing:
+            print(f"  ✗ {m}")
+        print(f"[Hint] 補充後重新執行：gendoc-flow --only {step['id']}")
+        exit(1)
+    print(f"[Check] ✅ {step['id']} 上游齊全（{len(step.get('input',[]))} 個）")
+
+# ── 單步執行模式 ──────────────────────────────────────────────────
+if _ONLY_STEP:
+    print(f"[Mode] 單步執行模式：--only {_ONLY_STEP}")
+    target = next((s for s in pipeline if s["id"] == _ONLY_STEP), None)
+    if not target:
+        print(f"[Error] Step '{_ONLY_STEP}' 未在 pipeline 中找到")
+        exit(1)
+    
+    # Condition 優先檢查
+    _check_condition_for_single_step(target)
+    
+    # Input 驗證
+    _validate_step_inputs(target)
+    
+    # 清除舊 review 記錄（重新執行）
+    if "review_progress" in state and _ONLY_STEP in state["review_progress"]:
+        print(f"[Setup] 清除 {_ONLY_STEP} 的舊 review 記錄，重新開始")
+        del state["review_progress"][_ONLY_STEP]
+        # 原子寫入 state（簡化版，實際由 Python 執行）
+        import json, os
+        with open(_STATE_FILE, 'w') as f:
+            json.dump(state, f, indent=2, ensure_ascii=False)
+    
+    # 執行單步
+    print(f"[Execute] 執行 {_ONLY_STEP}...")
+    execute_step(target, skip_gen=False, resume_from_round=1)
+    update_state_completed(_ONLY_STEP)
+    print(f"[Complete] ✅ {_ONLY_STEP} 單步執行完成")
+    exit(0)
+
+# ── 常規流程 ──────────────────────────────────────────────────────
 for step_idx, step in enumerate(pipeline):
     # ── Skip ──────────────────────────────────────────────
     if _should_skip_before_start(step["id"], step_idx, _START_STEP):
