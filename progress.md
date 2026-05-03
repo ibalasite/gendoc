@@ -405,3 +405,96 @@ Requirement 4：Phase B 驗證
 | **總計** | **1,131** | **1,640** | **+45%** |
 
 **下一步**：用戶在另一台電腦上運行測試驗證（D-SSOT-3.2、R1-V1、R2-V1、R4-V1）
+
+---
+
+## 🚨 **優先：D-SSOT-3 — Pipeline.json 完全化 + get-upstream 工具實施（v3.5）**
+
+### 需求背景
+當前 pipeline.json 仍包含冗餘定義（`metrics[]` 和 `condition_syntax`），且各 step 的輸入依賴（上游文件）分散在各 .gen.md 中，無統一管理。本次改進：
+1. **清理 pipeline.json**：刪除冗餘，只保留 version + description + steps
+2. **各 step 加 input 字段**：統一定義上游文件清單
+3. **新增 get-upstream 工具**：抽象出「文件讀取」層，與「資料提取」層分離
+
+### 任務清單
+
+#### 任務 D-SSOT-3.1：pipeline.json 改動
+- **目標**：刪除冗餘、加入 input 字段
+- **具體改動**：
+  - [ ] 刪除 `condition_syntax` 物件
+  - [ ] 刪除 `metrics[]` 陣列
+  - [ ] 各 step 加 `input: [...]` 字段
+    - DRYRUN: `input: ["docs/IDEA.md", "docs/BRD.md", "docs/PRD.md", "docs/CONSTANTS.md", "docs/PDD.md", "docs/VDD.md", "docs/EDD.md", "docs/ARCH.md"]`
+    - API、SCHEMA、FRONTEND 等根據現有 .gen.md 的上游文件清單填入
+- **完成標準**：
+  - [ ] JSON 語法正確
+  - [ ] 所有 step 的 input 已定義
+  - [ ] git commit 記錄
+
+#### 任務 D-SSOT-3.2：編寫 get-upstream 工具
+- **位置**：`tools/bin/get-upstream.sh` 或 `.py`（效率優先選擇）
+- **功能**：讀取 pipeline.json 的 input、讀取目標項目檔案/章節、返回 JSON
+- **調用方式**：`get-upstream --step DRYRUN --output json`
+- **輸出格式**：
+  ```json
+  {
+    "step": "DRYRUN",
+    "timestamp": "2026-05-03T10:00:00Z",
+    "inputs": {
+      "docs/IDEA.md": "完整檔案內容...",
+      "docs/BRD.md": "完整檔案內容...",
+      ...
+    }
+  }
+  ```
+- **完成標準**：
+  - [ ] 能讀 pipeline.json 的 input 字段
+  - [ ] 能讀目標項目檔案並篩選章節（"docs/BRD.md§2" 只讀 §2 部分）
+  - [ ] 正確返回 JSON
+
+#### 任務 D-SSOT-3.3：DRYRUN.gen.md Step 0 改動
+- **目標**：改為調用 get-upstream，獲得 INPUT_DATA
+- **具體改動**：
+  ```bash
+  INPUT_DATA=$(get-upstream --step DRYRUN --output json)
+  IDEA_CONTENT=$(echo "$INPUT_DATA" | jq -r '.inputs["docs/IDEA.md"]')
+  PERSONA_COUNT=$(echo "$IDEA_CONTENT" | grep "^## Persona:" | wc -l)
+  # ... 後續步驟使用這些值
+  ```
+- **完成標準**：
+  - [ ] 刪除硬編碼的檔案清單
+  - [ ] 調用 get-upstream
+  - [ ] 從 INPUT_DATA 提取 metrics（原有邏輯保持）
+
+#### 任務 D-SSOT-3.4：其他 step .gen.md 改動
+- **涉及 steps**：API、SCHEMA、FRONTEND、test-plan 等（按現有 .gen.md 的上游文件清單）
+- **改動模式**：同 D-SSOT-3.3
+- **完成標準**：
+  - [ ] 各 step 調用 `get-upstream --step <STEP_ID>`
+  - [ ] 獲得 INPUT_DATA
+  - [ ] 提取所需資料
+
+#### 任務 D-SSOT-3.5：實測與驗收（⏸️ 待暫停）
+- **前置條件**：需要生成新的目標項目
+- **測試清單**：
+  - [ ] 在目標項目執行 `/gendoc dryrun`
+  - [ ] 驗證 DRYRUN 正常執行
+  - [ ] 在目標項目執行 `/gendoc api`、`/gendoc schema` 等
+  - [ ] 所有文件正確生成，無缺漏
+- **狀態**：D-SSOT-3.1～3.4 可先執行，D-SSOT-3.5 待實測環境準備
+
+### 總工時估計
+- 改 pipeline.json：1h
+- 寫 get-upstream：4-6h
+- 改各 .gen.md：8-12h
+- 測試（待實測環境）：2-4h
+- **總計**：3-5 天代碼改動 + 實測待定
+
+### 職責邊界（架構分離）
+| 層級 | 責任 | 檔案 |
+|------|------|------|
+| **Pipeline 層** | 定義「需要什麼文件」 | pipeline.json 的 input 字段 |
+| **讀取層** | 讀「什麼文件」並返回內容 | get-upstream 工具 |
+| **提取層** | 從內容「怎麼提取資料」 | 各 step 的 .gen.md（grep/sed 邏輯） |
+
+---
