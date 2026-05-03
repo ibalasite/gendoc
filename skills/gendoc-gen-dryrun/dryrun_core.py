@@ -313,11 +313,43 @@ class DRYRUNEngine:
             }
         }
 
-        # (Other 22 steps - minimal specs for now, can be expanded per progress.md TASK-D2)
-        for step_id in ['IDEA', 'BRD', 'PRD', 'CONSTANTS', 'PDD', 'VDD', 'EDD', 'ARCH',
-                        'AUDIO', 'ANIM', 'CLIENT_IMPL', 'ADMIN_IMPL', 'UML',
-                        'runbook', 'LOCAL_DEPLOY', 'CICD', 'DEVELOPER_GUIDE', 'UML_CICD',
-                        'ALIGN', 'CONTRACTS', 'MOCK', 'PROTOTYPE', 'HTML']:
+        # AUDIO, ANIM, CLIENT_IMPL, ADMIN_IMPL
+        specs['AUDIO'] = {
+            'quantitative_specs': {'min_bgm_entries': 1, 'min_sfx_entries': 1},
+            'content_mapping': {'audio_triggers': 'Sound event mapping for game scenarios'},
+            'cross_file_validation': {}
+        }
+
+        specs['ANIM'] = {
+            'quantitative_specs': {'min_animation_defs': 3},
+            'content_mapping': {'animation_coverage': 'All character/UI animations defined'},
+            'cross_file_validation': {}
+        }
+
+        specs['CLIENT_IMPL'] = {
+            'quantitative_specs': {},
+            'content_mapping': {'scene_structure': 'All PDD screens have implementation details'},
+            'cross_file_validation': {}
+        }
+
+        specs['ADMIN_IMPL'] = {
+            'quantitative_specs': {'min_rbac_roles': 2},
+            'content_mapping': {'role_coverage': 'All user roles from ARCH defined'},
+            'cross_file_validation': {}
+        }
+
+        # Phase A docs (IDEA through ARCH) - already have minimal specs
+        for step_id in ['IDEA', 'BRD', 'PRD', 'CONSTANTS', 'PDD', 'VDD', 'EDD', 'ARCH']:
+            if step_id not in specs:
+                specs[step_id] = {
+                    'quantitative_specs': {},
+                    'content_mapping': {'note': 'Phase A document'},
+                    'cross_file_validation': {}
+                }
+
+        # Other Phase B steps
+        for step_id in ['UML', 'runbook', 'LOCAL_DEPLOY', 'CICD', 'DEVELOPER_GUIDE',
+                        'UML_CICD', 'ALIGN', 'CONTRACTS', 'MOCK', 'PROTOTYPE', 'HTML']:
             if step_id not in specs:
                 specs[step_id] = {
                     'quantitative_specs': {},
