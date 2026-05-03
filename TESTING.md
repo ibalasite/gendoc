@@ -20,7 +20,7 @@ Complete testing strategy for DRYRUN implementation across all 5 test categories
 cd /tmp/test_dryrun_project
 mkdir -p docs
 
-# Create minimal Phase A files
+# 建立 DRYRUN 前的文件（IDEA/BRD/PRD 等）
 echo "## Persona: Test User" > docs/IDEA.md
 echo "## P0" > docs/BRD.md
 echo "## US-001" > docs/PRD.md
@@ -195,7 +195,7 @@ echo "✅ T3a-3: review.sh + state file integration verified"
 # Run through multiple steps with review
 cd /tmp/multi_step_test
 
-# Generate all Phase A docs
+# 生成所有 DRYRUN 前的文件
 for doc in IDEA BRD PRD CONSTANTS PDD VDD EDD ARCH; do
   echo "# $doc Document" > docs/$doc.md
 done
@@ -233,7 +233,7 @@ python3 /path/to/dryrun_core.py "$(pwd)" ".gendoc-state.json" --template /path/t
 DRYRUN_EXIT=$?
 [[ $DRYRUN_EXIT -eq 0 ]] && echo "✅ T4a-1: DRYRUN completed successfully"
 
-# 3. Generate sample Phase B files
+# 3. 生成示例 DRYRUN 后的文件
 # ... (gendoc commands for API, SCHEMA, etc.)
 
 # 4. Run review.sh validations
