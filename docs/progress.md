@@ -45,12 +45,12 @@ version: 1.0
    - 定義所有 Phase B steps 的期望規格公式
    - 輸出：`docs/DRYRUN_SPEC_FORMULAS.md`（已完成）
 
-3. [ ] **實現 dryrun_core.py**（3 小時）
-   - `_load_upstream()`：調用 get-upstream
-   - `extract_parameters()`：提取 4 個核心參數
-   - `derive_specifications()`：推導期望規格
-   - `generate_rules_json()`：輸出 .gendoc-rules/*.json
-   - `generate_manifest()`：輸出 docs/MANIFEST.md
+3. [✅] **實現 dryrun_core.py**（3 小時）
+   - `_load_upstream()`：調用 get-upstream（已實現）
+   - `extract_parameters()`：提取 4 個核心參數（已實現）
+   - `derive_specifications()`：推導期望規格（已實現）
+   - `generate_rules_json()`：輸出 .gendoc-rules/*.json（已實現）
+   - `main()` 流程：更新執行流程（已實現）
 
 4. [ ] **全專案 hardcoded 規格掃描**（1 小時）
    - 掃描 skills/ 和 templates/ 中的 hardcoded 規格定義

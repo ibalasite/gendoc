@@ -61,33 +61,153 @@ class DRYRUNEngine:
         print(f"✅ [DRYRUN] Phase A complete: 8/8 files found")
         return True
 
-    def extract_metrics(self) -> dict:
-        """Extract metrics from Phase A files — dynamically read from pipeline['metrics']
-
-        SSOT Principle: All 20 metrics are defined in templates/pipeline.json metrics[] array
-        (id, source_step, grep_pattern, fallback). No hardcoded metrics.
-
-        New Phase A nodes auto-extract: add metric definition to pipeline.json,
-        this method automatically reads and processes it on next DRYRUN execution.
+    def _load_upstream(self) -> dict:
+        """Load upstream files via get-upstream tool based on pipeline.json DRYRUN input[]
 
         Returns:
-            dict: {metric_id: count, ...} e.g. {'persona_count': 3, 'moscow_p0_count': 5}
+            dict: {filename: content, ...} containing all Phase A files needed by DRYRUN
         """
-        if not self.pipeline:
-            self._load_pipeline()
+        import subprocess
 
-        metrics = {}
-        for metric_def in self.pipeline.get('metrics', []):
-            metric_id = metric_def['id']
-            source_step = metric_def['source_step']
-            grep_pattern = metric_def['grep_pattern']
-            fallback = metric_def.get('fallback', 0)
+        dryrun_step = next((s for s in self.pipeline.get('steps', []) if s['id'] == 'DRYRUN'), None)
+        if not dryrun_step:
+            raise ValueError("DRYRUN step not found in pipeline.json")
 
-            source_file = self.docs_dir / f"{source_step}.md"
-            metrics[metric_id] = self._grep_count(source_file, grep_pattern, fallback=fallback)
+        input_files = dryrun_step.get('input', [])
+        upstream_data = {}
 
-        self.metrics = metrics
-        return metrics
+        try:
+            # Call get-upstream tool
+            get_upstream_path = self.cwd / 'tools' / 'bin' / 'get-upstream.sh'
+            result = subprocess.run(
+                [str(get_upstream_path), '--step', 'DRYRUN', '--output', 'json'],
+                cwd=str(self.cwd),
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+
+            if result.returncode != 0:
+                raise RuntimeError(f"get-upstream failed: {result.stderr}")
+
+            upstream_data = json.loads(result.stdout)
+            return upstream_data.get('inputs', {})
+
+        except Exception as e:
+            print(f"⚠️  [DRYRUN] get-upstream tool failed, falling back to direct file reads: {e}")
+            # Fallback: read files directly
+            for filename in input_files:
+                filepath = self.cwd / filename
+                if filepath.exists():
+                    upstream_data[filename] = filepath.read_text(encoding='utf-8')
+            return upstream_data
+
+    def extract_parameters(self, upstream_data: dict = None) -> dict:
+        """Extract four core parameters from Phase A files (STEP 1 of DRYRUN_PARAMETER_EXTRACTION.md)
+
+        Parameters extracted:
+        - entity_count: from EDD.md (entity/class definitions)
+        - rest_endpoint_count: from PRD.md + EDD.md (API endpoint definitions)
+        - user_story_count: from PRD.md (user story definitions)
+        - arch_layer_count: from ARCH.md (architecture layers)
+
+        Returns:
+            dict: {
+                "entity_count": int,
+                "rest_endpoint_count": int,
+                "user_story_count": int,
+                "arch_layer_count": int,
+                "metadata": {...}
+            }
+        """
+        if upstream_data is None:
+            upstream_data = self._load_upstream()
+
+        params = {
+            "entity_count": self._extract_entity_count(upstream_data),
+            "rest_endpoint_count": self._extract_rest_endpoint_count(upstream_data),
+            "user_story_count": self._extract_user_story_count(upstream_data),
+            "arch_layer_count": self._extract_arch_layer_count(upstream_data),
+            "metadata": {
+                "extraction_timestamp": datetime.now(timezone.utc).isoformat(),
+                "source": "DRYRUN_PARAMETER_EXTRACTION.md"
+            }
+        }
+
+        return params
+
+    def _extract_entity_count(self, upstream_data: dict) -> int:
+        """Extract entity_count from EDD.md §5.5 (DRYRUN_PARAMETER_EXTRACTION.md Step 1)"""
+        edd_content = upstream_data.get('docs/EDD.md', '')
+
+        # Pattern: ### ClassName or table format with class names
+        class_pattern = r'^###\s+[A-Z][a-zA-Z0-9]*(?:\s|$)'
+        matches = re.findall(class_pattern, edd_content, re.MULTILINE)
+
+        if matches:
+            return max(3, len(matches))
+
+        # Fallback
+        return 3
+
+    def _extract_rest_endpoint_count(self, upstream_data: dict) -> int:
+        """Extract rest_endpoint_count from PRD.md (DRYRUN_PARAMETER_EXTRACTION.md Step 2)"""
+        prd_content = upstream_data.get('docs/PRD.md', '')
+
+        # Pattern: GET|POST|PUT|DELETE /api/path
+        endpoint_pattern = r'(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\s+/[a-zA-Z0-9/_\{\}-]*'
+        matches = set(re.findall(endpoint_pattern, prd_content))
+
+        if matches:
+            return max(5, len(matches))
+
+        # Fallback
+        return 5
+
+    def _extract_user_story_count(self, upstream_data: dict) -> int:
+        """Extract user_story_count from PRD.md (DRYRUN_PARAMETER_EXTRACTION.md Step 3)"""
+        prd_content = upstream_data.get('docs/PRD.md', '')
+
+        # Pattern: "As a ... I want ..." or ### US-* / ### Story-*
+        us_pattern = r'^###\s+(?:US-\d+|Story-\d+)'
+        matches = re.findall(us_pattern, prd_content, re.MULTILINE)
+
+        if matches:
+            return max(20, len(matches))
+
+        # Fallback
+        return 20
+
+    def _extract_arch_layer_count(self, upstream_data: dict) -> int:
+        """Extract arch_layer_count from ARCH.md (DRYRUN_PARAMETER_EXTRACTION.md Step 4)"""
+        arch_content = upstream_data.get('docs/ARCH.md', '')
+
+        # Pattern: ### ... Layer or ### ... Service
+        layer_pattern = r'^###\s+(?:.*Layer|.*Service|.*層|.*服務)'
+        matches = re.findall(layer_pattern, arch_content, re.MULTILINE)
+
+        if matches:
+            return max(2, len(matches))
+
+        # Fallback: assume N-tier (Presentation, Business Logic, Data Access, Infrastructure)
+        return 4
+
+    def extract_metrics(self) -> dict:
+        """Extract metrics from Phase A files — for backward compatibility
+
+        Maps extracted parameters to legacy metrics format.
+        """
+        params = self.extract_parameters()
+
+        # Convert new parameters to legacy metrics format for compatibility
+        self.metrics = {
+            'entity_count': params['entity_count'],
+            'rest_endpoint_count': params['rest_endpoint_count'],
+            'user_story_count': params['user_story_count'],
+            'layer_count': params['arch_layer_count'],
+        }
+
+        return self.metrics
 
     def _grep_count(self, filepath: Path, pattern: str, fallback: int = 0) -> int:
         """Count matches of regex pattern in file"""
@@ -101,59 +221,97 @@ class DRYRUNEngine:
         except Exception:
             return fallback
 
-    def derive_specifications(self) -> dict:
-        """Derive specifications from pipeline['steps'][*]['spec_rules'] — SSOT
+    def derive_specifications(self, params: dict = None) -> dict:
+        """Derive specifications from Phase B steps using extracted parameters (STEP 2 of DRYRUN_SPEC_FORMULAS.md)
 
-        SSOT Principle: All 34 step specifications are defined in templates/pipeline.json
-        steps[] array, each with spec_rules (quantitative_specs, content_mapping, cross_file_validation).
-        No hardcoded step logic.
+        Uses parametric formulas to derive expected specifications for each Phase B step.
+        Example: API step expects min_endpoint_count = max(5, rest_endpoint_count)
 
-        Process:
-        1. Read each step's spec_rules from pipeline.json
-        2. Substitute metric placeholders (e.g., {persona_count}) with actual values
-        3. Return complete specifications for all Phase B steps
-
-        New Phase B nodes auto-generate specs: add step definition to pipeline.json,
-        this method automatically generates specifications on next DRYRUN execution.
+        Parameters:
+            params: dict with entity_count, rest_endpoint_count, user_story_count, arch_layer_count
 
         Returns:
-            dict: {step_id: {quantitative_specs, content_mapping, cross_file_validation}, ...}
+            dict: {step_id: {min_count, required_sections, optional_checks}, ...}
         """
+        if params is None:
+            params = self.extract_parameters()
+
         if not self.pipeline:
             self._load_pipeline()
 
-        m = self.metrics
+        m = params
         specs = {}
 
-        # Read spec_rules from each step in pipeline (not hardcoded)
+        # Apply formulas for each Phase B step (from DRYRUN_SPEC_FORMULAS.md)
+        phase_b_formulas = {
+            'API': {
+                'min_endpoint_count': max(5, m['rest_endpoint_count']),
+                'min_h2_sections': math.ceil(m['rest_endpoint_count'] / 3) + 3,
+                'entity_coverage': m['entity_count']
+            },
+            'SCHEMA': {
+                'min_table_count': max(3, m['entity_count']),
+                'min_h2_sections': m['entity_count'] + 5
+            },
+            'FRONTEND': {
+                'min_h2_sections': m['user_story_count'] + m['arch_layer_count'] + 3
+            },
+            'test-plan': {
+                'min_h2_sections': m['arch_layer_count'] + math.ceil(m['user_story_count'] / 4) + 3,
+                'min_test_cases': m['user_story_count'] * 3
+            },
+            'BDD-server': {
+                'min_scenario_count': math.ceil(m['user_story_count'] * 0.8),
+                'min_step_definitions': math.ceil(m['rest_endpoint_count'] * 0.6)
+            },
+            'BDD-client': {
+                'min_scenario_count': math.ceil(m['user_story_count'] * 0.7),
+                'min_step_definitions': math.ceil(m['user_story_count'] * 0.5)
+            },
+            'RTM': {
+                'min_h2_sections': 3,
+                'min_traceability_entries': m['user_story_count']
+            },
+            'runbook': {
+                'min_h2_sections': m['arch_layer_count'] + 5
+            },
+            'LOCAL_DEPLOY': {
+                'min_h2_sections': 12
+            },
+            'DEVELOPER_GUIDE': {
+                'min_h2_sections': 5
+            },
+            'CICD': {
+                'min_h2_sections': 8
+            },
+            'UML': {
+                'min_diagram_count': 9,
+                'class_coverage': m['entity_count']
+            },
+            'CONTRACTS': {
+                'min_h2_sections': 4,
+                'endpoint_coverage': m['rest_endpoint_count']
+            },
+            'MOCK': {
+                'min_endpoints': m['rest_endpoint_count']
+            }
+        }
+
+        # Build specs dictionary
         for step in self.pipeline.get('steps', []):
             step_id = step['id']
-            spec_rules = step.get('spec_rules', {
-                'quantitative_specs': {},
-                'content_mapping': {},
-                'cross_file_validation': {}
-            })
 
-            # Process quantitative_specs (substitute metric values)
-            quantitative = {}
-            for key, value in spec_rules.get('quantitative_specs', {}).items():
-                quantitative[key] = self._evaluate_spec_value(value, m)
-
-            # Process content_mapping (substitute metric values)
-            content = {}
-            for key, value in spec_rules.get('content_mapping', {}).items():
-                content[key] = self._evaluate_spec_value(value, m)
-
-            # Cross_file_validation (substitute metric values)
-            cross_file = {}
-            for key, value in spec_rules.get('cross_file_validation', {}).items():
-                cross_file[key] = self._evaluate_spec_value(value, m)
-
-            specs[step_id] = {
-                'quantitative_specs': quantitative,
-                'content_mapping': content,
-                'cross_file_validation': cross_file
-            }
+            # Use formula-based specs if available
+            if step_id in phase_b_formulas:
+                specs[step_id] = phase_b_formulas[step_id]
+            else:
+                # For other steps, use spec_rules from pipeline.json
+                spec_rules = step.get('spec_rules', {})
+                specs[step_id] = {
+                    'quantitative_specs': spec_rules.get('quantitative_specs', {}),
+                    'content_mapping': spec_rules.get('content_mapping', {}),
+                    'cross_file_validation': spec_rules.get('cross_file_validation', {})
+                }
 
         self.step_specs = specs
         return specs
@@ -310,6 +468,33 @@ class DRYRUNEngine:
             print(f"   - {len(warnings)} warnings (non-critical)")
         return True
 
+    def generate_rules_json(self) -> bool:
+        """Generate .gendoc-rules/*.json files (STEP 4 of DRYRUN_CORE_IMPLEMENTATION_PLAN.md)
+
+        For each Phase B step, output a JSON file containing its expected specifications.
+        Format: .gendoc-rules/{step_id}-rules.json
+
+        Returns:
+            bool: True if all files generated successfully
+        """
+        rules_dir = self.cwd / '.gendoc-rules'
+        rules_dir.mkdir(exist_ok=True)
+
+        success = True
+        for step_id, specs in self.step_specs.items():
+            try:
+                rules_file = rules_dir / f"{step_id.lower()}-rules.json"
+                rules_file.write_text(
+                    json.dumps(specs, indent=2, ensure_ascii=False),
+                    encoding='utf-8'
+                )
+                print(f"  ✓ {step_id}: {rules_file.name}")
+            except Exception as e:
+                print(f"  ✗ {step_id}: {e}", file=sys.stderr)
+                success = False
+
+        return success
+
     def generate_manifest(self, template_path: str, output_path: str) -> bool:
         """TASK-D5: Generate MANIFEST.md from template with substituted values"""
 
@@ -409,27 +594,41 @@ def main():
     if not engine.validate_phase_a():
         sys.exit(1)
 
-    # Step 1: Extract metrics
-    print("\n[DRYRUN] Step 1: Extracting quantitative metrics (from pipeline.json)...")
-    engine.extract_metrics()
-    engine.print_metrics_summary()
+    # Step 1: Extract parameters (DRYRUN_PARAMETER_EXTRACTION.md)
+    print("\n[DRYRUN] Step 1: Extracting core parameters...")
+    try:
+        params = engine.extract_parameters()
+        print(f"✅ [DRYRUN] Parameters extracted:")
+        print(f"   - entity_count: {params['entity_count']}")
+        print(f"   - rest_endpoint_count: {params['rest_endpoint_count']}")
+        print(f"   - user_story_count: {params['user_story_count']}")
+        print(f"   - arch_layer_count: {params['arch_layer_count']}")
+    except Exception as e:
+        print(f"❌ [DRYRUN] Failed to extract parameters: {e}", file=sys.stderr)
+        sys.exit(1)
 
-    # Step 2: Derive specifications
-    print("[DRYRUN] Step 2: Reading and evaluating spec_rules (from pipeline.json)...")
-    engine.derive_specifications()
-    print(f"✅ [DRYRUN] Processed specifications for {len(engine.step_specs)} steps")
+    # Step 2: Derive specifications (DRYRUN_SPEC_FORMULAS.md)
+    print("\n[DRYRUN] Step 2: Deriving specifications from formulas...")
+    try:
+        engine.derive_specifications(params)
+        print(f"✅ [DRYRUN] Specifications derived for {len(engine.step_specs)} steps")
+    except Exception as e:
+        print(f"❌ [DRYRUN] Failed to derive specifications: {e}", file=sys.stderr)
+        sys.exit(1)
 
-    # Step 3: Embed in state file
-    print("\n[DRYRUN] Step 3: Embedding specifications in state file...")
+    # Step 3: Generate .gendoc-rules/*.json files
+    print("\n[DRYRUN] Step 3: Generating .gendoc-rules/*.json files...")
+    try:
+        if not engine.generate_rules_json():
+            sys.exit(1)
+        print(f"✅ [DRYRUN] Rules generated: {len(engine.step_specs)} files")
+    except Exception as e:
+        print(f"❌ [DRYRUN] Failed to generate rules: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Step 4: Embed in state file
+    print("\n[DRYRUN] Step 4: Embedding specifications in state file...")
     if not engine.embed_in_state_file():
-        sys.exit(1)
-
-    # Step 4: Validate completeness (R1-V1)
-    if not engine.validate_completeness():
-        sys.exit(1)
-
-    # Step 4b: Validate spec quality (R2-V1)
-    if not engine.validate_spec_quality():
         sys.exit(1)
 
     # Step 5: Generate MANIFEST.md (if template provided)
@@ -437,11 +636,23 @@ def main():
         print("\n[DRYRUN] Step 5: Generating MANIFEST.md...")
         if not engine.generate_manifest(template_path, manifest_path):
             sys.exit(1)
-        print(f"✅ [DRYRUN] Ready for git commit")
+
+    # Step 6: Validation
+    print("\n[DRYRUN] Step 6: Validating completeness...")
+    if not engine.validate_completeness():
+        sys.exit(1)
+
+    if not engine.validate_spec_quality():
+        sys.exit(1)
 
     print("\n" + "="*60)
     print("✅ [DRYRUN] All steps complete")
     print("="*60)
+    print(f"   - Parameters extracted: 4/4")
+    print(f"   - Specifications derived: {len(engine.step_specs)}/25+ steps")
+    print(f"   - Rules files generated: .gendoc-rules/*.json")
+    if manifest_path:
+        print(f"   - MANIFEST.md generated: {manifest_path}")
 
 
 if __name__ == '__main__':
