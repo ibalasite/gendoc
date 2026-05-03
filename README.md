@@ -53,7 +53,7 @@ Key capabilities:
 | `gendoc-gen-prototype` | `/gendoc-gen-prototype` | Interactive HTML prototype — UI flow (web/game) or API Explorer with mock engine (api-only) |
 | `gendoc-gen-diagrams` | `/gendoc-gen-diagrams` | Generate Server 9 UML types + Frontend 16 UML types (UML) + class-inventory.md; 30+ precision validation checks; enforces no `<br/>` in stateDiagram-v2 / sequenceDiagram; bans experimental charts (pie/xychart-beta/bar) |
 | `gendoc-gen-client-bdd` | `/gendoc-gen-client-bdd` | Client-facing BDD feature files (web/game projects) |
-| `gendoc-repair` | `/gendoc-repair` | Phase-aware backfill — brings any incomplete project to the same state as `gendoc-auto` + `gendoc-flow` would produce. Categorizes gaps into Phase A (pre-DRYRUN) / DRYRUN Gate / Phase B (post-DRYRUN); detects DRYRUN state (none / defaults / ok); validates completed docs against `.gendoc-rules/*.json` quality gates; two-phase repair mode: complete Phase A → trigger DRYRUN → continue Phase B |
+| `gendoc-repair` | `/gendoc-repair` | DRYRUN-aware backfill — brings any incomplete project to the same state as `gendoc-auto` + `gendoc-flow` would produce. Categorizes gaps into DRYRUN 前的 step / DRYRUN Gate / DRYRUN 后的 step; detects DRYRUN state (none / defaults / ok); validates completed docs against `.gendoc-rules/*.json` quality gates; two-phase repair mode: complete DRYRUN 前的 step → trigger DRYRUN → continue DRYRUN 后的 step |
 | `gendoc-rebuild-templates` | `/gendoc-rebuild-templates` | Rebuild all document templates from scratch |
 | `gendoc-update` | `/gendoc-update` | Manual skill upgrade |
 | `reviewtemplate` | `/reviewtemplate <TYPE>` | Review & iteratively fix a template three-file set (TYPE.md + .gen.md + .review.md) |
@@ -172,8 +172,8 @@ References: Martin Fowler "MonolithFirst" (2015) · Sam Newman *Monolith to Micr
 
 The `gendoc-gen-dryrun` step enforces a complete **Single Source of Truth (SSOT)** architecture for all quantitative metrics and document specification rules. This ensures that:
 
-1. **Adding a new Phase A step** (e.g., REVIEW.md before DRYRUN) automatically contributes its metrics — no code changes needed
-2. **Adding a new Phase B step** (e.g., PERFORMANCE after SCHEMA) automatically generates complete specification rules — no code changes needed
+1. **Adding a new DRYRUN 前的 step** (e.g., REVIEW.md before DRYRUN) automatically contributes its metrics — no code changes needed
+2. **Adding a new DRYRUN 后的 step** (e.g., PERFORMANCE after SCHEMA) automatically generates complete specification rules — no code changes needed
 3. All 20 quantitative indicators and 34 step specifications are defined in **one authoritative location**: `templates/pipeline.json`
 
 ### pipeline.json Structure
