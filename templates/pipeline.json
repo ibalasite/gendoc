@@ -724,7 +724,7 @@
       "special_skill": "gendoc-align-check",
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[ALIGN]",
-      "note": "跨層對齊檢查：CICD.md §4 vs LOCAL_DEPLOY.md §6；DEVELOPER_GUIDE.md §2 vs CICD.md §2。",
+      "note": "全局跨層對齊檢查：驗證完整依賴鏈 IDEA→BRD→PRD→...→RTM→Code 的所有文件對齊、文件↔程式碼、程式碼↔測試的一致性。包括運維層（CICD/LOCAL_DEPLOY/DEVELOPER_GUIDE）的跨層對齊。",
       "spec_rules": {
         "quantitative_specs": {},
         "content_mapping": {
@@ -733,9 +733,25 @@
         "cross_file_validation": {}
       },
       "input": [
+        "docs/IDEA.md",
+        "docs/BRD.md",
+        "docs/PRD.md",
+        "docs/PDD.md",
+        "docs/VDD.md",
+        "docs/EDD.md",
+        "docs/ARCH.md",
+        "docs/API.md",
+        "docs/SCHEMA.md",
+        "docs/FRONTEND.md",
+        "docs/AUDIO.md",
+        "docs/ANIM.md",
+        "docs/CLIENT_IMPL.md",
+        "docs/ADMIN_IMPL.md",
+        "docs/test-plan.md",
         "docs/CICD.md",
         "docs/LOCAL_DEPLOY.md",
-        "docs/DEVELOPER_GUIDE.md"
+        "docs/DEVELOPER_GUIDE.md",
+        "docs/runbook.md"
       ]
     },
     {
@@ -759,9 +775,25 @@
         "cross_file_validation": {}
       },
       "input": [
+        "docs/IDEA.md",
+        "docs/BRD.md",
+        "docs/PRD.md",
+        "docs/PDD.md",
+        "docs/VDD.md",
+        "docs/EDD.md",
+        "docs/ARCH.md",
+        "docs/API.md",
+        "docs/SCHEMA.md",
+        "docs/FRONTEND.md",
+        "docs/AUDIO.md",
+        "docs/ANIM.md",
+        "docs/CLIENT_IMPL.md",
+        "docs/ADMIN_IMPL.md",
+        "docs/test-plan.md",
         "docs/CICD.md",
         "docs/LOCAL_DEPLOY.md",
-        "docs/DEVELOPER_GUIDE.md"
+        "docs/DEVELOPER_GUIDE.md",
+        "docs/runbook.md"
       ]
     },
     {
@@ -785,9 +817,25 @@
         "cross_file_validation": {}
       },
       "input": [
+        "docs/IDEA.md",
+        "docs/BRD.md",
+        "docs/PRD.md",
+        "docs/PDD.md",
+        "docs/VDD.md",
+        "docs/EDD.md",
+        "docs/ARCH.md",
+        "docs/API.md",
+        "docs/SCHEMA.md",
+        "docs/FRONTEND.md",
+        "docs/AUDIO.md",
+        "docs/ANIM.md",
+        "docs/CLIENT_IMPL.md",
+        "docs/ADMIN_IMPL.md",
+        "docs/test-plan.md",
         "docs/CICD.md",
         "docs/LOCAL_DEPLOY.md",
-        "docs/DEVELOPER_GUIDE.md"
+        "docs/DEVELOPER_GUIDE.md",
+        "docs/runbook.md"
       ]
     },
     {
