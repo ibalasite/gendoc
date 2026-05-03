@@ -301,11 +301,21 @@
       "handled_by": "gendoc-flow",
       "special_skill": "gendoc-gen-dryrun",
       "commit_prefix": "docs(gendoc)[DRYRUN]",
-      "note": "讀取 EDD/PRD/ARCH 計算量化基線，生成 docs/MANIFEST.md + .gendoc-rules/*.json。不跑 review→fix loop（special_skill 處理）。",
+      "note": "Phase A→B 邊界：根據 pipeline.json metrics[] 動態讀取所有 Phase A 文件，計算 20 個量化指標，推導 34 個 Phase B step 的規格。生成 docs/MANIFEST.md + .gendoc-rules/*.json。不跑 review→fix loop（special_skill 直接處理）。",
       "spec_rules": {
-        "quantitative_specs": {},
-        "content_mapping": {"note": "Phase A→B 相位邊界（生成量化基線）"},
-        "cross_file_validation": {}
+        "quantitative_specs": {
+          "manifest_generated": "docs/MANIFEST.md 必須存在且無未解決的 {{PLACEHOLDER}}",
+          "all_metrics_extracted": "20 個量化指標全部成功提取（無全為 0 或 fallback 的異常）",
+          "phase_a_completeness": "所有啟用的 Phase A step（IDEA→ARCH）的檔案必須存在"
+        },
+        "content_mapping": {
+          "metric_coverage": "metrics[] 定義的 source_step 對應檔案必須存在",
+          "spec_rules_validity": "所有 Phase B step 的 spec_rules 三層（quantitative/content/cross-file）非空"
+        },
+        "cross_file_validation": {
+          "phase_consistency": "Phase A 和 Phase B 的 step 清單與 pipeline.json 條件邏輯一致",
+          "state_file_sync": ".gendoc-state.json 包含完整的 step_specifications 和 quantitative_metrics 欄位"
+        }
       }
     },
     {
