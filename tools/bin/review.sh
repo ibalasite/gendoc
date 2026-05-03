@@ -35,9 +35,14 @@ fi
 [[ ! -f "$TARGET_FILE" ]] && echo "Error: Target file not found" >&2 && exit 1
 
 # Extract quantitative thresholds from state file
-ENDPOINT_COUNT=$(grep -c '^\*\*' "$TARGET_FILE" 2>/dev/null || echo "0")
-TABLE_COUNT=$(grep -c '^|' "$TARGET_FILE" 2>/dev/null || echo "0")
-SECTION_COUNT=$(grep -c '^##' "$TARGET_FILE" 2>/dev/null || echo "0")
+ENDPOINT_COUNT=$(grep -c '^\*\*' "$TARGET_FILE" 2>/dev/null | xargs || echo "0")
+TABLE_COUNT=$(grep -c '^|' "$TARGET_FILE" 2>/dev/null | xargs || echo "0")
+SECTION_COUNT=$(grep -c '^##' "$TARGET_FILE" 2>/dev/null | xargs || echo "0")
+
+# Ensure numeric values
+ENDPOINT_COUNT=${ENDPOINT_COUNT:-0}
+TABLE_COUNT=${TABLE_COUNT:-0}
+SECTION_COUNT=${SECTION_COUNT:-0}
 
 # Build findings JSON
 CRITICAL=0
@@ -45,7 +50,8 @@ HIGH=0
 PASS=0
 
 # Check for placeholders
-PLACEHOLDER_COUNT=$(grep -o '{{[^}]*}}' "$TARGET_FILE" 2>/dev/null | wc -l)
+PLACEHOLDER_COUNT=$(grep -o '{{[^}]*}}' "$TARGET_FILE" 2>/dev/null | wc -l | xargs)
+PLACEHOLDER_COUNT=${PLACEHOLDER_COUNT:-0}
 if [[ $PLACEHOLDER_COUNT -gt 0 ]]; then
   CRITICAL=$((CRITICAL + 1))
 fi
