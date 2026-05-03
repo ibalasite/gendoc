@@ -1127,7 +1127,7 @@ templates/
 | `docs/ALIGN_REPORT.md` | `ALIGN_REPORT.review.md` | align-check skill | 稽核層（ALIGN） | 跨文件不一致清單 |
 | `docs/blueprint/contracts/` `docs/blueprint/infra/` `docs/blueprint/scaffold/` | — | gendoc-gen-contracts | 實作層（CONTRACTS） | OpenAPI 3.1 / JSON Schema / Pact / Helm / docker-compose / Seed Code |
 | `docs/blueprint/mock/` | — | gendoc-gen-mock | 實作層（MOCK） | FastAPI main.py / data/*.json / requirements.txt / MOCK_SERVER_GUIDE.md（client_type≠api-only） |
-| `docs/diagrams/class-domain.md` `docs/diagrams/class-application.md` `docs/diagrams/class-infra-presentation.md` `docs/diagrams/class-inventory.md` | `UML-CLASS.md` `UML-CLASS.gen.md` `UML-CLASS.review.md` | gendoc-gen-diagrams（D07b-UML）或獨立呼叫 `/gendoc UML-CLASS` | Layer 5（UML 圖集） | Clean Architecture 三層 Class Diagram + Class Inventory；含 6 種關聯類型、技術說明與白話說明品質閘門 |
+| `docs/diagrams/class-domain.md` `docs/diagrams/class-application.md` `docs/diagrams/class-infra-presentation.md` `docs/diagrams/class-inventory.md` | — | gendoc-gen-diagrams（D07b-UML） | Layer 5（UML 圖集） | Clean Architecture 三層 Class Diagram + Class Inventory；生成規則 inline 於 gendoc-gen-diagrams §2.2-2.4 |
 | — | `pipeline.json` | 流水線定義 | — | 所有步驟順序、條件、輸出路徑的唯一來源 |
 
 ---
