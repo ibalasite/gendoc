@@ -361,6 +361,81 @@ class DRYRUNEngine:
             print(f"❌ [DRYRUN] Failed to embed specifications: {e}", file=sys.stderr)
             return False
 
+    def validate_completeness(self) -> bool:
+        """TASK-D4: Validate that all 31 steps have complete specifications"""
+
+        print("\n[DRYRUN] Step 4: Validating completeness...")
+
+        required_keys = ['quantitative_specs', 'content_mapping', 'cross_file_validation']
+        errors = []
+
+        # Check all 31 steps present
+        if len(self.step_specs) != 31:
+            errors.append(f"Expected 31 steps, found {len(self.step_specs)}")
+
+        # Check each step has all required fields
+        for step_id, specs in self.step_specs.items():
+            for key in required_keys:
+                if key not in specs or not isinstance(specs[key], dict):
+                    errors.append(f"{step_id}: missing or invalid '{key}'")
+
+        if errors:
+            print(f"❌ [DRYRUN] Validation failed:")
+            for error in errors:
+                print(f"   - {error}")
+            return False
+
+        print(f"✅ [DRYRUN] Validation passed:")
+        print(f"   - {len(self.step_specs)} steps with complete specs")
+        print(f"   - All required fields present")
+        return True
+
+    def generate_manifest(self, template_path: str, output_path: str) -> bool:
+        """TASK-D5: Generate MANIFEST.md from template with substituted values"""
+
+        try:
+            template = Path(template_path).read_text(encoding='utf-8')
+
+            # Build replacement dictionary
+            replacements = {
+                '{{GENERATED_DATE}}': datetime.now(timezone.utc).strftime('%Y-%m-%d'),
+                '{{PIPELINE_VERSION}}': 'v2.0.0',  # From DRYRUN_ENGINE
+                '{{ENTITY_COUNT}}': str(self.metrics.get('entity_count', 0)),
+                '{{REST_ENDPOINT_COUNT}}': str(self.metrics.get('rest_endpoint_count', 0)),
+                '{{USER_STORY_COUNT}}': str(self.metrics.get('user_story_count', 0)),
+                '{{ARCH_LAYER_COUNT}}': str(self.metrics.get('layer_count', 0)),
+                '{{PERSONA_COUNT}}': str(self.metrics.get('persona_count', 0)),
+                '{{MOSCOW_P0_COUNT}}': str(self.metrics.get('moscow_p0_count', 0)),
+                '{{KPI_COUNT}}': str(self.metrics.get('kpi_count', 0)),
+                '{{FEATURE_COUNT}}': str(self.metrics.get('feature_count', 0)),
+                '{{USE_CASE_COUNT}}': str(self.metrics.get('use_case_count', 0)),
+                '{{TOTAL_AC_COUNT}}': str(self.metrics.get('total_ac_count', 0)),
+                '{{CONSTANT_COUNT}}': str(self.metrics.get('constant_count', 0)),
+                '{{SCREEN_COUNT}}': str(self.metrics.get('screen_count', 0)),
+                '{{FLOW_COUNT}}': str(self.metrics.get('flow_count', 0)),
+                '{{TOTAL_COMPONENT_COUNT}}': str(self.metrics.get('total_component_count', 0)),
+                '{{DESIGN_TOKEN_COUNT}}': str(self.metrics.get('design_token_count', 0)),
+                '{{COLOR_COUNT}}': str(self.metrics.get('color_count', 0)),
+                '{{RELATIONSHIP_COUNT}}': str(self.metrics.get('relationship_count', 0)),
+                '{{DOMAIN_COUNT}}': str(self.metrics.get('domain_count', 0)),
+                '{{SERVICE_COUNT}}': str(self.metrics.get('service_count', 0)),
+                '{{NFR_COUNT}}': str(self.metrics.get('nfr_count', 0)),
+            }
+
+            # Apply replacements
+            content = template
+            for placeholder, value in replacements.items():
+                content = content.replace(placeholder, value)
+
+            # Write MANIFEST.md
+            Path(output_path).write_text(content, encoding='utf-8')
+            print(f"✅ [DRYRUN] MANIFEST.md generated: {output_path}")
+            return True
+
+        except Exception as e:
+            print(f"❌ [DRYRUN] Failed to generate MANIFEST.md: {e}", file=sys.stderr)
+            return False
+
     def print_metrics_summary(self):
         """Print summary of extracted metrics"""
         print("\n[DRYRUN] Extracted Metrics Summary:")
@@ -395,11 +470,18 @@ def main():
     """Main entry point"""
 
     if len(sys.argv) < 3:
-        print("Usage: python3 dryrun_core.py <cwd> <state_file>", file=sys.stderr)
+        print("Usage: python3 dryrun_core.py <cwd> <state_file> [--template <path>]", file=sys.stderr)
         sys.exit(1)
 
     cwd = sys.argv[1]
     state_file = sys.argv[2]
+
+    # Optional template path (for MANIFEST.md generation)
+    template_path = None
+    manifest_path = None
+    if len(sys.argv) > 4 and sys.argv[3] == '--template':
+        template_path = sys.argv[4]
+        manifest_path = str(Path(cwd) / 'docs' / 'MANIFEST.md')
 
     engine = DRYRUNEngine(cwd, state_file)
 
@@ -422,8 +504,21 @@ def main():
     if not engine.embed_in_state_file():
         sys.exit(1)
 
-    print("\n✅ [DRYRUN] Core logic complete")
-    print("   Next: TASK-D4 (validation) → TASK-D5 (MANIFEST.md generation)")
+    # Step 4: Validate completeness
+    print("\n[DRYRUN] Step 4: Validating completeness...")
+    if not engine.validate_completeness():
+        sys.exit(1)
+
+    # Step 5: Generate MANIFEST.md (if template provided)
+    if template_path and manifest_path:
+        print("\n[DRYRUN] Step 5: Generating MANIFEST.md...")
+        if not engine.generate_manifest(template_path, manifest_path):
+            sys.exit(1)
+        print(f"✅ [DRYRUN] Ready for git commit")
+
+    print("\n" + "="*60)
+    print("✅ [DRYRUN] All steps complete")
+    print("="*60)
 
 
 if __name__ == '__main__':
