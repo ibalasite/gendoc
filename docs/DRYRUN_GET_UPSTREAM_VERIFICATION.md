@@ -39,7 +39,7 @@ status: D-SSOT-4.2
 
 **評估**：
 - DRYRUN step 已在 pipeline.json 中定義
-- input[] 包含完整的 8 個 Phase A 文件
+- input[] 包含完整的 8 個 DRYRUN 前的 step 文件
 - 檔案路徑格式正確（`docs/FILENAME.md`）
 - 順序合理（從高層需求到低層設計）
 
@@ -234,7 +234,7 @@ tools/bin/get-upstream --step API --output json | jq '.inputs["docs/PRD.md§3"] 
 
 **D-SSOT-4.3：全迴歸測試**
 - 找一個實際的目標專案
-- 運行完整流程：DRYRUN → Phase B → review.sh
+- 運行完整流程：DRYRUN → DRYRUN 后的 step → review.sh
 - 驗證端到端的雙層獨立驗證機制
 
 **預計時間**：1-2 個工作小時（包括準備目標專案 + 完整流程測試）
