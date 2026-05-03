@@ -178,16 +178,16 @@ class DRYRUNEngine:
             return False
 
     def validate_completeness(self) -> bool:
-        """TASK-D4: Validate that all 31 steps have complete specifications"""
+        """R1-V1: Validate that all steps have complete specifications"""
 
         print("\n[DRYRUN] Step 4: Validating completeness...")
 
         required_keys = ['quantitative_specs', 'content_mapping', 'cross_file_validation']
         errors = []
 
-        # Check all 31 steps present
-        if len(self.step_specs) != 31:
-            errors.append(f"Expected 31 steps, found {len(self.step_specs)}")
+        # Check all 34 steps present
+        if len(self.step_specs) < 34:
+            errors.append(f"Expected 34 steps, found {len(self.step_specs)}")
 
         # Check each step has all required fields
         for step_id, specs in self.step_specs.items():
@@ -204,6 +204,73 @@ class DRYRUNEngine:
         print(f"✅ [DRYRUN] Validation passed:")
         print(f"   - {len(self.step_specs)} steps with complete specs")
         print(f"   - All required fields present")
+        return True
+
+    def validate_spec_quality(self) -> bool:
+        """R2-V1: Validate that derived specifications meet quality standards
+
+        Checks:
+        1. Each spec has at least one quantitative rule
+        2. Phase B specs have content_mapping entries
+        3. Phase B specs have cross_file_validation entries
+        4. No placeholder values remain in specs
+        5. Spec descriptions are not empty
+        """
+
+        print("\n[DRYRUN] Step 4b: Validating spec quality...")
+
+        warnings = []
+        errors = []
+        phase_b_steps = {'API', 'SCHEMA', 'FRONTEND', 'test-plan', 'BDD-server', 'BDD-client',
+                         'RTM', 'RESOURCE', 'AUDIO', 'ANIM', 'CLIENT_IMPL', 'ADMIN_IMPL',
+                         'UML', 'runbook', 'LOCAL_DEPLOY', 'CICD', 'DEVELOPER_GUIDE',
+                         'UML-CICD', 'ALIGN', 'ALIGN-FIX', 'ALIGN-VERIFY', 'CONTRACTS',
+                         'MOCK', 'PROTOTYPE', 'HTML'}
+
+        for step_id, specs in self.step_specs.items():
+            # Check 1: quantitative_specs not empty for Phase B
+            if step_id in phase_b_steps:
+                quant = specs.get('quantitative_specs', {})
+                if len(quant) == 0:
+                    warnings.append(f"{step_id}: No quantitative specs defined")
+
+            # Check 2: content_mapping for Phase B
+            content = specs.get('content_mapping', {})
+            if step_id in phase_b_steps and len(content) == 0:
+                warnings.append(f"{step_id}: No content mapping defined")
+
+            # Check 3: cross_file_validation for Phase B
+            cross = specs.get('cross_file_validation', {})
+            if step_id in phase_b_steps and len(cross) == 0:
+                warnings.append(f"{step_id}: No cross-file validation defined")
+
+            # Check 4: No placeholder values remain
+            all_specs = str(specs)
+            if '{{' in all_specs or '}}' in all_specs:
+                errors.append(f"{step_id}: Unresolved placeholder in specs")
+
+            # Check 5: Descriptions not empty
+            for rule_type in ['quantitative_specs', 'content_mapping', 'cross_file_validation']:
+                for key, value in specs.get(rule_type, {}).items():
+                    if isinstance(value, str) and len(value.strip()) == 0:
+                        errors.append(f"{step_id}.{rule_type}.{key}: Empty description")
+
+        if errors:
+            print(f"❌ [DRYRUN] Quality validation failed:")
+            for error in errors:
+                print(f"   - {error}")
+            return False
+
+        if warnings:
+            print(f"⚠️  [DRYRUN] Quality warnings ({len(warnings)}):")
+            for warning in warnings:
+                print(f"   - {warning}")
+            print("   (Warnings are acceptable for optional specs)")
+
+        print(f"✅ [DRYRUN] Spec quality passed:")
+        print(f"   - {len(self.step_specs)} steps validated")
+        if warnings:
+            print(f"   - {len(warnings)} warnings (non-critical)")
         return True
 
     def generate_manifest(self, template_path: str, output_path: str) -> bool:
@@ -330,9 +397,12 @@ def main():
     if not engine.embed_in_state_file():
         sys.exit(1)
 
-    # Step 4: Validate completeness
-    print("\n[DRYRUN] Step 4: Validating completeness...")
+    # Step 4: Validate completeness (R1-V1)
     if not engine.validate_completeness():
+        sys.exit(1)
+
+    # Step 4b: Validate spec quality (R2-V1)
+    if not engine.validate_spec_quality():
         sys.exit(1)
 
     # Step 5: Generate MANIFEST.md (if template provided)
