@@ -868,23 +868,63 @@ Loop 設定：
 for round in 1..max_rounds:
 
   [Step A-0 — Gate Check（僅 Round 1 執行，Round 2+ 僅在有 MECHANICAL findings 殘留時重跑）]
-  若 round == 1 且 {_CWD}/.gendoc-rules/{step.id}-rules.json 存在：
+  若 round == 1 且 {_STATE_FILE} 存在（DRYRUN 已執行）：
     執行（bash）：
-      _GATE_OUT=$(bash tools/bin/gate-check.sh {step.id} {_PROJECT_DIR} 2>/dev/null || echo "[]")
-      _MECH_COUNT=$(echo "$_GATE_OUT" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
+      _REVIEW_INTEGRATION="${HOME}/.claude/skills/gendoc/tools/bin/review_integration.sh"
+      if [[ -x "$_REVIEW_INTEGRATION" ]]; then
+        _SHELL_FINDINGS=$("$_REVIEW_INTEGRATION" "{step.id}" "{step.output}" "{_STATE_FILE}" "json" 2>/dev/null || echo "[]")
+        _MECH_COUNT=$(echo "$_SHELL_FINDINGS" | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d) if isinstance(d,list) else 0)" 2>/dev/null || echo "0")
+      else
+        _SHELL_FINDINGS="[]"
+        _MECH_COUNT=0
+        echo "[GATE] review_integration.sh not found at $_REVIEW_INTEGRATION — skipping shell checks"
+      fi
     echo "[GATE] {step.id} Round {round}: MECHANICAL=${_MECH_COUNT}"
     若 _MECH_COUNT > 0：
-      - 將 gate findings JSON 記錄為 mechanical_findings 變數
+      - 將 review_integration.sh 的 findings JSON 記錄為 mechanical_findings 變數
       - 在 Step A Review 前，將 mechanical_findings 列為「額外 MECHANICAL findings（CRITICAL 級別，必須優先修復）」
       - MECHANICAL findings 計入本輪 finding_total（等同 CRITICAL 嚴重度）
   若 round > 1 且上輪有殘留 MECHANICAL findings：
-    重跑 gate-check.sh，確認是否已修復
+    重跑 review_integration.sh，確認是否已修復
 
   [Step A — Review]
   1. 讀取 {_TEMPLATE_DIR}/{TYPE}.review.md — 獲取所有 review items
   2. 讀取被審查的文件（{step.output} 或 {step.output_glob} 的所有檔案）
   3. 逐項執行每個 review item 的 Check，引用文件中的具體§章節
-  4. 統計 CRITICAL / HIGH / MEDIUM / LOW 各級 findings 數量；MECHANICAL findings 計入 CRITICAL
+  4. 統計 CRITICAL / HIGH / MEDIUM / LOW 各級 findings 數量
+  
+  [Finding 合併邏輯]（Step A 完成後立即執行）：
+  若 _MECH_COUNT > 0（有 shell findings）：
+    執行（Python）以合併 AI findings + mechanical findings：
+    ```python
+    import json
+    
+    # 讀取 mechanical_findings 和 ai_findings（均為 JSON 陣列）
+    mechanical = json.loads("""_SHELL_FINDINGS""")  # 來自 review_integration.sh
+    ai_findings = [...]  # 來自 AI Review 步驟
+    
+    # 合併邏輯：去重（by id）並保留更高的 severity
+    merged = {}
+    for f in mechanical + ai_findings:
+        fid = f["id"]
+        if fid not in merged:
+            merged[fid] = f
+        else:
+            # 保留更高的 severity（critical > high > medium > low）
+            severity_rank = {"critical": 4, "high": 3, "medium": 2, "low": 1}
+            if severity_rank.get(f["severity"], 0) > severity_rank.get(merged[fid]["severity"], 0):
+                merged[fid] = f
+    
+    # 按 severity 排序
+    combined_findings = sorted(
+        merged.values(),
+        key=lambda x: {"critical": 4, "high": 3, "medium": 2, "low": 1}.get(x["severity"], 0),
+        reverse=True
+    )
+    ```
+    記錄 combined_findings 為下一步（Step C Fix）的輸入
+  否則：
+    combined_findings = ai_findings
 
   [Step B — 判斷終止條件]（先判斷，但不跳過 Fix）：
   - finding_total == 0 → terminate=True，reason="PASSED — finding=0"
@@ -897,11 +937,21 @@ for round in 1..max_rounds:
   6. 精準修復：只改 finding 指出的章節，不改未提及的部分（最小修改原則）
      CRITICAL/HIGH 必修；MEDIUM/LOW 盡力修
   7. 修復後重讀修復段落確認問題已解決
+  
+  [修復來源說明]：
+  findings 來自雙層檢查：
+  - MECHANICAL findings：由 review_integration.sh（shell 量化檢查）生成，標記為 source="review.sh"
+  - AI findings：由人工審查生成，標記為 source="ai_review"
+  merged findings（combined_findings）已按 severity 排序，逐一處理 CRITICAL → HIGH → MEDIUM → LOW
 
   [Step D — Round Summary]（commit 之前輸出，每輪必須）：
   ┌─── {step.id} Review Round {round}/{max_rounds} ─────────────────────────────┐
-  │  Gate：   MECHANICAL=N（gate-check.sh）
-  │  Review：CRITICAL=N HIGH=N MEDIUM=N LOW=N  Total=N
+  │  Quantitative Check（review.sh）：
+  │    MECHANICAL=N（critical={mc_critical} high={mc_high}）
+  │  AI Review（human）：
+  │    CRITICAL=N HIGH=N MEDIUM=N LOW=N  Total=N
+  │  Combined Finding（雙層合併）：
+  │    CRITICAL={total_critical} HIGH={total_high} MEDIUM={total_medium} LOW={total_low} Total={combined_total}
   │  Fix：   修復 N 個 / 殘留 N 個（本輪未解）
   │  本輪狀態：[✅ PASS | ⚠️  MAX | 🔄 CONT]  {terminate_reason if terminate else '繼續下一輪'}
   │  Fix summary：（一句話，或 N/A 若 finding=0）
