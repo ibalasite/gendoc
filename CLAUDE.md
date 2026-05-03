@@ -161,3 +161,49 @@ repair 只能**呼叫**其他 skill，不能**複製**其邏輯。
 
 gendoc 的目標是讓任何人 clone + setup 後就能用，不依賴作者本機的任何狀態。
 任何只在作者本機生效的修改都是錯的。
+
+---
+
+## UML Class Diagram 生成架構（重要：避免誤解）
+
+### 唯一生成來源
+
+Class Diagrams **只由 `gendoc-gen-diagrams`（pipeline step D07b-UML）生成**，生成規則 inline 在 `skills/gendoc-gen-diagrams/SKILL.md §2.2-2.4`（Server）和 `§2B-2~2B-4`（Frontend）。
+
+任何 AI session 處理 Class Diagram 相關問題，必須以 `gendoc-gen-diagrams/SKILL.md` 為唯一參照，而非任何靜態參考文件。
+
+### UML-CLASS-GUIDE.md 已廢止
+
+`templates/UML-CLASS-GUIDE.md`（1111 行）是早期手動期建立的靜態教學文件，**建立時 gendoc-gen-diagrams 尚未完整實作**。
+
+確認狀態（2026-05-03 調查）：
+- **pipeline 完全不讀它**：gendoc-gen-diagrams Step 1 的讀取清單中無此檔案
+- **5 處引用全為誤導性遺留**：見下表
+- **已排程刪除**（TASK-C6，見 progress.md）
+
+| 舊引用位置 | 問題 | 正確做法 |
+|-----------|------|---------|
+| `docs/PRD.md:1130`「不生成」| 事實錯誤，class diagrams 確實生成 | 改描述為 gen-diagrams 的輸出 |
+| `templates/EDD.review.md:76` Fix hint | 「參考 GUIDE 範例」誤導 reviewer | 改為「執行 /gendoc uml 補生成」 |
+| `templates/EDD.review.md:86` Fix hint | 「格式見 GUIDE §3」誤導 reviewer | 改為「執行 /gendoc uml 重新生成 class-inventory」 |
+| `SKILL.md:98` alias | `uml-class → UML-CLASS-GUIDE`（GUIDE 不是生成模板）| 改為 `uml-class → UML-CLASS.gen` |
+| `skills/reviewdoc/SKILL.md:69` alias | 同上，review 路由錯誤 | 改為 `uml-class → UML-CLASS.review` |
+
+### UML-CLASS 三件套（建立中）
+
+為支援 `/gendoc UML-CLASS` 獨立呼叫，正在建立三件套（**不加入 pipeline.json**）：
+
+| 檔案 | 職責 |
+|------|------|
+| `templates/UML-CLASS.md` | 文件結構骨架 |
+| `templates/UML-CLASS.gen.md` | 生成規則（inline copy from gen-diagrams §2.2-2.4 + §2B-2~2B-4 + 3 品質閘門） |
+| `templates/UML-CLASS.review.md` | Review 標準（含 6 種關聯類型 / ≥6 class / 技術說明 + 白話說明） |
+
+建立完成後，`uml-class` alias 路由到 `.gen.md`（生成）或 `.review.md`（審查）。
+
+### Class Diagram 3 個品質閘門（追加中）
+
+`gendoc-gen-diagrams §2.9` 正在追加以下三條強制驗收項（TASK-C1）：
+1. 全部 6 種關聯類型各出現 ≥ 1 次（Inheritance / Realization / Composition / Aggregation / Association / Dependency）
+2. 每張 class diagram ≥ 6 個 class（含 ≥ 1 `<<interface>>`）
+3. 每張圖末端附「技術說明」＋「白話說明」
