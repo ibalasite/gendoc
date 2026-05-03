@@ -362,7 +362,7 @@ gendoc/
 │   ├── BRD.md / BRD.gen.md
 │   └── ...
 └── docs/                          # gendoc's own project documentation
-    ├── PRD.md                     # Product Requirements Document (v1.9)
+    ├── PRD.md                     # Product Requirements Document (v3.2)
     ├── gendoc-redesign-decisions.md  # Architecture design decisions log
     └── pages/                     # Generated HTML site (GitHub Pages)
 ```

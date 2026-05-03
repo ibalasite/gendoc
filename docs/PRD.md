@@ -1,6 +1,6 @@
 # PRD — Product Requirements Document
 <!-- 對應學術標準：IEEE 830 (SRS)，對應業界：Google PRD / Amazon PRFAQ -->
-<!-- Version: v3.0 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 -->
+<!-- Version: v3.2 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 -->
 
 ---
 
@@ -10,7 +10,7 @@
 |------|------|
 | **DOC-ID** | PRD-GENDOC-20260422 |
 | **產品名稱** | gendoc — AI-Driven Implementation Blueprint Generator |
-| **文件版本** | v3.0 |
+| **文件版本** | v3.2 |
 | **狀態** | ACTIVE |
 | **作者（PM）** | AI Product Manager Agent |
 | **日期** | 2026-05-03 |
@@ -24,6 +24,7 @@
 
 | 版本 | 日期 | 作者 | 變更摘要 |
 |------|------|------|---------|
+| v3.2 | 2026-05-03 | PM Agent | **UML Class Diagram 品質強化 + UML-CLASS 三件套 + 誤導性引用清除**：(1) **gendoc-gen-diagrams §2.9 補 3 個品質閘門**：每張 class diagram 含 ≥ 6 個 class（含 ≥ 1 `<<interface>>`）、全部 6 種關聯類型（Inheritance / Realization / Composition / Aggregation / Association / Dependency）各 ≥ 1 次、每張圖末端附「技術說明」＋「白話說明」段落；(2) **建立 UML-CLASS 三件套實驗工具**（`templates/UML-CLASS.md` + `templates/UML-CLASS.gen.md` + `templates/UML-CLASS.review.md`）：完全隔離的獨立工具，不進生產流程，供 `/gendoc UML-CLASS` 呼叫；(3) **清除 5 處誤導性 UML-CLASS-GUIDE.md 引用**：`UML-CLASS-GUIDE.md`（1111 行靜態教學文件）確認為 pipeline 完全不讀取的早期手動期遺留物，已 `git rm`；`EDD.review.md` Fix hint（2 處）改為正確指向 `gendoc-gen-diagrams` skill；`PRD.md` UML 輸出描述改為正確的 gendoc-gen-diagrams 四輸出欄位；`SKILL.md` alias `uml-class → UML-CLASS`（修正路由錯誤）；`skills/reviewdoc/SKILL.md` 移除實驗工具 alias；(4) **設計原則寫入 CLAUDE.md**：gendoc-gen-diagrams 是唯一 UML 生成來源，/gendoc UML-CLASS 是實驗性工具完全隔離，不進生產流程或任何生產文件。 |
 | v3.1 | 2026-05-03 | PM Agent | **gendoc-repair v2.0：Phase-Aware 補全 + DRYRUN 整合**：目標從「列出缺漏步驟」升級為「把任何不完整的目標專案補到與 gendoc-auto + gendoc-flow 從頭執行完全一致的狀態」。核心改動：(1) **Phase 邊界識別**：diff 結果分三區顯示——Phase A（pre-DRYRUN：IDEA→ARCH）、DRYRUN Gate（量化基線校準器）、Phase B（post-DRYRUN：API→HTML）；報告清楚顯示三區缺漏，而非 flat list；(2) **DRYRUN 三態偵測**（新 Step 1.6）：偵測 DRYRUN 狀態為「未執行」/「用預設值執行」/「正常執行」，並輸出機器可讀標記 `DRYRUN_STATUS`；(3) **DRYRUN 上游就緒度預檢**：在建議執行 DRYRUN 前，掃描 EDD entity count、PRD US count、ARCH layer count，不足時警告「DRYRUN 將使用保守預設值，品質閘門可能偏鬆」；(4) **DRYRUN 基線過時偵測**：比對 git 時間戳——若 EDD/PRD/ARCH 比 `.gendoc-rules/` 更新，標示基線可能過時並建議重跑；(5) **Step 1.5 品質門檻驗證升級**：原本只查檔案存在，升級為讀取 `.gendoc-rules/<step-id>-rules.json` 驗 min_h2_sections / required_sections 存在 / no_placeholder_strings，新增 QUALITY_FAIL 嚴重性層級；(6) **Phase-aware Step 3 提示**：三條件分支——Phase A 缺漏（維持現有補跑）、Phase A 完整但 DRYRUN 未跑（引導先跑 DRYRUN）、DRYRUN 完整但 Phase B 缺漏（顯示品質基線可用後補跑）；(7) **兩階段補跑模式**：選項「先補 Phase A → 自動觸發 DRYRUN → 再補 Phase B」，完整實作三段接力執行流程。**硬性約束**：本版只修改 gendoc-repair skill，不動其他任何 skill。 |
 | v3.0 | 2026-05-03 | PM Agent | **gendoc-config UX 重設計：兩層選單 + 循環修改 + Step 4c 必填補問**：(1) **主選單四項**：「重設流程進度」/ 「修改審查強度」/ 「修改專案設定」/ 「✅ 確認完成，儲存離開」；(2) **兩層設計**：「修改專案設定」展開第二層（client_type / has_admin_backend / 清除全部設定），「重設流程進度」展開第二層（全部重跑 / 從某 STEP 開始），解決 AskUserQuestion 4 選項上限問題；(3) **循環模式**：每個設定完成後回到 Step 1 主選單，使用者可多次修改，完成後選「✅ 確認完成」才儲存離開；(4) **Step 4c 必填強制補問**：選「確認完成」前先檢查 client_type / has_admin_backend / review_strategy 是否均已設定，缺哪項就強制問哪項，確保 state file 無空值；(5) **has_admin_backend 可設定**：從 gendoc-config 互動設定，影響 ADMIN_IMPL 步驟是否執行；(6) **pipeline.json 動態讀取**：step picker 第二層選單從 pipeline.json 動態生成，新增步驟不需改 gendoc-config。 |
 | v2.9 | 2026-05-02 | PM Agent | **DEVELOPER_GUIDE.md — 開發者日常操作手冊（建置之後的每日操作層）**：(1) **填補真實空白**：LOCAL_DEPLOY.md 負責「第一次建起來」（一次性），runbook.md 負責「生產事故處理」，CICD.md 負責「pipeline 設計」；三者均不覆蓋開發者建置完成後的每日操作；(2) **新增 `DEVELOPER_GUIDE.md` template 三件套**：§1 每日開發工作流程 step-by-step（git push → Jenkins 觸發 → pipeline 監控 → ArgoCD sync → 應用驗證）；§2 CI/CD 診斷（Jenkins 未觸發 / stage 失敗重跑 / ArgoCD OutOfSync / Gitea webhook 除錯）；§3 本地環境快速指令（`make dev-status` / `make dev-logs` / `make dev-restart` / `make dev-health`）；§4 常見問題 + 解法（本地 namespace 版本，與 runbook.md 的生產版本明確區隔）；§5 環境維護（密碼 rotate、image 清理、完全重置）；(3) **受眾明確分離**：runbook.md 目標讀者 = SRE / On-call（生產事故）；DEVELOPER_GUIDE.md 目標讀者 = 開發者（日常開發操作），不混用；(4) **pipeline.json 新增 D21-DEVELOPER_GUIDE step**；文件類型 `developer-guide` 可通過 `/gendoc developer-guide` 生成；(5) **PRD LOCAL_DEPLOY 標準 #6 補充**：DEVELOPER_GUIDE.md 作為 LOCAL_DEPLOY.md 的日常操作配套文件納入藍圖品質標準 |
@@ -1264,13 +1265,15 @@ uvicorn main:app --reload
 ### 9.3 安裝
 
 ```bash
-# 克隆專案
-git clone https://github.com/ibalasite/gendoc.git ~/projects/gendoc
+# macOS / Linux / WSL
+git clone https://github.com/ibalasite/gendoc.git ~/.claude/skills/gendoc
+~/.claude/skills/gendoc/setup
 
-# 安裝 skills 到 ~/.claude/skills/（共 17 個 skill）
-cd ~/projects/gendoc && bash install.sh
+# Windows PowerShell
+git clone https://github.com/ibalasite/gendoc.git "$env:USERPROFILE\.claude\skills\gendoc"
+& "$env:USERPROFILE\.claude\skills\gendoc\setup.ps1"
 
-# 驗證安裝（Claude Code 中）
+# 驗證安裝（重啟 Claude Code 後）
 /gendoc-auto 測試
 ```
 
