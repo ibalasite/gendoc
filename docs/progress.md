@@ -52,13 +52,13 @@ version: 1.0
    - `generate_rules_json()`：輸出 .gendoc-rules/*.json（已實現）
    - `main()` 流程：更新執行流程（已實現）
 
-4. [ ] **全專案 hardcoded 規格掃描**（1 小時）
+4. [✅] **全專案 hardcoded 規格掃描**（1 小時）
    - 掃描 skills/ 和 templates/ 中的 hardcoded 規格定義
-   - 輸出：`docs/HARDCODED_SPECS_AUDIT.md`
+   - 輸出：`docs/HARDCODED_SPECS_AUDIT.md`（已完成，無改正需求）
 
-5. [ ] **修正 hardcoded 規格**（2 小時）
-   - 將所有 hardcoded 值改為讀 DRYRUN 輸出 或 pipeline.json
-   - 確保所有 step 不自行定義最小值
+5. [✅] **修正 hardcoded 規格**（0 小時）
+   - 掃描結果：無 hardcoded 規格需改正
+   - 所有規格已參數化，符合設計要求
 
 6. [ ] **實現審查工具 review.sh**（2 小時）
    - 機械式對比：期望（.gendoc-rules/) vs 實際（docs/）
