@@ -406,8 +406,8 @@ class DRYRUNEngine:
 
         Checks:
         1. Each spec has at least one quantitative rule
-        2. Phase B specs have content_mapping entries
-        3. Phase B specs have cross_file_validation entries
+        2. DRYRUN 后的 step specs have content_mapping entries
+        3. DRYRUN 后的 step specs have cross_file_validation entries
         4. No placeholder values remain in specs
         5. Spec descriptions are not empty
         """
@@ -416,27 +416,27 @@ class DRYRUNEngine:
 
         warnings = []
         errors = []
-        phase_b_steps = {'API', 'SCHEMA', 'FRONTEND', 'test-plan', 'BDD-server', 'BDD-client',
+        dryrun_downstream_steps = {'API', 'SCHEMA', 'FRONTEND', 'test-plan', 'BDD-server', 'BDD-client',
                          'RTM', 'RESOURCE', 'AUDIO', 'ANIM', 'CLIENT_IMPL', 'ADMIN_IMPL',
                          'UML', 'runbook', 'LOCAL_DEPLOY', 'CICD', 'DEVELOPER_GUIDE',
                          'UML-CICD', 'ALIGN', 'ALIGN-FIX', 'ALIGN-VERIFY', 'CONTRACTS',
                          'MOCK', 'PROTOTYPE', 'HTML'}
 
         for step_id, specs in self.step_specs.items():
-            # Check 1: quantitative_specs not empty for Phase B
-            if step_id in phase_b_steps:
+            # Check 1: quantitative_specs not empty for DRYRUN 后的 step
+            if step_id in dryrun_downstream_steps:
                 quant = specs.get('quantitative_specs', {})
                 if len(quant) == 0:
                     warnings.append(f"{step_id}: No quantitative specs defined")
 
-            # Check 2: content_mapping for Phase B
+            # Check 2: content_mapping for DRYRUN 后的 step
             content = specs.get('content_mapping', {})
-            if step_id in phase_b_steps and len(content) == 0:
+            if step_id in dryrun_downstream_steps and len(content) == 0:
                 warnings.append(f"{step_id}: No content mapping defined")
 
-            # Check 3: cross_file_validation for Phase B
+            # Check 3: cross_file_validation for DRYRUN 后的 step
             cross = specs.get('cross_file_validation', {})
-            if step_id in phase_b_steps and len(cross) == 0:
+            if step_id in dryrun_downstream_steps and len(cross) == 0:
                 warnings.append(f"{step_id}: No cross-file validation defined")
 
             # Check 4: No placeholder values remain
