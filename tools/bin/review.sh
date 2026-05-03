@@ -40,6 +40,11 @@ fi
 [[ ! -f "$TARGET_FILE" ]] && echo "Error: Target file not found" >&2 && exit 1
 
 # Helper: Add finding to array
+# Each finding is a JSON object with:
+#   severity: CRITICAL (blocks Phase B), HIGH (should fix), MEDIUM (nice to have), or PASS
+#   check: rule name (e.g., "placeholders_exist", "entity_parity_missing")
+#   message: human-readable issue description
+#   suggested_fix: actionable remedy (used by AI Fix layer)
 add_finding() {
   local severity=$1
   local check_name=$2
@@ -64,10 +69,21 @@ count_pattern() {
 
 # ═══════════════════════════════════════════════════════════════════════════
 # R-3.1: QUANTITATIVE CHECKING MODE
+#
+# Purpose: Structural completeness validation (DRYRUN spec baseline enforcement)
+# Checks: 10 metrics extracted from target file via regex patterns
+# Examples:
+#   - placeholder_count: {{PLACEHOLDER}} unresolved template variables
+#   - section_count: ## markdown headers (min 3)
+#   - endpoint_count: API endpoints (min 1 for API.md)
+#   - table_count: | table structures (min 1 for SCHEMA.md)
+#   - entity_count: class definitions (min 1 for EDD.md)
+#
+# Each check has a min threshold from DRYRUN spec_rules. Violations = HIGH/MEDIUM severity.
 # ═══════════════════════════════════════════════════════════════════════════
 
 run_quantitative_checks() {
-  # Extract quantitative counts from target file
+  # Extract quantitative counts from target file using grep patterns
   local placeholder_count=$(count_pattern '{{[^}]*}}' "$TARGET_FILE")
   local section_count=$(grep -c '^##' "$TARGET_FILE" 2>/dev/null || echo "0")
   local endpoint_count=$(grep -c '^\*\*' "$TARGET_FILE" 2>/dev/null || echo "0")
@@ -198,6 +214,16 @@ run_quantitative_checks() {
 
 # ═══════════════════════════════════════════════════════════════════════════
 # R-3.2: CONTENT_MAPPING CHECKING MODE
+#
+# Purpose: Cross-document reference coverage (traceability validation)
+# Checks: 4 mapping rules validating that documents properly reference upstream content
+# Examples:
+#   - API.md must reference all entities from EDD.md
+#   - BDD.md must trace back to PRD user stories
+#   - ARCH/SCHEMA must use constants from CONSTANTS.md
+#   - FRONTEND must map to screens/flows from PDD.md
+#
+# Each check verifies that the document properly integrates upstream specifications.
 # ═══════════════════════════════════════════════════════════════════════════
 
 run_content_mapping_checks() {
@@ -248,6 +274,16 @@ run_content_mapping_checks() {
 
 # ═══════════════════════════════════════════════════════════════════════════
 # R-3.3: CROSS_FILE CHECKING MODE
+#
+# Purpose: Multi-document consistency & parity validation
+# Checks: 4 consistency rules ensuring all document assertions align globally
+# Examples:
+#   - API entity count must equal EDD entity count (parity)
+#   - EDD must define all relationships explicitly (no implicit associations)
+#   - PRD/BRD must declare MoSCoW priorities for all features (P0/P1/P2/P3)
+#   - PDD/VDD must inventory all UI components (buttons, forms, cards, etc.)
+#
+# Each check validates that cross-document assertions are consistent and complete.
 # ═══════════════════════════════════════════════════════════════════════════
 
 run_cross_file_checks() {
