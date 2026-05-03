@@ -316,31 +316,21 @@ class DRYRUNEngine:
         try:
             template = Path(template_path).read_text(encoding='utf-8')
 
-            # Build replacement dictionary
+            # Build replacement dictionary — DYNAMICALLY from metrics (SSOT principle)
+            # No hardcoded metric names; all 20+ metrics come from extract_metrics()
+            # which reads from pipeline.json metrics[].
+            # New metrics added to pipeline.json automatically work here with zero code changes.
             replacements = {
                 '{{GENERATED_DATE}}': datetime.now(timezone.utc).strftime('%Y-%m-%d'),
-                '{{PIPELINE_VERSION}}': 'v2.0.0',  # From DRYRUN_ENGINE
-                '{{ENTITY_COUNT}}': str(self.metrics.get('entity_count', 0)),
-                '{{REST_ENDPOINT_COUNT}}': str(self.metrics.get('rest_endpoint_count', 0)),
-                '{{USER_STORY_COUNT}}': str(self.metrics.get('user_story_count', 0)),
-                '{{ARCH_LAYER_COUNT}}': str(self.metrics.get('layer_count', 0)),
-                '{{PERSONA_COUNT}}': str(self.metrics.get('persona_count', 0)),
-                '{{MOSCOW_P0_COUNT}}': str(self.metrics.get('moscow_p0_count', 0)),
-                '{{KPI_COUNT}}': str(self.metrics.get('kpi_count', 0)),
-                '{{FEATURE_COUNT}}': str(self.metrics.get('feature_count', 0)),
-                '{{USE_CASE_COUNT}}': str(self.metrics.get('use_case_count', 0)),
-                '{{TOTAL_AC_COUNT}}': str(self.metrics.get('total_ac_count', 0)),
-                '{{CONSTANT_COUNT}}': str(self.metrics.get('constant_count', 0)),
-                '{{SCREEN_COUNT}}': str(self.metrics.get('screen_count', 0)),
-                '{{FLOW_COUNT}}': str(self.metrics.get('flow_count', 0)),
-                '{{TOTAL_COMPONENT_COUNT}}': str(self.metrics.get('total_component_count', 0)),
-                '{{DESIGN_TOKEN_COUNT}}': str(self.metrics.get('design_token_count', 0)),
-                '{{COLOR_COUNT}}': str(self.metrics.get('color_count', 0)),
-                '{{RELATIONSHIP_COUNT}}': str(self.metrics.get('relationship_count', 0)),
-                '{{DOMAIN_COUNT}}': str(self.metrics.get('domain_count', 0)),
-                '{{SERVICE_COUNT}}': str(self.metrics.get('service_count', 0)),
-                '{{NFR_COUNT}}': str(self.metrics.get('nfr_count', 0)),
+                '{{PIPELINE_VERSION}}': 'v2.0.0',
             }
+
+            # Add all extracted metrics dynamically
+            for metric_id, metric_val in self.metrics.items():
+                # Support both snake_case and UPPER_CASE placeholders
+                # entity_count → {{entity_count}} or {{ENTITY_COUNT}}
+                replacements['{{' + metric_id + '}}'] = str(metric_val)
+                replacements['{{' + metric_id.upper() + '}}'] = str(metric_val)
 
             # Apply replacements
             content = template
