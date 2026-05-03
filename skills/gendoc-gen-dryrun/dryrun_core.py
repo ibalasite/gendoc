@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """
 gendoc-gen-dryrun core implementation
-Implements Phase A→B specification derivation engine
+Implements Phase A→B specification derivation engine using Single Source of Truth (SSOT)
+
+All metric definitions and spec_rules are read from templates/pipeline.json (SSOT).
+No hardcoded metrics or step specifications — fully dynamic and extensible.
+New Phase A nodes auto-extract metrics; new Phase B nodes auto-generate specs.
 """
 
 import json
@@ -13,7 +17,14 @@ import math
 
 
 class DRYRUNEngine:
-    """DRYRUN specification derivation engine"""
+    """DRYRUN specification derivation engine using SSOT (Single Source of Truth)
+
+    Reads all configuration from templates/pipeline.json:
+    - metrics[]: 20 quantitative indicators with grep patterns
+    - steps[*].spec_rules: 34 step specifications with three layers (quantitative, content, cross-file)
+
+    No hardcoded values — fully extensible for new metrics and steps.
+    """
 
     def __init__(self, cwd: str, state_file: str):
         self.cwd = Path(cwd)
