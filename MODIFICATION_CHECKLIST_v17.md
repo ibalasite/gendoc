@@ -2,7 +2,7 @@
 
 **版本**：審計第 2 輪 / 17 項修改 / 按序執行  
 **日期**：2026-05-03  
-**審計來源**：Architecture Audit Phase 2（Phase A+DRYRUN Gate+Phase B 三區分離、正則精度、LOCAL_DEPLOY/DEVELOPER_GUIDE 職責分離）
+**審計來源**：Architecture Audit Phase 2（DRYRUN 前的 step+DRYRUN Gate+DRYRUN 后的 step 三區分離、正則精度、LOCAL_DEPLOY/DEVELOPER_GUIDE 職責分離）
 
 ---
 
@@ -167,7 +167,7 @@ fi
   2. status=defaults 時，Upstream Readiness Warnings 列出所有預設值
   3. 警告格式清晰、可操作
 
-**決策**：MANIFEST.md 作為「量化基線校準報告」，應清楚揭示基線品質狀態。放在 §2 Document Overview 中，與 §3 Checklist 平行，供用戶在執行 Phase B 前判定是否需先補上游文件。
+**決策**：MANIFEST.md 作為「量化基線校準報告」，應清楚揭示基線品質狀態。放在 §2 Document Overview 中，與 §3 Checklist 平行，供用戶在執行 DRYRUN 后的 step 前判定是否需先補上游文件。
 
 ---
 
@@ -258,16 +258,16 @@ echo ""
 if [[ "$_DRYRUN_STATE" == "none" ]] && [[ "$_UPSTREAM_COMPLETE" == "false" ]]; then
   echo "[repair] ⚠️ 情景 A：DRYRUN 未執行 + 上游不完整"
   echo "   建議："
-  echo "   1. 先補完 Phase A 文件（EDD/PRD/ARCH 至少 50+ 行）"
+  echo "   1. 先補完 DRYRUN 前的 step 文件（EDD/PRD/ARCH 至少 50+ 行）"
   echo "   2. 執行 /gendoc-gen-dryrun 生成量化基線"
-  echo "   3. 再執行 /gendoc-repair 補跑 Phase B"
+  echo "   3. 再執行 /gendoc-repair 補跑 DRYRUN 后的 step"
 elif [[ "$_DRYRUN_STATE" == "defaults" ]]; then
   echo "[repair] ⚠️ 情景 B：DRYRUN 用預設值執行"
   echo "   基線品質可能偏鬆，建議："
   echo "   1. 補完上游文件（尤其是 entity/endpoint/story 數量）"
   echo "   2. 重新執行 /gendoc-gen-dryrun 更新基線"
 elif [[ "$_DRYRUN_STATE" == "ok" ]] && [[ "$_UPSTREAM_COMPLETE" == "true" ]]; then
-  echo "[repair] ✅ DRYRUN 正常執行，基線已校準，可繼續補跑 Phase B"
+  echo "[repair] ✅ DRYRUN 正常執行，基線已校準，可繼續補跑 DRYRUN 后的 step"
 fi
 ```
 
@@ -296,7 +296,7 @@ fi
 **原內容**（當前無完整情景 D，需補齊）
 
 **修改原因**：
-缺陷 #1-R6：Step 3 提示應根據 DRYRUN 狀態分三條分支（Phase A 缺漏 / Phase A 完整但 DRYRUN 未跑 / DRYRUN 完整但 Phase B 缺漏），當前 repair 缺乏此邏輯，導致提示不夠精確。
+缺陷 #1-R6：Step 3 提示應根據 DRYRUN 狀態分三條分支（DRYRUN 前的 step 缺漏 / DRYRUN 前的 step 完整但 DRYRUN 未跑 / DRYRUN 完整但 DRYRUN 后的 step 缺漏），當前 repair 缺乏此邏輯，導致提示不夠精確。
 
 **修改後內容**（完整的情景 D 分支，插入 Step 3 的補跑提示中）：
 ```
@@ -315,17 +315,17 @@ DRYRUN 規則文件已存在，但量化基線使用保守預設值。
 本次補跑仍可繼續，但品質閘門可能偏鬆。
 
 建議選項：
-  A) 立即補跑 Phase B（使用當前預設值基線）
-  B) 先更新上游文件，重新執行 DRYRUN，再補 Phase B
+  A) 立即補跑 DRYRUN 后的 step（使用當前預設值基線）
+  B) 先更新上游文件，重新執行 DRYRUN，再補 DRYRUN 后的 step
 
 選擇 A 時：
-  - 所有 Phase B 步驟（API、SCHEMA、test-plan...）將使用較寬鬆的量化閘門
-  - 完成後可按需重跑 DRYRUN 以更新基線，Phase B 檔案無需重新生成
+  - 所有 DRYRUN 后的 step 步驟（API、SCHEMA、test-plan...）將使用較寬鬆的量化閘門
+  - 完成後可按需重跑 DRYRUN 以更新基線，DRYRUN 后的 step 檔案無需重新生成
 
 選擇 B 時：
   - 返回主菜單，執行 /gendoc-gen-dryrun 更新基線
   - DRYRUN 完成後自動更新 .gendoc-rules/*.json
-  - 用戶確認後再執行此 repair 補 Phase B（此時 DRYRUN_STATE 應轉為 "ok"）
+  - 用戶確認後再執行此 repair 補 DRYRUN 后的 step（此時 DRYRUN_STATE 應轉為 "ok"）
 ```
 
 **AskUserQuestion 呼叫**：
