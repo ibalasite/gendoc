@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
 gendoc-gen-dryrun core implementation
-Implements Phase A→B specification derivation engine using Single Source of Truth (SSOT)
+將 DRYRUN 前的檔案轉換為 DRYRUN 后的規格，使用單一真相源 (SSOT) 原則
 
 All metric definitions and spec_rules are read from templates/pipeline.json (SSOT).
 No hardcoded metrics or step specifications — fully dynamic and extensible.
-New Phase A nodes auto-extract metrics; new Phase B nodes auto-generate specs.
+新增 DRYRUN 前的節點會自動提取指標；新增 DRYRUN 后的節點會自動生成規格。
 """
 
 import json
@@ -46,26 +46,26 @@ class DRYRUNEngine:
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON in pipeline.json: {e}")
 
-    def validate_phase_a(self) -> bool:
-        """Verify all 8 Phase A files exist"""
-        phase_a_files = ["IDEA", "BRD", "PRD", "CONSTANTS", "PDD", "VDD", "EDD", "ARCH"]
+    def validate_dryrun_upstream(self) -> bool:
+        """驗證所有 8 個 DRYRUN 前的檔案是否存在"""
+        upstream_files = ["IDEA", "BRD", "PRD", "CONSTANTS", "PDD", "VDD", "EDD", "ARCH"]
         missing = []
-        for fname in phase_a_files:
+        for fname in upstream_files:
             if not (self.docs_dir / f"{fname}.md").exists():
                 missing.append(f"{fname}.md")
 
         if missing:
-            print(f"❌ [DRYRUN] Missing Phase A files: {', '.join(missing)}", file=sys.stderr)
+            print(f"❌ [DRYRUN] Missing upstream files: {', '.join(missing)}", file=sys.stderr)
             return False
 
-        print(f"✅ [DRYRUN] Phase A complete: 8/8 files found")
+        print(f"✅ [DRYRUN] DRYRUN 前的檔案齊全：8/8 個")
         return True
 
     def _load_upstream(self) -> dict:
-        """Load upstream files via get-upstream tool based on pipeline.json DRYRUN input[]
+        """從 get-upstream 工具加載上游檔案（基於 pipeline.json DRYRUN input[]）
 
         Returns:
-            dict: {filename: content, ...} containing all Phase A files needed by DRYRUN
+            dict: {filename: content, ...} 包含 DRYRUN 前的檔案
         """
         import subprocess
 
@@ -103,9 +103,9 @@ class DRYRUNEngine:
             return upstream_data
 
     def extract_parameters(self, upstream_data: dict = None) -> dict:
-        """Extract four core parameters from Phase A files (STEP 1 of DRYRUN_PARAMETER_EXTRACTION.md)
+        """從 DRYRUN 前的檔案提取四個核心參數（DRYRUN_PARAMETER_EXTRACTION.md 的 STEP 1）
 
-        Parameters extracted:
+        提取的參數：
         - entity_count: from EDD.md (entity/class definitions)
         - rest_endpoint_count: from PRD.md + EDD.md (API endpoint definitions)
         - user_story_count: from PRD.md (user story definitions)
@@ -193,9 +193,9 @@ class DRYRUNEngine:
         return 4
 
     def extract_metrics(self) -> dict:
-        """Extract metrics from Phase A files — for backward compatibility
+        """從 DRYRUN 前的檔案提取指標 — 用於向后兼容
 
-        Maps extracted parameters to legacy metrics format.
+        將提取的參數映射到傳統指標格式。
         """
         params = self.extract_parameters()
 
@@ -222,15 +222,15 @@ class DRYRUNEngine:
             return fallback
 
     def derive_specifications(self, params: dict = None) -> dict:
-        """Derive specifications from Phase B steps using extracted parameters (STEP 2 of DRYRUN_SPEC_FORMULAS.md)
+        """使用提取的參數推導 DRYRUN 后的 step 規格（DRYRUN_SPEC_FORMULAS.md 的 STEP 2）
 
-        Uses parametric formulas to derive expected specifications for each Phase B step.
-        Example: API step expects min_endpoint_count = max(5, rest_endpoint_count)
+        使用參數化公式為每個 DRYRUN 后的 step 推導預期規格。
+        示例：API step 期望 min_endpoint_count = max(5, rest_endpoint_count)
 
-        Parameters:
-            params: dict with entity_count, rest_endpoint_count, user_story_count, arch_layer_count
+        參數：
+            params: 包含 entity_count、rest_endpoint_count、user_story_count、arch_layer_count 的字典
 
-        Returns:
+        返回：
             dict: {step_id: {min_count, required_sections, optional_checks}, ...}
         """
         if params is None:
@@ -242,7 +242,7 @@ class DRYRUNEngine:
         m = params
         specs = {}
 
-        # Apply formulas for each Phase B step (from DRYRUN_SPEC_FORMULAS.md)
+        # 應用 DRYRUN 后的 step 規格公式（來自 DRYRUN_SPEC_FORMULAS.md）
         phase_b_formulas = {
             'API': {
                 'min_endpoint_count': max(5, m['rest_endpoint_count']),
@@ -469,13 +469,13 @@ class DRYRUNEngine:
         return True
 
     def generate_rules_json(self) -> bool:
-        """Generate .gendoc-rules/*.json files (STEP 4 of DRYRUN_CORE_IMPLEMENTATION_PLAN.md)
+        """生成 .gendoc-rules/*.json 檔案（DRYRUN_CORE_IMPLEMENTATION_PLAN.md 的 STEP 4）
 
-        For each Phase B step, output a JSON file containing its expected specifications.
-        Format: .gendoc-rules/{step_id}-rules.json
+        對於每個 DRYRUN 后的 step，輸出包含其預期規格的 JSON 檔案。
+        格式：.gendoc-rules/{step_id}-rules.json
 
-        Returns:
-            bool: True if all files generated successfully
+        返回：
+            bool: 若所有檔案生成成功則為 True
         """
         rules_dir = self.cwd / '.gendoc-rules'
         rules_dir.mkdir(exist_ok=True)
@@ -589,9 +589,9 @@ def main():
         print(f"❌ [DRYRUN] Failed to load pipeline.json: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # Step 0b: Validate Phase A
-    print("\n[DRYRUN] Step 0b: Validating Phase A...")
-    if not engine.validate_phase_a():
+    # Step 0b: Validate upstream files
+    print("\n[DRYRUN] Step 0b: 驗證 DRYRUN 前的檔案...")
+    if not engine.validate_dryrun_upstream():
         sys.exit(1)
 
     # Step 1: Extract parameters (DRYRUN_PARAMETER_EXTRACTION.md)
