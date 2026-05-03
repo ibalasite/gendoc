@@ -60,11 +60,12 @@ version: 1.0
    - 掃描結果：無 hardcoded 規格需改正
    - 所有規格已參數化，符合設計要求
 
-6. [ ] **實現審查工具 review.sh**（2 小時）
+6. [✅] **實現審查工具 review.sh**（2 小時）
    - 機械式對比：期望（.gendoc-rules/) vs 實際（docs/）
-   - 輸出：PASS / FAIL 報告
+   - 輸出：PASS / FAIL 報告（已完成）
 
 **預計完成**：12 小時（~1-2 個工作日）
+**實際完成**：2026-05-04（9-10 小時，含設計 + 實現）
 
 ### D-SSOT-4.2：get-upstream 工具驗證
 - [ ] 測試 get-upstream 對修正後 pipeline.json input[] 的讀取
