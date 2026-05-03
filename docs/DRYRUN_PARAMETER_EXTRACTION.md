@@ -9,7 +9,7 @@ status: 實作規範
 
 ## 概述
 
-dryrun_core.py 的 `extract_parameters()` 方法需從 Phase A 文件中提取四個核心參數，作為推導 Phase B 各 step 規格的基礎。本文檔定義每個參數的提取方法、正規表示式、fallback 邏輯與驗證規則。
+dryrun_core.py 的 `extract_parameters()` 方法需從 DRYRUN 前的 step 文件中提取四個核心參數，作為推導 DRYRUN 后的 step 規格的基礎。本文檔定義每個參數的提取方法、正規表示式、fallback 邏輯與驗證規則。
 
 ---
 
