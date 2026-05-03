@@ -19,7 +19,8 @@
           "note": "Phase A 文件（需求層根文件）"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": []
     },
     {
       "id": "BRD",
@@ -38,7 +39,10 @@
           "note": "Phase A 文件（商業需求）"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": [
+        "docs/IDEA.md"
+      ]
     },
     {
       "id": "PRD",
@@ -57,7 +61,11 @@
           "note": "Phase A 文件（產品需求）"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": [
+        "docs/IDEA.md",
+        "docs/BRD.md"
+      ]
     },
     {
       "id": "CONSTANTS",
@@ -77,7 +85,10 @@
           "note": "Phase A 文件（常量定義）"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": [
+        "docs/PRD.md"
+      ]
     },
     {
       "id": "PDD",
@@ -96,7 +107,10 @@
           "note": "Phase A 文件（產品設計）"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": [
+        "docs/PRD.md"
+      ]
     },
     {
       "id": "VDD",
@@ -115,7 +129,10 @@
           "note": "Phase A 文件（視覺設計）"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": [
+        "docs/PRD.md"
+      ]
     },
     {
       "id": "EDD",
@@ -135,7 +152,11 @@
           "note": "Phase A 文件（實體設計）"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": [
+        "docs/PRD.md",
+        "docs/CONSTANTS.md"
+      ]
     },
     {
       "id": "ARCH",
@@ -154,7 +175,10 @@
           "note": "Phase A 文件（架構設計）"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": [
+        "docs/EDD.md"
+      ]
     },
     {
       "id": "DRYRUN",
@@ -298,7 +322,11 @@
           "audio_triggers": "Sound event mapping for game scenarios"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": [
+        "docs/EDD.md",
+        "docs/ARCH.md"
+      ]
     },
     {
       "id": "ANIM",
@@ -320,7 +348,11 @@
           "animation_coverage": "All character/UI animations defined"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": [
+        "docs/EDD.md",
+        "docs/ARCH.md"
+      ]
     },
     {
       "id": "CLIENT_IMPL",
@@ -340,7 +372,11 @@
           "scene_structure": "All PDD screens have implementation details"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": [
+        "docs/EDD.md",
+        "docs/FRONTEND.md"
+      ]
     },
     {
       "id": "ADMIN_IMPL",
@@ -362,7 +398,11 @@
           "role_coverage": "All user roles from ARCH defined"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": [
+        "docs/EDD.md",
+        "docs/API.md"
+      ]
     },
     {
       "id": "RESOURCE",
@@ -386,7 +426,11 @@
         "cross_file_validation": {
           "constant_mapping": "Resources >= constants"
         }
-      }
+      },
+      "input": [
+        "docs/EDD.md",
+        "docs/ARCH.md"
+      ]
     },
     {
       "id": "UML",
@@ -408,7 +452,11 @@
           "note": "Phase B 文件（UML 圖表）"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": [
+        "docs/EDD.md",
+        "docs/ARCH.md"
+      ]
     },
     {
       "id": "test-plan",
@@ -431,7 +479,12 @@
         "cross_file_validation": {
           "architecture_alignment": "test-plan sections >= ARCH layers + 4"
         }
-      }
+      },
+      "input": [
+        "docs/PRD.md",
+        "docs/EDD.md",
+        "docs/SCHEMA.md"
+      ]
     },
     {
       "id": "BDD-server",
@@ -456,7 +509,12 @@
         "cross_file_validation": {
           "scenario_coverage": "BDD scenarios >= 80% of user stories"
         }
-      }
+      },
+      "input": [
+        "docs/PRD.md",
+        "docs/EDD.md",
+        "docs/API.md"
+      ]
     },
     {
       "id": "BDD-client",
@@ -481,7 +539,11 @@
         "cross_file_validation": {
           "scenario_coverage": "Client BDD >= 60% of user stories"
         }
-      }
+      },
+      "input": [
+        "docs/PDD.md",
+        "docs/FRONTEND.md"
+      ]
     },
     {
       "id": "RTM",
@@ -504,7 +566,12 @@
         "cross_file_validation": {
           "coverage": "RTM rows >= user_story_count"
         }
-      }
+      },
+      "input": [
+        "docs/PRD.md",
+        "docs/EDD.md",
+        "docs/test-plan.md"
+      ]
     },
     {
       "id": "runbook",
@@ -523,7 +590,13 @@
           "note": "Phase B 文件（運維手冊）"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": [
+        "docs/EDD.md",
+        "docs/ARCH.md",
+        "docs/API.md",
+        "docs/SCHEMA.md"
+      ]
     },
     {
       "id": "LOCAL_DEPLOY",
@@ -543,7 +616,12 @@
           "note": "Phase B 文件（本地部署）"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": [
+        "docs/EDD.md",
+        "docs/ARCH.md",
+        "docs/SCHEMA.md"
+      ]
     },
     {
       "id": "CICD",
@@ -563,7 +641,11 @@
           "note": "Phase B 文件（CI/CD 流程）"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": [
+        "docs/EDD.md",
+        "docs/ARCH.md"
+      ]
     },
     {
       "id": "DEVELOPER_GUIDE",
@@ -583,7 +665,11 @@
           "note": "Phase B 文件（開發指南）"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": [
+        "docs/EDD.md",
+        "docs/LOCAL_DEPLOY.md"
+      ]
     },
     {
       "id": "UML-CICD",
@@ -605,7 +691,11 @@
           "note": "Phase B 文件（CI/CD UML 圖表）"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": [
+        "docs/CICD.md",
+        "docs/EDD.md"
+      ]
     },
     {
       "id": "ALIGN",
@@ -626,7 +716,13 @@
           "note": "Phase B 文件（對齊檢查）"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": [
+        "docs/EDD.md",
+        "docs/API.md",
+        "docs/SCHEMA.md",
+        "docs/FRONTEND.md"
+      ]
     },
     {
       "id": "ALIGN-FIX",
@@ -647,7 +743,13 @@
           "note": "Phase B 文件（對齊修復）"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": [
+        "docs/EDD.md",
+        "docs/API.md",
+        "docs/SCHEMA.md",
+        "docs/FRONTEND.md"
+      ]
     },
     {
       "id": "ALIGN-VERIFY",
@@ -668,7 +770,13 @@
           "note": "Phase B 文件（對齐驗證）"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": [
+        "docs/EDD.md",
+        "docs/API.md",
+        "docs/SCHEMA.md",
+        "docs/FRONTEND.md"
+      ]
     },
     {
       "id": "CONTRACTS",
@@ -692,7 +800,12 @@
           "note": "Phase B 文件（合約與代碼生成）"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": [
+        "docs/API.md",
+        "docs/SCHEMA.md",
+        "docs/EDD.md"
+      ]
     },
     {
       "id": "MOCK",
@@ -714,7 +827,11 @@
           "note": "Phase B 文件（Mock 伺服器）"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": [
+        "docs/API.md",
+        "docs/SCHEMA.md"
+      ]
     },
     {
       "id": "PROTOTYPE",
@@ -735,7 +852,11 @@
           "note": "Phase B 文件（互動式原型）"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": [
+        "docs/PDD.md",
+        "docs/FRONTEND.md"
+      ]
     },
     {
       "id": "HTML",
@@ -756,7 +877,8 @@
           "note": "Phase B 文件（HTML 網站生成）"
         },
         "cross_file_validation": {}
-      }
+      },
+      "input": []
     }
   ]
 }
