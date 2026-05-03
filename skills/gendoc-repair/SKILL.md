@@ -572,7 +572,7 @@ echo "DRYRUN_STALE:$_DRYRUN_STALE"
 
 ## Step 1.7：Input 依賴鏈驗證
 
-**前置條件**：repair 只能補充「生成文件」（PRD 之後），不能補充「源文件」（IDEA/BRD）。
+**前置條件**：repair 只能補充「生成文件」（BRD 之後），不能補充「源文件」（IDEA/BRD）。
 
 ```python
 # [AI 指令] 源文件存在性檢查（DFS 開始前必須通過）
