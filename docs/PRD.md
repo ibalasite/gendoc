@@ -1240,9 +1240,9 @@ DRYRUN 引擎遵循**完全 SSOT**（Single Source of Truth）架構：
 | 修改項目 | 詳細內容 | 狀態 |
 |---------|--------|------|
 | **templates/pipeline.json** | 擴展至 v4.0：新增 `metrics[]` 陣列（20 個量化指標，含 id/source_step/grep_pattern/fallback）；每個 step 新增 `spec_rules` 欄位（quantitative_specs/content_mapping/cross_file_validation） | ✅ 完成 |
-| **skills/gendoc-gen-dryrun/dryrun_core.py** | 新增 `_load_pipeline()` 讀取 SSOT；重構 `extract_metrics()` 為動態讀取（迴圈遍歷 metrics[]，用 grep 提取）；重構 `derive_specifications()` 為動態讀取（迴圈遍歷 steps[]，直接使用 spec_rules）；新增 `validate_completeness()` 和 `validate_spec_quality()` 驗證層 | ✅ 完成 |
+| **tools/bin/dryrun_core.py** | 新增 `_load_pipeline()` 讀取 SSOT；重構 `extract_metrics()` 為動態讀取（迴圈遍歷 metrics[]，用 grep 提取）；重構 `derive_specifications()` 為動態讀取（迴圈遍歷 steps[]，直接使用 spec_rules）；新增 `validate_completeness()` 和 `validate_spec_quality()` 驗證層 | ✅ 完成 |
 | **tools/bin/review.sh** | 完全重寫：新增 4 種檢查模式（quantitative/content_mapping/cross_file/all）；10 項量化檢查 + 4 項內容映射檢查 + 4 項跨檔案檢查；所有 Finding 含 severity/message/suggested_fix；JSON 輸出 + 適當退出碼（0/1/2） | ✅ 完成 |
-| **skills/gendoc-flow/review_integration.sh** | 升級至 v2.0：Step 1 執行三個 review.sh 模式（quantitative/content_mapping/cross_file）；Step 2 提取嚴重性計數；Step 3 合併 AI findings + Shell findings（去重）；Step 4 統一 JSON 輸出；Step 5 適當退出碼 | ✅ 完成 |
+| **tools/bin/review_integration.sh** | 升級至 v2.0：Step 1 執行三個 review.sh 模式（quantitative/content_mapping/cross_file）；Step 2 提取嚴重性計數；Step 3 合併 AI findings + Shell findings（去重）；Step 4 統一 JSON 輸出；Step 5 適當退出碼 | ✅ 完成 |
 
 **代碼指標**：
 - dryrun_core.py：502 → 280 行（-44%）

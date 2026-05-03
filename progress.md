@@ -285,9 +285,9 @@ Requirement 4：Phase B 驗證
 | 檔案 | 用途 | 狀態 | 備註 |
 |------|------|------|------|
 | `templates/pipeline.json` | SSOT — step + metrics + spec_rules | ✅ 完成 | v4.0：730 行，20 metrics + 34 steps |
-| `skills/gendoc-gen-dryrun/dryrun_core.py` | DRYRUN 引擎 | ✅ 完成 | 280 行，完全動態化，無硬編碼 |
+| `tools/bin/dryrun_core.py` | DRYRUN 引擎 | ✅ 完成 | 280 行，完全動態化，無硬編碼 |
 | `tools/bin/review.sh` | 統一檢查工具 | ✅ 完成 | 355 行，四種模式，18 項檢查 |
-| `skills/gendoc-flow/review_integration.sh` | 整合包裝器 | ✅ 完成 | 249 行，AI+Shell findings 合併 |
+| `tools/bin/review_integration.sh` | 整合包裝器 | ✅ 完成 | 249 行，AI+Shell findings 合併 |
 | `README.md` | 項目文檔 | ✅ 完成 | 新增 SSOT 架構說明章節 |
 | `docs/PRD.md` | 產品需求 | ✅ 完成 | 新增實裝完成狀態章節 |
 

@@ -76,7 +76,8 @@ echo "[DRYRUN] State file: $_STATE_FILE"
 **[Core Implementation]** Use `dryrun_core.py` to execute metric extraction:
 
 ```bash
-python3 "${_SKILL_DIR}/dryrun_core.py" "$_CWD" "$_STATE_FILE"
+_DRYRUN_CORE="${HOME}/.claude/skills/gendoc/tools/bin/dryrun_core.py"
+python3 "$_DRYRUN_CORE" "$_CWD" "$_STATE_FILE"
 ```
 
 The script will:

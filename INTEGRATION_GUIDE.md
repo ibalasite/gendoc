@@ -48,7 +48,8 @@ _GATE_OUT=$(bash tools/bin/gate-check.sh {step.id} {_PROJECT_DIR})
 
 **After (new):**
 ```bash
-_SHELL_FINDINGS=$(bash skills/gendoc-flow/review_integration.sh \
+_REVIEW_INTEGRATION="${HOME}/.claude/skills/gendoc/tools/bin/review_integration.sh"
+_SHELL_FINDINGS=$("$_REVIEW_INTEGRATION" \
   "{step.id}" \
   "{_PRIMARY_OUTPUT}" \
   "{_STATE_FILE}" \
@@ -121,9 +122,9 @@ def merge_findings(ai_findings, shell_findings):
 | File | Role | Status |
 |------|------|--------|
 | `tools/bin/review.sh` | Core validation tool | ✅ Complete |
-| `skills/gendoc-flow/review_integration.sh` | Wrapper for gendoc-flow | ✅ Complete |
+| `tools/bin/review_integration.sh` | Wrapper for gendoc-flow | ✅ Complete |
 | `skills/gendoc-flow/SKILL.md` | Integration points | ⏳ Manual edit needed |
-| `skills/gendoc-gen-dryrun/dryrun_core.py` | Spec generation | ✅ Complete |
+| `tools/bin/dryrun_core.py` | Spec generation | ✅ Complete |
 
 ### Manual Updates Required
 
