@@ -23,7 +23,7 @@ gendoc-flow --single EDD # 同上（備選名稱）
 ```
 
 **使用場景**：
-1. **補舊資料**：fishgame 等舊專案缺少 Phase B 檔案，逐個補齊
+1. **補舊資料**：fishgame 等舊專案缺少 DRYRUN 后的 step 檔案，逐個補齊
 2. **修復測試**：D-SSOT-4.3 需要獨立執行某個 step，驗證輸出
 3. **repair skill 整合**：gendoc-repair 指揮補充指定 step
 
@@ -237,16 +237,16 @@ def repair(target_project_dir):
     dryrun_done = check_dryrun_output_exists()
     
     if not dryrun_done:
-        # [R-2] DRYRUN 未執行，檢查其 input（Phase A）
-        missing_phase_a = check_missing_inputs("DRYRUN")
+        # [R-2] DRYRUN 未執行，檢查其 input（DRYRUN 前的 step）
+        missing_dryrun_upstream = check_missing_inputs("DRYRUN")
         
-        if "docs/BRD.md" in missing_phase_a:
+        if "docs/BRD.md" in missing_dryrun_upstream:
             print("[Stop] BRD.md 缺失，無法繼續。需手動建立 BRD.md 或執行 gendoc-auto")
             exit(1)
         
-        if missing_phase_a:
-            print(f"[Info] DRYRUN 前置缺失 {len(missing_phase_a)} 個檔案，正在補充...")
-            for missing_file in missing_phase_a:
+        if missing_dryrun_upstream:
+            print(f"[Info] DRYRUN 前置缺失 {len(missing_dryrun_upstream)} 個檔案，正在補充...")
+            for missing_file in missing_dryrun_upstream:
                 # 從檔案名反推 step_id
                 # docs/EDD.md → EDD
                 step_id = extract_step_id(missing_file)
@@ -259,9 +259,9 @@ def repair(target_project_dir):
         subprocess.run(["gendoc-flow", "--only", "DRYRUN"], check=True)
     
     else:
-        print("[Info] DRYRUN 已執行，檢查 Phase B 檔案...")
+        print("[Info] DRYRUN 已執行，檢查 DRYRUN 后的 step 檔案...")
     
-    # [R-4] DRYRUN 完成，用 review.sh 檢查 Phase B
+    # [R-4] DRYRUN 完成，用 review.sh 檢查 DRYRUN 后的 step
     review_result = subprocess.run(
         ["tools/bin/review.sh", "."],
         capture_output=True,
@@ -390,10 +390,10 @@ def parse_review_report(report_path):
 
 ### Phase 2 完成後（待後續）
 - [ ] `gendoc-repair` 偵測 DRYRUN 未執行
-- [ ] 自動識別缺失的 Phase A 檔案
+- [ ] 自動識別缺失的 DRYRUN 前的 step 檔案
 - [ ] 遞迴補充上游（非 BRD）
 - [ ] 執行 DRYRUN，生成 .gendoc-rules/
-- [ ] 用 review.sh 驗證 Phase B
+- [ ] 用 review.sh 驗證 DRYRUN 后的 step
 - [ ] 補充缺失 step，循環至全 PASS
 
 ---
@@ -436,7 +436,7 @@ gendoc-flow --only API --only SCHEMA  # 不支援，一次只能一個 step
 
 ### 限制 2：repair 的遞迴深度
 如果某 step 的 input 依賴鏈很深（A→B→C→D），repair 需要逐層補充。
-目前設計無深度限制，但實務上 Phase A 層級不深（最多 IDEA→BRD→PRD→EDD）。
+目前設計無深度限制，但實務上 DRYRUN 前的 step 層級不深（最多 IDEA→BRD→PRD→EDD）。
 
 ---
 
