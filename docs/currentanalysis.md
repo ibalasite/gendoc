@@ -62,7 +62,7 @@ gendoc 產出的是**規格書**，但規格書到「系統可以跑起來」之
 
 ### 風險三：Context Window 與知識遞減（The Knowledge Decay Problem）
 
-每份文件讀所有上游文件，在前幾份時沒問題。但到 Phase B 尾端（SCHEMA → FRONTEND → test-plan），上游已累積 IDEA + BRD + PRD + CONSTANTS + PDD + VDD + EDD + ARCH + API，context 可能超過 100k tokens。AI 在深層 context 的注意力是否均勻分配值得懷疑——早期文件（BRD 的商業需求）可能被稀釋。
+每份文件讀所有上游文件，在前幾份時沒問題。但到 DRYRUN 后的 step 尾端（SCHEMA → FRONTEND → test-plan），上游已累積 IDEA + BRD + PRD + CONSTANTS + PDD + VDD + EDD + ARCH + API，context 可能超過 100k tokens。AI 在深層 context 的注意力是否均勻分配值得懷疑——早期文件（BRD 的商業需求）可能被稀釋。
 
 **改善方向**：Phase D-2 Agent subagent 包裝隔離 context 是正確的方向。下一步可以讓每份文件的 gen 規則明確指定「必須讀哪幾份上游的哪些章節」，而不是「讀所有上游的全文」——精確的知識索引比全量 context 更可靠。
 
