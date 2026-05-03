@@ -73,7 +73,20 @@ echo "[DRYRUN] State file: $_STATE_FILE"
 
 ## Step 1: Read Phase A Files & Extract 20 Quantitative Metrics
 
-**[AI Instruction]** Use Read tool to load all 8 Phase A files, extract 20 quantitative metrics via grep/count operations.
+**[Core Implementation]** Use `dryrun_core.py` to execute metric extraction:
+
+```bash
+python3 "${_SKILL_DIR}/dryrun_core.py" "$_CWD" "$_STATE_FILE"
+```
+
+The script will:
+- Verify all 8 Phase A files exist
+- Extract 20 metrics from each file with regex patterns
+- Apply fallback values for missing files
+- Print summary of extracted metrics
+- Return metrics in memory (no file output at this stage)
+
+**[Alternative: Manual Extraction via grep]** If Python not available, use Read tool to load all 8 Phase A files and extract metrics via grep/count operations:
 
 **Extraction Logic**:
 
@@ -140,7 +153,9 @@ Record this in working memory. Proceed to Step 2.
 
 ## Step 2: Derive Specifications for 31 Phase B Steps
 
-**[AI Instruction]** Based on 20 extracted metrics from Step 1, calculate specification logic for all 31 Phase B steps (API, SCHEMA, FRONTEND, AUDIO, ANIM, CLIENT_IMPL, ADMIN_IMPL, RESOURCE, UML, test-plan, BDD-server, BDD-client, RTM, runbook, LOCAL_DEPLOY, CICD, DEVELOPER_GUIDE, UML-CICD, ALIGN, CONTRACTS, MOCK, PROTOTYPE, HTML, etc.).
+**[Core Implementation]** The `dryrun_core.py` script completes this step automatically after Step 1. It calculates specification logic for all 31 Phase B steps based on extracted metrics from Step 1.
+
+The derivation process includes:
 
 Each step gets 3 specification types:
 
@@ -208,7 +223,9 @@ Create this structure in memory for all 31 steps. Do NOT write to file yet.
 
 ## Step 3: Embed Specifications in State File
 
-**[AI Instruction]** Read the current state file, add `step_specifications` field with all 31 step specs from Step 2, write back to same state file using Write tool.
+**[Core Implementation]** The `dryrun_core.py` script automatically handles this after Step 2. It reads the current state file, adds `step_specifications` field with all 31 step specs, and writes back to the same state file.
+
+**[Manual Alternative]** If needed, use Read + Write tools to manually embed specifications:
 
 **State File Structure** (preserve all existing fields, add new one):
 
