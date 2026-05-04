@@ -255,7 +255,33 @@ Layer 3 — Component（元件，引用 Semantic）：
   button-primary-padding → spacing-component-gap
 ```
 
-#### §13.2 Usability Testing Protocol
+#### §13.2 畫面狀態轉換圖（Screen State Diagram）
+
+為每個 PRD P0 功能對應的主要畫面生成 Mermaid stateDiagram-v2。
+**每個 P0 畫面一張圖；state 名稱對應 §13.1 元件狀態欄位；從 PRD User Stories 推導，禁止省略**。
+
+範例格式（依各畫面實際狀態填入）：
+
+```mermaid
+stateDiagram-v2
+  [*] --> Loading : 進入畫面 / API 發起
+  Loading --> Empty : API 回傳空資料
+  Loading --> Loaded : API 回傳正常資料
+  Loading --> Error : API 逾時或 5xx
+  Loaded --> Loading : 用戶下拉更新 / 分頁切換
+  Error --> Loading : 用戶點擊重試
+  Empty --> Loading : 用戶點擊「新增」觸發 POST
+  Loaded --> [*] : 用戶離開畫面
+```
+
+依 PRD P0 User Story 推導，為每個主要畫面生成對應的 stateDiagram。
+state 節點說明（每個 state 需標注觸發條件）：
+- **Loading**：API 請求中，顯示 Skeleton Screen
+- **Empty**：API 200 但資料為空陣列，顯示 Empty State UI
+- **Loaded**：API 200 且有資料，顯示主要內容
+- **Error**：API 4xx/5xx 或 Network Timeout，顯示 Error State + 重試按鈕
+
+#### §13.3 Usability Testing Protocol
 
 | 階段 | 方法 | 時機 | 參與者 | 成功標準 |
 |------|------|------|--------|---------|
