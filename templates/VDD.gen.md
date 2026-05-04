@@ -269,6 +269,26 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
    - Preload 僅 Critical Weight/Style（主 Body 字型的 Regular 400）
    - Subset 策略（若有中文：繁體中文 Unicode Range 或 Google Fonts `&subset=chinese-traditional`）
 
+4. **§5.1 Responsive Typography（斷點字型縮放規格）**（必填）：
+
+   依據 §5 Type Scale 各層級，計算每個斷點的實際渲染字型大小。
+   從 `clamp(min, preferred, max)` 公式推導各斷點值（320/375/768/1024/1440px）。
+   **不得留 placeholder，所有值必須填入具體數字**。
+
+   | Token | 320px | 375px | 768px | 1024px | 1440px | line-height |
+   |-------|-------|-------|-------|--------|--------|-------------|
+   | `--text-display` | Xrem | Xrem | Xrem | Xrem | Xrem | 1.1 |
+   | `--text-h1` | Xrem | Xrem | Xrem | Xrem | Xrem | 1.2 |
+   | `--text-h2` | Xrem | Xrem | Xrem | Xrem | Xrem | 1.3 |
+   | `--text-h3` | Xrem | Xrem | Xrem | Xrem | Xrem | 1.4 |
+   | `--text-body` | Xrem | Xrem | Xrem | Xrem | Xrem | 1.6 |
+   | `--text-small` | 0.875rem | 0.875rem | 0.875rem | 0.875rem | 0.875rem | 1.5 |
+   | `--text-caption` | 0.75rem | 0.75rem | 0.75rem | 0.75rem | 0.75rem | 1.4 |
+
+   計算規則：`clamp(min, preferred, max)` 在各 viewport 的計算值 = `min(max(min, preferred_at_vw), max)`。
+   例：`clamp(2rem, 1.5rem + 3vw, 4rem)` 在 375px = `min(max(2rem, 1.5rem + 11.25px), 4rem)` ≈ 2.7rem。
+   每個 Token 按此公式填入各斷點計算值，small/caption 為固定值無需計算。
+
 ---
 
 ### §6 Design Token → 工程交付（Design Tokens）[all]

@@ -496,7 +496,172 @@ user:session:{uid}   → String（儲存 session_id，用於踢線）
 
 ## 評估確認記錄
 
-- [ ] 作者確認缺口清單正確
-- [ ] 作者確認知識補強內容足夠
-- [ ] 作者確認建議做法方向
-- [ ] 進入實作
+- [x] 作者確認缺口清單正確
+- [x] 作者確認知識補強內容足夠
+- [x] 作者確認建議做法方向
+- [x] 進入實作
+
+---
+
+## Fix Action List（具體實作清單）
+
+> 原則：每個 Action 只改動 template 的生成指令，不涉及人工素材。
+> 所有要求必須通過測試：「AI 在只有 PRD + EDD 的情況下能否獨立填滿這個欄位？」
+
+| Action | 目標檔案 | 插入位置 | 改動性質 | 狀態 |
+|--------|---------|---------|---------|------|
+| G1-A | VDD.gen.md | §5 末尾（~272 行後） | 新增 §5.1 斷點字型縮放表 | [ ] |
+| G1-B | VDD.gen.md | §6 末尾（~501 行後） | 新增 §6.1 Token 應用矩陣 | [ ] |
+| G2-A | SCHEMA.gen.md | Migration 策略末尾（~201 行後） | 新增 §8.1 Migration 實作清單 | [ ] |
+| G3-A | CLIENT_IMPL.gen.md | HTML5 路由後（~293 行後） | 新增 Phaser.js 目錄結構分支 | [ ] |
+| G3-B | CLIENT_IMPL.gen.md | HTML5 場景結構後（~383 行後） | 新增 Phaser Scene 生命週期表 | [ ] |
+| G3-C | PDD.gen.md | §5 Scene Architecture（~311 行後） | 新增 Phaser Camera/Pool 規格 | [ ] |
+| G4-A | EDD.gen.md | §11.2 末尾（~1191 行後） | 新增 §11.3 Redis 完整設計 | [ ] |
+| G5-A | PDD.gen.md | 替換 §13.1（221–232 行） | 改為 Component State Spec Table | [ ] |
+| G5-B | PDD.gen.md | §13.1 之後 | 新增 §13.2 Mermaid stateDiagram | [ ] |
+| G5-C | VDD.gen.md | §8 開頭（~503 行後） | 新增 §8.1 Animation Spec Table | [ ] |
+| G6-A | PDD.gen.md | §7 末尾（~175 行後） | 新增 §7.1 Breakpoint 元件行為矩陣 | [ ] |
+| G6-B | PDD.gen.md | §7.1 之後 | 新增 §7.2 Grid 系統規格表 | [ ] |
+| G6-C | PDD.gen.md | §6.5 前（~183 行前） | 加入 Micro-interaction 最低覆蓋要求 | [ ] |
+
+---
+
+### Action 詳細規格
+
+#### G1-A：VDD.gen.md — §5.1 Responsive Typography
+
+插入於 §5 字型載入策略末尾（`---` 分隔線前，約第 272 行後）。
+
+要求 AI 生成表格，行 = §5 Type Scale 各層級，列 = 320/375/768/1024/1440 五個斷點：
+- 每格填具體 font-size（從 clamp() 公式計算）+ line-height
+- 值從 §5 已有的 clamp() 示範推導，不得留 placeholder
+
+---
+
+#### G1-B：VDD.gen.md — §6.1 Token 應用矩陣
+
+插入於 §6 Design Token 三層架構末尾（§8 Screen Visual Specs 開頭前，約第 501 行後）。
+
+要求 AI 生成表格：Token 名稱 | 值 | 適用元件/場景 | 禁用場景：
+- 覆蓋 color / spacing / radius / shadow 四類，每類 ≥ 4 個 token
+- 所有值從 §6 Layer 1–3 推導，不得出現「請設計師填入」
+
+---
+
+#### G2-A：SCHEMA.gen.md — §8.1 Migration 實作清單
+
+插入於 Migration 策略說明末尾（「資料量估算」節開始前，約第 201 行後）。
+
+要求 AI 生成表格：版本號 | 檔名 | 操作說明 | 依賴版本 | Expand/Contract 階段 | 需要 Backfill Job：
+- 依 EDD 功能模組完整列出，禁止留空
+- 標示需要 Maintenance Window 的 migration（ADD NOT NULL / DROP COLUMN / 建唯一索引）
+- Rollback 方式寫在 migration 檔末尾 `-- Rollback: <SQL>` 注解
+
+---
+
+#### G3-A：CLIENT_IMPL.gen.md — Phaser.js 目錄結構分支
+
+插入於 HTML5 路由命名規範末尾（`---` 前，約第 293 行後）。
+
+新增 `client_type == "phaser"` 條件分支，生成標準目錄結構：
+- src/scenes/ src/objects/ src/systems/ src/constants/ src/utils/ src/types/
+- constants/ 必須含 SceneKeys.ts / EventKeys.ts / PhysicsCategories.ts
+- main.ts：Phaser.Game 實例建立；config.ts：GameConfig 定義
+- 命名規範：Scene 檔 PascalCaseScene.ts；常數 UPPER_SNAKE_CASE
+
+---
+
+#### G3-B：CLIENT_IMPL.gen.md — Phaser Scene 生命週期表
+
+插入於 Step 4 §3.2 HTML5 場景結構末尾（約第 383 行後）。
+
+新增 Phaser 分支，生成 Scene 生命週期規格表：Scene 名稱 | init 職責 | preload 載入資源 | create 建立物件 | shutdown 釋放：
+- 從 EDD 功能模組推斷所有 Scene
+- 聲明 Scene Manager 切換策略（start/launch/sleep/wake 適用條件）
+- 聲明 Scene 間資料傳遞方式（init data / registry / EventEmitter 三選一）
+
+---
+
+#### G3-C：PDD.gen.md — Phaser §5 Scene Architecture
+
+插入於 §5 Scene Architecture Design 說明文字後（約第 311 行後），§6 UI Component 清單前。
+
+新增 Phaser 條件分支：
+- 物理引擎選型聲明（Arcade 或 Matter.js，需附理由）
+- Camera 設計：World Camera（跟隨 Player）+ UI Camera（fixed，ignoreWorldCamera）
+- Object Pool 設計表格：Pool 名稱 | GO 類別 | maxSize | 回池方式
+
+---
+
+#### G4-A：EDD.gen.md — §11.3 Redis 快取設計
+
+插入於 §11.2 Capacity Planning Math 末尾（約第 1191 行後），§12.2 前。
+
+分五部分：
+- A. 鍵命名規範 + 鍵清單表（鍵模板/資料結構/TTL/TTL Jitter/用途）
+- B. 資料結構選型規則表（場景/選用結構/理由）
+- C. 限流鍵 Lua 腳本（滑動視窗原子操作）+ 端點清單
+- D. 記憶體預算估算公式 + Top 3 場景表
+- E. 快取穿透/擊穿/雪崩對策聲明（三種必填）
+
+---
+
+#### G5-A：PDD.gen.md — §13.1 改為 Component State Spec Table
+
+替換現有 §13.1 Figma Handoff Checklist（第 221–232 行）。
+
+改為要求 AI 生成互動元件狀態規格表：元件名稱 | Default | Hover | Focus | Active | Disabled | Loading | Error：
+- 每格填具體 CSS property + value（使用 Design Token 名稱）
+- 禁止填「顏色改變」等模糊描述
+- 依 PDD §4 所有互動元件完整列出
+
+---
+
+#### G5-B：PDD.gen.md — §13.2 畫面狀態轉換圖
+
+插入於 §13.1 之後。
+
+要求 AI 為每個 PRD P0 功能對應的主要畫面生成 Mermaid stateDiagram-v2：
+- state 名稱對應 §13.1 狀態欄位（Loading/Empty/Loaded/Error）
+- 每個 P0 畫面一張圖
+
+---
+
+#### G5-C：VDD.gen.md — §8.1 Animation Spec Table
+
+插入於 §8 Screen Visual Specs 開頭（第 503 行後），SCR 個別畫面規格前。
+
+要求 AI 生成動畫規格表：動效名稱 | 觸發條件 | CSS Property | Duration | Easing | 代碼形式：
+- 所有 §6.5 Micro-interaction 對應的 CSS 實作規格
+- 複雜動效必須附 @keyframes 代碼片段
+
+---
+
+#### G6-A：PDD.gen.md — §7.1 Breakpoint 元件行為矩陣
+
+插入於 §7 斷點清單末尾（第 175 行後），§8 Accessibility 前。
+
+要求 AI 生成主要元件在各斷點的行為規格表：元件 | 320px | 375px | 768px | 1024px | 1440px：
+- 禁止填「responsive」等模糊描述，每格需填具體尺寸/欄數/顯隱規則
+- 必填元件：Navigation / Card Grid / Data Table / CTA Button / Modal
+
+---
+
+#### G6-B：PDD.gen.md — §7.2 Grid 系統規格表
+
+插入於 §7.1 之後。
+
+要求 AI 生成 Grid 規格表：斷點 | 欄數 | Gutter | Margin | Max-Width | 實作方式：
+- 必填 5 個斷點，Max-Width 與設計一致
+- 必須聲明統一使用 CSS Grid 或 Flexbox（不得混用）
+- Container class 具體 CSS 代碼附在表格後
+
+---
+
+#### G6-C：PDD.gen.md — §6.5 Micro-interaction 最低覆蓋要求
+
+插入於 §6.5 Micro-interaction Catalog 標題前（約第 183 行前）。
+
+前置聲明最低覆蓋數量（低於此視為文件不完整）：
+- 表單類 ≥ 3 個 / 導覽類 ≥ 2 個 / 資料回饋類 ≥ 2 個 / 遊戲類 ≥ 2 個（若適用）
+- 以下 Catalog 表格必須全部填滿，不得留空白列
