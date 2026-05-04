@@ -1190,6 +1190,88 @@ Audit Log 格式（JSON）：
 - 環境成本估算表（Dev / Staging / Prod）
 - 擴展觸發條件（CPU/Memory 閾值）
 
+### §11.3 Redis 快取設計（必填）
+
+依據 EDD §4 API 端點與 §5 功能模組推導所有快取場景，**不得留 placeholder**。
+
+#### A. 鍵命名規範與清單
+
+鍵格式：`{env}:{service}:{entity}:{id}` 或 `{env}:{service}:{action}:{identifier}`
+- `env`：`prod` / `staging` / `dev`（**禁止省略**，防止跨環境污染）
+- 禁止空格、大寫字母、特殊字元（僅允許 `:` 分隔）
+
+生成所有業務場景的鍵清單（從 EDD §4 API + §5 功能模組推導，**禁止留空**）：
+
+| 鍵模板 | 資料結構 | TTL | TTL Jitter | 用途 |
+|-------|---------|-----|-----------|------|
+| `prod:auth:session:{user_id}` | String | 1800s | ±10% | JWT Session Token |
+| `prod:auth:refresh:{user_id}` | String | 86400s | ±10% | Refresh Token |
+| `prod:rate:{action}:{identifier}` | Sorted Set | 60s | 無 | 滑動視窗限流鍵 |
+| `prod:{service}:user:{user_id}` | Hash | 300s | ±10% | 用戶 Profile 快取 |
+| `prod:{service}:leaderboard` | Sorted Set | 永久 | — | 排行榜（score = 分數） |
+| （依 EDD §4 + §5 完整列出）| | | | |
+
+**TTL Jitter 公式**：`actual_ttl = base_ttl × rand(0.9, 1.1)`（凡批次過期場景必須套用，防止快取雪崩）
+
+#### B. 資料結構選型規則
+
+| 場景 | 選用結構 | 操作命令 | 理由 |
+|------|---------|---------|------|
+| Session Token / 功能開關 / 單一值 | String | `SET EX` / `GET` | 簡單 K-V，O(1) |
+| 用戶 Profile 多欄位（可單欄讀寫）| Hash | `HSET` / `HGETALL` / `HGET` | 省序列化，可部分更新 |
+| Tag / 好友關係 / 黑名單 | Set | `SADD` / `SMEMBERS` / `SISMEMBER` | 支援交集/聯集 O(N) |
+| 排行榜 / 延遲任務佇列 | Sorted Set | `ZADD` / `ZRANGE` / `ZRANGEBYSCORE` | O(log N) 範圍查詢 |
+| 訊息佇列（單消費者）| List | `LPUSH` + `BRPOP` | 消費者阻塞等待，O(1) |
+| UV 統計 / 大基數唯一計數 | HyperLogLog | `PFADD` / `PFCOUNT` | 記憶體固定 12KB |
+
+#### C. 限流鍵設計（凡 PRD 有 Rate Limit 需求必填）
+
+使用滑動視窗 Lua 腳本（**原子操作，防 Race Condition**）：
+
+```lua
+local key = KEYS[1]
+local now = tonumber(ARGV[1])      -- 當前時間戳（毫秒）
+local window = tonumber(ARGV[2])   -- 視窗大小（毫秒）
+local limit = tonumber(ARGV[3])    -- 限流閾值
+redis.call('ZREMRANGEBYSCORE', key, 0, now - window)
+local count = redis.call('ZCARD', key)
+if count < limit then
+  redis.call('ZADD', key, now, now)
+  redis.call('PEXPIRE', key, window)
+  return 1  -- 允許
+end
+return 0  -- 拒絕
+```
+
+生成所有需要限流的端點清單（從 EDD §4 API 提取）：
+
+| 端點 / 操作 | 鍵模板 | window_sec | limit | 超限回應 |
+|-----------|-------|-----------|-------|---------|
+| POST /auth/login | `prod:rate:login:{ip}` | 60 | 10 | 429 Too Many Requests |
+| POST /auth/register | `prod:rate:register:{ip}` | 3600 | 5 | 429 |
+| （依 EDD §4 完整列出）| | | | |
+
+#### D. 記憶體預算估算
+
+**公式**：`total_memory = key_count × avg_value_size × replication_factor × 1.2`（overhead 係數）
+
+生成 Top 3 記憶體佔用場景的預算估算：
+
+| 場景 | key_count | avg_value_size | replication | 估算記憶體 |
+|------|----------|---------------|------------|---------|
+| Session Cache | DAU × 1 | 500 Bytes | 3（Sentinel）| DAU × 1.8KB |
+| User Profile Cache | MAU × 0.3 | 2KB | 3 | MAU × 1.8KB |
+| Leaderboard | 1 | entries × 16B | 3 | entries × 48B |
+| （依實際業務填入 Top 3）| | | | |
+
+#### E. 快取失效對策（必填聲明，三種均須填入）
+
+| 問題 | 場景 | 對策 | 實作方式 |
+|------|------|------|---------|
+| 快取穿透（key 不存在）| 惡意請求不存在的 ID | 空值快取（TTL 30s）或 Bloom Filter | `SET key "" EX 30` |
+| 快取擊穿（熱點 key 過期）| 熱門商品/排行榜瞬間過期 | Distributed Lock 防同時重建 | `SET lock NX EX 5` → 取得才查 DB |
+| 快取雪崩（大量 key 同時過期）| 批次寫入 TTL 相同 | TTL Jitter（見 §A）+ Circuit Breaker | 所有批次快取套用 Jitter 公式 |
+
 ### §12.2 測試重點場景
 
 **業務場景**：從 PRD User Stories 和 EDD §5 API 端點提取，至少填入 5 個業務功能測試場景（TC-BIZ-001~005），並對應 AC 驗收條件編號。
