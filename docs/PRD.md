@@ -1085,315 +1085,179 @@ gendoc pipeline 分為兩個相位（Phase），中間由 DRYRUN 作為獨立驗
 | 相位 | 步驟 | 特徵 | 品質驗收 |
 |------|------|------|---------|
 | **DRYRUN 前的 step（內容相）** | IDEA → BRD → PRD → CONSTANTS → PDD → VDD → EDD → ARCH | 完全由 AI 從上游文件推導，無量化基線 | 文件自身完整性 + 跨文件上下文一致 |
-| **DRYRUN 閘門** | 讀取 DRYRUN 前 全部 8 份文件，推導 DRYRUN 后各 step 的期望規格 | 期望規格計算 → `.gendoc-rules/*.json` | — |
-| **DRYRUN 后的 step（技術相）** | API → SCHEMA → FRONTEND → ... → HTML（23 個 step） | 各 step **獨立實現**，生成實際檔案 | **機械式審查**：期望規格 vs 實際生成 |
+| **DRYRUN 閘門** | 讀取 DRYRUN 前全部 8 份文件，推導 DRYRUN 后各 step 的量化期望規格 | 期望規格計算 → `.gendoc-rules/*.json` | — |
+| **DRYRUN 后的 step（技術相）** | API → SCHEMA → FRONTEND → ... → HTML | 各 step **獨立實現**，生成實際檔案 | **機械式審查**：期望規格 vs 實際生成 |
 
-### DRYRUN 設計原則（雙層獨立驗證）
+### DRYRUN 設計原則
 
-#### 核心架構
+#### 核心架構：兩條獨立路徑
 
-DRYRUN 採用**雙層獨立驗證**架構，確保品質可驗證：
+DRYRUN 是**獨立的量化基線推導器**。存在理由只有一個：讓「期望」與「實現」來自兩條完全獨立的路徑，當結果不一致時，才能判斷「某一邊有問題」。
 
 ```
-DRYRUN 前的文件
-    ↓
-[DRYRUN 推導層] → 期望規格（計劃）
-    ↓
-.gendoc-rules/*.json（DRYRUN 輸出）
-    ↓
-DRYRUN 后的 step 實現
-    ↓
-[各 STEP template 實現層] → 實際生成（獨立實現）
-    ↓
-docs/<STEP>.md（實際生成結果）
-    ↓
-[審查工具 review.sh] → 對比驗證
-    ↓
-期望 vs 實際 → ✅ 通過 / ❌ 失敗
+DRYRUN 前的文件（EDD、PRD、ARCH...）
+         │
+         ├──→ [DRYRUN 推導路徑]           → 上游視角推估「應該有多少？」
+         │    dryrun_core.py                → .gendoc-rules/{step}-rules.json
+         │
+         └──→ [gen.md 實現路徑]            → business logic 視角「我判斷要生成多少」
+              *.gen.md                      → docs/{STEP}.md
+                                                  ↓
+                                          [review.sh 機械比對]
+                                          期望 10 vs 實際 8 → ❌ FAIL
 ```
 
-**關鍵原則**：
-- **pipeline.json**：只定義 `input[]` + `output[]`（無 metrics、無公式、無規格）
-- **DRYRUN**：獨立推導邏輯（`dryrun_core.py`），產生期望規格 → `.gendoc-rules/*.json`
-- **各 STEP**：獨立實現邏輯（`*.gen.md`），根據自己的 business logic 生成實際檔案
-- **審查**：機械式對比兩條獨立路徑的結果（期望 vs 實際）
+**獨立性原則（禁止「先射箭再畫靶」）**：
 
-**為什麼分開**：
-- 同一個數字（例如 10 個 table）來自**兩條獨立路徑**
-- 若結果不一致 → 證明某一邊有問題
-- 若讀同一份定義 → 無法檢查（自己檢查自己）
+DRYRUN 推導路徑與 gen.md 實現路徑必須使用**不同的計算邏輯**。若兩者讀同一份定義、用同一個公式，review.sh 永遠 PASS，無法偵測問題。
 
-#### DRYRUN 推導規格清單
+| 正確 ✅ | 錯誤 ❌ |
+|--------|--------|
+| DRYRUN：從 EDD entity 數量推算 min_table_count | DRYRUN 與 SCHEMA.gen.md 共用同一個計數公式 |
+| gen.md：讀 EDD + PDD + CONSTANTS，按 business logic 建 table | gen.md 讀 .gendoc-rules/ 直接複製期望數字作為輸出目標 |
 
-| DRYRUN 后的 step | DRYRUN 推導期望 | 來源上游 | 公式 |
-|-------------|----------------|--------|------|
-| **SCHEMA** | `min_table_count` | EDD（entity 定義） | `max(entity_count, 3)` |
-| **API** | `min_endpoint_count` | PRD + EDD（endpoint 定義） | `max(rest_endpoint_count, 5)` |
-| **test-plan** | `min_h2_sections` | ARCH（層數） | `arch_layer_count + 2` |
-| **BDD-server** | `min_scenario_count` | PRD（US 數）| `ceil(user_story_count * 0.8)` |
-| **BDD-client** | `min_scenario_count` | PRD（US 數）| `ceil(user_story_count * 0.6)` |
-| （其他 DRYRUN 后的 step） | （類似推導） | （根據上游） | （對應公式） |
+---
+
+#### Anti-fake 追蹤（必要條件）
+
+**僅追蹤總量不足**。AI 可能生成「數量達標但內容為空殼」的文件（假文件）：
+
+- endpoint 只有標題，無 request/response body
+- class 只有名稱，無 fields/methods
+- table 只有 id 欄位
+- section 只有標題，無實質內容
+- 含未替換的 `{{PLACEHOLDER}}`
+
+**所有 spec_rules 必須同時包含**：
+
+| 指標類型 | 說明 | 範例 |
+|---------|------|------|
+| **總量指標** | 最少要有幾個單元 | `min_endpoint_count: 12` |
+| **深度指標** | 每個單元必須有實質內容 | `min_fields_per_endpoint: 2` |
+| **Placeholder 指標** | 未替換佔位符數量必須為 0 | `max_placeholder_count: 0` |
+
+---
+
+#### DRYRUN 提取的上游參數（7 個）
+
+`dryrun_core.py` 從 DRYRUN 前的 8 份文件中提取以下參數，**全部是整數**：
+
+| 參數 | 來源文件 | 提取方式 |
+|------|---------|---------|
+| `entity_count` | EDD.md | `### ClassName` 格式的 class 定義數量 |
+| `avg_entity_field_count` | EDD.md | 每個 entity 的 field 定義平均數（用於 anti-fake 深度指標） |
+| `rest_endpoint_count` | PRD.md | `GET\|POST\|PUT\|DELETE\|PATCH /path` 格式數量 |
+| `user_story_count` | PRD.md | `### US-N` 格式的 User Story 數量 |
+| `acceptance_criteria_count` | PRD.md | US 下 AC 條目的平均數（用於 BDD steps 深度指標） |
+| `arch_layer_count` | ARCH.md | `### *Layer\|*Service\|*層\|*服務` 格式數量 |
+| `component_count` | ARCH.md | 各 layer 下的 component 定義總數 |
+
+所有參數保守設定：提取失敗時使用安全下界（entity_count fallback=3、rest_endpoint_count fallback=5 等）。
+
+---
+
+#### spec_rules：單層量化設計（SSOT）
+
+每個 DRYRUN 后的 step 在 `pipeline.json` 中定義一個 **`spec_rules`** 物件，所有欄位必須是 `review.sh` 可機械驗證的量化規格。
+
+**格式（單層，全部量化）**：
+
+```json
+"spec_rules": {
+  "min_endpoint_count": "max(5, {rest_endpoint_count})",
+  "min_fields_per_endpoint": 2,
+  "min_h2_sections": 3,
+  "max_placeholder_count": 0
+}
+```
+
+**公式字串規則**：
+- 含 `{param}` 佔位符的字串，由 `dryrun_core.py` 評估為實際整數後寫入 `.gendoc-rules/`
+- 不含 `{param}` 的直接數字，直接寫入
+- `review.sh` 讀取的 `.gendoc-rules/*.json` 中**只有整數，無公式字串**
+
+**禁止放入 spec_rules 的內容**：
+- 文字描述（`"All entities must be referenced..."`）— 這屬於 *.review.md 的審查說明
+- 無法機械驗證的判斷（`"content is consistent with PRD"`）
+
+---
+
+#### DRYRUN 推導規格清單（各 step 的量化規格）
+
+| DRYRUN 后的 step | 總量指標 | 深度指標 | 來源參數 |
+|-----------------|---------|---------|---------|
+| **API** | `min_endpoint_count = max(5, rest_endpoint_count)` | `min_fields_per_endpoint = 2` | PRD |
+| **SCHEMA** | `min_table_count = max(3, entity_count)` | `min_columns_per_table = max(3, avg_entity_field_count)` | EDD |
+| **test-plan** | `min_h2_sections = arch_layer_count + 4` | `min_lines_per_section = 3` | ARCH |
+| **BDD-server** | `min_scenario_count = ceil(user_story_count * 0.8)` | `min_steps_per_scenario = 3` | PRD |
+| **BDD-client** | `min_scenario_count = ceil(user_story_count * 0.6)` | `min_steps_per_scenario = 3` | PRD |
+| **RTM** | `min_row_count = max(1, user_story_count)` | `min_columns_per_row = 4` | PRD |
+| **所有 step** | — | `max_placeholder_count = 0` | — |
+
+---
+
+#### DRYRUN 執行流程
+
+1. **讀取上游**：調用 `get-upstream --step DRYRUN`，根據 `pipeline.json` DRYRUN step 的 `input[]` 讀取 8 份文件內容
+2. **提取 7 個參數**：從文件內容中 pattern-match 提取，結果存記憶體
+3. **評估 spec_rules**：遍歷 pipeline.json 所有 step 的 spec_rules，將公式字串中的 `{param}` 替換為實際整數
+4. **寫入 `.gendoc-rules/`**：每個 active step 一個 `<step-id>-rules.json`，內容全為整數
+5. **生成 MANIFEST.md**：列出所有 step 的量化基線（供人類檢查）
 
 #### DRYRUN 的輸出
 
-**1. `.gendoc-rules/<step-id>-rules.json`**
-
-每個 DRYRUN 后的 step 一個 JSON 檔案，包含期望規格：
+**`.gendoc-rules/<step-id>-rules.json`**（每個 DRYRUN 后的 step 一個）：
 
 ```json
 {
-  "step_id": "SCHEMA",
-  "expectations": {
-    "min_table_count": 10,
-    "min_h2_sections": 4,
-    "required_sections": ["Overview", "Tables", "Indexes", "Migration"]
-  },
+  "step_id": "API",
+  "min_endpoint_count": 12,
+  "min_fields_per_endpoint": 2,
+  "min_h2_sections": 3,
+  "max_placeholder_count": 0,
   "source": "DRYRUN",
   "timestamp": "2026-05-04T12:34:56Z"
 }
 ```
 
-**2. `docs/MANIFEST.md`**
-
-量化基線報告，列出所有期望規格（供人類檢查 + 審查工具讀取）
-
-#### 各 STEP 的獨立實現
-
-**SCHEMA.gen.md 的實現邏輯**（例）：
-- 讀取 EDD（entity 定義）、CONSTANTS（capacity 限制）、PDD（UI 欄位）
-- 根據自己的轉換邏輯生成 table 定義
-- 最終生成 `docs/SCHEMA.md`，包含 X 個 table
-
-**審查時**：
-- 期望（DRYRUN）：10 個 table
-- 實際（SCHEMA.gen.md）：10 個 table
-- 結果：✅ 通過
-
----
-
-**注意**：DRYRUN 推導公式在 `dryrun_core.py` 中實現（不在 pipeline.json），確保演算邏輯單一、易於維護、易於擴展。
-
----
-
-#### Input
-
-**靜態定義**：`templates/pipeline.json`
-```json
-{
-  "steps": [
-    {
-      "id": "DRYRUN",
-      "input": ["docs/IDEA.md", "docs/BRD.md", "docs/PRD.md", "docs/PDD.md", "docs/VDD.md", "docs/EDD.md", "docs/ARCH.md"],
-      "output": ["docs/MANIFEST.md", ".gendoc-rules/"]
-    },
-    {
-      "id": "SCHEMA",
-      "input": ["docs/EDD.md", "docs/CONSTANTS.md", "docs/PDD.md"],
-      "output": ["docs/SCHEMA.md"]
-    },
-    // ... 其他 DRYRUN 后的 steps
-  ]
-}
-```
-
-**執行輸入**：已完成的 DRYRUN 前文件（IDEA.md、BRD.md、...、ARCH.md）
-
----
-
-#### Process
-
-1. **Step 1：讀取上游檔案**
-   - 根據 `pipeline.json` 中 DRYRUN step 的 `input[]` 定義（即 DRYRUN 需要讀哪些檔案）
-   - 調用 `get-upstream --step DRYRUN` 讀取上游檔案實際內容
-
-2. **Step 2：參數提取**
-   - 從上游檔案提取量化參數（entity_count、rest_endpoint_count、user_story_count、arch_layer_count 等）
-   - 方法：根據檔案結構分析，非硬編碼 grep pattern
-   - 結果保存在記憶體（不寫檔案）
-
-3. **Step 3：規格推導**
-   - 根據參數和 DRYRUN 后各 step 的 `output[]` 定義推導期望規格
-   - 使用內建公式（在 `dryrun_core.py` 中）：
-     - SCHEMA：`min_table_count = max(entity_count, 3)`
-     - API：`min_endpoint_count = max(rest_endpoint_count, 5)`
-     - test-plan：`min_h2_sections = arch_layer_count + 2`
-     - （類似推導其他 DRYRUN 后的 step）
-   - 對每個激活的 step（根據 condition 判斷），生成期望規格
-
-4. **Step 4：規格存儲**
-   - 對每個 DRYRUN 后的 step 生成 `.gendoc-rules/<step-id>-rules.json`
-   - 包含期望規格：min_table_count、min_endpoint_count、min_h2_sections 等
-
-5. **Step 5：清單生成**
-   - 輸出 `docs/MANIFEST.md`（量化基線報告，人類可讀 + 工具可讀）
-
-#### Output
-
-- `.gendoc-rules/<step-id>-rules.json`（34 個 step 各一個，期望規格）
-- `docs/MANIFEST.md`（量化基線摘要 + 審查工具使用方式）
+所有值為整數（公式已被評估），`review.sh` 直接讀取數字比對。
 
 ---
 
 #### 審查層（review.sh）
 
-DRYRUN 執行完成後，審查工具會：
+對每個 DRYRUN 后的 step，`review.sh` 機械比對：
 
-```bash
-# 對每個 DRYRUN 后的 step：
-for step_id in API SCHEMA FRONTEND test-plan ...; do
-  # 1. 讀取期望（DRYRUN 輸出）
-  expected=$(cat .gendoc-rules/$step_id-rules.json | jq '.expectations.min_table_count')
-  
-  # 2. 掃描實際生成
-  actual=$(grep -c "^|" docs/$step_id.md)  # 以表格行數為例
-  
-  # 3. 對比
-  if [ $actual -ge $expected ]; then
-    echo "✅ $step_id: 期望 $expected → 實際 $actual (PASS)"
-  else
-    echo "❌ $step_id: 期望 $expected → 實際 $actual (FAIL)"
-  fi
-done
-```
+| spec_rules 欄位 | review.sh 如何驗證 |
+|----------------|------------------|
+| `min_endpoint_count` | `grep -c "^#### (GET\|POST\|...) /" docs/API.md` |
+| `min_fields_per_endpoint` | 每個 endpoint block 的 field 行數 |
+| `min_table_count` | `grep -c "^## " docs/SCHEMA.md`（或 table header 數） |
+| `min_columns_per_table` | 每個 table 的欄位定義行數 |
+| `min_h2_sections` | `grep -c "^## " docs/test-plan.md` |
+| `min_lines_per_section` | 每個 `## section` 到下個 `## ` 之間的非空行數 |
+| `max_placeholder_count` | `grep -c "{{" docs/{STEP}.md` |
 
-這是**機械式審查**，無需人類干預。
+驗收標準：所有 spec_rules 欄位的實際值必須滿足期望值，否則輸出 FAIL 並記錄到 `docs/DRYRUN_REVIEW_REPORT.md`。
 
 ---
 
-#### 擴展性：新增節點時的工作流
+#### 擴展性：新增 DRYRUN 后的 step
 
-**情景：新增 DRYRUN 后的 step（如 COMPLIANCE.md）**
+新增節點只需兩步，無需改代碼：
 
 ```
 1. 編輯 templates/pipeline.json
-   ├─ 在 steps[] 中新增 COMPLIANCE step
-   └─ input: [檔案清單]
-   └─ output: ["docs/COMPLIANCE.md"]
+   └─ 在 steps[] 新增 step（id、input、output）
+   └─ 定義 spec_rules（單層量化，所有欄位可機械驗證）
 
-2. 創建三件套模板
-   ├─ templates/COMPLIANCE.md（結構）
-   ├─ templates/COMPLIANCE.gen.md（生成邏輯）
-   └─ templates/COMPLIANCE.review.md（審查標準）
-
-3. DRYRUN 執行
-   └─ 自動感知新 step → 推導期望規格
-   └─ 生成 .gendoc-rules/COMPLIANCE-rules.json
-   └─ 無需改代碼（DRYRUN 內建的推導邏輯自動適用）
-
-4. 各 STEP 獨立實現
-   └─ COMPLIANCE.gen.md 獨立生成內容
-
-5. 審查
-   └─ review.sh 自動對比期望 vs 實際
+2. 建立三件套模板
+   ├─ templates/{TYPE}.md       ← 文件結構骨架
+   ├─ templates/{TYPE}.gen.md   ← 生成規則（Quality Gate 與 spec_rules 同步）
+   └─ templates/{TYPE}.review.md ← AI 審查說明（文字描述放這裡，不放 spec_rules）
 ```
 
-**核心**：只需改 `templates/pipeline.json` 和新增模板，DRYRUN 和 review.sh 無需改動。
-
-**情景 2：新增 DRYRUN 后的節點（如 FOOBAR.md）**
-
-```
-1. 編輯 templates/pipeline.json
-   ├─ 在 steps[] 新增 FOOBAR step
-   └─ 定義 spec_rules
-       └─ {
-            "quantitative_specs": {"min_sections": 3},
-            "content_mapping": {...},
-            "cross_file_validation": {...}
-          }
-
-2. 創建三件套模板
-   ├─ templates/FOOBAR.md（結構）
-   ├─ templates/FOOBAR.gen.md（Quality Gate）
-   └─ templates/FOOBAR.review.md（審查標準）
-
-3. DRYRUN 執行
-   └─ 自動讀取 FOOBAR 的 spec_rules
-   └─ 自動為 FOOBAR 生成檢查規格
-   └─ 無需改代碼
-```
-
----
-
-#### 架構收益
-
-| 維度 | 舊架構 | 新架構（SSOT） |
-|------|--------|------------|
-| metrics 定義 | dryrun_core.py 硬編碼 8 個 | pipeline.json 動態定義（可擴展） |
-| spec_rules 定義 | dryrun_core.py 硬編碼 31 個 | pipeline.json 動態定義（可擴展） |
-| 新增 DRYRUN 前的節點 | 需改 Python 代碼 | 只改 JSON + 三件套 |
-| 新增 DRYRUN 后的節點 | 需改 Python 代碼 | 只改 JSON + 三件套 |
-| 代碼行數 | 502 行 | 205 行（-60%） |
-| 可擴展性 | 低（硬編碼限制） | 高（完全動態） |
-| 維護成本 | 高（改代碼） | 低（改 JSON） |
-
----
-
-#### 實裝完成狀態（2026-05-03）
-
-**D-ARCH-SSOT — 完全 SSOT 架構實施**
-
-| 修改項目 | 詳細內容 | 狀態 |
-|---------|--------|------|
-| **templates/pipeline.json** | 擴展至 v4.0：新增 `metrics[]` 陣列（20 個量化指標，含 id/source_step/grep_pattern/fallback）；每個 step 新增 `spec_rules` 欄位（quantitative_specs/content_mapping/cross_file_validation） | ✅ 完成 |
-| **tools/bin/dryrun_core.py** | 新增 `_load_pipeline()` 讀取 SSOT；重構 `extract_metrics()` 為動態讀取（迴圈遍歷 metrics[]，用 grep 提取）；重構 `derive_specifications()` 為動態讀取（迴圈遍歷 steps[]，直接使用 spec_rules）；新增 `validate_completeness()` 和 `validate_spec_quality()` 驗證層 | ✅ 完成 |
-| **tools/bin/review.sh** | 完全重寫：新增 4 種檢查模式（quantitative/content_mapping/cross_file/all）；10 項量化檢查 + 4 項內容映射檢查 + 4 項跨檔案檢查；所有 Finding 含 severity/message/suggested_fix；JSON 輸出 + 適當退出碼（0/1/2） | ✅ 完成 |
-| **tools/bin/review_integration.sh** | 升級至 v2.0：Step 1 執行三個 review.sh 模式（quantitative/content_mapping/cross_file）；Step 2 提取嚴重性計數；Step 3 合併 AI findings + Shell findings（去重）；Step 4 統一 JSON 輸出；Step 5 適當退出碼 | ✅ 完成 |
-
-**代碼指標**：
-- dryrun_core.py：502 → 280 行（-44%）
-- review.sh：99 → 355 行（+259%）
-- review_integration.sh：80 → 249 行（+211%）
-- pipeline.json：~450 → ~730 行（+62%）
-
-**驗證完成**：
-- [x] pipeline.json 語法合法，所有 20 個 metrics + 34 個 steps 都存在
-- [x] dryrun_core.py 無硬編碼，完全從 pipeline.json 讀取
-- [x] review.sh 四種模式齊全，Finding 格式統一
-- [x] review_integration.sh 能正確合併 AI + Shell findings
-
-**實際測試**：⏳ 待用戶環境執行（已完成代碼驗證，結構與邏輯審查無誤）
-
----
-
-#### 三件套與 spec_rules 的對應
-
-新增節點時，三件套模板和 pipeline.json 的 spec_rules 應該同步：
-
-| 內容來源 | 映射到 spec_rules |
-|---------|----------|
-| TYPE.gen.md 的「Quality Gate」 | → quantitative_specs（最少 N 個 section、無 placeholder 等） |
-| TYPE.review.md 的「CRITICAL」 | → content_mapping（US 涵蓋 100% 等） |
-| TYPE.review.md 的「HIGH」 | → cross_file_validation（與 PRD 一致等） |
-
-**檢查清單**（新增節點時）：
-- [ ] pipeline.json 的 spec_rules 與 TYPE.gen.md 的 Quality Gate 同步
-- [ ] pipeline.json 的 spec_rules 與 TYPE.review.md 的審查項同步
-- [ ] JSON 語法正確
-- [ ] 所有 Phase 的 condition 正確設置
-
----
-
-### DRYRUN 后的 step 的雙層品質檢查（DRYRUN 啟用）
-
-每個 DRYRUN 后的 step 的 review 環節執行：
-
-1. **Layer 1：AI Review**（傳統代碼審查邏輯）
-   - 文件完整性、清晰度、格式一致性
-   - 輸出：AI Finding List
-
-2. **Layer 2：Shell Script 量化檢查**（DRYRUN 驅動）
-   - 調用 `~/.claude/skills/gendoc/tools/bin/review.sh`
-   - 傳遞規格參數：`--step API --specs-from-state STATE_FILE --target-file docs/API.md`
-   - 檢查 3 個維度：quantitative / content_mapping / cross_file_validation
-   - 輸出：Shell Finding List（JSON）
-
-3. **Layer 3：Finding 合併**
-   - AI Finding + Shell Finding 去重、按 severity 排序
-   - 輸出：Combined Finding List
-
-4. **Layer 4：AI Fix**
-   - AI 基於 Combined Finding List 修復
-   - 必須同時滿足 AI Finding 要求與 Shell Finding 量化要求
+**DRYRUN 和 review.sh 自動適用新 step，無需修改**。
 
 ---
 

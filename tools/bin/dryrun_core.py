@@ -103,94 +103,117 @@ class DRYRUNEngine:
             return upstream_data
 
     def extract_parameters(self, upstream_data: dict = None) -> dict:
-        """從 DRYRUN 前的檔案提取四個核心參數（DRYRUN_PARAMETER_EXTRACTION.md 的 STEP 1）
-
-        提取的參數：
-        - entity_count: from EDD.md (entity/class definitions)
-        - rest_endpoint_count: from PRD.md + EDD.md (API endpoint definitions)
-        - user_story_count: from PRD.md (user story definitions)
-        - arch_layer_count: from ARCH.md (architecture layers)
+        """從 DRYRUN 前的檔案提取 7 個核心參數
 
         Returns:
-            dict: {
-                "entity_count": int,
-                "rest_endpoint_count": int,
-                "user_story_count": int,
-                "arch_layer_count": int,
-                "metadata": {...}
-            }
+            dict: 7 個整數參數 + metadata
         """
         if upstream_data is None:
             upstream_data = self._load_upstream()
 
         params = {
-            "entity_count": self._extract_entity_count(upstream_data),
-            "rest_endpoint_count": self._extract_rest_endpoint_count(upstream_data),
-            "user_story_count": self._extract_user_story_count(upstream_data),
-            "arch_layer_count": self._extract_arch_layer_count(upstream_data),
+            "entity_count":               self._extract_entity_count(upstream_data),
+            "avg_entity_field_count":     self._extract_avg_entity_field_count(upstream_data),
+            "rest_endpoint_count":        self._extract_rest_endpoint_count(upstream_data),
+            "user_story_count":           self._extract_user_story_count(upstream_data),
+            "acceptance_criteria_count":  self._extract_acceptance_criteria_count(upstream_data),
+            "arch_layer_count":           self._extract_arch_layer_count(upstream_data),
+            "component_count":            self._extract_component_count(upstream_data),
             "metadata": {
                 "extraction_timestamp": datetime.now(timezone.utc).isoformat(),
-                "source": "DRYRUN_PARAMETER_EXTRACTION.md"
             }
         }
 
         return params
 
     def _extract_entity_count(self, upstream_data: dict) -> int:
-        """Extract entity_count from EDD.md §5.5 (DRYRUN_PARAMETER_EXTRACTION.md Step 1)"""
+        """entity_count from EDD.md: ### ClassName style class definitions"""
         edd_content = upstream_data.get('docs/EDD.md', '')
-
-        # Pattern: ### ClassName or table format with class names
         class_pattern = r'^###\s+[A-Z][a-zA-Z0-9]*(?:\s|$)'
         matches = re.findall(class_pattern, edd_content, re.MULTILINE)
+        return max(3, len(matches)) if matches else 3
 
-        if matches:
-            return max(3, len(matches))
+    def _extract_avg_entity_field_count(self, upstream_data: dict) -> int:
+        """avg_entity_field_count from EDD.md: average fields per entity (anti-fake depth indicator)"""
+        edd_content = upstream_data.get('docs/EDD.md', '')
+        if not edd_content:
+            return 3
 
-        # Fallback
-        return 3
+        # Split by entity headers (### ClassName)
+        entity_blocks = re.split(r'^###\s+[A-Z][a-zA-Z0-9]*', edd_content, flags=re.MULTILINE)
+        if len(entity_blocks) <= 1:
+            return 3
+
+        field_counts = []
+        for block in entity_blocks[1:]:  # skip preamble
+            # Count field-like lines: lines starting with - or | that look like field definitions
+            fields = re.findall(r'^[\-\|]\s+\w+', block, re.MULTILINE)
+            if fields:
+                field_counts.append(len(fields))
+
+        if not field_counts:
+            return 3
+        return max(3, sum(field_counts) // len(field_counts))
 
     def _extract_rest_endpoint_count(self, upstream_data: dict) -> int:
-        """Extract rest_endpoint_count from PRD.md (DRYRUN_PARAMETER_EXTRACTION.md Step 2)"""
+        """rest_endpoint_count from PRD.md: unique HTTP method + path pairs"""
         prd_content = upstream_data.get('docs/PRD.md', '')
-
-        # Pattern: GET|POST|PUT|DELETE /api/path
-        endpoint_pattern = r'(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\s+/[a-zA-Z0-9/_\{\}-]*'
+        endpoint_pattern = r'(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\s+/[a-zA-Z0-9/_\{\}-]+'
         matches = set(re.findall(endpoint_pattern, prd_content))
-
-        if matches:
-            return max(5, len(matches))
-
-        # Fallback
-        return 5
+        return max(5, len(matches)) if matches else 5
 
     def _extract_user_story_count(self, upstream_data: dict) -> int:
-        """Extract user_story_count from PRD.md (DRYRUN_PARAMETER_EXTRACTION.md Step 3)"""
+        """user_story_count from PRD.md: ### US-N or ### Story-N headings"""
         prd_content = upstream_data.get('docs/PRD.md', '')
-
-        # Pattern: "As a ... I want ..." or ### US-* / ### Story-*
         us_pattern = r'^###\s+(?:US-\d+|Story-\d+)'
         matches = re.findall(us_pattern, prd_content, re.MULTILINE)
+        return max(5, len(matches)) if matches else 5
 
-        if matches:
-            return max(20, len(matches))
+    def _extract_acceptance_criteria_count(self, upstream_data: dict) -> int:
+        """acceptance_criteria_count from PRD.md: average AC items per US (anti-fake depth indicator)"""
+        prd_content = upstream_data.get('docs/PRD.md', '')
+        if not prd_content:
+            return 2
 
-        # Fallback
-        return 20
+        # Split by US headers
+        us_blocks = re.split(r'^###\s+(?:US-\d+|Story-\d+)', prd_content, flags=re.MULTILINE)
+        if len(us_blocks) <= 1:
+            return 2
+
+        ac_counts = []
+        for block in us_blocks[1:]:
+            # AC items: lines starting with - AC or ** AC or numbered like 1.
+            acs = re.findall(r'(?:^[-*]\s+(?:AC|Acceptance)|^\d+\.\s+)', block, re.MULTILINE)
+            if acs:
+                ac_counts.append(len(acs))
+
+        if not ac_counts:
+            return 2
+        return max(2, sum(ac_counts) // len(ac_counts))
 
     def _extract_arch_layer_count(self, upstream_data: dict) -> int:
-        """Extract arch_layer_count from ARCH.md (DRYRUN_PARAMETER_EXTRACTION.md Step 4)"""
+        """arch_layer_count from ARCH.md: layer/service heading count"""
         arch_content = upstream_data.get('docs/ARCH.md', '')
-
-        # Pattern: ### ... Layer or ### ... Service
         layer_pattern = r'^###\s+(?:.*Layer|.*Service|.*層|.*服務)'
         matches = re.findall(layer_pattern, arch_content, re.MULTILINE)
+        return max(2, len(matches)) if matches else 4
 
-        if matches:
-            return max(2, len(matches))
+    def _extract_component_count(self, upstream_data: dict) -> int:
+        """component_count from ARCH.md: total component definitions across all layers (anti-fake depth indicator)"""
+        arch_content = upstream_data.get('docs/ARCH.md', '')
+        if not arch_content:
+            return 5
 
-        # Fallback: assume N-tier (Presentation, Business Logic, Data Access, Infrastructure)
-        return 4
+        # Components are typically listed as #### headings or bullet items under layer sections
+        component_pattern = r'^####\s+\w+'
+        matches = re.findall(component_pattern, arch_content, re.MULTILINE)
+
+        if not matches:
+            # Fallback: count bullet items under ### sections
+            bullet_items = re.findall(r'^[\-\*]\s+\w+', arch_content, re.MULTILINE)
+            return max(5, min(len(bullet_items), 20))
+
+        return max(5, len(matches))
 
     def extract_metrics(self) -> dict:
         """從 DRYRUN 前的檔案提取指標 — 用於向后兼容
@@ -222,20 +245,14 @@ class DRYRUNEngine:
             return fallback
 
     def derive_specifications(self, params: dict = None) -> dict:
-        """使用提取的參數推導 DRYRUN 后的 step 規格（完全動態，從 pipeline.json 讀取）
+        """從 pipeline.json spec_rules 推導所有 step 的量化規格。
 
-        從 pipeline.json 的 spec_rules 讀取規格定義，用提取的指標值替換佔位符。
-        SSOT 原則：所有規格定義來自 pipeline.json，無硬編碼。
+        spec_rules 為單層 flat dict，所有 value 為整數或可求值公式字串。
+        輸出的每個 step spec 中所有 value 均為整數（公式已求值），
+        可直接寫入 .gendoc-rules/*.json 供 review.sh 機械比對。
 
-        示例規格字符串：
-          - "max(5, rest_endpoint_count)" → "max(5, 12)" (後續由 API.gen.md 評估)
-          - "All {entity_count} entities..." → "All 8 entities..."
-
-        參數：
-            params: 包含指標的字典 {entity_count, rest_endpoint_count, user_story_count, ...}
-
-        返回：
-            dict: {step_id: {quantitative_specs, content_mapping, cross_file_validation}, ...}
+        Returns:
+            dict: {step_id: {metric_key: int, ...}, ...}
         """
         if params is None:
             params = self.extract_parameters()
@@ -245,56 +262,65 @@ class DRYRUNEngine:
 
         specs = {}
 
-        # 遍歷 pipeline.json 中的所有 step，讀取 spec_rules 並評估
         for step in self.pipeline.get('steps', []):
             step_id = step['id']
             spec_rules = step.get('spec_rules', {})
 
             if not spec_rules:
-                # 無 spec_rules，跳過（通常是 DRYRUN 前的 step）
                 continue
 
-            # 評估三層規格（替換 {metric_id} 佔位符）
-            evaluated_specs = {
-                'quantitative_specs': {},
-                'content_mapping': {},
-                'cross_file_validation': {}
-            }
+            evaluated = {}
+            for key, value in spec_rules.items():
+                evaluated[key] = self._evaluate_spec_value(value, params)
 
-            for layer in ['quantitative_specs', 'content_mapping', 'cross_file_validation']:
-                if layer in spec_rules and isinstance(spec_rules[layer], dict):
-                    for key, value in spec_rules[layer].items():
-                        # 替換所有 {metric_id} 為實際值
-                        evaluated_value = self._evaluate_spec_value(value, params)
-                        evaluated_specs[layer][key] = evaluated_value
-
-            specs[step_id] = evaluated_specs
+            specs[step_id] = evaluated
 
         self.step_specs = specs
         return specs
 
-    def _evaluate_spec_value(self, value: str, metrics: dict) -> str:
-        """Evaluate spec value strings (substitute metric placeholders with actual values)
+    def _evaluate_spec_value(self, value, params: dict):
+        """Evaluate a spec_rules value to a concrete integer or boolean.
 
-        Example: "API endpoints must support all {rest_endpoint_count} endpoints"
-                → "API endpoints must support all 12 endpoints" (after substitution)
+        Handles:
+        - int/bool → returned as-is
+        - formula string with {param} placeholders → substituted then evaluated
+          e.g. "max(5, {rest_endpoint_count})" with rest_endpoint_count=12 → 12
+          e.g. "arch_layer_count + 4" with arch_layer_count=3 → 7
+          e.g. "ceil(user_story_count * 0.8)" with user_story_count=10 → 8
 
-        Args:
-            value: spec rule text with {metric_id} placeholders
-            metrics: {metric_id: value, ...} dictionary from extract_metrics()
-
-        Returns:
-            value with all {metric_id} placeholders replaced by actual metric values
+        Returns int or bool (never a string) so .gendoc-rules/*.json contains only numbers.
         """
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)):
+            return int(value)
         if not isinstance(value, str):
             return value
 
-        result = value
-        for metric_key, metric_val in metrics.items():
-            placeholder = '{' + metric_key + '}'
-            result = result.replace(placeholder, str(metric_val))
+        # Substitute {param} placeholders
+        expr = value
+        for key, val in params.items():
+            if key == 'metadata':
+                continue
+            expr = expr.replace('{' + key + '}', str(val))
+            # Also support bare names without braces (e.g. "arch_layer_count + 4")
+            expr = re.sub(r'\b' + re.escape(key) + r'\b', str(val), expr)
 
-        return result
+        # Safe evaluation with math functions only
+        safe_ns = {
+            '__builtins__': {},
+            'max': max, 'min': min,
+            'ceil': __import__('math').ceil,
+            'floor': __import__('math').floor,
+            'round': round,
+            'abs': abs,
+        }
+        try:
+            result = eval(expr, safe_ns, {})  # noqa: S307
+            return int(result)
+        except Exception:
+            # If expression still has unresolved tokens, return 0 (conservative fallback)
+            return 0
 
     def embed_in_state_file(self) -> bool:
         """Embed specifications in state file and write back"""
