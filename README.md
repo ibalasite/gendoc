@@ -44,8 +44,8 @@ Key capabilities:
 | `gendoc-auto` | `/gendoc-auto` | Full pipeline entry point: IDEA + BRD generation, then hands off to gendoc-flow |
 | `gendoc-flow` | `/gendoc-flow` | Template-driven orchestrator (PRD→HTML full pipeline) with reliable breakpoint resume, P-14/P-15 |
 | `gendoc-config` | `/gendoc-config` | Interactive two-level menu: configure client_type, has_admin_backend, review strategy, restart step; supports multi-edit loop with mandatory-field check (Step 4c) before save |
-| `gendoc-gen-dryrun` | `/gendoc-gen-dryrun` | Generate quantitative baseline MANIFEST.md + .gendoc-rules/*.json from EDD/PRD/ARCH — lock numbers that review loops enforce (D-DRYRUN) |
-| `gendoc-align-check` | `/gendoc-align-check` | Cross-document alignment scan (ALIGN) |
+| `gendoc-gen-dryrun` | `/gendoc dryrun` or via `gendoc-flow` | Generate quantitative baseline MANIFEST.md + .gendoc-rules/*.json from EDD/PRD/ARCH — lock numbers that review loops enforce (D-DRYRUN) |
+| `gendoc-align-check` | `/gendoc-align-check` | Cross-document alignment scan (ALIGN) — use `gendoc-align-verify` to confirm fix completeness |
 | `gendoc-align-fix` | `/gendoc-align-fix` | Auto-fix alignment issues |
 | `gendoc-gen-html` | `/gendoc-gen-html` | Generate HTML documentation site v3.0 (HTML) — converts all docs/*.md + docs/diagrams/*.md to HTML pages; 3-section sidebar (文件 / Server UML / Frontend UML) |
 | `gendoc-gen-contracts` | `/gendoc-gen-contracts` | Generate machine-readable specs: OpenAPI 3.1, JSON Schema, Pact contracts, IaC (Helm/docker-compose), Seed Code skeleton (CONTRACTS) |
@@ -55,7 +55,7 @@ Key capabilities:
 | `gendoc-gen-client-bdd` | `/gendoc-gen-client-bdd` | Client-facing BDD feature files (web/game projects) |
 | `gendoc-repair` | `/gendoc-repair` | DRYRUN-aware backfill — brings any incomplete project to the same state as `gendoc-auto` + `gendoc-flow` would produce. Categorizes gaps into DRYRUN 前的 step / DRYRUN Gate / DRYRUN 后的 step; detects DRYRUN state (none / defaults / ok); validates completed docs against `.gendoc-rules/*.json` quality gates; two-phase repair mode: complete DRYRUN 前的 step → trigger DRYRUN → continue DRYRUN 后的 step |
 | `gendoc-rebuild-templates` | `/gendoc-rebuild-templates` | Rebuild all document templates from scratch |
-| `gendoc-update` | `/gendoc-update` | Manual skill upgrade |
+| `gendoc-upgrade` | `/gendoc-upgrade` | Manual skill upgrade |
 | `reviewtemplate` | `/reviewtemplate <TYPE>` | Review & iteratively fix a template three-file set (TYPE.md + .gen.md + .review.md) |
 
 ### Supported Document Types
@@ -129,7 +129,7 @@ git clone https://github.com/ibalasite/gendoc.git "$env:USERPROFILE\.claude\skil
 /gendoc-gen-html
 
 # Manual upgrade
-/gendoc-update
+/gendoc-upgrade
 ```
 
 ---
@@ -187,80 +187,70 @@ References: Robert C. Martin *Clean Architecture* (2017) · *Agile Software Deve
 
 ## Pipeline Architecture — Single Source of Truth (SSOT)
 
-The `gendoc-gen-dryrun` step enforces a complete **Single Source of Truth (SSOT)** architecture for all quantitative metrics and document specification rules. This ensures that:
+The DRYRUN step enforces a **Single Source of Truth (SSOT)** architecture for all quantitative metrics and document specification rules. It reads upstream docs (EDD/PRD/ARCH) to derive a quantitative baseline, writes `MANIFEST.md` + `.gendoc-rules/*.json`, and provides the quality gates that all downstream review loops enforce.
 
-1. **Adding a new DRYRUN 前的 step** (e.g., REVIEW.md before DRYRUN) automatically contributes its metrics — no code changes needed
-2. **Adding a new DRYRUN 后的 step** (e.g., PERFORMANCE after SCHEMA) automatically generates complete specification rules — no code changes needed
-3. All 20 quantitative indicators and 34 step specifications are defined in **one authoritative location**: `templates/pipeline.json`
+The pipeline has two phases separated by the DRYRUN gate:
+
+```
+DRYRUN 前的 step（內容層）                Gate          DRYRUN 后的 step（技術文件層）
+IDEA → BRD → PRD → EDD → ARCH    →    DRYRUN    →    API → SCHEMA → … → HTML
+                                           ↑
+                              reads EDD/PRD/ARCH, derives
+                              quantitative baseline, writes
+                              .gendoc-rules/*.json
+```
 
 ### pipeline.json Structure
 
+`templates/pipeline.json` is the single definition file for every pipeline step. Its actual structure is:
+
 ```json
 {
-  "metrics": [
-    {
-      "id": "persona_count",
-      "source_step": "IDEA",
-      "grep_pattern": "^## Persona:",
-      "fallback": 1,
-      "description": "Number of personas defined in IDEA"
-    },
-    // ... 19 more metrics
-  ],
+  "version": "1.0",
+  "description": "gendoc pipeline step definitions",
   "steps": [
     {
       "id": "API",
       "spec_rules": {
-        "quantitative_specs": {
-          "min_endpoint_count": "max(5, rest_endpoint_count)"
-        },
-        "content_mapping": {
-          "entity_coverage": "All {entity_count} entities from EDD must appear in API request/response models"
-        },
-        "cross_file_validation": {
-          "entity_parity": "API endpoints >= EDD entity definitions"
-        }
+        "min_endpoint_count": "max(5, {rest_endpoint_count})",
+        "min_h2_sections": 3,
+        "required_sections": ["Overview", "Endpoints", "Error Codes"]
       }
-    },
-    // ... 33 more steps
+    }
   ]
 }
 ```
 
+Each step entry has a flat `spec_rules` object — key/value pairs where values may reference DRYRUN-derived parameters (e.g. `{rest_endpoint_count}`). There is no `metrics[]` array and no nested `quantitative_specs` / `content_mapping` / `cross_file_validation` sub-objects.
+
 ### How It Works
 
-**`dryrun_core.py` — Dynamic Metric Extraction & Spec Derivation**
+**`dryrun_core.py` — Parameter Extraction**
 
-Instead of hardcoding 20 metrics and 34 step specifications:
+`dryrun_core.py` reads EDD, PRD, and ARCH, then calls `extract_parameters()` which extracts 7 quantitative parameters via dedicated private methods:
 
 ```python
-# OLD (hardcoded, violates SSOT):
-def extract_metrics(self):
-    self.persona_count = self._count_personas()  # ← hardcoded
-    self.moscow_p0_count = self._count_moscow()  # ← hardcoded
-    # ... repeat 18 times
-
-# NEW (dynamic from pipeline.json):
-def extract_metrics(self):
-    for metric_def in self.pipeline['metrics']:
-        grep_pattern = metric_def['grep_pattern']
-        source_step = metric_def['source_step']
-        source_file = self.docs_dir / f"{source_step}.md"
-        metrics[metric_id] = self._grep_count(source_file, grep_pattern)
+def extract_parameters(self):
+    return {
+        "rest_endpoint_count":  self._extract_rest_endpoint_count(),
+        "entity_count":         self._extract_entity_count(),
+        "user_story_count":     self._extract_user_story_count(),
+        "module_count":         self._extract_module_count(),
+        "db_table_count":       self._extract_db_table_count(),
+        "actor_count":          self._extract_actor_count(),
+        "bc_count":             self._extract_bc_count(),
+    }
 ```
 
-**Result**: Code is 44% shorter, 100% data-driven, and adding new metrics/steps requires editing only `pipeline.json` + adding the three-file template set (`.md`, `.gen.md`, `.review.md`).
+These parameters are substituted into each step's `spec_rules` values and written to `.gendoc-rules/<step-id>-rules.json`. Downstream review loops read those files as quality gates.
+
+**Adding a new step**: edit `pipeline.json` + add the three-file template set (`.md`, `.gen.md`, `.review.md`) — no code changes needed.
 
 ### Validation Layers
 
-The DRYRUN output (`MANIFEST.md` + `.gendoc-rules/*.json`) is validated against four layers:
+The DRYRUN output (`MANIFEST.md` + `.gendoc-rules/*.json`) is validated by `tools/bin/review.sh`, which implements 20 `measure_*` functions covering structural checks (placeholder count, section count, endpoint count, required sections, etc.) and cross-document consistency.
 
-1. **Quantitative** — 10 structural checks (placeholder count, section count, endpoint count, etc.)
-2. **Content Mapping** — 4 cross-document reference checks (entity coverage, user story traceability, etc.)
-3. **Cross-File Validation** — 4 inter-document consistency checks (entity parity, relationship mapping, etc.)
-4. **Integration** — AI findings + Shell findings merged and deduplicated
-
-See `tools/bin/review.sh` for all 18 built-in rules. Each rule includes a `suggested_fix` hint for automated or manual remediation.
+See `tools/bin/review.sh` for all 20 built-in quantitative rules. Each rule includes a `suggested_fix` hint for automated or manual remediation.
 
 ---
 
@@ -458,7 +448,7 @@ gendoc/
 │   ├── BRD.md / BRD.gen.md
 │   └── ...
 └── docs/                          # gendoc's own project documentation
-    ├── PRD.md                     # Product Requirements Document (v3.2)
+    ├── PRD.md                     # Product Requirements Document (v3.6)
     ├── gendoc-redesign-decisions.md  # Architecture design decisions log
     └── pages/                     # Generated HTML site (GitHub Pages)
 ```
