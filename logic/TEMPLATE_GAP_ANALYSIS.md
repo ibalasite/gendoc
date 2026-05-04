@@ -520,9 +520,9 @@ user:session:{uid}   → String（儲存 session_id，用於踢線）
 | G5-A | PDD.gen.md | 替換 §13.1（221–232 行） | 改為 Component State Spec Table | [x] done |
 | G5-B | PDD.gen.md | §13.1 之後 | 新增 §13.2 Mermaid stateDiagram | [x] done |
 | G5-C | VDD.gen.md | §8 開頭（~503 行後） | 新增 §8.1 Animation Spec Table | [x] done |
-| G6-A | PDD.gen.md | §7 末尾（~175 行後） | 新增 §7.1 Breakpoint 元件行為矩陣 | [ ] |
-| G6-B | PDD.gen.md | §7.1 之後 | 新增 §7.2 Grid 系統規格表 | [ ] |
-| G6-C | PDD.gen.md | §6.5 前（~183 行前） | 加入 Micro-interaction 最低覆蓋要求 | [ ] |
+| G6-A | PDD.gen.md | §7 末尾（~175 行後） | 新增 §7.1 Breakpoint 元件行為矩陣 | [x] done |
+| G6-B | PDD.gen.md | §7.1 之後 | 新增 §7.2 Grid 系統規格表 | [x] done |
+| G6-C | PDD.gen.md | §6.5 前（~183 行前） | 加入 Micro-interaction 最低覆蓋要求 | [x] done |
 
 ---
 
