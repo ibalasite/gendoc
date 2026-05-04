@@ -1,248 +1,167 @@
 #!/bin/bash
-################################################################################
-# review_integration.sh
-# R4-V1: Integrates AI + Shell findings into unified review
-# Called by gendoc-flow Phase D-2 (Gate Check)
-################################################################################
+#
+# review_integration.sh — Per-step mechanical gate check for gendoc-flow Phase D-2
+#
+# 讀取 .gendoc-rules/{STEP_ID}-rules.json → 量測 TARGET_FILE → 回傳 JSON findings array
+#
+# 使用方式（由 gendoc-flow Gate Check 呼叫）：
+#   review_integration.sh STEP_ID TARGET_FILE [STATE_FILE] [AI_FINDINGS] [OUTPUT_FORMAT]
+#
+# 注意：STATE_FILE / AI_FINDINGS 參數保留簽名相容性，但已不使用。
+#   STATE_FILE 已由 .gendoc-rules/*.json 取代（DRYRUN 寫出）
+#   AI_FINDINGS 由 gendoc-flow 自行合併，不在此處理
+#
+# 回傳：JSON array of failing metric findings（CRITICAL 嚴重度）
+#       若無違規或無 rules 檔 → 回傳 []
 
 set -u
 
 STEP_ID="${1:-}"
 TARGET_FILE="${2:-}"
-STATE_FILE="${3:-}"
-AI_FINDINGS="${4:-[]}"
-OUTPUT_FORMAT="${5:-json}"
+# STATE_FILE="${3:-}"   # 已廢棄，specs 來自 .gendoc-rules/
+# AI_FINDINGS="${4:-}"  # 不處理，由 gendoc-flow 合併
+# OUTPUT_FORMAT="${5:-json}"  # 保留簽名相容性
 
-# Resolve review.sh location
-REVIEW_SH="${HOME}/.claude/skills/gendoc/tools/bin/review.sh"
-
-if [[ -z "$STEP_ID" ]] || [[ -z "$TARGET_FILE" ]] || [[ -z "$STATE_FILE" ]]; then
-  echo "Error: Missing required parameters (step_id, target_file, state_file)" >&2
-  echo "[]"
-  exit 1
+if [[ -z "$STEP_ID" ]] || [[ -z "$TARGET_FILE" ]]; then
+  echo "[]"; exit 0
 fi
 
 if [[ ! -f "$TARGET_FILE" ]]; then
-  echo "Error: Target file not found: $TARGET_FILE" >&2
-  echo "[]"
-  exit 1
+  echo "[]"; exit 0
 fi
 
-if [[ ! -f "$STATE_FILE" ]]; then
-  echo "Error: State file not found: $STATE_FILE" >&2
-  echo "[]"
-  exit 1
+# 從 TARGET_FILE 推導 project_dir（TARGET_FILE 在 docs/ 下）
+TARGET_DIR=$(dirname "$TARGET_FILE")
+PROJECT_DIR=$(dirname "$TARGET_DIR")
+RULES_DIR="$PROJECT_DIR/.gendoc-rules"
+
+# 找 rules 檔（大小寫均可）
+RULES_FILE=""
+for candidate in \
+  "$RULES_DIR/$(echo "$STEP_ID" | tr '[:upper:]' '[:lower:]')-rules.json" \
+  "$RULES_DIR/$(echo "$STEP_ID" | tr '[:lower:]' '[:upper:]')-rules.json"; do
+  [[ -f "$candidate" ]] && { RULES_FILE="$candidate"; break; }
+done
+
+if [[ -z "$RULES_FILE" ]]; then
+  # DRYRUN 尚未執行，無 rules 檔 → gate 跳過
+  echo "[]"; exit 0
 fi
 
-################################################################################
-# STEP 1: Run shell-based checks (review.sh) with all 3 modes
-#
-# review.sh validates documents against DRYRUN spec_rules (three independent checks):
-# 1. quantitative: 10 structural completeness checks (placeholder count, section count, etc.)
-# 2. content_mapping: 4 cross-document traceability checks (entity coverage, US traceability, etc.)
-# 3. cross_file: 4 multi-document parity checks (entity parity, moscow priority, etc.)
-#
-# Each check run produces separate JSON with findings[]: {severity, check, message, suggested_fix}
-# Then merged into unified result (Step 3).
-################################################################################
+# 量測所有指標，回傳 JSON findings array
+python3 - "$STEP_ID" "$TARGET_FILE" "$RULES_FILE" <<'PYEOF'
+import sys, json, re
 
-SHELL_FINDINGS_QUANTITATIVE="{}"
-SHELL_FINDINGS_CONTENT="{}"
-SHELL_FINDINGS_CROSS="{}"
-
-if [[ -x "$REVIEW_SH" ]]; then
-  # Run quantitative checks
-  SHELL_FINDINGS_QUANTITATIVE=$("$REVIEW_SH" \
-    --step "$STEP_ID" \
-    --specs-from-state "$STATE_FILE" \
-    --target-file "$TARGET_FILE" \
-    --check quantitative \
-    --output-format json 2>/dev/null || echo "{}")
-
-  # Run content_mapping checks
-  SHELL_FINDINGS_CONTENT=$("$REVIEW_SH" \
-    --step "$STEP_ID" \
-    --specs-from-state "$STATE_FILE" \
-    --target-file "$TARGET_FILE" \
-    --check content_mapping \
-    --output-format json 2>/dev/null || echo "{}")
-
-  # Run cross_file checks
-  SHELL_FINDINGS_CROSS=$("$REVIEW_SH" \
-    --step "$STEP_ID" \
-    --specs-from-state "$STATE_FILE" \
-    --target-file "$TARGET_FILE" \
-    --check cross_file \
-    --output-format json 2>/dev/null || echo "{}")
-else
-  echo "Warning: review.sh not found at $REVIEW_SH" >&2
-fi
-
-################################################################################
-# STEP 2: Extract severity counts from shell findings
-################################################################################
-
-extract_summary() {
-  local findings_json="$1"
-  python3 -c "
-import sys, json
-try:
-  d = json.loads('''$findings_json''')
-  summary = d.get('summary', {})
-  print(f\"{summary.get('critical', 0)},{summary.get('high', 0)},{summary.get('medium', 0)}\")
-except:
-  print('0,0,0')
-" 2>/dev/null || echo "0,0,0"
-}
-
-read -r QUANT_CRIT QUANT_HIGH QUANT_MED <<< "$(extract_summary "$SHELL_FINDINGS_QUANTITATIVE")"
-read -r CONTENT_CRIT CONTENT_HIGH CONTENT_MED <<< "$(extract_summary "$SHELL_FINDINGS_CONTENT")"
-read -r CROSS_CRIT CROSS_HIGH CROSS_MED <<< "$(extract_summary "$SHELL_FINDINGS_CROSS")"
-
-TOTAL_CRITICAL=$((${QUANT_CRIT:-0} + ${CONTENT_CRIT:-0} + ${CROSS_CRIT:-0}))
-TOTAL_HIGH=$((${QUANT_HIGH:-0} + ${CONTENT_HIGH:-0} + ${CROSS_HIGH:-0}))
-TOTAL_MEDIUM=$((${QUANT_MED:-0} + ${CONTENT_MED:-0} + ${CROSS_MED:-0}))
-
-################################################################################
-# STEP 3: Merge AI findings + Shell findings
-#
-# DRYRUN 后的 step Document Review is TWO-LAYER:
-# - Layer 1 (AI): Semantic review (clarity, completeness, alignment with intent)
-# - Layer 2 (Shell): Quantitative/structural review via review.sh (DRYRUN gate validation)
-#
-# Merger strategy:
-# 1. Parse AI findings (from Claude review agent)
-# 2. Extract all shell findings from 3 modes (quantitative, content_mapping, cross_file)
-# 3. Normalize to unified format: {severity, check, message, suggested_fix, source}
-# 4. Deduplicate by message (prevent duplicate findings across modes)
-# 5. Sort by severity (CRITICAL → HIGH → MEDIUM)
-#
-# Result: Single deduplicated list ready for AI Fix agent
-################################################################################
-
-merge_findings() {
-  local ai_findings="$1"
-  local shell_findings_q="$2"
-  local shell_findings_c="$3"
-  local shell_findings_x="$4"
-
-  python3 << 'PYTHON'
-import sys, json
-
-ai_findings = []
-shell_findings = []
+step_id  = sys.argv[1]
+doc_file = sys.argv[2]
+rules_file = sys.argv[3]
 
 try:
-  # Parse AI findings
-  ai_findings = json.loads('''AI_FINDINGS_PLACEHOLDER''')
-  if not isinstance(ai_findings, list):
-    ai_findings = []
-except:
-  pass
+    rules = json.load(open(rules_file))
+except Exception:
+    print("[]"); sys.exit(0)
 
 try:
-  # Parse shell findings and extract individual findings
-  all_findings = []
+    content = open(doc_file).read()
+    lines   = content.splitlines()
+except Exception:
+    print("[]"); sys.exit(0)
 
-  for findings_json in ['''SHELL_FINDINGS_Q_PLACEHOLDER''',
-                        '''SHELL_FINDINGS_C_PLACEHOLDER''',
-                        '''SHELL_FINDINGS_X_PLACEHOLDER''']:
-    try:
-      data = json.loads(findings_json)
-      findings = data.get('findings', [])
-      if isinstance(findings, list):
-        all_findings.extend(findings)
-    except:
-      pass
+SKIP_KEYS = {'source', 'timestamp', 'step_id'}
 
-  # Convert shell findings to unified format
-  for idx, finding in enumerate(all_findings):
-    if isinstance(finding, dict):
-      shell_findings.append({
-        "id": f"SHELL-{idx+1:03d}",
-        "source": "review.sh",
-        "severity": finding.get('severity', 'medium').upper(),
-        "type": "mechanical",
-        "check": finding.get('check', ''),
-        "message": finding.get('message', ''),
-        "suggested_fix": finding.get('suggested_fix', '')
-      })
-except Exception as e:
-  pass
+def measure(key: str, content: str, lines: list) -> int:
+    if key == 'min_h2_sections':
+        return sum(1 for l in lines if l.startswith('## '))
+    if key == 'min_endpoint_count':
+        return sum(1 for l in lines if re.match(r'^#### (GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS) /', l))
+    if key == 'min_scenario_count':
+        return sum(1 for l in lines if l.startswith('Scenario:'))
+    if key in ('min_component_count', 'min_animation_defs', 'min_resource_entries'):
+        return sum(1 for l in lines if l.startswith('### '))
+    if key == 'max_placeholder_count':
+        return content.count('{{')
+    if key == 'min_bgm_entries':
+        return len(re.findall(r'(?i)bgm|background.?music', content))
+    if key == 'min_sfx_entries':
+        return len(re.findall(r'(?i)sfx|sound.?effect', content))
+    if key == 'min_rbac_roles':
+        return sum(1 for l in lines if re.match(r'(?i)^###.*[Rr]ole|^-\s.*[Rr]ole', l))
+    if key == 'min_table_count':
+        return sum(1 for l in lines if re.match(r'^\|[-| :]+\|', l))
+    if key == 'min_diagram_count':
+        return content.count('```mermaid') + len(re.findall(r'!\[.*?\]\(', content))
+    if key == 'min_class_count':
+        return sum(1 for l in lines if re.match(r'^class [A-Z]|^\s+class [A-Z]', l))
+    if key == 'min_row_count':
+        count, prev_sep = 0, False
+        for l in lines:
+            if re.match(r'^\|[-| :]+\|', l): prev_sep = True; continue
+            if l.startswith('|') and not prev_sep: count += 1
+            else: prev_sep = False
+        return count
+    if key == 'min_fields_per_endpoint':
+        blocks = re.split(r'^####\s+(?:GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\s+/', content, flags=re.MULTILINE)
+        if len(blocks) <= 1: return 0
+        counts = []
+        for block in blocks[1:]:
+            body = block.split('\n####')[0]
+            counts.append(len(re.findall(r'^[\-\*]\s+\w+|^\|\s*\w+|^\*\*\w+|\|\s*`\w+`', body, re.MULTILINE)))
+        return min(counts) if counts else 0
+    if key == 'min_columns_per_table':
+        col_counts = []
+        for i, l in enumerate(lines):
+            if re.match(r'^\|[-| :]+\|', l) and i > 0:
+                cols = len([c for c in lines[i-1].split('|') if c.strip()])
+                if cols > 0: col_counts.append(cols)
+        return min(col_counts) if col_counts else 0
+    if key == 'min_steps_per_scenario':
+        blocks = re.split(r'^Scenario:', content, flags=re.MULTILINE)
+        if len(blocks) <= 1: return 0
+        counts = [len(re.findall(r'^\s*(Given|When|Then|And|But)\s', b, re.MULTILINE)) for b in blocks[1:]]
+        return min(counts) if counts else 0
+    if key == 'min_lines_per_section':
+        blocks = re.split(r'^## .+', content, flags=re.MULTILINE)
+        if len(blocks) <= 1: return 0
+        counts = [len([l for l in b.splitlines() if l.strip() and not l.startswith('#')]) for b in blocks[1:]]
+        return min(counts) if counts else 0
+    if key == 'min_columns_per_row':
+        col_counts = []
+        for l in lines:
+            if l.startswith('|') and not re.match(r'^\|[-| :]+\|', l):
+                cols = len([c for c in l.split('|') if c.strip()])
+                if cols > 0: col_counts.append(cols)
+        return min(col_counts) if col_counts else 0
+    return -1  # 未知指標
 
-# Merge findings (AI first, then shell)
-merged = ai_findings + shell_findings
+findings = []
+idx = 0
 
-# Remove duplicates based on message
-seen = set()
-unique = []
-for f in merged:
-  msg = f.get('message', '')
-  if msg not in seen:
-    seen.add(msg)
-    unique.append(f)
+for key, expected in rules.items():
+    if key in SKIP_KEYS:
+        continue
+    if not isinstance(expected, (int, float)):
+        continue
+    expected = int(expected)
 
-print(json.dumps(unique, indent=2, ensure_ascii=False))
-PYTHON
-}
+    actual = measure(key, content, lines)
+    if actual == -1:
+        continue  # 未知指標，跳過
 
-# Perform substitution and merge
-MERGED_FINDINGS=$(merge_findings "$AI_FINDINGS" "$SHELL_FINDINGS_QUANTITATIVE" "$SHELL_FINDINGS_CONTENT" "$SHELL_FINDINGS_CROSS")
-MERGED_FINDINGS="${MERGED_FINDINGS//'AI_FINDINGS_PLACEHOLDER'/$AI_FINDINGS}"
-MERGED_FINDINGS="${MERGED_FINDINGS//'SHELL_FINDINGS_Q_PLACEHOLDER'/$SHELL_FINDINGS_QUANTITATIVE}"
-MERGED_FINDINGS="${MERGED_FINDINGS//'SHELL_FINDINGS_C_PLACEHOLDER'/$SHELL_FINDINGS_CONTENT}"
-MERGED_FINDINGS="${MERGED_FINDINGS//'SHELL_FINDINGS_X_PLACEHOLDER'/$SHELL_FINDINGS_CROSS}"
+    is_max = key.startswith('max_')
+    passed = (actual <= expected) if is_max else (actual >= expected)
 
-################################################################################
-# STEP 4: Output unified result
-################################################################################
+    if not passed:
+        idx += 1
+        op = f"{actual} > {expected}" if is_max else f"{actual} < {expected}"
+        findings.append({
+            "id": f"MECH-{idx:03d}",
+            "severity": "CRITICAL",
+            "source": "review.sh",
+            "type": "mechanical",
+            "check": key,
+            "message": f"[{step_id}] {key}: {op}",
+            "suggested_fix": f"{'Reduce' if is_max else 'Increase'} {key} (currently {actual}, threshold {expected})"
+        })
 
-if [[ "$OUTPUT_FORMAT" == "json" ]]; then
-  cat <<EOF
-{
-  "step_id": "$STEP_ID",
-  "target_file": "$TARGET_FILE",
-  "source": "review_integration",
-  "review_layers": {
-    "quantitative": {
-      "critical": $QUANT_CRIT,
-      "high": $QUANT_HIGH,
-      "medium": $QUANT_MED
-    },
-    "content_mapping": {
-      "critical": $CONTENT_CRIT,
-      "high": $CONTENT_HIGH,
-      "medium": $CONTENT_MED
-    },
-    "cross_file": {
-      "critical": $CROSS_CRIT,
-      "high": $CROSS_HIGH,
-      "medium": $CROSS_MED
-    }
-  },
-  "summary": {
-    "critical": $TOTAL_CRITICAL,
-    "high": $TOTAL_HIGH,
-    "medium": $TOTAL_MEDIUM,
-    "ai_findings_count": $(echo "$AI_FINDINGS" | python3 -c "import sys, json; d=json.load(sys.stdin); print(len(d) if isinstance(d, list) else 0)" 2>/dev/null || echo "0"),
-    "shell_findings_count": $(echo "$SHELL_FINDINGS_QUANTITATIVE" | python3 -c "import sys, json; d=json.load(sys.stdin); print(len(d.get('findings', [])) if isinstance(d, dict) else 0)" 2>/dev/null || echo "0")
-  },
-  "findings": $MERGED_FINDINGS
-}
-EOF
-else
-  echo "Review Results: $STEP_ID (Integrated AI + Shell)"
-  echo "File: $TARGET_FILE"
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo "Summary: Critical=$TOTAL_CRITICAL, High=$TOTAL_HIGH, Medium=$TOTAL_MEDIUM"
-  echo ""
-  echo "$MERGED_FINDINGS" | python3 -m json.tool 2>/dev/null || echo "$MERGED_FINDINGS"
-fi
-
-################################################################################
-# STEP 5: Exit with appropriate code
-################################################################################
-
-[[ $TOTAL_CRITICAL -gt 0 ]] && exit 2
-[[ $TOTAL_HIGH -gt 0 ]] && exit 1
-exit 0
+print(json.dumps(findings, ensure_ascii=False, indent=2))
+PYEOF
