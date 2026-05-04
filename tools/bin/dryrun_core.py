@@ -454,7 +454,7 @@ class DRYRUNEngine:
         return True
 
     def generate_rules_json(self) -> bool:
-        """生成 .gendoc-rules/*.json 檔案（DRYRUN_CORE_IMPLEMENTATION_PLAN.md 的 STEP 4）
+        """生成 .gendoc-rules/*.json 檔案（設計依據：docs/PRD.md §7.7 DRYRUN 執行流程 Step 4）
 
         對於每個 DRYRUN 后的 step，輸出包含其預期規格的 JSON 檔案。
         格式：.gendoc-rules/{step_id}-rules.json
