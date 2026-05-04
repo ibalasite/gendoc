@@ -292,6 +292,43 @@ src/
 
 以上命名規範同時填入 §2.2 表格各對應欄位（SCENE_NAMING / COMPONENT_NAMING / TEXTURE_NAMING / AUDIO_NAMING / ANIM_NAMING / PREFAB_NAMING）
 
+### Phaser.js 路由（client_type == "phaser"）
+
+```
+src/
+  main.ts             ← Phaser.Game 實例建立（new Phaser.Game(config)）
+  config.ts           ← GameConfig：type/width/height/physics/plugins/scene 清單
+  scenes/             ← 每個 Scene 一個檔案
+    BootScene.ts      ← 僅載入 loading bar 資源（< 5KB），不建 Game Object
+    PreloadScene.ts   ← 所有共用資源預載入，顯示進度條
+    MainMenuScene.ts  ← （依 EDD 功能模組推斷，每個功能對應一個 Scene）
+    GameScene.ts
+    UIScene.ts        ← HUD，以 scene.launch() 疊加在 GameScene 上
+  objects/            ← 繼承 Phaser.GameObjects.* 的 Prefab 類別
+  systems/            ← 可重用遊戲系統（ScoreSystem / InventorySystem）
+  plugins/            ← 自定義 Phaser Plugin（若有）
+  constants/
+    SceneKeys.ts      ← 所有 Scene 名稱常數（禁止在程式中使用字串字面量）
+    EventKeys.ts      ← 所有 EventEmitter 事件名稱常數
+    PhysicsCategories.ts ← 碰撞 Bitmask（PLAYER=0x0001, ENEMY=0x0002...）
+  utils/              ← 純工具函式（不 import Phaser 實例）
+  types/              ← TypeScript 介面與型別定義
+```
+
+**命名規範**：
+- Scene 檔：`PascalCaseScene.ts`（例：`GameScene.ts`）
+- Object 類別：`PascalCase.ts`（前綴對應類型：`EnemyBase.ts` / `BulletPool.ts`）
+- System 類別：`PascalCaseSystem.ts`
+- 常數：`UPPER_SNAKE_CASE`（例：`SCENE_KEYS.GAME`）
+
+**依賴方向**（必須遵守）：
+- `scenes/` → `objects/` + `systems/`
+- `systems/` 不引用 `scenes/`
+- `utils/` 無依賴（純函式）
+- `constants/` 無依賴
+
+以上命名規範同時填入 §2.2 表格各對應欄位（SCENE_NAMING / COMPONENT_NAMING / TEXTURE_NAMING / AUDIO_NAMING / ANIM_NAMING / PREFAB_NAMING）
+
 ---
 
 ## Step 4：§3 場景 / 頁面 / 視圖結構生成規則
