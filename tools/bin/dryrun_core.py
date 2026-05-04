@@ -222,16 +222,20 @@ class DRYRUNEngine:
             return fallback
 
     def derive_specifications(self, params: dict = None) -> dict:
-        """使用提取的參數推導 DRYRUN 后的 step 規格（DRYRUN_SPEC_FORMULAS.md 的 STEP 2）
+        """使用提取的參數推導 DRYRUN 后的 step 規格（完全動態，從 pipeline.json 讀取）
 
-        使用參數化公式為每個 DRYRUN 后的 step 推導預期規格。
-        示例：API step 期望 min_endpoint_count = max(5, rest_endpoint_count)
+        從 pipeline.json 的 spec_rules 讀取規格定義，用提取的指標值替換佔位符。
+        SSOT 原則：所有規格定義來自 pipeline.json，無硬編碼。
+
+        示例規格字符串：
+          - "max(5, rest_endpoint_count)" → "max(5, 12)" (後續由 API.gen.md 評估)
+          - "All {entity_count} entities..." → "All 8 entities..."
 
         參數：
-            params: 包含 entity_count、rest_endpoint_count、user_story_count、arch_layer_count 的字典
+            params: 包含指標的字典 {entity_count, rest_endpoint_count, user_story_count, ...}
 
         返回：
-            dict: {step_id: {min_count, required_sections, optional_checks}, ...}
+            dict: {step_id: {quantitative_specs, content_mapping, cross_file_validation}, ...}
         """
         if params is None:
             params = self.extract_parameters()
@@ -239,79 +243,32 @@ class DRYRUNEngine:
         if not self.pipeline:
             self._load_pipeline()
 
-        m = params
         specs = {}
 
-        # 應用 DRYRUN 后的 step 規格公式（來自 DRYRUN_SPEC_FORMULAS.md）
-        phase_b_formulas = {
-            'API': {
-                'min_endpoint_count': max(5, m['rest_endpoint_count']),
-                'min_h2_sections': math.ceil(m['rest_endpoint_count'] / 3) + 3,
-                'entity_coverage': m['entity_count']
-            },
-            'SCHEMA': {
-                'min_table_count': max(3, m['entity_count']),
-                'min_h2_sections': m['entity_count'] + 5
-            },
-            'FRONTEND': {
-                'min_h2_sections': m['user_story_count'] + m['arch_layer_count'] + 3
-            },
-            'test-plan': {
-                'min_h2_sections': m['arch_layer_count'] + math.ceil(m['user_story_count'] / 4) + 3,
-                'min_test_cases': m['user_story_count'] * 3
-            },
-            'BDD-server': {
-                'min_scenario_count': math.ceil(m['user_story_count'] * 0.8),
-                'min_step_definitions': math.ceil(m['rest_endpoint_count'] * 0.6)
-            },
-            'BDD-client': {
-                'min_scenario_count': math.ceil(m['user_story_count'] * 0.7),
-                'min_step_definitions': math.ceil(m['user_story_count'] * 0.5)
-            },
-            'RTM': {
-                'min_h2_sections': 3,
-                'min_traceability_entries': m['user_story_count']
-            },
-            'runbook': {
-                'min_h2_sections': m['arch_layer_count'] + 5
-            },
-            'LOCAL_DEPLOY': {
-                'min_h2_sections': 12
-            },
-            'DEVELOPER_GUIDE': {
-                'min_h2_sections': 5
-            },
-            'CICD': {
-                'min_h2_sections': 8
-            },
-            'UML': {
-                'min_diagram_count': 9,
-                'class_coverage': m['entity_count']
-            },
-            'CONTRACTS': {
-                'min_h2_sections': 4,
-                'endpoint_coverage': m['rest_endpoint_count']
-            },
-            'MOCK': {
-                'min_endpoints': m['rest_endpoint_count']
-            }
-        }
-
-        # Build specs dictionary
+        # 遍歷 pipeline.json 中的所有 step，讀取 spec_rules 並評估
         for step in self.pipeline.get('steps', []):
             step_id = step['id']
+            spec_rules = step.get('spec_rules', {})
 
-            # Use formula-based specs if available
-            if step_id in phase_b_formulas:
-                specs[step_id] = phase_b_formulas[step_id]
-            else:
-                # For other steps, use spec_rules from pipeline.json
-                spec_rules = step.get('spec_rules', {})
-                specs[step_id] = {
-                    'quantitative_specs': spec_rules.get('quantitative_specs', {}),
-                    'content_mapping': spec_rules.get('content_mapping', {}),
-                    'cross_file_validation': spec_rules.get('cross_file_validation', {})
-                }
+            if not spec_rules:
+                # 無 spec_rules，跳過（通常是 DRYRUN 前的 step）
+                continue
+
+            # 評估三層規格（替換 {metric_id} 佔位符）
+            evaluated_specs = {
+                'quantitative_specs': {},
+                'content_mapping': {},
+                'cross_file_validation': {}
+            }
+
+            for layer in ['quantitative_specs', 'content_mapping', 'cross_file_validation']:
+                if layer in spec_rules and isinstance(spec_rules[layer], dict):
+                    for key, value in spec_rules[layer].items():
+                        # 替換所有 {metric_id} 為實際值
+                        evaluated_value = self._evaluate_spec_value(value, params)
+                        evaluated_specs[layer][key] = evaluated_value
+
+            specs[step_id] = evaluated_specs
 
         self.step_specs = specs
         return specs

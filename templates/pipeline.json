@@ -234,7 +234,7 @@
       "note": "從 PRD（user story 範圍）+ EDD（entity 模型）+ CONSTANTS（rate-limit/SLO）推導 endpoint 規格。",
       "spec_rules": {
         "quantitative_specs": {
-          "min_endpoint_count": "max(5, rest_endpoint_count)"
+          "min_endpoint_count": "max(5, {rest_endpoint_count})"
         },
         "content_mapping": {
           "entity_coverage": "All {entity_count} EDD entities must be referenced in API request/response models"
@@ -263,7 +263,7 @@
       "note": "從 EDD（entity 模型）+ CONSTANTS（capacity 限制）+ PDD（client-specific entities）推導資料庫 schema。",
       "spec_rules": {
         "quantitative_specs": {
-          "min_table_count": "max(3, entity_count)"
+          "min_table_count": "max(3, {entity_count})"
         },
         "content_mapping": {
           "entity_coverage": "All {entity_count} EDD entities must have corresponding database tables"
@@ -510,7 +510,7 @@
       "note": "BDD-server.gen.md 指示生成多個 .feature 檔案 + step definitions skeleton；BDD-server.review.md 審查所有 features/*.feature（含上游 PRD/CONSTANTS 數值對照）",
       "spec_rules": {
         "quantitative_specs": {
-          "min_scenario_count": "ceil(user_story_count * 0.8)"
+          "min_scenario_count": "ceil({user_story_count} * 0.8)"
         },
         "content_mapping": {
           "user_story_coverage": "All {user_story_count} user stories have corresponding BDD scenarios"
@@ -540,7 +540,7 @@
       "note": "BDD-client.gen.md 指示生成多個 .feature 檔案 + step definitions skeleton；BDD-client.review.md 審查所有 features/client/*.feature（含上游 PRD/CONSTANTS 數值對照）。has_admin_backend=true 時含 Admin RBAC BDD scenarios（login/permission/audit）。",
       "spec_rules": {
         "quantitative_specs": {
-          "min_scenario_count": "ceil(user_story_count * 0.6)"
+          "min_scenario_count": "ceil({user_story_count} * 0.6)"
         },
         "content_mapping": {
           "ui_scenario_coverage": "Client UI scenarios for key flows"
@@ -568,13 +568,13 @@
       "commit_prefix": "docs(gendoc)[RTM]",
       "spec_rules": {
         "quantitative_specs": {
-          "min_row_count": "max(1, user_story_count)"
+          "min_row_count": "max(1, {user_story_count})"
         },
         "content_mapping": {
           "requirement_traceability": "All {user_story_count} user stories traced to test cases"
         },
         "cross_file_validation": {
-          "coverage": "RTM rows >= user_story_count"
+          "coverage": "RTM rows >= {user_story_count}"
         }
       },
       "input": [
