@@ -516,7 +516,7 @@ user:session:{uid}   → String（儲存 session_id，用於踢線）
 | G3-A | CLIENT_IMPL.gen.md | HTML5 路由後（~293 行後） | 新增 Phaser.js 目錄結構分支 | [x] done |
 | G3-B | CLIENT_IMPL.gen.md | HTML5 場景結構後（~383 行後） | 新增 Phaser Scene 生命週期表 | [x] done |
 | G3-C | PDD.gen.md | §5 Scene Architecture（~311 行後） | 新增 Phaser Camera/Pool 規格 | [x] done |
-| G4-A | EDD.gen.md | §11.2 末尾（~1191 行後） | 新增 §11.3 Redis 完整設計 | [ ] |
+| G4-A | EDD.gen.md | §11.2 末尾（~1191 行後） | 新增 §11.3 Redis 完整設計 | [x] done |
 | G5-A | PDD.gen.md | 替換 §13.1（221–232 行） | 改為 Component State Spec Table | [ ] |
 | G5-B | PDD.gen.md | §13.1 之後 | 新增 §13.2 Mermaid stateDiagram | [ ] |
 | G5-C | VDD.gen.md | §8 開頭（~503 行後） | 新增 §8.1 Animation Spec Table | [ ] |

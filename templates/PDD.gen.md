@@ -218,18 +218,24 @@ Border Radius / Shadow / Transition Duration
 
 ### §13 Engineering Handoff Specification
 
-#### §13.1 Figma Handoff Checklist（開發前必須全部完成）
+#### §13.1 互動元件狀態規格表（Component State Specification）
 
-- [ ] 所有畫面均有 Default / Hover / Focus / Disabled / Error 5 種狀態
-- [ ] 空狀態（Empty State）已設計
-- [ ] Loading / Skeleton 狀態已設計
-- [ ] 所有 Design Token 已命名並與開發命名對齊
-- [ ] Mobile / Desktop Breakpoint 均已設計
-- [ ] 動畫規格（timing / easing curve）已標注
-- [ ] 圖示已 Export 為 SVG 或加入 Icon Library
-- [ ] 文案已最終定稿（無 Lorem Ipsum）
-- [ ] Accessibility Annotation（焦點順序、ARIA 標注）已完成
-- [ ] 與工程師完成 Design Review 同步
+依據 §4 Screen 清單與 PRD User Stories 推導本專案所有互動元件。
+**每格填具體 CSS property + value（使用 Design Token 名稱）；禁止填「顏色改變」等模糊描述；不適用的狀態填「—」**。
+
+| 元件名稱 | Default | Hover | Focus | Active | Disabled | Loading | Error |
+|---------|---------|-------|-------|--------|----------|---------|-------|
+| PrimaryButton | `bg: --color-primary; color: white; radius: --radius-md` | `bg: --color-primary-hover; cursor: pointer` | `outline: 2px solid --color-focus; outline-offset: 2px` | `transform: scale(0.97); bg: --color-primary-active` | `opacity: 0.4; cursor: not-allowed; pointer-events: none` | `opacity: 0.7; cursor: wait; spinner icon 顯示` | — |
+| SecondaryButton | `bg: transparent; border: 1px --color-border; color: --color-text-primary` | `bg: --color-surface-hover; border-color: --color-primary` | `outline: 2px solid --color-focus` | `bg: --color-surface-active` | `opacity: 0.4; cursor: not-allowed` | `opacity: 0.7; spinner icon` | — |
+| TextInput | `border: 1px solid --color-border; bg: --color-surface` | `border-color: --color-primary` | `border-color: --color-primary; outline: 2px solid --color-focus` | — | `bg: --color-surface-disabled; cursor: not-allowed` | — | `border-color: --color-error; helper text: color --color-error` |
+| Checkbox | `border: 2px solid --color-border; bg: transparent` | `border-color: --color-primary` | `outline: 2px solid --color-focus` | `bg: --color-primary; checkmark 顯示` | `opacity: 0.4; cursor: not-allowed` | — | — |
+| Dropdown/Select | `border: 1px solid --color-border; arrow icon 顯示` | `border-color: --color-primary; bg: --color-surface-hover` | `outline: 2px solid --color-focus` | `dropdown panel 展開` | `opacity: 0.4; cursor: not-allowed` | `spinner; options 隱藏` | `border-color: --color-error` |
+| Card | `bg: --color-surface; shadow: --shadow-md; radius: --radius-lg` | `shadow: --shadow-lg; transform: translateY(-2px)` | `outline: 2px solid --color-focus` | `shadow: --shadow-sm` | — | `Skeleton Screen 替代內容` | — |
+| （依 §4 所有互動元件完整列出）| | | | | | | |
+
+**規則**：
+- 所有 Token 名稱必須與 VDD §6 Design Token 定義對齊
+- Hover/Focus/Active 狀態的 transition 規格見 VDD §8.1 Animation Spec
 
 #### §9.3 Design Token 三層架構
 
