@@ -510,8 +510,8 @@ user:session:{uid}   → String（儲存 session_id，用於踢線）
 
 | Action | 目標檔案 | 插入位置 | 改動性質 | 狀態 |
 |--------|---------|---------|---------|------|
-| G1-A | VDD.gen.md | §5 末尾（~272 行後） | 新增 §5.1 斷點字型縮放表 | [ ] |
-| G1-B | VDD.gen.md | §6 末尾（~501 行後） | 新增 §6.1 Token 應用矩陣 | [ ] |
+| G1-A | VDD.gen.md | §5 末尾（~272 行後） | 新增 §5.1 斷點字型縮放表 | [x] done |
+| G1-B | VDD.gen.md | §6 末尾（~501 行後） | 新增 §6.1 Token 應用矩陣 | [x] done |
 | G2-A | SCHEMA.gen.md | Migration 策略末尾（~201 行後） | 新增 §8.1 Migration 實作清單 | [ ] |
 | G3-A | CLIENT_IMPL.gen.md | HTML5 路由後（~293 行後） | 新增 Phaser.js 目錄結構分支 | [ ] |
 | G3-B | CLIENT_IMPL.gen.md | HTML5 場景結構後（~383 行後） | 新增 Phaser Scene 生命週期表 | [ ] |

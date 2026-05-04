@@ -198,6 +198,29 @@ $$ LANGUAGE plpgsql;
   - DROP COLUMN 先標記廢棄（comment），下個版本再刪
   - 大表索引：使用 `CREATE INDEX CONCURRENTLY`（PostgreSQL）
 
+### §8.1 Migration 實作清單（必填）
+
+依據 §1–§7 所有資料表定義，生成本專案完整 migration 檔案清單。
+**禁止留空；所有 migration 必須按執行順序列出**。
+
+| 版本號 | 檔名（依命名規則） | 操作說明 | 依賴版本 | Expand/Contract | 需要 Backfill Job | Maintenance Window |
+|-------|----------------|---------|---------|----------------|-------------------|--------------------|
+| V001 | `V001__create_{主表}.sql` | 建立核心業務表 | — | Expand | 否 | 否 |
+| V002 | `V002__create_{關聯表}.sql` | 建立關聯表與外鍵 | V001 | Expand | 否 | 否 |
+| V003 | `V003__add_{欄位}_{表名}.sql` | 新增欄位（DEFAULT NULL） | V001 | Expand | 是（backfill 說明） | 否 |
+| V004 | `V004__create_index_{表名}_{欄位}.sql` | 建立業務查詢索引 | V001 | Expand | 否 | 否（CONCURRENTLY） |
+| （依 EDD 功能模組完整列出，不得省略）| | | | | | |
+
+**欄位說明**：
+- **Expand/Contract**：`Expand` = 新增欄位/表（向後相容）；`Contract` = 刪除欄位/表（需兩個 Sprint，先廢棄再刪）
+- **Backfill Job**：需另建非同步 Job 填入歷史資料的 migration，需附 Job 說明
+- **Maintenance Window**：需要停機或鎖表的操作（`ADD NOT NULL without DEFAULT`、`DROP COLUMN`、非 CONCURRENTLY 索引）
+
+**Rollback 規範**：每個 migration 檔案末尾附：
+```sql
+-- Rollback: <逆操作 SQL，例如 DROP TABLE / DROP COLUMN / DROP INDEX>
+```
+
 ---
 
 ## 資料量估算生成規則
