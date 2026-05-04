@@ -350,7 +350,7 @@ class DRYRUNEngine:
                 'extraction_timestamp': datetime.now(timezone.utc).isoformat(),
                 'extracted_metrics_count': len(self.metrics),
                 'derived_step_specs_count': len(self.step_specs),
-                'phase_a_version': 'v2.0.0'
+                'dryrun_engine_version': 'v2.0.0'
             }
 
             # Write back to state file

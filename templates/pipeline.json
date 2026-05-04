@@ -169,7 +169,7 @@
       "condition": "always",
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[DRYRUN]",
-      "note": "Phase A→B 邊界：根據 pipeline.json 動態讀取所有 Phase A 文件，計算量化指標，推導 Phase B step 的規格。生成 docs/MANIFEST.md + .gendoc-rules/*.json。【重要】.gendoc-rules/*.json 是後續所有 gate-check 的量化門檻依據，必須完整生成並在 pipeline output 中宣告。不跑 review→fix loop（special_skill 直接處理）。",
+      "note": "DRYRUN 相位邊界：根據 pipeline.json 動態讀取所有 DRYRUN 前的文件，計算量化指標，推導 DRYRUN 后的 step 規格。生成 docs/MANIFEST.md + .gendoc-rules/*.json。【重要】.gendoc-rules/*.json 是後續所有 gate-check 的量化門檻依據，必須完整生成並在 pipeline output 中宣告。不跑 review→fix loop（special_skill 直接處理）。",
       "spec_rules": {
         "max_placeholder_count": 0,
         "min_rules_json_count": 1

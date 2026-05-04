@@ -153,16 +153,16 @@ for step, phase_name in raw_steps:
 # ── Phase boundary: split on DRYRUN ──
 dryrun_idx   = next((i for i, s in enumerate(all_steps) if s["id"] == "DRYRUN"), None)
 if dryrun_idx is not None:
-    phase_a_all = all_steps[:dryrun_idx]
-    phase_b_all = all_steps[dryrun_idx + 1:]
+    pre_dryrun_all = all_steps[:dryrun_idx]
+    post_dryrun_all = all_steps[dryrun_idx + 1:]
     dryrun_done = "DRYRUN" in completed
 else:
-    phase_a_all = all_steps
-    phase_b_all = []
+    pre_dryrun_all = all_steps
+    post_dryrun_all = []
     dryrun_done = False
 
-phase_a_missing = [s for s in phase_a_all if s["id"] not in completed]
-phase_b_missing = [s for s in phase_b_all if s["id"] not in completed]
+pre_dryrun_missing = [s for s in pre_dryrun_all if s["id"] not in completed]
+post_dryrun_missing = [s for s in post_dryrun_all if s["id"] not in completed]
 all_missing     = [s for s in all_steps   if s["id"] not in completed]
 all_present     = [s for s in all_steps   if s["id"] in completed]
 
@@ -178,12 +178,12 @@ print(f"  missing          : {len(all_missing)}")
 print(f"{'='*70}\n")
 
 # ── DRYRUN 前的 step ──
-a_sym = "✅ 完整" if not phase_a_missing else f"⚠️  缺 {len(phase_a_missing)} 個"
+a_sym = "✅ 完整" if not pre_dryrun_missing else f"⚠️  缺 {len(pre_dryrun_missing)} 個"
 print(f"DRYRUN 前的 step（內容層）：{a_sym}")
-if phase_a_missing:
+if pre_dryrun_missing:
     print(f"  {'ID':<26} {'Layer':<22} {'Name'}")
     print(f"  {'-'*26} {'-'*22} {'-'*28}")
-    for s in phase_a_missing:
+    for s in pre_dryrun_missing:
         print(f"  {s['id']:<26} {s['layer']:<22} {s['name']}")
 
 # ── DRYRUN Gate ──
@@ -192,28 +192,28 @@ if dryrun_idx is not None:
     print(f"\nDRYRUN Gate（量化基線校準）：{gate_sym}")
 
 # ── DRYRUN 后的 step ──
-b_sym = "✅ 完整" if not phase_b_missing else f"⚠️  缺 {len(phase_b_missing)} 個"
+b_sym = "✅ 完整" if not post_dryrun_missing else f"⚠️  缺 {len(post_dryrun_missing)} 個"
 print(f"\nDRYRUN 后的 step（技術文件層）：{b_sym}")
-if phase_b_missing:
+if post_dryrun_missing:
     print(f"  {'ID':<26} {'Layer':<22} {'Name'}")
     print(f"  {'-'*26} {'-'*22} {'-'*28}")
-    for s in phase_b_missing:
+    for s in post_dryrun_missing:
         print(f"  {s['id']:<26} {s['layer']:<22} {s['name']}")
 
 # ── Machine-readable markers ──
 first_missing = all_missing[0]["id"]      if all_missing      else ""
-first_phase_a = phase_a_missing[0]["id"]  if phase_a_missing  else ""
-first_phase_b = phase_b_missing[0]["id"]  if phase_b_missing  else ""
+first_pre_dryrun = pre_dryrun_missing[0]["id"]  if pre_dryrun_missing  else ""
+first_post_dryrun = post_dryrun_missing[0]["id"]  if post_dryrun_missing  else ""
 
 print(f"\nMISSING_COUNT:{len(all_missing)}")
 print(f"FIRST_MISSING:{first_missing}")
-print(f"PHASE_A_MISSING_COUNT:{len(phase_a_missing)}")
-print(f"PHASE_B_MISSING_COUNT:{len(phase_b_missing)}")
+print(f"PRE_DRYRUN_MISSING_COUNT:{len(pre_dryrun_missing)}")
+print(f"POST_DRYRUN_MISSING_COUNT:{len(post_dryrun_missing)}")
 print(f"DRYRUN_GATE_DONE:{'true' if dryrun_done else 'false'}")
-if first_phase_a:
-    print(f"FIRST_PHASE_A:{first_phase_a}")
-if first_phase_b:
-    print(f"FIRST_PHASE_B:{first_phase_b}")
+if first_pre_dryrun:
+    print(f"FIRST_PRE_DRYRUN:{first_pre_dryrun}")
+if first_post_dryrun:
+    print(f"FIRST_POST_DRYRUN:{first_post_dryrun}")
 if not all_missing:
     print("✅ 所有 pipeline 步驟已完成，無需補跑。")
 PY
@@ -222,11 +222,11 @@ PY
 **[AI 指令]** 從輸出中擷取：
 - `_MISSING_COUNT`：`MISSING_COUNT:N` 行的 N
 - `_FIRST_MISSING`：`FIRST_MISSING:xxx` 行的 xxx
-- `_PHASE_A_MISSING_COUNT`：`PHASE_A_MISSING_COUNT:N` 行的 N
-- `_PHASE_B_MISSING_COUNT`：`PHASE_B_MISSING_COUNT:N` 行的 N
+- `_PRE_DRYRUN_MISSING_COUNT`：`PRE_DRYRUN_MISSING_COUNT:N` 行的 N
+- `_POST_DRYRUN_MISSING_COUNT`：`POST_DRYRUN_MISSING_COUNT:N` 行的 N
 - `_DRYRUN_GATE_DONE`：`DRYRUN_GATE_DONE:true|false` 行的值
-- `_FIRST_PHASE_A`：`FIRST_PHASE_A:xxx` 行的 xxx（可能不存在）
-- `_FIRST_PHASE_B`：`FIRST_PHASE_B:xxx` 行的 xxx（可能不存在）
+- `_FIRST_PRE_DRYRUN`：`FIRST_PRE_DRYRUN:xxx` 行的 xxx（可能不存在）
+- `_FIRST_POST_DRYRUN`：`FIRST_POST_DRYRUN:xxx` 行的 xxx（可能不存在）
 
 ---
 
@@ -660,8 +660,8 @@ for step_id in missing_or_failed:
 if "DRYRUN" in _REPAIR_SEQUENCE:
     _REPAIR_SEQUENCE.remove("DRYRUN")
     # 找到第一個 DRYRUN 后的 step 的位置
-    phase_b_idx = next((i for i, s in enumerate(_REPAIR_SEQUENCE) if is_phase_b(s)), len(_REPAIR_SEQUENCE))
-    _REPAIR_SEQUENCE.insert(phase_b_idx, "DRYRUN")
+    post_dryrun_idx = next((i for i, s in enumerate(_REPAIR_SEQUENCE) if is_post_dryrun(s)), len(_REPAIR_SEQUENCE))
+    _REPAIR_SEQUENCE.insert(post_dryrun_idx, "DRYRUN")
 
 # 跳過已在 completed_steps 且 output 存在的步驟
 _REPAIR_SEQUENCE = [s for s in _REPAIR_SEQUENCE if s not in completed or is_output_missing(s)]
@@ -735,9 +735,9 @@ else:
 ╔══════════════════════════════════════════════════════════════════╗
 ║  /gendoc-repair — 診斷報告（不補跑）                              ║
 ╠══════════════════════════════════════════════════════════════════╣
-║  DRYRUN 前的 step 缺漏：{_PHASE_A_MISSING_COUNT} 個（首個：{_FIRST_PHASE_A}）║
+║  DRYRUN 前的 step 缺漏：{_PRE_DRYRUN_MISSING_COUNT} 個（首個：{_FIRST_PRE_DRYRUN}）║
 ║  DRYRUN Gate ：{_DRYRUN_STATUS}                                 ║
-║  DRYRUN 后的 step 缺漏：{_PHASE_B_MISSING_COUNT} 個（首個：{_FIRST_PHASE_B}）║
+║  DRYRUN 后的 step 缺漏：{_POST_DRYRUN_MISSING_COUNT} 個（首個：{_FIRST_POST_DRYRUN}）║
 ║  語意不完整  ：{_SEMANTIC_COUNT} 個                               ║
 ║  品質不足   ：{_QUALITY_FAIL_COUNT} 個                            ║
 ║                                                                  ║
