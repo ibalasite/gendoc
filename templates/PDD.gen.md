@@ -310,6 +310,36 @@ Match: 0（Match Width — 寬固定，高自動）
 
 生成完整 Scene 清單與 Canvas Hierarchy，供後續 bake 使用，命名規則不得省略。
 
+### §5 Scene Architecture Design — Phaser.js（client_type == "phaser"）
+
+**物理引擎選型**（必填，二選一並說明理由）：
+
+| 引擎 | 適用場景 | 選擇此引擎的條件 |
+|------|---------|---------------|
+| Arcade Physics | 橫向捲軸、彈幕、Tilemap、矩形/圓形碰撞 | 無旋轉碰撞需求、效能優先 |
+| Matter.js | 物理解謎、Ragdoll、任意多邊形、不規則地形 | 需要真實物理模擬、可接受效能代價 |
+
+聲明選擇：`physics: { default: 'arcade' }` 或 `physics: { default: 'matter' }`，並在 GameConfig 中填入對應設定。
+
+**Camera 設計**（必填）：
+
+| Camera | 類型 | 設定要求 | 用途 |
+|--------|------|---------|------|
+| World Camera | `this.cameras.main` | `startFollow(player)`、`setBounds(0, 0, mapW, mapH)` | 跟隨 Player，顯示遊戲世界 |
+| UI Camera | `this.cameras.add(0, 0, W, H)` | `setScroll(0,0)`、`ignore(worldGroup)` | 固定視角，顯示 HUD（UIScene 使用）|
+
+兩個 Camera 必須列出各自的 `depth` 值與 `ignore` 目標。
+
+**Object Pool 設計**（凡 PRD 有大量同類物件必填）：
+
+| Pool 名稱 | 對應類別 | maxSize | 回池方式 | 適用場景 |
+|---------|---------|---------|---------|---------|
+| BulletPool | `Bullet extends Phaser.GameObjects.Sprite` | 50 | `killAndHide()` + `body.reset(x, y)` | 彈幕系統 |
+| EnemyPool | `Enemy extends Phaser.GameObjects.Sprite` | 20 | `killAndHide()` + 重置 AI 狀態 | 敵人生成 |
+| （依 PRD 完整列出，無大量同類物件填「N/A」）| | | | |
+
+**規則**：`get()` 回傳 `null` 時不再建立新物件（超出 maxSize 忽略）；回池用 `killAndHide()`，禁止 `destroy()`。
+
 ### §6 UI Component 清單
 
 | GameObject 路徑 | 類型 | 說明 | 美術可替換 |
