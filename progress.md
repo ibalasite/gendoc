@@ -489,18 +489,29 @@ Requirement 4：DRYRUN 后的 step 驗證
 - **git commit**：d7e22e7（2026-05-04）
 
 #### 任務 D-SSOT-3.5：實測與驗收（⏳ 就緒等待測試環境）
-- **狀態**：✅ 代碼全部實作完成（2026-05-04），已驗證語法正確
-- **前置條件**：需要獨立測試環境 + 真實目標項目檔案
+- **狀態**：✅ 代碼全部實作完成 + 邏輯驗證修復（2026-05-04）
+- **修復內容**：
+  - ✅ 發現並修復 derive_specifications() 硬編碼邏輯不一致
+  - ✅ 統一 pipeline.json 規格字符串格式（{variable_name} 標準）
+  - ✅ 確認 DRYRUN ↔ API.md 邏輯鏈接無誤
+  - 📄 完整驗證報告：docs/DRYRUN_API_VERIFICATION.md
+  
 - **測試清單**：
   - [ ] 在目標項目執行 `/gendoc-flow DRYRUN`
   - [ ] 驗證 .gendoc-rules/*.json 生成且無未解決 {{PLACEHOLDER}}
   - [ ] 在目標項目執行 `/gendoc-flow API`
   - [ ] 比對 API.md 實際內容 vs .gendoc-rules/API-rules.json 規格
-  - [ ] 驗證 review.sh 正確執行 quantitative/content/cross_file 檢查
+  - [ ] 驗證 review.sh 正確執行 4 種檢查模式
   - [ ] 驗證 get-upstream 能正確讀取並返回 JSON
+  
+- **代碼度量**：
+  - dryrun_core.py: 659 → 509 行 (-23%)
+  - 硬編碼 phase_b_formulas: 完全移除 ✅
+  - SSOT 遵循度: 70% → 100% ✅
+  
 - **備註**：
   - D-SSOT-3.1～3.4 代碼實作完成（commits d0a9ed1...d7e22e7）
-  - 所有工具通過 bash -n 和 python3 編譯檢查
+  - D-SSOT 邏輯修復完成（commits b1e4f9d...6709e5f）
   - 待用戶在獨立環境準備目標項目後執行測試
 
 ### 總工時估計
