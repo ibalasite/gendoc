@@ -432,6 +432,30 @@ DOM 結構（index.html）：
 </body>
 ```
 
+#### Phaser.js：
+
+生成 Scene 生命週期規格表，**從 EDD 功能模組推斷所有 Scene，每個 Scene 一列，禁止留空**：
+
+| Scene 名稱 | init 職責 | preload 載入資源 | create 建立物件 | shutdown 釋放 |
+|-----------|----------|----------------|--------------|-------------|
+| BootScene | 設定全域參數（音量、語言） | loading-bar.png（< 5KB） | 建立最小 Loading Bar UI | 無需釋放 |
+| PreloadScene | 無 | 載入所有共用貼圖、音效、字型 | 建立進度條（Graphics + Text） | 無需釋放（共用資源保留）|
+| MainMenuScene | 重置遊戲狀態 | 無（已在 Preload 載入） | 建立選單 Button、背景動畫 | 停止所有 Tween |
+| GameScene | 接收關卡參數（level, seed） | 載入關卡私有貼圖/地圖 | 建立 Tilemap、Player、Enemy Group、碰撞設定 | textures.remove 關卡私有資源 |
+| UIScene（HUD） | 無 | 無 | 建立 Score Text、HP Bar、道具欄 | 取消所有 EventEmitter 訂閱 |
+| （依 EDD 完整列出）| | | | |
+
+**Scene Manager 切換策略**（必須選擇並說明理由）：
+- `this.scene.start('X')`：完整切換，舊 Scene 自動 shutdown → 適用關卡切換、選單返回遊戲
+- `this.scene.launch('UIScene')`：並行啟動 → **HUD 疊加 GameScene 專用**，兩個 Scene 同時 Running
+- `this.scene.sleep('X')` / `wake('X')`：暫停保留狀態 → 適用 Pause Menu（Game 不 shutdown）
+- `this.scene.transition({target, duration, data})`：帶過場切換 → 適用有過場動畫的關卡切換
+
+**Scene 間資料傳遞方式**（三選一，必須聲明選擇與原因）：
+1. `init(data)` 傳遞：啟動時一次性參數，適合關卡 config（level、seed）
+2. `this.registry.set/get`：全域 DataManager，適合跨 Scene 持續同步（score、player HP）
+3. `this.events` EventEmitter：鬆耦合事件通知，適合 GameScene → UIScene 即時更新
+
 ---
 
 ## Step 5：§4 資源載入策略生成規則（5-way）
