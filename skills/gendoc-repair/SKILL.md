@@ -45,11 +45,6 @@ fi
 
 立即用 **Skill tool** 呼叫 `gendoc-shared`。等 Skill tool 回傳後才繼續 Step 0。
 
-gendoc-shared 負責：
-- 確認 state file 存在（不存在則呼叫 gendoc-config 建立）
-- 讀取/初始化 session 參數（client_type、has_admin_backend 等）
-- 若為舊格式 state（有 current_step 但無 completed_steps）→ 自動轉換
-
 ---
 
 ## Step 0：讀取 State File + Pipeline
