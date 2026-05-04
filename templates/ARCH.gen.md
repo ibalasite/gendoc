@@ -31,7 +31,12 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 - `docs/VDD.md`：了解 Design Token 命名空間、資產格式規格、CDN 和 Build Pipeline 的架構需求（若存在）
 - `docs/EDD.md`：了解技術選型、DDD Bounded Context、Security 模型——ARCH 需與 EDD 保持嚴格一致
 
-**EDD 優先原則**：ARCH 的技術選型、架構風格必須與 EDD §2 一致；如有差異，標記 `[UPSTREAM_CONFLICT]`。
+**EDD 優先原則**：ARCH 的技術選型、架構風格必須與 EDD §2 一致；**ARCH §2（架構風格 + Interface 定義規範）與 §3（分層設計 + 依賴方向）必須與 EDD §3.1b Dependency Rule 一致**（Domain 不引用 Infrastructure，Interface 在 Domain 定義）；如有差異，標記 `[UPSTREAM_CONFLICT]`。
+
+**EDD §3.1b 讀取清單**（生成 ARCH §2/§3 前必須完成）：
+1. 從 EDD §3.1b SOLID 對應表讀取 DIP 欄位 — 確認 Interface 名稱（如 `IUserRepository`）和注入方式
+2. 從 EDD §3.1b Dependency Rule 箭頭圖讀取禁止清單 — Domain 不得 import Infrastructure 具體類別
+3. 將以上兩項作為 ARCH §2 Interface 定義規範的前提；若 EDD §3.1b 尚未填寫，在 ARCH 中標記 `[PENDING: EDD §3.1b]`
 
 ### docs/req/ 素材關聯讀取
 

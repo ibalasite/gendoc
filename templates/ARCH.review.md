@@ -91,6 +91,11 @@ upstream-alignment:
 
 ### Layer 3: 分層架構與依賴方向（由 Backend Engineer 主審，共 4 項）
 
+#### [HIGH] 11b — 依賴方向與 EDD §3.1b SOLID 宣告不一致
+**Check**: 對照 EDD §3.1b Dependency Rule，ARCH §3 分層設計的依賴箭頭是否完全一致？具體驗證：(1) ARCH §3 依賴方向是否為 Presentation → Application → Domain ← Infrastructure（Domain 無向外箭頭）？(2) ARCH §2 Interface 定義規範中，IRepository / IService 等介面是否定義在 Domain 或 Application 層？(3) EDD §3.1b DIP 欄位中宣告的具體 Interface 名稱（如 `IUserRepository`）是否在 ARCH §3 元件清單中有對應元件？任一不一致視為 HIGH。
+**Risk**: ARCH 依賴方向與 EDD §3.1b 不一致，工程師依 ARCH 實作時會建立 Domain 對 Infrastructure 的直接依賴，導致換 ORM / DB 時需大規模重構；也使 Domain 層 unit test 無法在不啟動資料庫的情況下執行。
+**Fix**: 對照 EDD §3.1b Dependency Rule 修正 ARCH §3 箭頭方向；確認所有 IRepository 介面定義在 Domain 層（非 Infrastructure）；更新元件清單確保 EDD §3.1b DIP 宣告的 Interface 名稱與 ARCH 元件清單完全一致。
+
 #### [HIGH] 11 — 服務間通訊模式未定義
 **Check**: ARCH §5 通訊模式是否明確說明同步 vs. 非同步通訊的選用原則？是否有同步/非同步通訊矩陣（哪些操作用 REST/gRPC，哪些用 Message Queue）？完全缺少通訊模式說明視為 HIGH。
 **Risk**: 通訊模式不統一，部分開發者選用同步呼叫、部分選用事件，造成分散式事務問題、重複消費、或超時雪崩效應。
