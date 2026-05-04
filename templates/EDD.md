@@ -44,9 +44,10 @@
 
 <!-- 列出本次設計遵守的核心原則，後續決策都以此為依據 -->
 
-1. **{{PRINCIPLE_1}}**：{{EXPLANATION}}（e.g. Stateless — 所有服務不儲存 session，方便水平擴展）
-2. **{{PRINCIPLE_2}}**：{{EXPLANATION}}（e.g. Fail Fast — 輸入驗證在最外層，不讓髒資料進核心）
-3. **{{PRINCIPLE_3}}**：{{EXPLANATION}}（e.g. Idempotent — 所有寫入操作支援重試不產生副作用）
+1. **Clean Architecture**：嚴格遵守 Presentation → Application → Domain → Infrastructure 四層，依賴方向只能由外向內；Domain 層不得引用任何 Infrastructure 具體類別。
+2. **SOLID**：每個 Service 單一職責（SRP）；透過介面擴展而非修改（OCP）；高層模組依賴介面，不依賴具體實作（DIP）；詳見 §3.1b SOLID 對應表。
+3. **{{PRINCIPLE_3}}**：{{EXPLANATION}}（e.g. Stateless — 所有服務不儲存 session，方便水平擴展）
+4. **{{PRINCIPLE_4}}**：{{EXPLANATION}}（e.g. Idempotent — 所有寫入操作支援重試不產生副作用）
 
 ### 1.3 PRD 需求追溯
 <!-- 確保所有 PRD AC 在本文件有對應的技術設計 -->
@@ -122,6 +123,35 @@ Domain Layer         — Entity / Domain Service（核心業務規則）
      ↓
 Infrastructure Layer — Repository / Adapter（資料庫、外部 API 實作）
 ```
+
+### 3.1b Clean Architecture & SOLID 原則
+
+<!-- 本節是下游 Class Diagram / Module Design 的設計契約；所有 class 設計必須回頭對照此表 -->
+
+**SOLID 原則對應表**
+
+| 原則 | 全名 | 本系統實作方式 |
+|------|------|--------------|
+| SRP  | Single Responsibility | {{SRP_IMPL}}（e.g. `AuthService` 只處理認證邏輯；`OrderService` 只處理訂單業務）|
+| OCP  | Open / Closed | {{OCP_IMPL}}（e.g. 新增支付方式透過實作 `IPaymentGateway` 介面，不修改現有 class）|
+| LSP  | Liskov Substitution | {{LSP_IMPL}}（e.g. 所有 `IRepository` 子型別可在不影響呼叫端的情況下互換）|
+| ISP  | Interface Segregation | {{ISP_IMPL}}（e.g. 讀寫分離介面 `IReadRepository` / `IWriteRepository`，不強制全量實作）|
+| DIP  | Dependency Inversion | {{DIP_IMPL}}（e.g. `ApplicationService` 依賴 `IUserRepository` 介面，`UserRepository` 在 DI Container 注入）|
+
+**Dependency Rule（依賴方向）**
+
+```
+Presentation  →  Application  →  Domain  ←  Infrastructure
+                                    ↑
+                          （介面定義在 Domain；
+                           實作在 Infrastructure；
+                           Domain 不引用 Infrastructure）
+```
+
+**禁止清單**：
+- Domain 層不得 `import` 任何 ORM / DB / HTTP / 外部 SDK
+- Application 層不得直接 `new` 任何 Infrastructure 具體類別
+- 跨層呼叫一律透過 DI 注入的 Interface
 
 ### 3.2 技術選型決策（ADR）
 <!-- Architecture Decision Record：每個重要技術選型都要有理由和 trade-off -->

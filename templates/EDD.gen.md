@@ -180,25 +180,33 @@ _ADMIN_FRAMEWORK（Admin 後台技術棧，下游 ADMIN_IMPL 讀取）：
 > 的工具選型基準。下游 gen.md 均從 `EDD §3.3 技術棧總覽` 讀取，此處必須填入具體值，不得留 placeholder。
 > `_CLIENT_ENGINE` 和 `_ADMIN_FRAMEWORK` 為新增必填欄位，gendoc-flow 在 EDD 完成後自動提取並鎖定至 state。
 
-### §3 Clean Code 架構
+### §3.1b Clean Architecture & SOLID 原則
 
-**SOLID 原則對應表（必填）**
+**生成目標**：填入 EDD §3.1b SOLID 原則對應表，每個原則的「本系統實作方式」欄位必須具體引用本系統的 class / interface 名稱，禁止保留通用說明文字。
 
-| 原則 | 本系統實作方式 |
-|------|--------------|
-| SRP  | 每個 Service 只負責一個業務領域 |
-| OCP  | 透過 Interface 擴展，不修改現有 class |
-| LSP  | 子型別必須可替換父型別 |
-| ISP  | 細粒度 Interface，不強制實作不需要的方法 |
-| DIP  | 高層模組依賴 Interface，不依賴具體實作 |
+**SOLID 原則對應表（必填，每格引用本系統具體 class/interface 名稱）**
 
-**分層設計（必填）**
+| 原則 | 全名 | 本系統實作方式 |
+|------|------|--------------|
+| SRP  | Single Responsibility | （從 PRD 推導：每個 Service 只負責一個業務領域，如 `AuthService` 只處理認證，`OrderService` 只處理訂單）|
+| OCP  | Open / Closed | （透過 Interface 擴展，不修改現有 class；新增支付方式只需實作 `IPaymentGateway`）|
+| LSP  | Liskov Substitution | （所有 `IRepository` 子型別可在不影響呼叫端的情況下互換；mock 與 real 實作皆符合合約）|
+| ISP  | Interface Segregation | （細粒度 Interface，不強制實作不需要的方法；讀寫分離 `IReadRepository` / `IWriteRepository`）|
+| DIP  | Dependency Inversion | （高層模組依賴 Interface；`ApplicationService` 依賴 `IUserRepository`，具體實作由 DI Container 注入）|
+
+**Dependency Rule（依賴方向，必填）**
 ```
-Controller Layer    → HTTP/gRPC 處理，輸入驗證，不含業務邏輯
-Service Layer       → 業務規則、事務邊界
-Repository Layer    → DB 操作封裝，返回 Domain 物件
-Infrastructure      → 外部服務（快取、Queue、第三方 API）
+Presentation  →  Application  →  Domain  ←  Infrastructure
+                                    ↑
+                          （介面定義在 Domain；
+                           實作在 Infrastructure；
+                           Domain 不引用 Infrastructure）
 ```
+
+**生成驗證（填完後自我檢查）**：
+- [ ] 每個原則「本系統實作方式」欄位包含至少一個具體 class / interface 名稱
+- [ ] Dependency Rule 箭頭方向正確（Domain 無向右箭頭）
+- [ ] 無 placeholder `{{...}}` 殘留
 
 ### §3.4 Bounded Context & Context Map
 

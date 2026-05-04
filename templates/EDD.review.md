@@ -46,6 +46,11 @@ upstream-alignment:
 **Risk**: P0 功能的技術設計缺失，工程師在 Sprint 中無設計依據自行決定實作方式，造成不一致並超出交付時程。
 **Fix**: 為每個缺少對應的 P0 功能新增設計章節，明確說明涉及的模組、Service 方法、資料操作。
 
+#### [HIGH] 1b — SOLID 原則宣告缺失
+**Check**: EDD §3.1b SOLID 原則對應表是否存在？5 個原則（SRP / OCP / LSP / ISP / DIP）是否各有「本系統實作方式」說明（非 placeholder `{{...}}`）？任一原則缺失或仍為 placeholder 視為 HIGH。
+**Risk**: SOLID 宣告缺失，工程師在設計 class 時缺乏明確契約；DIP 未宣告導致 Application 層直接依賴 Infrastructure 具體類別，後期換 ORM 或 DB 引發大規模重構。
+**Fix**: 補充 §3.1b SOLID 對應表，每一行填入本系統的具體實作方式（e.g. SRP：`AuthService` 只處理認證邏輯）；確保 Dependency Rule 箭頭圖已呈現且方向正確（Domain 不依賴 Infrastructure）。
+
 #### [HIGH] 3 — 模組介面定義不完整
 **Check**: 每個核心模組（Service / Use Case）是否有公開方法的介面定義（方法名稱、參數型別、回傳型別）？僅有模組名稱無方法簽名視為 HIGH。
 **Risk**: 介面未定義，前後端或微服務間整合時需口頭協商，造成整合期反覆修改，延誤交付。
