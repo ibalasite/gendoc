@@ -135,11 +135,25 @@ class DRYRUNEngine:
         return params
 
     def _extract_entity_count(self, upstream_data: dict) -> int:
-        """entity_count from EDD.md: ### ClassName style class definitions"""
+        """entity_count from EDD.md: Mermaid classDiagram definitions (class/interface/enum/struct),
+        fallback to ### ClassName headings"""
         edd_content = upstream_data.get('docs/EDD.md', '')
-        class_pattern = r'^###\s+[A-Z][a-zA-Z0-9]*(?:\s|$)'
-        matches = re.findall(class_pattern, edd_content, re.MULTILINE)
-        return max(3, len(matches)) if matches else 3
+        if not edd_content:
+            return 3
+        entity_names: set[str] = set()
+
+        # Primary: Mermaid classDiagram syntax
+        mermaid_pattern = r'^\s*(?:class|interface|enum|struct|abstract\s+class)\s+([A-Za-z][a-zA-Z0-9_]*)'
+        for m in re.finditer(mermaid_pattern, edd_content, re.MULTILINE):
+            entity_names.add(m.group(1))
+
+        # Fallback: ### ClassName section headings (uppercase start)
+        if not entity_names:
+            for m in re.finditer(r'^###\s+([A-Z][a-zA-Z0-9]*)\b', edd_content, re.MULTILINE):
+                entity_names.add(m.group(1))
+
+        count = len(entity_names)
+        return max(3, count) if count > 0 else 3
 
     def _extract_avg_entity_field_count(self, upstream_data: dict) -> int:
         """avg_entity_field_count from EDD.md: average fields per entity (anti-fake depth indicator)
@@ -176,9 +190,9 @@ class DRYRUNEngine:
         return max(5, len(matches)) if matches else 5
 
     def _extract_user_story_count(self, upstream_data: dict) -> int:
-        """user_story_count from PRD.md: ### US-N or ### Story-N headings"""
+        """user_story_count from PRD.md: headings matching US-N, US_N, User Story N, Story-N"""
         prd_content = upstream_data.get('docs/PRD.md', '')
-        us_pattern = r'^###\s+(?:US-\d+|Story-\d+)'
+        us_pattern = r'^#{1,4}\s+(?:US[-_]\d+|User\s+Story[-_\s]\d+|Story-\d+)\b'
         matches = re.findall(us_pattern, prd_content, re.MULTILINE)
         return max(5, len(matches)) if matches else 5
 
@@ -205,8 +219,32 @@ class DRYRUNEngine:
         return max(2, sum(ac_counts) // len(ac_counts))
 
     def _extract_arch_layer_count(self, upstream_data: dict) -> int:
-        """arch_layer_count from ARCH.md: layer/service heading count"""
+        """arch_layer_count from ARCH.md: Markdown table data rows (excluding header/separator),
+        fallback to layer/service heading keywords"""
         arch_content = upstream_data.get('docs/ARCH.md', '')
+        if not arch_content:
+            return 4
+
+        # Primary: count data rows in the first Markdown table found
+        in_table = False
+        data_rows = 0
+        for line in arch_content.splitlines():
+            stripped = line.strip()
+            if not stripped.startswith('|'):
+                if in_table and data_rows > 0:
+                    break  # first table done
+                in_table = False
+                continue
+            if re.match(r'^\|\s*[-:]+\s*\|', stripped):  # separator line marks table start
+                in_table = True
+                continue
+            if in_table:
+                data_rows += 1
+
+        if data_rows >= 2:
+            return max(2, data_rows)
+
+        # Fallback: layer/service heading keywords
         layer_pattern = r'^###\s+(?:.*Layer|.*Service|.*層|.*服務)'
         matches = re.findall(layer_pattern, arch_content, re.MULTILINE)
         return max(2, len(matches)) if matches else 4
