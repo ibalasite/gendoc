@@ -518,6 +518,32 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
    | 交付物 | Figma Link + Storybook Link + Token JSON 檔 |
    | 更新頻率 | 每個 Sprint 結束，QA 進入前完成 Figma → Code 同步 |
 
+4. **§6.1 Token 應用矩陣**（必填）：
+
+   從 §6 Layer 2 Semantic Token 展開使用場景對應表。
+   覆蓋 color / spacing / radius / shadow 四類，每類 **≥ 4 個 token**。
+   **禁止出現「請設計師填入」；所有值從 Layer 1–3 推導**。
+
+   | Token 名稱 | 值（Semantic → Primitive） | 適用元件 / 場景 | 禁用場景 |
+   |-----------|--------------------------|--------------|---------|
+   | `--color-primary` | → `--color-blue-500` | CTA Button 背景、選中狀態、Focus Ring | 大面積背景底色 |
+   | `--color-primary-hover` | → `--color-blue-600` | Button :hover 狀態 | 非互動元素 |
+   | `--color-surface` | → `--color-neutral-50` | Card 背景、Modal 背景、Sidebar | 文字顏色 |
+   | `--color-text-primary` | → `--color-neutral-900` | 主要內文、標題 | 低對比背景上（< 4.5:1） |
+   | `--color-error` | → `--color-red-500` | 表單錯誤邊框、Error Toast | 成功狀態 |
+   | `--space-4` | 4px | 元件內部最小間距、Icon 與文字間距 | Section 級別間距 |
+   | `--space-16` | 16px | Card padding、表單欄位間距 | Hero 區塊留白 |
+   | `--space-section` | clamp(4rem, 3rem+5vw, 10rem) | Section 上下留白 | 元件內部間距 |
+   | `--space-gutter` | 依斷點（見 §7.2） | Grid Column Gutter | Row 間距 |
+   | `--radius-sm` | 4px | Input、Badge | 大型 Card |
+   | `--radius-md` | 8px | Button、Card | 全圓元素 |
+   | `--radius-lg` | 16px | Modal、Drawer | 小型 Badge |
+   | `--radius-full` | 9999px | Avatar、Pill Tag、Toggle | 矩形 Card |
+   | `--shadow-sm` | 0 1px 3px rgba(0,0,0,.12) | Input :focus-within、Dropdown | 平面卡片 |
+   | `--shadow-md` | 0 4px 16px rgba(0,0,0,.12) | Card、Modal | Tooltip |
+   | `--shadow-lg` | 0 8px 32px rgba(0,0,0,.16) | Sticky Header、浮動 Panel | 一般 Card |
+   | （依 §6 實際 Token 完整補充）| | | |
+
 ---
 
 ### §8 Screen Visual Specs（畫面視覺規格）[all]
