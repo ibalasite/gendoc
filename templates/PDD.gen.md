@@ -173,6 +173,35 @@ Border Radius / Shadow / Transition Duration
 - 320（Mobile S）/ 375（Mobile M）/ 768（Tablet）/ 1024（Desktop S）/ 1440（Desktop L）
 - 每個 Breakpoint 的 Layout 策略
 
+#### §7.1 Breakpoint 元件行為矩陣（必填）
+
+依據 §4 Screen 清單推導主要元件，填入各斷點的具體行為規格。
+**禁止填「responsive」等模糊描述；每格需填具體尺寸、欄數、顯隱規則**。
+
+| 元件 | 320px | 375px | 768px | 1024px | 1440px |
+|-----|-------|-------|-------|--------|--------|
+| Navigation | 漢堡 Menu（icon 44×44px），點擊展開 Full-screen Overlay | 同左 | 橫排 Tab Bar（height: 56px），顯示 4 個 Tab | 橫排 Nav + 右側 Utility Links | 橫排 Nav + Dropdown（hover 展開） |
+| Card Grid | 單欄，width: 100% | 單欄，padding: 16px | 2 欄，gap: 16px | 3 欄，gap: 24px | 4 欄，gap: 32px，max-width: 1440px |
+| Data Table | 水平捲動容器，固定首欄（position: sticky, left: 0）| 同左 | 顯示 5 欄，可水平捲動 | 顯示全部欄 | 顯示全部欄 + 固定表頭 |
+| CTA Button | width: 100%，height: 48px | width: 100% | width: auto，min-width: 200px | 同左 | 同左 |
+| Modal | width: 100vw，height: 100vh，Full-screen | 同左 | width: 560px，height: auto，置中，max-height: 80vh | width: 640px | width: 640px |
+| Form | 單欄，label 在上方 | 同左 | 雙欄 label（inline），gap: 24px | 同左 | 同左，max-width: 720px 置中 |
+| （依 §4 所有主要元件完整列出）| | | | | |
+
+#### §7.2 Grid 系統規格表（必填）
+
+**必須聲明統一使用 CSS Grid 或 Flexbox（不得混用兩種系統於同一 Layout 層級）**。
+
+| 斷點 | 欄數 | Gutter | Margin（頁邊距）| Max-Width | Container CSS |
+|-----|------|--------|----------------|---------|---------------|
+| 320px | 4 | 8px | 16px | 100% | `max-width: 100%; padding: 0 16px` |
+| 375px | 4 | 12px | 20px | 100% | `max-width: 100%; padding: 0 20px` |
+| 768px | 8 | 16px | 24px | 100% | `max-width: 100%; padding: 0 24px` |
+| 1024px | 12 | 24px | 32px | 1280px | `max-width: 1280px; margin: 0 auto; padding: 0 32px` |
+| 1440px | 12 | 32px | 80px | 1440px | `max-width: 1440px; margin: 0 auto; padding: 0 80px` |
+
+實作方式：CSS Grid（`display: grid; grid-template-columns: repeat(N, 1fr); gap: Xpx`）
+
 ### §8 Accessibility 規範
 
 - WCAG 2.1 AA 對比度要求
@@ -181,6 +210,14 @@ Border Radius / Shadow / Transition Duration
 - Screen Reader 測試重點
 
 ### §6.5 Micro-interaction Catalog
+
+**最低覆蓋要求（低於此視為文件不完整）**：
+- 表單互動：**≥ 3 個**（input focus / validation error / submit success 三項必填）
+- 導覽互動：**≥ 2 個**（hover state / active/selected state）
+- 資料回饋：**≥ 2 個**（loading skeleton / success or error transition）
+- [game] 遊戲互動（若 client_type 為遊戲引擎）：**≥ 2 個**（damage number popup / reward animation）
+
+**以下 Catalog 表格必須全部填滿，不得留空白列或保留 `<基於 PRD 特有功能>` placeholder**：
 
 | 觸發器 | 規則 | 回饋 | 迴圈 |
 |--------|------|------|------|
