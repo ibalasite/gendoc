@@ -35,10 +35,18 @@ class DRYRUNEngine:
         self.pipeline = {}
 
     def _load_pipeline(self) -> dict:
-        """Load pipeline.json from templates/ — SSOT for metrics and spec_rules"""
+        """Load pipeline.json from templates/ — SSOT for metrics and spec_rules.
+        Local-first: cwd/templates/pipeline.json → ~/.claude/gendoc/templates/pipeline.json"""
         pipeline_path = self.cwd / "templates" / "pipeline.json"
         if not pipeline_path.exists():
-            raise FileNotFoundError(f"pipeline.json not found at {pipeline_path}")
+            # Fallback to runtime location (after gendoc install/update)
+            fallback = Path.home() / ".claude" / "skills" / "gendoc" / "templates" / "pipeline.json"
+            if fallback.exists():
+                pipeline_path = fallback
+            else:
+                raise FileNotFoundError(
+                    f"pipeline.json not found at {pipeline_path} or {fallback}"
+                )
         try:
             pipeline = json.loads(pipeline_path.read_text(encoding='utf-8'))
             self.pipeline = pipeline
@@ -134,26 +142,31 @@ class DRYRUNEngine:
         return max(3, len(matches)) if matches else 3
 
     def _extract_avg_entity_field_count(self, upstream_data: dict) -> int:
-        """avg_entity_field_count from EDD.md: average fields per entity (anti-fake depth indicator)"""
+        """avg_entity_field_count from EDD.md: average fields per entity (anti-fake depth indicator)
+
+        Looks for table rows that contain comma-separated field lists (entity definitions).
+        A row qualifies if it has ≥3 commas in one cell (likely a field list like "id, name, email, ...").
+        """
         edd_content = upstream_data.get('docs/EDD.md', '')
         if not edd_content:
             return 3
 
-        # Split by entity headers (### ClassName)
-        entity_blocks = re.split(r'^###\s+[A-Z][a-zA-Z0-9]*', edd_content, flags=re.MULTILINE)
-        if len(entity_blocks) <= 1:
-            return 3
-
         field_counts = []
-        for block in entity_blocks[1:]:  # skip preamble
-            # Count field-like lines: lines starting with - or | that look like field definitions
-            fields = re.findall(r'^[\-\|]\s+\w+', block, re.MULTILINE)
-            if fields:
-                field_counts.append(len(fields))
+        for line in edd_content.splitlines():
+            # Only look at table data rows (not separator or header lines)
+            if not line.startswith('|') or re.match(r'^\|[-| :]+\|', line):
+                continue
+            cells = [c.strip() for c in line.split('|') if c.strip()]
+            for cell in cells:
+                comma_count = cell.count(',')
+                # A cell with ≥3 commas is likely a field list (entity field definition)
+                if comma_count >= 3:
+                    field_counts.append(comma_count + 1)  # commas + 1 = field count
 
         if not field_counts:
             return 3
-        return max(3, sum(field_counts) // len(field_counts))
+        avg = sum(field_counts) // len(field_counts)
+        return max(3, min(avg, 20))  # clamp to reasonable range [3, 20]
 
     def _extract_rest_endpoint_count(self, upstream_data: dict) -> int:
         """rest_endpoint_count from PRD.md: unique HTTP method + path pairs"""
@@ -356,22 +369,23 @@ class DRYRUNEngine:
             return False
 
     def validate_completeness(self) -> bool:
-        """R1-V1: Validate that all steps have complete specifications"""
+        """Validate that all steps with spec_rules have at least one quantitative metric."""
 
         print("\n[DRYRUN] Step 4: Validating completeness...")
 
-        required_keys = ['quantitative_specs', 'content_mapping', 'cross_file_validation']
         errors = []
 
-        # Check all 34 steps present
-        if len(self.step_specs) < 34:
-            errors.append(f"Expected 34 steps, found {len(self.step_specs)}")
+        if len(self.step_specs) < 1:
+            errors.append("No step specs derived — pipeline.json may be empty or spec_rules missing")
 
-        # Check each step has all required fields
         for step_id, specs in self.step_specs.items():
-            for key in required_keys:
-                if key not in specs or not isinstance(specs[key], dict):
-                    errors.append(f"{step_id}: missing or invalid '{key}'")
+            if not isinstance(specs, dict) or len(specs) == 0:
+                errors.append(f"{step_id}: empty spec (no metrics)")
+            else:
+                # All values must be int or bool (no unresolved formula strings)
+                for key, val in specs.items():
+                    if not isinstance(val, (int, bool)):
+                        errors.append(f"{step_id}.{key}: value is not int ({type(val).__name__}: {val!r})")
 
         if errors:
             print(f"❌ [DRYRUN] Validation failed:")
@@ -380,19 +394,16 @@ class DRYRUNEngine:
             return False
 
         print(f"✅ [DRYRUN] Validation passed:")
-        print(f"   - {len(self.step_specs)} steps with complete specs")
-        print(f"   - All required fields present")
+        print(f"   - {len(self.step_specs)} steps with flat quantitative metrics")
         return True
 
     def validate_spec_quality(self) -> bool:
-        """R2-V1: Validate that derived specifications meet quality standards
+        """Validate quality of derived flat quantitative specs.
 
         Checks:
-        1. Each spec has at least one quantitative rule
-        2. DRYRUN 后的 step specs have content_mapping entries
-        3. DRYRUN 后的 step specs have cross_file_validation entries
-        4. No placeholder values remain in specs
-        5. Spec descriptions are not empty
+        1. DRYRUN 后的 steps each have at least one min_* or max_* metric
+        2. No unresolved placeholder strings remain
+        3. All metric values are non-negative integers
         """
 
         print("\n[DRYRUN] Step 4b: Validating spec quality...")
@@ -406,32 +417,23 @@ class DRYRUNEngine:
                          'MOCK', 'PROTOTYPE', 'HTML'}
 
         for step_id, specs in self.step_specs.items():
-            # Check 1: quantitative_specs not empty for DRYRUN 后的 step
+            # Check 1: downstream steps must have at least one min_* or max_* metric
             if step_id in dryrun_downstream_steps:
-                quant = specs.get('quantitative_specs', {})
-                if len(quant) == 0:
-                    warnings.append(f"{step_id}: No quantitative specs defined")
+                quantitative = [k for k in specs if k.startswith('min_') or k.startswith('max_')]
+                if len(quantitative) == 0:
+                    warnings.append(f"{step_id}: No min_*/max_* quantitative metrics")
 
-            # Check 2: content_mapping for DRYRUN 后的 step
-            content = specs.get('content_mapping', {})
-            if step_id in dryrun_downstream_steps and len(content) == 0:
-                warnings.append(f"{step_id}: No content mapping defined")
-
-            # Check 3: cross_file_validation for DRYRUN 后的 step
-            cross = specs.get('cross_file_validation', {})
-            if step_id in dryrun_downstream_steps and len(cross) == 0:
-                warnings.append(f"{step_id}: No cross-file validation defined")
-
-            # Check 4: No placeholder values remain
-            all_specs = str(specs)
-            if '{{' in all_specs or '}}' in all_specs:
+            # Check 2: no placeholder strings remain
+            all_specs_str = str(specs)
+            if '{{' in all_specs_str or '}}' in all_specs_str:
                 errors.append(f"{step_id}: Unresolved placeholder in specs")
 
-            # Check 5: Descriptions not empty
-            for rule_type in ['quantitative_specs', 'content_mapping', 'cross_file_validation']:
-                for key, value in specs.get(rule_type, {}).items():
-                    if isinstance(value, str) and len(value.strip()) == 0:
-                        errors.append(f"{step_id}.{rule_type}.{key}: Empty description")
+            # Check 3: all values are non-negative integers
+            for key, val in specs.items():
+                if isinstance(val, bool):
+                    continue
+                if not isinstance(val, int) or val < 0:
+                    errors.append(f"{step_id}.{key}: invalid value {val!r} (must be non-negative int)")
 
         if errors:
             print(f"❌ [DRYRUN] Quality validation failed:")

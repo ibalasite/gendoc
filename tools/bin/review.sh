@@ -36,23 +36,22 @@ echo ""
 
 # ─── 簡單計量函式（grep 可完成）────────────────────────────────────────────────
 
-measure_min_h2_sections()      { grep -c "^## " "$1" 2>/dev/null || echo 0; }
-measure_min_endpoint_count()   { grep -cE "^#### (GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS) /" "$1" 2>/dev/null || echo 0; }
-measure_min_scenario_count()   { grep -c "^Scenario:" "$1" 2>/dev/null || echo 0; }
-measure_min_component_count()  { grep -c "^### " "$1" 2>/dev/null || echo 0; }
-measure_min_animation_defs()   { grep -c "^### " "$1" 2>/dev/null || echo 0; }
-measure_min_resource_entries() { grep -c "^### " "$1" 2>/dev/null || echo 0; }
-measure_max_placeholder_count(){ grep -c "{{" "$1" 2>/dev/null || echo 0; }
-measure_min_bgm_entries()      { grep -cEi "bgm|background.?music" "$1" 2>/dev/null || echo 0; }
-measure_min_sfx_entries()      { grep -cEi "sfx|sound.?effect" "$1" 2>/dev/null || echo 0; }
+measure_min_h2_sections()      { grep -c "^## " "$1" 2>/dev/null || true; }
+measure_min_endpoint_count()   { grep -cE "^#### (GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS) /" "$1" 2>/dev/null || true; }
+measure_min_scenario_count()   { grep -c "^Scenario:" "$1" 2>/dev/null || true; }
+measure_min_component_count()  { grep -c "^### " "$1" 2>/dev/null || true; }
+measure_min_animation_defs()   { grep -c "^### " "$1" 2>/dev/null || true; }
+measure_min_resource_entries() { grep -c "^### " "$1" 2>/dev/null || true; }
+measure_max_placeholder_count(){ grep -c "{{" "$1" 2>/dev/null || true; }
+measure_min_bgm_entries()      { grep -cEi "bgm|background.?music" "$1" 2>/dev/null || true; }
+measure_min_sfx_entries()      { grep -cEi "sfx|sound.?effect" "$1" 2>/dev/null || true; }
 
 measure_min_rbac_roles() {
-  grep -cEi "^###.*[Rr]ole|^-\s.*[Rr]ole" "$1" 2>/dev/null || echo 0
+  grep -cEi "^###.*[Rr]ole|^-\s.*[Rr]ole" "$1" 2>/dev/null || true
 }
 
 measure_min_table_count() {
-  # 每個表格有一行分隔符 |---|，計分隔符行數
-  grep -cE "^\|[-| :]+\|" "$1" 2>/dev/null || echo 0
+  grep -cE "^\|[-| :]+\|" "$1" 2>/dev/null || true
 }
 
 measure_min_diagram_count() {
@@ -66,32 +65,21 @@ PYEOF
 }
 
 measure_min_class_count() {
-  # UML class diagrams: "class ClassName {"
-  grep -cE "^class [A-Z]|^\s+class [A-Z]" "$1" 2>/dev/null || echo 0
+  grep -cE "^class [A-Z]|^\s+class [A-Z]" "$1" 2>/dev/null || true
 }
 
 measure_min_row_count() {
-  # 計資料列：開頭為 | 但不是分隔符行
-  python3 - "$1" <<'PYEOF'
-import re, sys
-rows = [l for l in open(sys.argv[1]).read().splitlines()
-        if l.startswith('|') and not re.match(r'^\|[-| :]+\|', l)]
-# 排除 header 行（表格第一行，分隔符前的那行）
-# 簡單計法：有分隔符的表格，header 佔 1 行，其餘都是資料列
-print(max(0, len(rows) - rows.__class__.__bases__[0].__subclasshook__(type(rows))))
-PYEOF
-  # 上方 python 複雜，改用直接計法
   python3 - "$1" <<'PYEOF'
 import re, sys
 lines = open(sys.argv[1]).read().splitlines()
 data_rows = 0
 prev_is_sep = False
-for i, line in enumerate(lines):
+for line in lines:
     if re.match(r'^\|[-| :]+\|', line):
         prev_is_sep = True
         continue
     if line.startswith('|'):
-        if not prev_is_sep:  # 非 header（header 緊接在分隔符之前，此行是分隔符之後）
+        if not prev_is_sep:
             data_rows += 1
     else:
         prev_is_sep = False
@@ -100,7 +88,7 @@ PYEOF
 }
 
 measure_min_rules_json_count() {
-  ls "$RULES_DIR"/*.json 2>/dev/null | wc -l | tr -d ' '
+  find "$RULES_DIR" -maxdepth 1 -name "*.json" 2>/dev/null | wc -l | tr -d ' '
 }
 
 # ─── 深度計量函式（anti-fake：每個單元必須達到最低深度）───────────────────────
