@@ -537,6 +537,11 @@ Match: 0（Match Width — 寬固定，高自動）
 | 數值非 TBD/N/A | 所有尺寸、間距、字型大小、動畫時長填有實際數字 | 從 VDD §Typography/Spacing 提取填入 |
 | 上游術語對齊 | 畫面名稱、流程步驟與 PRD §User Stories 一致 | 以 PRD 為準修正 |
 | 使用者流程完整 | 每個主要 User Story 有對應的畫面流程圖（Mermaid flowchart），無斷點 | 補充缺失的流程節點 |
+| §7.1 元件行為矩陣無模糊描述 | 所有元件 × 斷點格子均填具體數值（尺寸/欄數/px），無「responsive」等模糊詞 | 逐格替換為具體規格值 |
+| §7.2 Grid 統一性聲明 | 已聲明統一使用 CSS Grid 或 Flexbox（不混用）；Container CSS 欄有具體 `display: grid` / `max-width` / `padding` 實作代碼，非純文字描述 | 補充實作代碼並刪除混用敘述 |
+| §6.5 Micro-interaction 最低覆蓋 | 表單互動 ≥3 / 導覽互動 ≥2 / 資料回饋 ≥2；表格無空白列或 placeholder 列 | 補齊缺少的 Micro-interaction 條目 |
+| §13.1 元件狀態規格完整 | 所有互動元件均列出；每格為具體 CSS property + Token 名稱，無「顏色改變」等模糊描述 | 逐格填入具體 CSS 值 |
+| §13.2 狀態圖覆蓋 P0 畫面 | 每個 PRD P0 User Story 對應的主要畫面均有 Mermaid stateDiagram；包含 Loading/Empty/Loaded/Error 四個 state | 補充缺失畫面的狀態圖 |
 
 ---
 
