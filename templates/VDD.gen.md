@@ -548,6 +548,45 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 
 ### §8 Screen Visual Specs（畫面視覺規格）[all]
 
+#### §8.1 Transition 動畫規格（Animation Specification）（必填）
+
+依據 §6.5 Micro-interaction Catalog，為所有動效生成 CSS 實作規格。
+**複雜動效必須附 @keyframes 代碼片段；禁止只描述效果而不給代碼**。
+
+| 動效名稱 | 觸發條件 | CSS Property | Duration | Easing | 實作方式 |
+|---------|---------|-------------|---------|--------|---------|
+| ButtonPress | `:active` 偽類 | `transform: scale(0.97)` | 100ms | `ease-out` | CSS `:active` |
+| ButtonHover | `:hover` 偽類 | `background-color` → `--color-primary-hover` | 150ms | `ease` | CSS `transition` |
+| FormInputFocus | `:focus` 偽類 | `border-color` + `outline` | 150ms | `ease` | CSS `transition` |
+| FormSuccess | API 200 回傳後 | `opacity: 0→1; transform: translateY(-8px→0)` | 300ms | `cubic-bezier(0.16,1,0.3,1)` | `@keyframes fadeInUp` |
+| FormError | 驗證失敗 | `transform: translateX(-4px→4px→0)` | 400ms | `ease` | `@keyframes shake` |
+| ToastAppear | 狀態觸發 | `transform: translateY(-100%→0); opacity: 0→1` | 250ms | `cubic-bezier(0.16,1,0.3,1)` | `@keyframes slideDown` |
+| ToastDismiss | 3s 後或用戶關閉 | `transform: translateY(0→-100%); opacity: 1→0` | 200ms | `ease-in` | `@keyframes slideUp` |
+| SkeletonPulse | Loading 狀態期間 | `background-position: -200%→200%` | 1.5s | `linear` | `@keyframes shimmer` 無限循環 |
+| ModalOpen | trigger 點擊 | `opacity: 0→1; transform: scale(0.95→1)` | 200ms | `ease-out` | `@keyframes modalIn` + backdrop fade |
+| ModalClose | 關閉按鈕 / Escape | `opacity: 1→0; transform: scale(1→0.95)` | 150ms | `ease-in` | `@keyframes modalOut` |
+| （依 §6.5 完整列出所有 Micro-interaction）| | | | | |
+
+**必要 @keyframes 代碼**（複雜動效需附）：
+
+```css
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position: 200% 0; }
+}
+```
+
+---
+
 **必填規則**：覆蓋所有 PRD P0 功能對應的畫面（依 PDD §4 Screen 清單或 PRD User Stories 推斷）。
 
 每個 Screen 包含以下結構：

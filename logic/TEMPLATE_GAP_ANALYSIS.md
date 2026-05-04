@@ -518,7 +518,7 @@ user:session:{uid}   → String（儲存 session_id，用於踢線）
 | G3-C | PDD.gen.md | §5 Scene Architecture（~311 行後） | 新增 Phaser Camera/Pool 規格 | [x] done |
 | G4-A | EDD.gen.md | §11.2 末尾（~1191 行後） | 新增 §11.3 Redis 完整設計 | [x] done |
 | G5-A | PDD.gen.md | 替換 §13.1（221–232 行） | 改為 Component State Spec Table | [x] done |
-| G5-B | PDD.gen.md | §13.1 之後 | 新增 §13.2 Mermaid stateDiagram | [ ] |
+| G5-B | PDD.gen.md | §13.1 之後 | 新增 §13.2 Mermaid stateDiagram | [x] done |
 | G5-C | VDD.gen.md | §8 開頭（~503 行後） | 新增 §8.1 Animation Spec Table | [ ] |
 | G6-A | PDD.gen.md | §7 末尾（~175 行後） | 新增 §7.1 Breakpoint 元件行為矩陣 | [ ] |
 | G6-B | PDD.gen.md | §7.1 之後 | 新增 §7.2 Grid 系統規格表 | [ ] |
