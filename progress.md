@@ -488,16 +488,20 @@ Requirement 4：DRYRUN 后的 step 驗證
   - [x] 各 step 均添加統一的「步驟 0」模式
 - **git commit**：d7e22e7（2026-05-04）
 
-#### 任務 D-SSOT-3.5：實測與驗收（⏸️ 暫停）
-- **狀態**：⏸️ 暫停（如用戶備註：驗收需要新建目標專案，實測在另一臺電腦進行）
-- **前置條件**：需要生成新的目標項目、在獨立環境測試
+#### 任務 D-SSOT-3.5：實測與驗收（⏳ 就緒等待測試環境）
+- **狀態**：✅ 代碼全部實作完成（2026-05-04），已驗證語法正確
+- **前置條件**：需要獨立測試環境 + 真實目標項目檔案
 - **測試清單**：
-  - [ ] 在目標項目執行 `/gendoc dryrun`
-  - [ ] 驗證 DRYRUN 正常執行、get-upstream 能正確讀取檔案
-  - [ ] 在目標項目執行 `/gendoc api`、`/gendoc schema`、`/gendoc frontend` 等
-  - [ ] 所有文件正確生成，無缺漏
-  - [ ] get-upstream 支援章節篩選（§notation）正確運作
-- **備註**：D-SSOT-3.1～3.4 已全部實作完成（2026-05-04），待用戶測試環境準備後進行 D-SSOT-3.5
+  - [ ] 在目標項目執行 `/gendoc-flow DRYRUN`
+  - [ ] 驗證 .gendoc-rules/*.json 生成且無未解決 {{PLACEHOLDER}}
+  - [ ] 在目標項目執行 `/gendoc-flow API`
+  - [ ] 比對 API.md 實際內容 vs .gendoc-rules/API-rules.json 規格
+  - [ ] 驗證 review.sh 正確執行 quantitative/content/cross_file 檢查
+  - [ ] 驗證 get-upstream 能正確讀取並返回 JSON
+- **備註**：
+  - D-SSOT-3.1～3.4 代碼實作完成（commits d0a9ed1...d7e22e7）
+  - 所有工具通過 bash -n 和 python3 編譯檢查
+  - 待用戶在獨立環境準備目標項目後執行測試
 
 ### 總工時估計
 - 改 pipeline.json：1h
