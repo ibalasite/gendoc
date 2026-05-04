@@ -199,3 +199,17 @@ upstream-alignment:
 **Check**: 若 §10 定義了 Sharding 策略，Shard Key 的選擇依據是否已說明？包含：為何選擇此欄位（高基數、查詢頻率、資料分布均勻性）、熱點分析（是否有特定 Shard Key 值資料量遠大於其他）、跨 Shard 查詢限制（JOIN 不跨 Shard）？若有 Sharding 但無以上說明，視為 HIGH。
 **Risk**: Shard Key 選擇錯誤（如使用低基數欄位如 status），導致資料分布嚴重不均（Hot Shard）；或使用時間戳作為 Shard Key 導致所有最新資料集中在一個 Shard；Hot Shard 的效能等同於單台 DB。
 **Fix**: 在 §10 Sharding & Partitioning 補充 Shard Key 選擇分析：基數評估、資料分布均勻性、跨 Shard 查詢影響、以及不選擇其他欄位的原因。
+
+---
+
+### Layer 7: BC 隔離（Spring Modulith HC-1，由 Software Architect 主審，共 2 項）
+
+#### [CRITICAL] 29 — 跨 BC DB-level FK 存在（HC-1 違反）
+**Check**: 掃描 SCHEMA.md 所有 `REFERENCES` 和 `FK` 宣告，確認是否有 Table A（屬於 BC-X）的 FK 指向 Table B（屬於 BC-Y，不同 BC）？判斷方式：對照 Document Control 的 `Owning BC / Service` 欄位，若 FK 的 source table 和 target table 屬於不同 BC，視為 CRITICAL。
+**Risk**: 跨 BC 的 DB-level FK 建立了資料庫層面的強耦合，違反 HC-1（Spring Modulith）；BC 提取為獨立服務時，FK 必然導致 Migration 失敗（無法拆分 DB）；即使不拆服務，這樣的 FK 讓 BC 邊界形同虛設，所有服務最終可以 JOIN 所有資料。
+**Fix**: 移除所有跨 BC 的 DB-level FK；將跨 BC 引用改為應用層解析（Application Layer join）：Consumer BC 儲存對應 ID（無 FK 約束），透過 API 呼叫 Publisher BC 取得完整資料；或透過 Domain Event 冗余儲存必要的快照欄位（denormalization）。
+
+#### [HIGH] 30 — SCHEMA 缺少 BC Ownership 宣告
+**Check**: SCHEMA.md 的 Document Control 是否有 `Owning BC / Service` 欄位（或等效章節），且每張 Table 均標注其所屬 BC？若無明確的 BC Ownership 宣告，工程師無法判斷哪些 FK 是跨 BC（違反 HC-1），視為 HIGH。
+**Risk**: 無 BC Ownership 宣告，跨 BC FK 在 Code Review 中無法機械式驗證；下游 ARCH 的 §4.0 API-BC-Schema 映射表也無法正確填入 Owned Tables 欄位。
+**Fix**: 在 SCHEMA.md Document Control 補充 `Owning BC / Service` 欄位，標注每張 Table 所屬 BC（與 EDD §3.4 Bounded Context Map 保持一致）；若多張 Table 屬於同一 BC，可在章節標題標注「BC: {BC_NAME}」。

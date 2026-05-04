@@ -218,12 +218,18 @@ type UserService interface {
 | 快取 | 高頻讀取 | Redis（TTL 依業務決定）|
 | DB 事務 | 跨表寫入 | PostgreSQL transaction block |
 
-**事件定義表（§5.3 Event-Driven，若有 Message Queue）**：
+**事件定義表（§5.3 Event-Driven，HC-3 必填）**：
 
-| 事件名稱 | Publisher | Subscriber | Payload |
-|---------|----------|-----------|---------|
-| `order.created` | OrderService | NotificationService | {order_id, user_id, amount} |
-| `user.status_changed` | UserService | AuditService | {user_id, from, to} |
+> **HC-3 強制規則（Spring Modulith）**：跨 BC 通訊必須使用 Domain Event（非同步），禁止同步直接呼叫其他 BC 的 Repository 或內部 Service。生成時必須：
+> 1. 讀取 EDD §3.4 Bounded Context Map，識別所有跨 BC 業務互動
+> 2. 每一個跨 BC 互動必須對應一個 Domain Event（若現有設計為同步呼叫，必須在此節標注「需重設計為 Event-Driven」）
+> 3. 每個 Event 的 Schema 必須標注版本（`v1` / `v2`），Consumer BC 列出所有消費者
+> 4. 合部署時走 in-process bus，拆出後改 MQ（程式碼不變）
+
+| 事件名稱 | Schema 版本 | Publisher BC | Consumer BC(s) | Payload |
+|---------|------------|-------------|---------------|---------|
+| `order.created` | v1 | OrderBC | NotificationBC, InventoryBC | {order_id, user_id, amount} |
+| `user.status_changed` | v1 | UserBC | AuditBC | {user_id, from_status, to_status} |
 
 **§5.2 API Gateway & Service Mesh（Kong / AWS API Gateway）**：
 

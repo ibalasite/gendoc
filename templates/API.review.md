@@ -239,3 +239,22 @@ upstream-alignment:
 **Check**: API 文件是否定義或引用 EDD §3.6 中的 Graceful Shutdown 行為？包含：pod 終止信號（SIGTERM）後不再接受新請求、in-flight 請求最多等待 N 秒（推薦 ≤ 30s）完成後才退出、Load Balancer 已移除該 pod 的流量後才開始 drain？若完全無說明視為 CRITICAL。
 **Risk**: 沒有 Graceful Shutdown，每次 pod 重啟（deploy/scale/節點驅逐）都會造成部分請求 502/503，在 canary 或 rolling update 期間尤其明顯。
 **Fix**: 在 §2 通用規範補充「Graceful Shutdown 承諾」段落，並引用 EDD §3.6 HA Architecture 的 SIGTERM 處理流程；或在 §17 SLO 補充「每次 Deploy 期間 SLO 維持 99.9%」的實現說明（Graceful Shutdown + Readiness Probe 配置）。
+
+---
+
+### Layer 10: Spring Modulith BC 對齊（由 Software Architect 主審，共 3 項）
+
+#### [CRITICAL] BC-01 — §3 Endpoints 未依 Bounded Context 分組（HC-2）
+**Check**: API.md §3 中，Endpoints 是否以 `### BC: {BC_NAME} Endpoints` 格式分組？是否每個 BC（來自 EDD §3.4）均有對應的子章節？是否有 Endpoint 歸屬曖昧（跨 BC 共用 Path Prefix，如 `/api/v1/orders` 同時包含 OrderBC 和 PaymentBC 的 Endpoint）？任一缺失視為 CRITICAL。
+**Risk**: 無 BC 分組，工程師無法一眼識別某個 Endpoint 屬於哪個 BC；Code Review 中無法機械式驗證 HC-2（跨 BC 呼叫只能透過公開 Endpoint，不能直接呼叫內部類別）；API 文件和 ARCH §4.0 映射表脫節，BC 邊界形同虛設。
+**Fix**: 將 §3 所有 Endpoint 依 EDD §3.4 Bounded Context Map 重新分組，格式：`### BC: {BC_NAME} Endpoints（Path Prefix: /api/v1/{bc_slug}）`；確認各 BC 的 Path Prefix 不重疊；若某 BC 無直接對外 Endpoint，在子章節標注「此 BC 無直接 API，跨 BC 互動透過 Domain Event」。
+
+#### [HIGH] BC-02 — 跨 BC 呼叫端點未標注（HC-2）
+**Check**: 是否有任何 Endpoint 的業務邏輯需要呼叫其他 BC 的資料（如 OrderBC 的 `/api/v1/orders/{id}` 回傳中包含 UserBC 的 user_name）？此類端點是否在文件中明確標注「呼叫 {BC_NAME} 的 {Endpoint}」或「讀取 {BC_NAME} 發布的 {Domain_Event}」？若有跨 BC 資料依賴但未標注來源，視為 HIGH。
+**Risk**: 未標注跨 BC 依賴，開發者不知道此端點在某個 BC 不可用時的行為（是應該 fallback 還是 503？）；也無法在測試時正確 mock 依賴的 BC。
+**Fix**: 在跨 BC 依賴的端點文件中補充「Cross-BC Dependencies」欄位：列出依賴的 BC 名稱、呼叫方式（同步 API 或 Domain Event）、降級策略（依賴 BC 不可用時的 fallback 行為）。
+
+#### [MEDIUM] BC-03 — §14 HA 核查清單未涵蓋 Domain Event 冪等性
+**Check**: §14 HA 核查清單中，是否包含「Event Consumer 冪等性」項目（同一 Domain Event 被消費兩次時，業務結果不重複執行）？若 API.md 中有 Event-Driven 相關端點（Webhook、Event Listener）但核查清單未提及冪等性，視為 MEDIUM。
+**Risk**: Event Consumer 不冪等，在 MQ 的 At-least-once 投遞語義下，重複投遞會觸發重複業務操作（重複付款、重複建立資源）。
+**Fix**: 在 §14 HA 核查清單補充「Event Consumer 冪等性：消費前先查 `processed_event_id`，已處理則直接 ACK 不執行業務邏輯」；引用 EDD §3.4 Domain Event Schema 的 `event_id` 欄位。

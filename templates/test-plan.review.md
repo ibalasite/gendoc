@@ -200,3 +200,22 @@ upstream-alignment:
 **Check**: §3.6 是否包含可直接執行的本地 HA 驗證腳本（kubectl 指令）？是否確認 Local Dev 環境有 ≥ 2 API replicas（遵循 EDD §3.7 圖 B）？
 **Risk**: 無本地驗證腳本，開發者無法在 PR 合併前驗證 HA 相關程式碼（shared state、distributed lock、pub/sub）是否正確，HA Bug 留到 Staging 才發現，修改成本高。
 **Fix**: 在 §3.6.3 補充本地 HA 驗證腳本：確認 ≥ 2 API replicas 的 kubectl 指令、強制終止一個 Pod 並驗證服務不中斷的完整流程。
+
+---
+
+### Layer 7: Spring Modulith 可拆解性驗證測試（由 Software Architect + QA Lead 主審，共 3 項）
+
+#### [CRITICAL] SM-T01 — §3.8 Spring Modulith 驗證測試缺失
+**Check**: test-plan.md 是否有 §3.8 Spring Modulith 可拆解性驗證測試章節？是否包含：(1) 依 EDD §3.4 Bounded Context Map 逐一列出每個 BC 的 `SM-TEST-01-{BC_NAME}` 測試項目；(2) `ApplicationModules.verify()` Java test skeleton（含 `@SpringBootTest` + `ApplicationModules.of(App.class).verify()`）；(3) 5 個 HC 約束（HC-1~HC-5）各有至少一個測試場景。若 §3.8 完全缺失或缺少任何 BC 的測試項目，視為 CRITICAL。
+**Risk**: 無 Spring Modulith 驗證測試，HC-1~HC-5 約束只存在文件層面，程式碼中的違規無法被 CI 機械式攔截；開發者在實作時悄悄跨 BC 直接呼叫，到架構 Review 才發現時，重構代價極高。
+**Fix**: 補充 §3.8，從 EDD §3.4 Bounded Context Map 提取所有 BC 名稱；為每個 BC 生成一列 `SM-TEST-01-{BC_NAME}`；補充 `ApplicationModules.verify()` test skeleton；確認 5 個 HC 約束各有對應場景（HC-1: cross-BC FK 測試；HC-2: 無直接 internal class 呼叫；HC-3: Event 非同步驗證；HC-4: Redis Key Namespace 隔離；HC-5: `verify()` 無循環依賴）。
+
+#### [HIGH] SM-T02 — Spring Modulith 測試未納入 CI 阻斷條件
+**Check**: §3.8 的 `ApplicationModules.verify()` 測試是否明確標注「CI 阻斷 merge 條件」？即：若 `verify()` 拋出 `AssertionError`（HC-5 循環依賴或 HC-1/HC-2 邊界違規），CI pipeline 必須阻斷 merge？test-plan.md §5 自動化策略是否包含此測試的 CI 觸發條件？
+**Risk**: Spring Modulith 驗證測試若不納入 CI 阻斷條件，開發者可以本地跳過測試直接 push，HC-1~HC-5 違規無法在 merge 前被捕獲；積累到一定程度後，`verify()` 才開始失敗，修復範圍難以控制。
+**Fix**: 在 §3.8 標注「CI 阻斷 merge 條件：`ApplicationModules.verify()` 測試必須在每個 PR CI pipeline 中執行，任何 `AssertionError` 阻斷 merge」；在 §5 自動化策略確認此測試的 CI 觸發設定。
+
+#### [MEDIUM] SM-T03 — HC-3 Domain Event 消費冪等性測試缺失
+**Check**: §3.8 是否包含「Domain Event 重複投遞冪等性」測試場景？即：向同一 Consumer BC 投遞同一 `event_id` 的 Domain Event 兩次，驗證業務邏輯只執行一次（DB 記錄不重複）？若系統有跨 BC 事件驅動架構但無此測試，視為 MEDIUM。
+**Risk**: 無冪等性測試，MQ 的 At-least-once 重複投遞在測試中從未被驗證；生產因 Consumer 重啟或 MQ broker 重傳而觸發重複消費，導致重複付款、重複建立資源等資料異常。
+**Fix**: 在 §3.8 補充 `SM-TEST-HC3-IDEMPOTENCY`：使用 Testcontainers 跑 Consumer Service，投遞同一 event_id 兩次，斷言 DB 中業務記錄只有一筆；若 Consumer 使用 `processed_event_id` 去重表，同步驗證去重表的 INSERT 操作。

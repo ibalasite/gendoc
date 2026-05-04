@@ -186,7 +186,7 @@ upstream-alignment:
 
 ---
 
-### Layer 5B: 微服務可拆解性（Spring Modulith HC-1～HC-4，由 Software Architect 主審，共 4 項）
+### Layer 5B: 微服務可拆解性（Spring Modulith HC-1～HC-5，由 Software Architect 主審，共 5 項）
 
 #### [CRITICAL] AM-01 — Schema 隔離缺失（HC-1）
 **Check**: §4 服務邊界表的「擁有資料」欄是否填入具體 DB Schema / Table 名稱（非模糊描述如「自身資料」「業務資料」）？是否有任何兩個服務聲明擁有同一 Table？§4 邊界原則是否包含跨服務 DB 存取禁止宣告？**§4.0 API-BC-Schema 映射表是否存在？是否覆蓋 API.md §3 全部 Endpoint（每個 Endpoint 一列）？每個 BC 是否至少出現 ≥1 列？** 任一缺失視為 CRITICAL。
@@ -197,6 +197,11 @@ upstream-alignment:
 **Check**: §4 或 §5 通訊模式是否明確說明所有跨服務通訊只透過 Public API 或 Domain Event？是否有設計允許直接呼叫其他服務的 Repository 或 DAO？**API.md §3 Endpoints 是否依 Bounded Context 分組（每個 BC 對應 `### BC: {BC_NAME} Endpoints` 子章節）？是否存在跨 BC Path Prefix 混淆（不同 BC 共用同一 Path Prefix）？** 若有直接呼叫或 §3 無 BC 分組視為 HIGH。
 **Risk**: 未明確禁止跨服務 Repository 直接呼叫，開發者在實作時會取最短路徑（直接 Import），導致編譯期耦合。API.md §3 無 BC 分組，工程師無法一眼識別 Endpoint 的 BC 歸屬，HC-2 在 Code Review 中無法機械式驗證。
 **Fix**: 在 §4 邊界原則或 §5 通訊模式明確標注 HC-2；識別並列出所有需要重設計為 API/Event 的直接呼叫路徑；在 API.md §3 為每個 BC 添加 `### BC: {BC_NAME} Endpoints` 子章節並確認 Path Prefix 不重疊。
+
+#### [HIGH] AM-02b — 跨 BC 通訊未採用 Domain Event 非同步模式（HC-3）
+**Check**: §5.3 Event-Driven 事件定義表是否存在？是否每一個跨 BC 業務互動均對應一個 Domain Event（有 Publisher BC + Consumer BC(s)）？是否有跨 BC 的同步直接呼叫（非 Public API、非 Domain Event）？每個 Event 是否有 Schema 版本標注（v1/v2）？若 §5.3 缺失、有未版本化 Event、或存在跨 BC 同步直呼叫，視為 HIGH。
+**Risk**: 缺少 Domain Event 設計，開發者為了取捷徑會直接同步呼叫其他 BC 的 internal class，形成強耦合；無版本化的 Event Schema 在破壞性變更時無法安全地並存部署（Consumer 先部署還是 Publisher？），造成 Data Pipeline 中斷。
+**Fix**: 依 EDD §3.4 Bounded Context Map 識別所有跨 BC 業務互動，在 §5.3 為每個互動定義 Domain Event（含版本、Publisher BC、Consumer BC(s)、Payload）；將現有同步跨 BC 呼叫重設計為 Event-Driven；確保 Event Class 放在 Publisher BC 的 `domain.event` 包，Consumer 透過 EventListener 訂閱。
 
 #### [HIGH] AM-03 — 服務間依賴未驗證 DAG（HC-5）
 **Check**: 是否有服務間依賴圖（來自 §4、§5 或 EDD §4.3）？是否宣告圖為 DAG（無循環依賴）？若無依賴圖或存在循環，視為 HIGH。
