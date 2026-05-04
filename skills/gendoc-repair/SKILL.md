@@ -43,7 +43,7 @@ fi
 
 ## 呼叫 gendoc-shared
 
-立即用 **Skill tool** 呼叫 `gendoc-shared`。等 Skill tool 回傳後才繼續 Step 0。
+立即用 **Skill tool** 呼叫 `gendoc-shared`。等 Skill tool 回傳後才繼續 Step 0，在此之前不得執行任何後續步驟。
 
 ---
 
