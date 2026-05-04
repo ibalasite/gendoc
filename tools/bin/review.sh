@@ -67,8 +67,9 @@ for rules_file in "$RULES_DIR"/*.json; do
     step_id=$(basename "$rules_file" -rules.json | tr '[:lower:]' '[:upper:]')
     total_steps=$((total_steps + 1))
 
-    # Read expected value (try different keys)
-    expected=$(jq -r '.min_h2_sections // .min_endpoint_count // .min_table_count // .min_scenario_count // 0' "$rules_file" 2>/dev/null || echo "0")
+    # Read expected value from nested structure (.quantitative_specs.*)
+    # Supports RULES_JSON_SCHEMA.md format with three layers
+    expected=$(jq -r '.quantitative_specs.min_h2_sections // .quantitative_specs.min_endpoint_count // .quantitative_specs.min_table_count // .quantitative_specs.min_scenario_count // .min_h2_sections // .min_endpoint_count // .min_table_count // .min_scenario_count // 0' "$rules_file" 2>/dev/null || echo "0")
 
     # Find doc file
     doc_file="$DOCS_DIR/${step_id}.md"
@@ -80,21 +81,22 @@ for rules_file in "$RULES_DIR"/*.json; do
         continue
     fi
 
-    # Count actual occurrences based on expected key
-    if jq -e '.min_h2_sections' "$rules_file" &>/dev/null; then
+    # Count actual occurrences based on rule type (check nested structure first)
+    if jq -e '.quantitative_specs.min_h2_sections // .min_h2_sections' "$rules_file" &>/dev/null; then
         actual=$(grep -c "^## " "$doc_file" || echo "0")
         metric="H2 sections"
-    elif jq -e '.min_endpoint_count' "$rules_file" &>/dev/null; then
-        actual=$(grep -oE "(GET|POST|PUT|DELETE|PATCH) /" "$doc_file" 2>/dev/null | sort -u | wc -l || echo "0")
+    elif jq -e '.quantitative_specs.min_endpoint_count // .min_endpoint_count' "$rules_file" &>/dev/null; then
+        # Count complete endpoint definitions: #### (HTTP_METHOD) /path
+        actual=$(grep -c "^#### \(GET\|POST\|PUT\|DELETE\|PATCH\|HEAD\|OPTIONS\) /" "$doc_file" || echo "0")
         metric="Endpoints"
-    elif jq -e '.min_table_count' "$rules_file" &>/dev/null; then
+    elif jq -e '.quantitative_specs.min_table_count // .min_table_count' "$rules_file" &>/dev/null; then
         actual=$(grep -c "^|" "$doc_file" 2>/dev/null || echo "0")
         metric="Tables"
-    elif jq -e '.min_scenario_count' "$rules_file" &>/dev/null; then
+    elif jq -e '.quantitative_specs.min_scenario_count // .min_scenario_count' "$rules_file" &>/dev/null; then
         actual=$(grep -c "Scenario:" "$doc_file" 2>/dev/null || echo "0")
         metric="Scenarios"
     else
-        log_warn "$step_id: Unknown rule type"
+        log_warn "$step_id: Unknown rule type in quantitative_specs"
         report_lines+=("| $step_id | ? | ? | WARN |")
         warn_steps=$((warn_steps + 1))
         continue
