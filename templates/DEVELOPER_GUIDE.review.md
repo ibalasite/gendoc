@@ -176,6 +176,16 @@ upstream-alignment:
 
 ---
 
+### [HIGH] R-12b：§7 Clean Architecture 分層說明缺失或 SOLID 表仍為佔位符
+
+**Check**：DEVELOPER_GUIDE.md 是否有 §7 Clean Architecture 分層說明章節？逐一確認：(1) 各層職責與 Import 規則表格是否存在，且 class 名稱為本系統實際命名（非 `{從 class-inventory 提取}` 或其他佔位符）？(2) SOLID 快速對照表是否填入 5 個原則且每行引用本系統具體 class / interface？(3) FAQ 至少包含 DIP 注入錯誤的例子？任一缺失或仍為佔位符視為 HIGH。
+
+**Risk**：缺少 CA 分層說明，新進工程師不知道各層 import 邊界，容易在 Domain 層直接 import ORM Entity、在 Application 層直接 `new RepositoryImpl()`，逐步破壞架構邊界；問題不會在 CI 中被立即發現，但會在後期換 DB / 換框架時引發大規模重構。
+
+**Fix**：補充 §7，從 EDD §3.1b 提取 SOLID 表，從 `docs/diagrams/class-inventory.md` 提取各層代表 class 名稱；若 class-inventory.md 不存在，從 EDD §4.5.2 Class Diagram 手動提取。
+
+---
+
 ### [LOW] R-13：§1 場景 B 和 §4 FAQ 未依 migration-tool 欄位選擇單一工具
 
 **Check**：若 SCHEMA.md frontmatter 有 `migration-tool` 欄位：

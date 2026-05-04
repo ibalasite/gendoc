@@ -85,6 +85,11 @@ upstream-alignment:
 **Risk**: 缺少任一類別的測試，對應層級的問題無法被捕捉：缺 Unit 導致業務邏輯錯誤漏測，缺 Integration 導致 API 行為漏測，缺 E2E 導致用戶流程漏測。
 **Fix**: 為每個缺少類別的 Module 補充對應類型的 TC 並更新 RTM；補充原則：每個 Module 至少有 Unit + Integration 兩類，P0 Module 必須有 E2E。
 
+#### [HIGH] 9b — Unit Test 未依 Clean Architecture 層次組織
+**Check**: §3.1 Unit Tests 是否明確區分以下三層測試策略？(1) Domain 層（`<<AggregateRoot>>`/`<<Entity>>`/`<<ValueObject>>`）：完全隔離，無任何 DB/HTTP/ORM import；(2) Application 層（`<<UseCase>>`/`<<ApplicationService>>`）：mock Interface，不啟動 DB；(3) Infrastructure 層（`<<RepositoryImpl>>`/`<<Adapter>>`）：列入 Integration Test，使用 Testcontainers。若三層未區分、或 Domain 層測試引用了 DB/ORM 依賴視為 HIGH。
+**Risk**: Domain / Application / Infrastructure 測試策略混用，Domain 層測試啟動 DB（慢且脆弱）；Application 層測試未 mock Repository（測試了 Infrastructure 而非業務邏輯）；CI 執行時間增加，且 Infrastructure 問題被錯誤診斷為業務邏輯問題。
+**Fix**: 依 EDD §3.1b Dependency Rule 和 `docs/diagrams/class-inventory.md` 的 Stereotype + Layer 欄位重新組織 §3.1；Domain 層測試不得引用任何 ORM / DB / HTTP 依賴；Application 層測試改用 mock Interface 注入；`<<RepositoryImpl>>`/`<<Adapter>>` 測試移至 §3.2 Integration Tests。
+
 ---
 
 ### Layer 3: 測試環境（由 DevOps Expert + QA Architect 聯合審查，共 4 項）

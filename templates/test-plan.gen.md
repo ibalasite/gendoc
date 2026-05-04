@@ -163,13 +163,25 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 
 - **工具**：依 lang_stack 選定
 - **覆蓋率目標**：≥ 80%（行覆蓋率）；核心業務邏輯模組 ≥ 90%
-- **主要測試模組**（從 PRD AC + ARCH 推斷）：
-  - 業務邏輯層（Service / UseCase）
-  - 資料轉換層（Serializer / DTO / Mapper）
-  - 工具函式（Utility / Helper）
-  - 邊界條件驗證（Input Validation）
+- **Clean Architecture 層次分類**（從 EDD §3.1b + `docs/diagrams/class-inventory.md` 推斷；每層測試策略不同，不得混用）：
+
+  **Domain 層（目標覆蓋率 ≥ 90%）**
+  - 對象：`<<AggregateRoot>>` / `<<Entity>>` / `<<ValueObject>>` / `<<DomainService>>`
+  - 特性：**完全隔離，不得引用任何 ORM / DB / HTTP 依賴**（Domain 不依賴 Infrastructure，符合 EDD §3.1b Dependency Rule）
+  - 測試重點：Entity 不變式（Invariant）驗證、ValueObject 不可變性、DomainService 業務規則分支
+
+  **Application 層（目標覆蓋率 ≥ 80%）**
+  - 對象：`<<UseCase>>` / `<<ApplicationService>>`
+  - 特性：**mock 所有 Interface**（IRepository / IPort），不啟動 DB 或外部服務；驗證 Use Case 協調邏輯
+  - 測試重點：Use Case 主流程、錯誤分支（業務規則違反）、Domain Event 發布時機
+
+  **Infrastructure 層（以 Integration Test 為主，Unit ≥ 60%）**
+  - 對象：`<<RepositoryImpl>>` / `<<Adapter>>`
+  - 特性：使用 Testcontainers 啟動真實 DB，驗證 SQL / Query 正確性；Unit Test 只覆蓋純粹的轉換邏輯
+  - 屬於 §3.2 Integration Tests 範疇，不列入 §3.1 Unit 覆蓋率計算
+
 - **執行策略**：Pre-commit hook + PR CI 強制通過
-- **排除項目**：純 I/O 操作、第三方 SDK wrapper（改用 Integration Test 覆蓋）
+- **排除項目**：`<<Controller>>` / `<<RequestDTO>>` / `<<ResponseDTO>>`（HTTP 層由 §3.2 Integration Test 覆蓋）；第三方 SDK wrapper（由 Infrastructure Integration Test 覆蓋）
 
 ### §3.2 Integration Tests
 

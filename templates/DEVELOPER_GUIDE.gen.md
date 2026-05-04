@@ -54,7 +54,7 @@ quality-bar:
 | CICD.md | §4 Shared Make Targets、§6 Jenkins、§7 ArgoCD、§8 Gitea（若存在）、§9 Makefile dev-tools targets（若存在）| §2 CI/CD 診斷、§3 dev-tools 指令 |
 | runbook.md | §N 常見 incident 清單 | §6 文件邊界說明（區分 runbook vs DEVELOPER_GUIDE）|
 | SCHEMA.md（若存在）| DB migration tooling（Flyway/Liquibase/alembic）、frontmatter `migration-tool` 欄位 | §1 場景 B DB Migration 指令 |
-| EDD.md | §3.4 K8S_NAMESPACE / PROJECT_SLUG | 所有 {{}} placeholder 替換 |
+| EDD.md | §3.1b Clean Architecture & SOLID 原則（SOLID 對應表 + Dependency Rule + 禁止清單）、§3.4 K8S_NAMESPACE / PROJECT_SLUG | §7 Clean Architecture 分層說明、所有 {{}} placeholder 替換 |
 
 ### 上游衝突優先級
 
@@ -156,6 +156,56 @@ quality-bar:
 - Helm chart 名稱與 values 路徑從 CICD.md §8 Gitea/Jenkins 安裝段落讀取，或從 LOCAL_DEPLOY.md §6 `dev-tools-install` target 的 `helm upgrade --install` 指令讀取
 - `helm upgrade` 指令必須與 `dev-tools-install` 使用相同的 chart repo（`gitea/gitea`、`jenkins/jenkins`）及相同的 `-f values.yaml` 路徑
 
+### Step 6b：§7 Clean Architecture 分層說明
+
+**生成條件**：若 EDD §3.1b 存在且非全空 placeholder。若 EDD §3.1b 尚未填寫，輸出佔位章節並標注 `[PENDING: 待 EDD §3.1b 填寫後補充]`。
+
+**生成步驟**：
+
+1. 讀取 EDD §3.1b SOLID 對應表，提取每個原則的「本系統實作方式」欄位
+2. 讀取 EDD §3.1b Dependency Rule 禁止清單（Domain 不得 import 什麼）
+3. 讀取 `docs/diagrams/class-inventory.md`（若存在）提取各層代表性 class 名稱
+4. 依下方格式生成 §7，所有 class 名稱必須來自本系統實際命名（非通用佔位符）
+
+**§7 Clean Architecture 分層說明（輸出格式）**：
+
+```markdown
+## §7 Clean Architecture 分層說明
+
+本專案採用 Clean Architecture 四層設計（詳見 EDD §3.1b）。新進工程師在寫任何代碼前請確認所在層次。
+
+### 依賴方向（Dependency Rule）
+
+Presentation → Application → Domain ← Infrastructure
+
+**核心原則**：依賴方向只能由外向內。Domain 層不得引用 Infrastructure 具體類別。
+
+### 各層職責與 Import 規則
+
+| 層次 | Stereotype | 代表 Class（本系統）| 可以 import | 禁止 import |
+|------|-----------|---------------------|------------|------------|
+| Domain | AggregateRoot / Entity / ValueObject / DomainEvent / Repository(interface) | {從 class-inventory 提取} | 同層 class、Java/語言標準庫 | ORM Entity、DB Driver、HTTP Client、Spring 框架 |
+| Application | UseCase / ApplicationService / Port(interface) | {從 class-inventory 提取} | Domain 層 Interface、DTO | RepositoryImpl、Adapter、ORM |
+| Infrastructure | RepositoryImpl / Adapter | {從 class-inventory 提取} | Domain Interface（實作用）、ORM、DB Driver、第三方 SDK | 無限制（但不得反向依賴 Application UseCase） |
+| Presentation | Controller / RequestDTO / ResponseDTO | {從 class-inventory 提取} | Application UseCase / Service | Domain Entity（直接回傳）、Infrastructure |
+
+### SOLID 快速對照（本系統）
+
+| 原則 | 本系統實作方式 |
+|------|--------------|
+{從 EDD §3.1b SOLID 對應表逐行填入}
+
+### 常見違規案例（FAQ）
+
+**Q: 可以在 Domain 層 import Spring `@Repository` annotation 嗎？**
+A: 不行。`@Repository` 是 Infrastructure 的技術細節；Domain 層只定義 `<<Repository>>` interface，不引用框架 annotation。
+
+**Q: UseCase 可以直接 `new UserRepository()` 嗎？**
+A: 不行。違反 DIP。UseCase 只依賴 `IUserRepository` interface，具體實作由 DI Container 注入。
+```
+
+---
+
 ### Step 7：§6 文件邊界說明
 
 **必須包含以下 6 個文件的邊界說明**：
@@ -182,6 +232,7 @@ quality-bar:
 | §2 Jenkins 診斷表 ≥ 3 行 | 人工確認 §2.1 表格 | ≥ 3 行診斷 |
 | §3 Quick Reference ≥ 8 條 | 人工確認 §3.1 表格 | ≥ 8 行 |
 | §4 -local namespace FAQ | 搜尋 `-local` 關鍵字 | 出現 ≥ 1 次 |
+| §7 CA 分層說明 | 確認 §7 章節存在且 SOLID 表格已填入本系統 class 名稱（非 `{從 class-inventory 提取}` 佔位） | §7 存在 + SOLID 表 5 行均有具體內容 |
 | §5.2 資源建議三維度 | 確認 CPU/Memory/Disk 均有最低配置與建議配置 | 三個維度欄位均出現 |
 | §6 文件邊界 6 個文件 | 確認 LOCAL_DEPLOY/CICD/runbook/API/SCHEMA/DEVELOPER_GUIDE 均列出 | 6 個文件均存在 |
 
