@@ -30,9 +30,21 @@
 <a class="sidebar__link" href="index.html">🏠 首頁</a>
 <a class="sidebar__link" href="prd.html">📝 產品需求文件 (PRD)</a>
 <a class="sidebar__link" href="client.html">📄 Client</a>
+<a class="sidebar__link" href="dryrun_api_verification.html">📄 Dryrun Api Verification</a>
+<a class="sidebar__link" href="dryrun_core_implementation_plan.html">📄 Dryrun Core Implementation Plan</a>
+<a class="sidebar__link" href="dryrun_get_upstream_verification.html">📄 Dryrun Get Upstream Verification</a>
+<a class="sidebar__link" href="dryrun_parameter_extraction.html">📄 Dryrun Parameter Extraction</a>
+<a class="sidebar__link" href="dryrun_spec_formulas.html">📄 Dryrun Spec Formulas</a>
+<a class="sidebar__link" href="gendoc_flow_single_step_design.html">📄 Gendoc Flow Single Step Design</a>
+<a class="sidebar__link" href="hardcoded_specs_audit.html">📄 Hardcoded Specs Audit</a>
+<a class="sidebar__link" href="implementation_verification_report.html">📄 Implementation Verification Report</a>
+<a class="sidebar__link" href="pipeline_input_validation_report.html">📄 Pipeline Input Validation Report</a>
+<a class="sidebar__link" href="pipeline_layer_classification_notes.html">📄 Pipeline Layer Classification Notes</a>
+<a class="sidebar__link" href="rules_json_schema.html">📄 Rules Json Schema</a>
 <a class="sidebar__link active" href="currentanalysis.html">📄 Currentanalysis</a>
 <a class="sidebar__link" href="gendoc-redesign-decisions.html">📄 Gendoc-Redesign-Decisions</a>
 <a class="sidebar__link" href="ha-spof-modification-plan.html">📄 Ha-Spof-Modification-Plan</a>
+<a class="sidebar__link" href="progress.html">📄 Progress</a>
 </div>
     </aside>
     <div class="sidebar-resizer" id="sidebarResizer"></div>
@@ -71,7 +83,7 @@
 <p>目前設計假設：只要每份文件的 review loop finding = 0，文件就是正確的。但「語法正確」≠「語義正確」——EDD 可以完全符合模板要求，但 class 設計可能選錯了架構模式（例如在需要 event-driven 的場景硬用 request-response）。</p>
 <p><strong>改善方向</strong>：ALIGN check 已在做跨文件一致性，但還缺一個「設計合理性」層面的 review——例如 EDD 的架構選擇是否符合 PRD 的非功能需求（latency / throughput / consistency）。這是比語法更難自動化的問題，可能需要引入架構 ADR（Architecture Decision Record）驗證機制。</p>
 <h3>風險三：Context Window 與知識遞減（The Knowledge Decay Problem）</h3>
-<p>每份文件讀所有上游文件，在前幾份時沒問題。但到 Phase B 尾端（SCHEMA → FRONTEND → test-plan），上游已累積 IDEA + BRD + PRD + CONSTANTS + PDD + VDD + EDD + ARCH + API，context 可能超過 100k tokens。AI 在深層 context 的注意力是否均勻分配值得懷疑——早期文件（BRD 的商業需求）可能被稀釋。</p>
+<p>每份文件讀所有上游文件，在前幾份時沒問題。但到 DRYRUN 后的 step 尾端（SCHEMA → FRONTEND → test-plan），上游已累積 IDEA + BRD + PRD + CONSTANTS + PDD + VDD + EDD + ARCH + API，context 可能超過 100k tokens。AI 在深層 context 的注意力是否均勻分配值得懷疑——早期文件（BRD 的商業需求）可能被稀釋。</p>
 <p><strong>改善方向</strong>：Phase D-2 Agent subagent 包裝隔離 context 是正確的方向。下一步可以讓每份文件的 gen 規則明確指定「必須讀哪幾份上游的哪些章節」，而不是「讀所有上游的全文」——精確的知識索引比全量 context 更可靠。</p>
 <hr>
 <h2>整體評分</h2>

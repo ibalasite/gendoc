@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pipeline Input Validation Report — gendoc</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+</head>
+<body>
+  <header class="top-nav">
+    <a href="index.html" class="nav-brand">gendoc</a>
+    <div class="nav-controls">
+      <div class="search-wrap">
+        <input class="search-input" type="search" placeholder="搜尋文件...">
+        <div class="search-results"></div>
+      </div>
+      <a class="nav-gh-link" href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener">⌥ GitHub</a>
+      <button class="sidebar-toggle" id="sidebarToggle" title="收合/展開側欄">☰</button>
+    </div>
+  </header>
+  <div class="doc-page-banner">
+    <p class="banner-breadcrumb"><a href="index.html">gendoc</a> › Pipeline Input Validation Report</p>
+    <h1 class="banner-title">Pipeline Input Validation Report</h1>
+  </div>
+  <div class="page-wrapper">
+    <aside class="sidebar" aria-label="文件導覽">
+      <div class="sidebar__section">
+<div class="sidebar__label">文件</div>
+<a class="sidebar__link" href="index.html">🏠 首頁</a>
+<a class="sidebar__link" href="prd.html">📝 產品需求文件 (PRD)</a>
+<a class="sidebar__link" href="client.html">📄 Client</a>
+<a class="sidebar__link" href="dryrun_api_verification.html">📄 Dryrun Api Verification</a>
+<a class="sidebar__link" href="dryrun_core_implementation_plan.html">📄 Dryrun Core Implementation Plan</a>
+<a class="sidebar__link" href="dryrun_get_upstream_verification.html">📄 Dryrun Get Upstream Verification</a>
+<a class="sidebar__link" href="dryrun_parameter_extraction.html">📄 Dryrun Parameter Extraction</a>
+<a class="sidebar__link" href="dryrun_spec_formulas.html">📄 Dryrun Spec Formulas</a>
+<a class="sidebar__link" href="gendoc_flow_single_step_design.html">📄 Gendoc Flow Single Step Design</a>
+<a class="sidebar__link" href="hardcoded_specs_audit.html">📄 Hardcoded Specs Audit</a>
+<a class="sidebar__link" href="implementation_verification_report.html">📄 Implementation Verification Report</a>
+<a class="sidebar__link active" href="pipeline_input_validation_report.html">📄 Pipeline Input Validation Report</a>
+<a class="sidebar__link" href="pipeline_layer_classification_notes.html">📄 Pipeline Layer Classification Notes</a>
+<a class="sidebar__link" href="rules_json_schema.html">📄 Rules Json Schema</a>
+<a class="sidebar__link" href="currentanalysis.html">📄 Currentanalysis</a>
+<a class="sidebar__link" href="gendoc-redesign-decisions.html">📄 Gendoc-Redesign-Decisions</a>
+<a class="sidebar__link" href="ha-spof-modification-plan.html">📄 Ha-Spof-Modification-Plan</a>
+<a class="sidebar__link" href="progress.html">📄 Progress</a>
+</div>
+    </aside>
+    <div class="sidebar-resizer" id="sidebarResizer"></div>
+    <main class="doc-content"><h1>Pipeline Input/Output 驗證報告</h1>
+<p>根據詳細掃描所有 step 的 <code>.gen.md</code> upstream-docs 與 <code>pipeline.json</code> input[] 欄位的對比分析。</p>
+<hr>
+<h2>執行摘要</h2>
+<table>
+<tr><th>類別</th><th>數量</th><th>影響</th><th>優先度</th></tr>
+<tr><td>🔴 <strong>完全錯誤</strong>（input 與 gen.md 無關）</td><td>1</td><td>input 無法提供所需資料</td><td><strong>P0：立即修復</strong></td></tr>
+<tr><td>⚠️ <strong>關鍵遺漏</strong>（缺少 gen.md required 文件）</td><td>4</td><td>直接破壞 gate-check</td><td><strong>P1：高優先度</strong></td></tr>
+<tr><td>ℹ️ <strong>一般遺漏</strong>（缺少累積上游文件）</td><td>9</td><td>影響 AI 補讀邏輯</td><td>P2：中優先度</td></tr>
+<tr><td>📦 <strong>Output 宣告遺漏</strong>（副產品未記錄）</td><td>2</td><td>下游 input 無法讀取</td><td><strong>P1：修復</strong></td></tr>
+</table>
+<hr>
+<h2>問題詳單與修復方案</h2>
+<h3>🔴 P0：完全錯誤（立即修復）</h3>
+<h4>1. RESOURCE 的 input 完全錯誤</h4>
+<p><strong>目前状態：</strong></p>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;RESOURCE&quot;,
+  &quot;input&quot;: [&quot;docs/EDD.md&quot;, &quot;docs/ARCH.md&quot;]
+}</code></pre>
+<p><strong>正確應為：</strong></p>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;RESOURCE&quot;,
+  &quot;input&quot;: [&quot;docs/VDD.md&quot;, &quot;docs/ANIM.md&quot;, &quot;docs/AUDIO.md&quot;]
+}</code></pre>
+<p><strong>原因：</strong></p>
+<p>RESOURCE.gen.md 的生成邏輯是「從 VDD 推導視覺資產、從 ANIM 推導骨骼動畫資產、從 AUDIO 推導音效資產清單」。EDD/ARCH 與此邏輯無直接關係。</p>
+<p><strong>受影響的 skill 調用：</strong></p>
+<p>當 gendoc-flow 執行 RESOURCE step 時，<code>get-upstream --step RESOURCE</code> 會收到 EDD+ARCH 內容，但 RESOURCE.gen.md 期望的是 VDD+ANIM+AUDIO，導致資產生成失敗。</p>
+<p><strong>修復位置：</strong></p>
+<p><code>/Users/tobala/projects/gendoc/templates/pipeline.json</code> line ~430-433</p>
+<hr>
+<h3>⚠️ P1：關鍵遺漏（gen.md required → pipeline 未列）</h3>
+<h4>2. CICD 遺漏 LOCAL_DEPLOY.md</h4>
+<p><strong>目前状態：</strong></p>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;CICD&quot;,
+  &quot;input&quot;: [&quot;docs/EDD.md&quot;, &quot;docs/ARCH.md&quot;]
+}</code></pre>
+<p><strong>應補充：</strong></p>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;CICD&quot;,
+  &quot;input&quot;: [&quot;docs/EDD.md&quot;, &quot;docs/ARCH.md&quot;, &quot;docs/LOCAL_DEPLOY.md&quot;]
+}</code></pre>
+<p><strong>根據：</strong></p>
+<p>CICD.gen.md quality-bar: 「§4 Make targets 必須與 LOCAL_DEPLOY.md §6 完全一致（character-by-character）」</p>
+<p><strong>修復位置：</strong></p>
+<p><code>/Users/tobala/projects/gendoc/templates/pipeline.json</code> line ~645-648</p>
+<hr>
+<h4>3. DEVELOPER_GUIDE 遺漏 CICD.md 和 runbook.md</h4>
+<p><strong>目前状態：</strong></p>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;DEVELOPER_GUIDE&quot;,
+  &quot;input&quot;: [&quot;docs/EDD.md&quot;, &quot;docs/LOCAL_DEPLOY.md&quot;]
+}</code></pre>
+<p><strong>應補充：</strong></p>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;DEVELOPER_GUIDE&quot;,
+  &quot;input&quot;: [&quot;docs/EDD.md&quot;, &quot;docs/LOCAL_DEPLOY.md&quot;, &quot;docs/CICD.md&quot;, &quot;docs/runbook.md&quot;]
+}</code></pre>
+<p><strong>根據：</strong></p>
+<p>DEVELOPER_GUIDE.gen.md required 欄位明確列出三件套：LOCAL_DEPLOY + CICD + runbook。§2 CI/CD 診斷章節直接讀取 CICD.md 的 §4 Shared Make targets 和 §8 Gitea。</p>
+<p><strong>修復位置：</strong></p>
+<p><code>/Users/tobala/projects/gendoc/templates/pipeline.json</code> line ~669-672</p>
+<hr>
+<h4>4. BDD-client 遺漏 PRD.md</h4>
+<p><strong>目前状態：</strong></p>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;BDD-client&quot;,
+  &quot;input&quot;: [&quot;docs/PDD.md&quot;, &quot;docs/FRONTEND.md&quot;]
+}</code></pre>
+<p><strong>應補充：</strong></p>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;BDD-client&quot;,
+  &quot;input&quot;: [&quot;docs/PRD.md&quot;, &quot;docs/PDD.md&quot;, &quot;docs/FRONTEND.md&quot;]
+}</code></pre>
+<p><strong>根據：</strong></p>
+<p>BDD-client.gen.md 必讀上游鏈表格，第一項即是「PRD.md — 主要輸入：將每個 AC 轉為至少 1 Happy Path + 1 Error Flow scenario」。PRD 的 AC 是 BDD-client scenario 的核心驅動力，遺漏會導致場景不完整。</p>
+<p><strong>修復位置：</strong></p>
+<p><code>/Users/tobala/projects/gendoc/templates/pipeline.json</code> line ~543-546</p>
+<hr>
+<h4>5. SCHEMA 遺漏 PDD.md</h4>
+<p><strong>目前状態：</strong></p>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;SCHEMA&quot;,
+  &quot;input&quot;: [&quot;docs/EDD.md&quot;, &quot;docs/CONSTANTS.md&quot;]
+}</code></pre>
+<p><strong>應補充：</strong></p>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;SCHEMA&quot;,
+  &quot;input&quot;: [&quot;docs/EDD.md&quot;, &quot;docs/CONSTANTS.md&quot;, &quot;docs/PDD.md&quot;]
+}</code></pre>
+<p><strong>根據：</strong></p>
+<p>SCHEMA.gen.md quality-bar: 「DB 欄位必須覆蓋所有 PDD 定義的顯示欄位，不得遺漏 PDD 欄位」。PDD 是決定「數據庫應該有哪些欄位」的直接輸入。</p>
+<p><strong>修復位置：</strong></p>
+<p><code>/Users/tobala/projects/gendoc/templates/pipeline.json</code> line ~271-274</p>
+<hr>
+<h3>📦 P1：Output 宣告遺漏（副產品未記錄）</h3>
+<h4>6. DRYRUN 的 .gendoc-rules/ 目錄未宣告</h4>
+<p><strong>目前状態：</strong></p>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;DRYRUN&quot;,
+  &quot;output&quot;: [&quot;docs/MANIFEST.md&quot;],
+  &quot;multi_file&quot;: false
+}</code></pre>
+<p><strong>應改為：</strong></p>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;DRYRUN&quot;,
+  &quot;output&quot;: [&quot;docs/MANIFEST.md&quot;, &quot;.gendoc-rules/&quot;],
+  &quot;output_glob&quot;: &quot;.gendoc-rules/*.json&quot;,
+  &quot;multi_file&quot;: true
+}</code></pre>
+<p><strong>原因：</strong></p>
+<p>DRYRUN 生成 .gendoc-rules/ 目錄下的多個 JSON 檔案（API-rules.json, SCHEMA-rules.json 等），這些文件是後續所有 step 的 gate-check 依據。若未在 pipeline.json output 中宣告，其他 step 無法透過 pipeline 明確找到此資訊。</p>
+<p><strong>修復位置：</strong></p>
+<p><code>/Users/tobala/projects/gendoc/templates/pipeline.json</code> line ~187-190</p>
+<p><strong>附註：</strong></p>
+<p>UML step 也會生成 <code>docs/diagrams/class-inventory.md</code>，作為 test-plan 和 RTM 的直接輸入，但目前 pipeline output 只宣告了 <code>docs/diagrams/</code>，class-inventory.md 未單獨列出。建議保持現狀（glob 已覆蓋）。</p>
+<hr>
+<h2>一般遺漏清單（P2：中優先度）</h2>
+<p>以下 step 的 input 缺少「累積上游文件」（gen.md Iron Rule 允許，但不完整）：</p>
+<table>
+<tr><th>Step</th><th>目前 input[]</th><th>gen.md 建議補充</th><th>原因</th><th>優先度</th></tr>
+<tr><td><strong>EDD</strong></td><td>PRD, CONSTANTS</td><td>+IDEA, +BRD, +PDD, +VDD</td><td>Pass-A 讀取這些文件提取業務規格</td><td>P2</td></tr>
+<tr><td><strong>ARCH</strong></td><td>EDD</td><td>+IDEA, +BRD, +PRD, +PDD, +VDD</td><td>系統整體約束來自全部需求層文件</td><td>P2</td></tr>
+<tr><td><strong>API</strong></td><td>EDD, CONSTANTS</td><td>+PRD（AC 覆蓋）, +PDD（Response Schema）</td><td>PRD AC 應與 API endpoint 1-to-1 對應</td><td>P2</td></tr>
+<tr><td><strong>FRONTEND</strong></td><td>PDD, VDD, CONSTANTS</td><td>+PRD, +EDD, +API</td><td>Screen×API 矩陣、Auth Flow 等</td><td>P2</td></tr>
+<tr><td><strong>AUDIO</strong></td><td>EDD, ARCH</td><td>+FRONTEND（引擎版本）</td><td>gen.md quality-bar 直接讀取</td><td>P2</td></tr>
+<tr><td><strong>ANIM</strong></td><td>EDD, ARCH</td><td>+FRONTEND（引擎版本）, +VDD（easing）</td><td>同上</td><td>P2</td></tr>
+<tr><td><strong>CLIENT_IMPL</strong></td><td>EDD, FRONTEND</td><td>+VDD, +ANIM, +AUDIO, +ARCH</td><td>gen.md front-matter 明確列出</td><td>P2</td></tr>
+<tr><td><strong>ADMIN_IMPL</strong></td><td>EDD, API</td><td>+ARCH, +SCHEMA, +CONSTANTS</td><td>gen.md required 區塊</td><td>P2</td></tr>
+<tr><td><strong>test-plan</strong></td><td>PRD, EDD, SCHEMA</td><td>+ARCH, +API, +FRONTEND</td><td>需讀 FRONTEND 確定 E2E 覆蓋範圍</td><td>P2</td></tr>
+</table>
+<p><strong>設計說明：</strong></p>
+<p>pipeline.json 採用「最小直接依賴」原則（直接上游），而各 gen.md 聲明的是「完整上游鏈」。當 <code>get-upstream</code> 只讀 pipeline 中列出的最小依賴時，gen.md 的 Iron Rule 允許「上游不存在則靜默略過」。由於 gendoc-flow 中多數 step 由 AI subagent 執行（而非全部自動化），AI 會自行補讀其他檔案，所以一般遺漏的實際影響較小——但為了 pipeline SSOT 的完整性，這些也應該補充。</p>
+<hr>
+<h2>修復優先順序建議</h2>
+<ol><li><strong>立即（同一個 commit）</strong>：</li></ol>
+<ul><li style="margin-left:1.5rem">RESOURCE input 改為 VDD+ANIM+AUDIO</li><li style="margin-left:1.5rem">CICD input 補 LOCAL_DEPLOY</li><li style="margin-left:1.5rem">DEVELOPER_GUIDE input 補 CICD+runbook</li><li style="margin-left:1.5rem">BDD-client input 補 PRD</li><li style="margin-left:1.5rem">SCHEMA input 補 PDD</li></ul>
+<ol><li><strong>隨後（可視為第二個 commit）</strong>：</li></ol>
+<ul><li style="margin-left:1.5rem">DRYRUN 的 output 改為宣告 .gendoc-rules/ 並設 multi_file=true</li></ul>
+<ol><li><strong>後續優化（可考慮）</strong>：</li></ol>
+<ul><li style="margin-left:1.5rem">補充 P2 的累積上游文件，提升 pipeline.json SSOT 完整度</li></ul>
+<hr>
+<h2>驗證步驟（修復後）</h2>
+<p>修復完 pipeline.json 後，應執行：</p>
+<ol><li><strong>語法驗證</strong>：</li></ol>
+<pre><code class="language-bash">   python3 -m json.tool templates/pipeline.json &gt; /dev/null &amp;&amp; echo &quot;JSON valid&quot;</code></pre>
+<ol><li><strong>get-upstream 測試</strong>：</li></ol>
+<p>在某個目標專案中測試修復後的 get-upstream 呼叫：</p>
+<pre><code class="language-bash">   tools/bin/get-upstream --step RESOURCE --output json
+   tools/bin/get-upstream --step CICD --output json
+   # ... 其他修復過的 step</code></pre>
+<p>確認返回的 JSON 包含所有預期的檔案。</p>
+<ol><li><strong>用 Architecture Expert agent 驗證</strong>：</li></ol>
+<p>在 pipeline.json 修復完成後，應請專家驗證：</p>
+<ul><li style="margin-left:1.5rem">input/output 映射是否形成有向無環圖（DAG）</li><li style="margin-left:1.5rem">依賴順序是否合理</li><li style="margin-left:1.5rem">是否有遺漏的跨步驟隱性依賴</li></ul>
+<hr>
+<h2>檔案位置參考</h2>
+<table>
+<tr><th>檔案</th><th>位置</th><th>修復內容</th></tr>
+<tr><td>pipeline.json</td><td><code>/Users/tobala/projects/gendoc/templates/pipeline.json</code></td><td>修改 5 個 step 的 input[] + 1 個 step 的 output[]</td></tr>
+<tr><td>各 step gen.md</td><td><code>/Users/tobala/projects/gendoc/templates/*.gen.md</code></td><td>無需修改（已正確定義上游）</td></tr>
+<tr><td>驗證參考</td><td>上方「問題詳單」中每個問題的「根據」欄</td><td>來源文件與行號</td></tr>
+</table>
+<hr>
+<h2>關鍵設計決策（需確認）</h2>
+<h3>設計決策 1：CONSTANTS step 的 Deprecated 狀態</h3>
+<p>目前 pipeline.json 保留 CONSTANTS step，但 CONSTANTS.gen.md 標記為 DEPRECATED（功能已由 EDD Pass-0 接管，即 EDD.gen.md §2.1）。</p>
+<p><strong>建議：</strong> 保留 CONSTANTS step 以兼容舊專案，但在 DRYRUN.gen.md 中加註「若 CONSTANTS 已由 EDD Pass-0 生成，可跳過獨立 step」。</p>
+<h3>設計決策 2：gen.md 中「累積上游」vs pipeline.json 中「最小依賴」</h3>
+<p>當前設計是 pipeline.json 記錄「直接依賴」（get-upstream 需要的核心檔案），而 gen.md 聲明「完整上游鏈」（包含補充讀取）。</p>
+<p><strong>建議：</strong> 此設計合理，保持現狀。修復 P1 問題後，管理員可根據專案演進逐步補充 P2 中的累積上游文件。</p>
+<hr>
+<h2>下一步</h2>
+<ul><li style="list-style:none"><input type="checkbox" disabled> 修復 pipeline.json 的 5 個 P1 input 問題</li><li style="list-style:none"><input type="checkbox" disabled> 修復 pipeline.json 的 DRYRUN output 宣告</li><li style="list-style:none"><input type="checkbox" disabled> 測試 get-upstream 對修復後的 pipeline 的讀取結果</li><li style="list-style:none"><input type="checkbox" disabled> 用 Architecture Expert 驗證修復後的依賴圖</li><li style="list-style:none"><input type="checkbox" disabled> 更新 progress.md 「input/output 驗證」章節為「已完成」</li></ul>
+<hr>
+<p><strong>報告生成日期：</strong> 2026-05-04</p>
+<p><strong>驗證方法：</strong> 掃描所有 29 個 .gen.md 檔案，與 pipeline.json v4.0 對比</p>
+<p><strong>掃描範圍：</strong> input[] + output[] 欄位完整性、multi_file 標記、副產品宣告</p>
+<p><strong>驗證工具：</strong> code-explorer agent + 手工詳細對比</p></main>
+  </div>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({startOnLoad:true,theme:'default',
+      flowchart:{curve:'basis',nodeSpacing:60,rankSpacing:80},
+      er:{layoutDirection:'TD',minEntityWidth:100,fontSize:12},
+      sequence:{actorMargin:60,messageMargin:30}});
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-go.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

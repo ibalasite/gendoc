@@ -148,7 +148,7 @@ Manual update: `/gendoc-upgrade` or `~/.claude/skills/gendoc/setup upgrade`
 
 ## Design Principles
 
-gendoc enforces two non-negotiable architectural principles on all generated documents:
+gendoc enforces three non-negotiable architectural principles on all generated documents:
 
 **1. HA / SCALE / SPOF / BCP from Day One**  
 Every generated system has ≥ 2 replicas at minimum. There is no "small" or "single-instance" mode. Cost is the minimum number of servers required to eliminate all single points of failure.
@@ -165,6 +165,23 @@ All subsystems (e.g. member / wallet / deposit / lobby / game) are designed as B
 | HC-5 | Module dependency graph must be a DAG (no circular dependencies) |
 
 References: Martin Fowler "MonolithFirst" (2015) · Sam Newman *Monolith to Microservices* (O'Reilly 2019) · Spring Modulith (spring.io, 2022)
+
+**3. Clean Architecture + SOLID — Dependency Rule Enforced**  
+Every generated backend system follows Robert C. Martin's 4-layer Clean Architecture with explicit dependency direction. EDD §3.1b anchors the SOLID table and Dependency Rule; all downstream documents (ARCH, test-plan, DEVELOPER_GUIDE) are enforced to align.
+
+| Layer | Role | Import Rule |
+|-------|------|-------------|
+| Presentation | Controllers, Request/Response DTOs | → Application only |
+| Application | Use Cases, Application Services | → Domain only |
+| Domain | Entities, Value Objects, Repository **Interfaces** | No outward imports |
+| Infrastructure | RepositoryImpl, Adapters, ORM, external SDKs | → Domain interfaces (DIP) |
+
+**禁止清單 (Hard Constraints):**
+- Domain layer must not import any ORM / DB / HTTP / external SDK
+- Application layer must not directly `new` any Infrastructure concrete class (use DIP via constructor injection)
+- All 5 SOLID principles must be named with concrete class/interface examples in EDD §3.1b
+
+References: Robert C. Martin *Clean Architecture* (2017) · *Agile Software Development* SOLID chapters (2002)
 
 ---
 

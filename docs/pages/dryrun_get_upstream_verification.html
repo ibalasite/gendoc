@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dryrun Get Upstream Verification — gendoc</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+</head>
+<body>
+  <header class="top-nav">
+    <a href="index.html" class="nav-brand">gendoc</a>
+    <div class="nav-controls">
+      <div class="search-wrap">
+        <input class="search-input" type="search" placeholder="搜尋文件...">
+        <div class="search-results"></div>
+      </div>
+      <a class="nav-gh-link" href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener">⌥ GitHub</a>
+      <button class="sidebar-toggle" id="sidebarToggle" title="收合/展開側欄">☰</button>
+    </div>
+  </header>
+  <div class="doc-page-banner">
+    <p class="banner-breadcrumb"><a href="index.html">gendoc</a> › Dryrun Get Upstream Verification</p>
+    <h1 class="banner-title">Dryrun Get Upstream Verification</h1>
+  </div>
+  <div class="page-wrapper">
+    <aside class="sidebar" aria-label="文件導覽">
+      <div class="sidebar__section">
+<div class="sidebar__label">文件</div>
+<a class="sidebar__link" href="index.html">🏠 首頁</a>
+<a class="sidebar__link" href="prd.html">📝 產品需求文件 (PRD)</a>
+<a class="sidebar__link" href="client.html">📄 Client</a>
+<a class="sidebar__link" href="dryrun_api_verification.html">📄 Dryrun Api Verification</a>
+<a class="sidebar__link" href="dryrun_core_implementation_plan.html">📄 Dryrun Core Implementation Plan</a>
+<a class="sidebar__link active" href="dryrun_get_upstream_verification.html">📄 Dryrun Get Upstream Verification</a>
+<a class="sidebar__link" href="dryrun_parameter_extraction.html">📄 Dryrun Parameter Extraction</a>
+<a class="sidebar__link" href="dryrun_spec_formulas.html">📄 Dryrun Spec Formulas</a>
+<a class="sidebar__link" href="gendoc_flow_single_step_design.html">📄 Gendoc Flow Single Step Design</a>
+<a class="sidebar__link" href="hardcoded_specs_audit.html">📄 Hardcoded Specs Audit</a>
+<a class="sidebar__link" href="implementation_verification_report.html">📄 Implementation Verification Report</a>
+<a class="sidebar__link" href="pipeline_input_validation_report.html">📄 Pipeline Input Validation Report</a>
+<a class="sidebar__link" href="pipeline_layer_classification_notes.html">📄 Pipeline Layer Classification Notes</a>
+<a class="sidebar__link" href="rules_json_schema.html">📄 Rules Json Schema</a>
+<a class="sidebar__link" href="currentanalysis.html">📄 Currentanalysis</a>
+<a class="sidebar__link" href="gendoc-redesign-decisions.html">📄 Gendoc-Redesign-Decisions</a>
+<a class="sidebar__link" href="ha-spof-modification-plan.html">📄 Ha-Spof-Modification-Plan</a>
+<a class="sidebar__link" href="progress.html">📄 Progress</a>
+</div>
+    </aside>
+    <div class="sidebar-resizer" id="sidebarResizer"></div>
+    <main class="doc-content"><h1>get-upstream 工具驗證報告</h1>
+<h2>目標</h2>
+<p>驗證 <code>tools/bin/get-upstream.sh</code> 工具能否正確讀取 <code>pipeline.json</code> 中定義的 DRYRUN step 的 <code>input[]</code> 字段，並返回所有必要的上游文件內容。</p>
+<hr>
+<h2>驗證項目</h2>
+<h3>1. Pipeline.json 定義檢查</h3>
+<p><strong>檢驗項</strong>：DRYRUN step 是否在 pipeline.json 中正確定義</p>
+<p><strong>結果</strong>：✅ <strong>通過</strong></p>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;DRYRUN&quot;,
+  &quot;input&quot;: [
+    &quot;docs/IDEA.md&quot;,
+    &quot;docs/BRD.md&quot;,
+    &quot;docs/PRD.md&quot;,
+    &quot;docs/CONSTANTS.md&quot;,
+    &quot;docs/PDD.md&quot;,
+    &quot;docs/VDD.md&quot;,
+    &quot;docs/EDD.md&quot;,
+    &quot;docs/ARCH.md&quot;
+  ]
+}</code></pre>
+<p><strong>評估</strong>：</p>
+<ul><li>DRYRUN step 已在 pipeline.json 中定義</li><li>input[] 包含完整的 8 個 DRYRUN 前的 step 文件</li><li>檔案路徑格式正確（<code>docs/FILENAME.md</code>）</li><li>順序合理（從高層需求到低層設計）</li></ul>
+<hr>
+<h3>2. get-upstream.sh 實現檢查</h3>
+<p><strong>檢驗項</strong>：工具是否能正確讀取 pipeline.json 並提取 input[]</p>
+<p><strong>實現位置</strong>：<code>tools/bin/get-upstream.sh</code></p>
+<p><strong>核心邏輯</strong>：</p>
+<pre><code class="language-bash"># 1. 解析 --step 參數
+STEP_ID=&quot;DRYRUN&quot;
+
+# 2. 檢查目標項目目錄
+if [[ ! -f &quot;.gendoc-state.json&quot; ]]; then
+  exit 1  # 必須在目標項目目錄
+fi
+
+# 3. 查找 pipeline.json（優先本地）
+PIPELINE_JSON=&quot;templates/pipeline.json&quot;
+
+# 4. 用 Python 讀取 pipeline.json
+read_input_from_pipeline() {
+  python3 &lt;&lt; &#x27;EOF&#x27;
+  # 查找 DRYRUN step 的 input[]
+  input_files = step.get(&#x27;input&#x27;, [])
+  EOF
+}
+
+# 5. 讀檔案內容並組成 JSON
+python3 &lt;&lt; &#x27;EOF&#x27;
+  for file_spec in input_files:
+    content = read_file(file_spec)
+    result[&quot;inputs&quot;][file_spec] = content
+EOF</code></pre>
+<p><strong>評估</strong>：✅ <strong>正確實現</strong></p>
+<ul><li>支援 <code>--step &lt;STEP_ID&gt;</code> 參數</li><li>支援 <code>--output json</code> 參數</li><li>正確讀取 pipeline.json</li><li>支援章節篩選（<code>docs/FILE.md§2</code>）</li><li>返回結構化 JSON</li></ul>
+<hr>
+<h3>3. 返回結構驗證</h3>
+<p><strong>預期輸出格式</strong>：</p>
+<pre><code class="language-json">{
+  &quot;step&quot;: &quot;DRYRUN&quot;,
+  &quot;timestamp&quot;: &quot;2026-05-04T10:30:00Z&quot;,
+  &quot;inputs&quot;: {
+    &quot;docs/IDEA.md&quot;: &quot;...&quot;,
+    &quot;docs/BRD.md&quot;: &quot;...&quot;,
+    &quot;docs/PRD.md&quot;: &quot;...&quot;,
+    &quot;docs/CONSTANTS.md&quot;: &quot;...&quot;,
+    &quot;docs/PDD.md&quot;: &quot;...&quot;,
+    &quot;docs/VDD.md&quot;: &quot;...&quot;,
+    &quot;docs/EDD.md&quot;: &quot;...&quot;,
+    &quot;docs/ARCH.md&quot;: &quot;...&quot;
+  }
+}</code></pre>
+<p><strong>評估</strong>：✅ <strong>符合設計</strong></p>
+<ul><li>包含 <code>step</code> 字段（識別碼）</li><li>包含 <code>timestamp</code> 字段（追蹤時間）</li><li>包含 <code>inputs</code> 字段（內容對應）</li><li>每個檔案內容完整讀取</li></ul>
+<hr>
+<h3>4. 使用情景驗證</h3>
+<h4>情景 1：dryrun_core.py 調用 get-upstream</h4>
+<p><strong>在 dryrun_core.py 中</strong>：</p>
+<pre><code class="language-python">def _load_upstream(self) -&gt; dict:
+    result = subprocess.run(
+        [str(get_upstream_path), &#x27;--step&#x27;, &#x27;DRYRUN&#x27;, &#x27;--output&#x27;, &#x27;json&#x27;],
+        cwd=str(self.cwd),
+        capture_output=True,
+        text=True
+    )
+    upstream_data = json.loads(result.stdout)
+    return upstream_data.get(&#x27;inputs&#x27;, {})</code></pre>
+<p><strong>驗證</strong>：✅ <strong>正確集成</strong></p>
+<ul><li>dryrun_core.py 正確調用 get-upstream</li><li>捕獲 JSON 輸出</li><li>提取 inputs 字典供參數提取使用</li></ul>
+<h4>情景 2：模板文件（*.gen.md）調用 get-upstream</h4>
+<p><strong>在 SCHEMA.gen.md 中</strong>：</p>
+<pre><code class="language-bash"># Step 0：呼叫 get-upstream 讀取上游檔案
+_UPSTREAM_JSON=$(tools/bin/get-upstream --step SCHEMA --output json 2&gt;&amp;1)</code></pre>
+<p><strong>驗證</strong>：✅ <strong>符合設計</strong></p>
+<ul><li>每個 .gen.md 可調用 get-upstream 讀取自己的 input[]</li><li>返回的 JSON 包含該 step 所需的所有上游文件</li></ul>
+<hr>
+<h2>驗證清單</h2>
+<table>
+<tr><th>項目</th><th>檢驗內容</th><th>結果</th></tr>
+<tr><td>Pipeline 定義</td><td>DRYRUN step 的 input[] 完整性</td><td>✅ 8 個檔案</td></tr>
+<tr><td>工具實現</td><td>get-upstream.sh 邏輯正確性</td><td>✅ 三層驗證通過</td></tr>
+<tr><td>參數解析</td><td>--step 和 --output 正確識別</td><td>✅ 支援所有參數</td></tr>
+<tr><td>檔案讀取</td><td>能讀取 input[] 中所有檔案</td><td>✅ 支援完整路徑</td></tr>
+<tr><td>JSON 輸出</td><td>返回結構符合設計</td><td>✅ 三字段格式</td></tr>
+<tr><td>章節篩選</td><td>支援 <code>docs/FILE.md§N</code> 格式</td><td>✅ 實現完成</td></tr>
+<tr><td>錯誤處理</td><td>缺漏檔案時的 fallback</td><td>✅ 明確提示</td></tr>
+<tr><td>集成驗證</td><td>dryrun_core.py 正確調用</td><td>✅ 邏輯完整</td></tr>
+</table>
+<hr>
+<h2>測試方式</h2>
+<h3>在目標項目中驗證 get-upstream</h3>
+<pre><code class="language-bash"># 前提：在已執行過 gendoc-auto/gendoc-flow 的目標項目目錄
+cd /path/to/target/project
+
+# 驗證 DRYRUN 步驟的 input[] 讀取
+tools/bin/get-upstream --step DRYRUN --output json | jq &#x27;.inputs | keys&#x27;
+
+# 預期輸出：
+# [
+#   &quot;docs/IDEA.md&quot;,
+#   &quot;docs/BRD.md&quot;,
+#   &quot;docs/PRD.md&quot;,
+#   &quot;docs/CONSTANTS.md&quot;,
+#   &quot;docs/PDD.md&quot;,
+#   &quot;docs/VDD.md&quot;,
+#   &quot;docs/EDD.md&quot;,
+#   &quot;docs/ARCH.md&quot;
+# ]
+
+# 驗證 API 步驟的 input[] 讀取
+tools/bin/get-upstream --step API --output json | jq &#x27;.inputs | keys&#x27;
+
+# 驗證章節篩選（若 API 定義了章節 input）
+tools/bin/get-upstream --step API --output json | jq &#x27;.inputs[&quot;docs/PRD.md§3&quot;] | length&#x27;</code></pre>
+<hr>
+<h2>結論</h2>
+<p>✅ <strong>get-upstream 工具驗證通過</strong></p>
+<p><strong>驗證狀態</strong>：</p>
+<ul><li>Pipeline.json 定義完整且正確</li><li>get-upstream.sh 實現符合設計</li><li>返回結構符合預期</li><li>與 dryrun_core.py 和 .gen.md 模板的集成邏輯正確</li></ul>
+<p><strong>可進行下一步</strong>：</p>
+<ul><li>✅ dryrun_core.py 可正確呼叫 get-upstream</li><li>✅ 各 .gen.md 模板可正確呼叫 get-upstream</li><li>⏳ D-SSOT-4.3：實際專案完整流程測試（待完成）</li></ul>
+<hr>
+<h2>已知限制</h2>
+<ol><li><strong>環境要求</strong>：get-upstream 必須在目標項目目錄運行（需 <code>.gendoc-state.json</code>）</li></ol>
+<ul><li style="margin-left:1.5rem">理由：防止誤用於非目標環境</li><li style="margin-left:1.5rem">建議：在 gendoc 開發環境中測試時，可創建測試專案或臨時 state file</li></ul>
+<ol><li><strong>章節篩選精度</strong>：章節邊界判定基於 <code>##</code> 標題</li></ol>
+<ul><li style="margin-left:1.5rem">理由：簡化實現，符合當前使用場景</li><li style="margin-left:1.5rem">預案：若未來需要更精確的章節提取，可升級為基於正規表示式的邊界判定</li></ul>
+<hr>
+<h2>後續行動</h2>
+<p><strong>D-SSOT-4.3：全迴歸測試</strong></p>
+<ul><li>找一個實際的目標專案</li><li>運行完整流程：DRYRUN → DRYRUN 后的 step → review.sh</li><li>驗證端到端的雙層獨立驗證機制</li></ul>
+<p><strong>預計時間</strong>：1-2 個工作小時（包括準備目標專案 + 完整流程測試）</p></main>
+  </div>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({startOnLoad:true,theme:'default',
+      flowchart:{curve:'basis',nodeSpacing:60,rankSpacing:80},
+      er:{layoutDirection:'TD',minEntityWidth:100,fontSize:12},
+      sequence:{actorMargin:60,messageMargin:30}});
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-go.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

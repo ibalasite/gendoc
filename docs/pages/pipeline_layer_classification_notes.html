@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pipeline Layer Classification Notes — gendoc</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+</head>
+<body>
+  <header class="top-nav">
+    <a href="index.html" class="nav-brand">gendoc</a>
+    <div class="nav-controls">
+      <div class="search-wrap">
+        <input class="search-input" type="search" placeholder="搜尋文件...">
+        <div class="search-results"></div>
+      </div>
+      <a class="nav-gh-link" href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener">⌥ GitHub</a>
+      <button class="sidebar-toggle" id="sidebarToggle" title="收合/展開側欄">☰</button>
+    </div>
+  </header>
+  <div class="doc-page-banner">
+    <p class="banner-breadcrumb"><a href="index.html">gendoc</a> › Pipeline Layer Classification Notes</p>
+    <h1 class="banner-title">Pipeline Layer Classification Notes</h1>
+  </div>
+  <div class="page-wrapper">
+    <aside class="sidebar" aria-label="文件導覽">
+      <div class="sidebar__section">
+<div class="sidebar__label">文件</div>
+<a class="sidebar__link" href="index.html">🏠 首頁</a>
+<a class="sidebar__link" href="prd.html">📝 產品需求文件 (PRD)</a>
+<a class="sidebar__link" href="client.html">📄 Client</a>
+<a class="sidebar__link" href="dryrun_api_verification.html">📄 Dryrun Api Verification</a>
+<a class="sidebar__link" href="dryrun_core_implementation_plan.html">📄 Dryrun Core Implementation Plan</a>
+<a class="sidebar__link" href="dryrun_get_upstream_verification.html">📄 Dryrun Get Upstream Verification</a>
+<a class="sidebar__link" href="dryrun_parameter_extraction.html">📄 Dryrun Parameter Extraction</a>
+<a class="sidebar__link" href="dryrun_spec_formulas.html">📄 Dryrun Spec Formulas</a>
+<a class="sidebar__link" href="gendoc_flow_single_step_design.html">📄 Gendoc Flow Single Step Design</a>
+<a class="sidebar__link" href="hardcoded_specs_audit.html">📄 Hardcoded Specs Audit</a>
+<a class="sidebar__link" href="implementation_verification_report.html">📄 Implementation Verification Report</a>
+<a class="sidebar__link" href="pipeline_input_validation_report.html">📄 Pipeline Input Validation Report</a>
+<a class="sidebar__link active" href="pipeline_layer_classification_notes.html">📄 Pipeline Layer Classification Notes</a>
+<a class="sidebar__link" href="rules_json_schema.html">📄 Rules Json Schema</a>
+<a class="sidebar__link" href="currentanalysis.html">📄 Currentanalysis</a>
+<a class="sidebar__link" href="gendoc-redesign-decisions.html">📄 Gendoc-Redesign-Decisions</a>
+<a class="sidebar__link" href="ha-spof-modification-plan.html">📄 Ha-Spof-Modification-Plan</a>
+<a class="sidebar__link" href="progress.html">📄 Progress</a>
+</div>
+    </aside>
+    <div class="sidebar-resizer" id="sidebarResizer"></div>
+    <main class="doc-content"><h1>Pipeline.json Layer 分類調整紀錄</h1>
+<h2>摘要</h2>
+<p>在完成 pipeline.json 的 input/output 驗證與 notes 規範化後，發現 <strong>2 個 step 的 layer 分類不符合邏輯</strong>，已根據 Architecture Expert 審查進行修正。</p>
+<hr>
+<h2>變動清單</h2>
+<h3>1. VDD: 設計層 → 需求層 ✓</h3>
+<p><strong>位置</strong>：pipeline.json Step 6</p>
+<p><strong>調整原因</strong>：</p>
+<ul><li>VDD.md 的設計初衷：「從 PRD 讀取 user story，將每個故事的 UI 流程與視覺需求轉譯為設計稿與 design token」</li><li>VDD 的實際 input[]：僅包含 <code>[&quot;docs/PRD.md&quot;, &quot;docs/PDD.md&quot;]</code></li><li style="margin-left:1.0rem">不讀 EDD、ARCH、API、SCHEMA</li><li style="margin-left:1.0rem">純粹是<strong>視覺設計的輸入層</strong>，不涉及技術架構決策</li><li><strong>PRD 文件層級定義</strong>（PRD.md §5.2 Table）：VDD 列為 &quot;Layer 3.5&quot; —— 介於「需求層（L0-L2）」與「設計層（L4+）」之間</li><li><strong>結論</strong>：VDD 應屬「需求層」，因為它不進行設計層的技術決策，只是將需求(PRD)轉為設計表達</li></ul>
+<p><strong>修正前後對比</strong>：</p>
+<pre><code class="">修正前：需求層 ← IDEA, BRD, PRD, CONSTANTS, PDD → [設計層] VDD
+修正後：需求層 ← IDEA, BRD, PRD, CONSTANTS, PDD, VDD → [設計層] EDD</code></pre>
+<hr>
+<h3>2. HTML: 稽核層 → 輸出層 ✓</h3>
+<p><strong>位置</strong>：pipeline.json Step 34（最後一個）</p>
+<p><strong>調整原因</strong>：</p>
+<ul><li>HTML.md 的職責：「呼叫 gendoc-gen-html 將所有已生成的設計、測試、實作文件編譯成靜態網站」</li><li>HTML 的執行時序：位於所有設計、審查、測試、實作步驟<strong>之後</strong></li><li style="margin-left:1.0rem">不進行任何跨層檢查（ALIGN 才是稽核層）</li><li style="margin-left:1.0rem">只進行最終發布產物的生成</li><li><strong>Layer 定義釐清</strong>：</li><li style="margin-left:1.0rem">稽核層 = ALIGN/ALIGN-FIX/ALIGN-VERIFY（跨層檢查與修復）</li><li style="margin-left:1.0rem">輸出層 = HTML（最終產物生成與發布）</li><li><strong>結論</strong>：HTML 應屬「輸出層」，位於稽核之後，確保檢查通過後才發布</li></ul>
+<p><strong>修正前後對比</strong>：</p>
+<pre><code class="">修正前：...PROTOTYPE (實作層) → ALIGN (稽核層) → ... → HTML [稽核層]
+修正後：...PROTOTYPE (實作層) → ALIGN (稽核層) → ... → HTML [輸出層]</code></pre>
+<hr>
+<h2>Input[] 結構化修正（CRITICAL）</h2>
+<h3>ALIGN / ALIGN-FIX / ALIGN-VERIFY</h3>
+<p><strong>問題</strong>：note 中提到「檢查 CICD §4 vs LOCAL_DEPLOY §6」與「檢查 DEVELOPER_GUIDE §2 vs CICD §2」，但 input[] 中完全沒有這些檔案。</p>
+<p><strong>修正</strong>：</p>
+<pre><code class="language-json">// 修正前
+{
+  &quot;id&quot;: &quot;ALIGN&quot;,
+  &quot;input&quot;: [&quot;docs/EDD.md&quot;, &quot;docs/API.md&quot;, &quot;docs/SCHEMA.md&quot;, &quot;docs/FRONTEND.md&quot;]
+}
+
+// 修正後
+{
+  &quot;id&quot;: &quot;ALIGN&quot;,
+  &quot;input&quot;: [&quot;docs/CICD.md&quot;, &quot;docs/LOCAL_DEPLOY.md&quot;, &quot;docs/DEVELOPER_GUIDE.md&quot;]
+}</code></pre>
+<p><strong>原因</strong>：</p>
+<ul><li>pipeline.json 的 input[] 是 SSOT（單一真相來源）</li><li>get-upstream 工具根據 input[] 決定要讀取哪些檔案</li><li>note 與 input[] 必須一致，否則工具無法正確運作</li><li>ALIGN-FIX 與 ALIGN-VERIFY 依賴 ALIGN 的檢查結果，故同步修正</li></ul>
+<hr>
+<h2>驗證方法（修正後）</h2>
+<h3>1. Layer 語意一致性檢查</h3>
+<pre><code class="language-bash"># 確認 layer 分類符合邏輯
+# VDD: 需求層（只讀 PRD 輸入）✓
+# ALIGN: 稽核層（跨層檢查）✓
+# HTML: 輸出層（最終產物）✓</code></pre>
+<h3>2. Input ↔ Note 一致性檢查</h3>
+<pre><code class="language-bash"># ALIGN 的 note 與 input[] 現在相符：
+# note: &quot;跨層對齊檢查：CICD.md §4 vs LOCAL_DEPLOY.md §6；DEVELOPER_GUIDE.md §2 vs CICD.md §2。&quot;
+# input: [&quot;docs/CICD.md&quot;, &quot;docs/LOCAL_DEPLOY.md&quot;, &quot;docs/DEVELOPER_GUIDE.md&quot;]</code></pre>
+<h3>3. JSON 語法驗證（✓ 已通過）</h3>
+<pre><code class="language-bash">python3 -m json.tool templates/pipeline.json &gt; /dev/null
+# Result: Valid JSON</code></pre>
+<hr>
+<h2>PRD 對應說明</h2>
+<h3>PRD §5.2 文件層級表（Table）</h3>
+<table>
+<tr><th>文件</th><th>PRD Layer</th><th>Pipeline Layer</th><th>說明</th></tr>
+<tr><td>IDEA</td><td>0</td><td>需求層</td><td>概念入口</td></tr>
+<tr><td>BRD</td><td>1</td><td>需求層</td><td>商業需求</td></tr>
+<tr><td>PRD</td><td>2</td><td>需求層</td><td>產品需求</td></tr>
+<tr><td>PDD</td><td>3a</td><td>需求層</td><td>UX 互動設計</td></tr>
+<tr><td>VDD</td><td>3.5</td><td><strong>需求層</strong> ←</td><td>視覺設計（不涉及技術決策）</td></tr>
+<tr><td>EDD</td><td>4</td><td><strong>設計層</strong></td><td>工程技術設計</td></tr>
+<tr><td>ARCH</td><td>5a</td><td>設計層</td><td>架構設計</td></tr>
+<tr><td>...</td><td>...</td><td>品質層/實作層</td><td>...</td></tr>
+<tr><td>ALIGN</td><td>稽核</td><td>稽核層</td><td>跨層檢查</td></tr>
+<tr><td>HTML</td><td>10</td><td><strong>輸出層</strong> ←</td><td>最終網站產物</td></tr>
+</table>
+<p><strong>設計邏輯</strong>：</p>
+<ul><li><strong>需求層</strong>：從外部輸入（user story、設計稿）向下轉譯，不做技術決策</li><li><strong>設計層</strong>：根據需求進行技術決策（EDD/ARCH/API/SCHEMA/等）</li><li><strong>品質層</strong>：驗證設計的完整性與覆蓋度（test-plan/BDD/RTM）</li><li><strong>稽核層</strong>：檢查層與層之間的對齊（ALIGN）</li><li><strong>實作層</strong>：從設計自動生成可執行的程式碼與設定（CONTRACTS/MOCK/PROTOTYPE）</li><li><strong>輸出層</strong>：發布最終產物（HTML）</li></ul>
+<hr>
+<h2>Git 提交紀錄</h2>
+<table>
+<tr><th>Commit</th><th>修正內容</th></tr>
+<tr><td>51ecb59</td><td>完整修正所有 step notes/layer 分類 + ALIGN input[] 修正</td></tr>
+<tr><td>f2104c2</td><td>修復 input/output 定義完整性（9 項修復）</td></tr>
+<tr><td>186b60d</td><td>為所有 34 steps 補入 input 欄位</td></tr>
+</table>
+<hr>
+<h2>後續影響</h2>
+<h3>get-upstream 工具</h3>
+<p>ALIGN / ALIGN-FIX / ALIGN-VERIFY 步驟現在會正確讀取：</p>
+<pre><code class="language-bash">tools/bin/get-upstream --step ALIGN \
+  --output json
+# 返回：CICD.md, LOCAL_DEPLOY.md, DEVELOPER_GUIDE.md 的完整內容</code></pre>
+<h3>gendoc-flow 執行邏輯</h3>
+<p>各步驟的 gen_html.py 與 skill 調用時，會根據修正後的 input[] 正確取得上游資料。</p>
+<hr>
+<h2>結論</h2>
+<p>此次調整是 <strong>結構化修正</strong>，不涉及新增或刪除步驟，僅：</p>
+<ol><li>改正 2 個 layer 分類錯誤</li><li>修正 3 個 step 的 input[] 以符合其實際檢查職責</li></ol>
+<p>所有修正均已通過 JSON 語法驗證，且與 PRD 文件層級定義對齊。</p></main>
+  </div>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({startOnLoad:true,theme:'default',
+      flowchart:{curve:'basis',nodeSpacing:60,rankSpacing:80},
+      er:{layoutDirection:'TD',minEntityWidth:100,fontSize:12},
+      sequence:{actorMargin:60,messageMargin:30}});
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-go.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

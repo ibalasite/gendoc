@@ -30,9 +30,21 @@
 <a class="sidebar__link active" href="index.html">🏠 首頁</a>
 <a class="sidebar__link" href="prd.html">📝 產品需求文件 (PRD)</a>
 <a class="sidebar__link" href="client.html">📄 Client</a>
+<a class="sidebar__link" href="dryrun_api_verification.html">📄 Dryrun Api Verification</a>
+<a class="sidebar__link" href="dryrun_core_implementation_plan.html">📄 Dryrun Core Implementation Plan</a>
+<a class="sidebar__link" href="dryrun_get_upstream_verification.html">📄 Dryrun Get Upstream Verification</a>
+<a class="sidebar__link" href="dryrun_parameter_extraction.html">📄 Dryrun Parameter Extraction</a>
+<a class="sidebar__link" href="dryrun_spec_formulas.html">📄 Dryrun Spec Formulas</a>
+<a class="sidebar__link" href="gendoc_flow_single_step_design.html">📄 Gendoc Flow Single Step Design</a>
+<a class="sidebar__link" href="hardcoded_specs_audit.html">📄 Hardcoded Specs Audit</a>
+<a class="sidebar__link" href="implementation_verification_report.html">📄 Implementation Verification Report</a>
+<a class="sidebar__link" href="pipeline_input_validation_report.html">📄 Pipeline Input Validation Report</a>
+<a class="sidebar__link" href="pipeline_layer_classification_notes.html">📄 Pipeline Layer Classification Notes</a>
+<a class="sidebar__link" href="rules_json_schema.html">📄 Rules Json Schema</a>
 <a class="sidebar__link" href="currentanalysis.html">📄 Currentanalysis</a>
 <a class="sidebar__link" href="gendoc-redesign-decisions.html">📄 Gendoc-Redesign-Decisions</a>
 <a class="sidebar__link" href="ha-spof-modification-plan.html">📄 Ha-Spof-Modification-Plan</a>
+<a class="sidebar__link" href="progress.html">📄 Progress</a>
 </div>
     </aside>
     <div class="sidebar-resizer" id="sidebarResizer"></div>
@@ -64,7 +76,7 @@
 <tr><td><code>gendoc-gen-prototype</code></td><td><code>/gendoc-gen-prototype</code></td><td>Interactive HTML prototype — UI flow (web/game) or API Explorer with mock engine (api-only)</td></tr>
 <tr><td><code>gendoc-gen-diagrams</code></td><td><code>/gendoc-gen-diagrams</code></td><td>Generate Server 9 UML types + Frontend 16 UML types (UML) + class-inventory.md; 30+ precision validation checks; enforces no <code>&lt;br/&gt;</code> in stateDiagram-v2 / sequenceDiagram; bans experimental charts (pie/xychart-beta/bar)</td></tr>
 <tr><td><code>gendoc-gen-client-bdd</code></td><td><code>/gendoc-gen-client-bdd</code></td><td>Client-facing BDD feature files (web/game projects)</td></tr>
-<tr><td><code>gendoc-repair</code></td><td><code>/gendoc-repair</code></td><td>Phase-aware backfill — brings any incomplete project to the same state as <code>gendoc-auto</code> + <code>gendoc-flow</code> would produce. Categorizes gaps into Phase A (pre-DRYRUN) / DRYRUN Gate / Phase B (post-DRYRUN); detects DRYRUN state (none / defaults / ok); validates completed docs against <code>.gendoc-rules/*.json</code> quality gates; two-phase repair mode: complete Phase A → trigger DRYRUN → continue Phase B</td></tr>
+<tr><td><code>gendoc-repair</code></td><td><code>/gendoc-repair</code></td><td>DRYRUN-aware backfill — brings any incomplete project to the same state as <code>gendoc-auto</code> + <code>gendoc-flow</code> would produce. Categorizes gaps into DRYRUN 前的 step / DRYRUN Gate / DRYRUN 后的 step; detects DRYRUN state (none / defaults / ok); validates completed docs against <code>.gendoc-rules/*.json</code> quality gates; two-phase repair mode: complete DRYRUN 前的 step → trigger DRYRUN → continue DRYRUN 后的 step</td></tr>
 <tr><td><code>gendoc-rebuild-templates</code></td><td><code>/gendoc-rebuild-templates</code></td><td>Rebuild all document templates from scratch</td></tr>
 <tr><td><code>gendoc-update</code></td><td><code>/gendoc-update</code></td><td>Manual skill upgrade</td></tr>
 <tr><td><code>reviewtemplate</code></td><td><code>/reviewtemplate &lt;TYPE&gt;</code></td><td>Review &amp; iteratively fix a template three-file set (TYPE.md + .gen.md + .review.md)</td></tr>
@@ -128,7 +140,7 @@ git clone https://github.com/ibalasite/gendoc.git &quot;$env:USERPROFILE\.claude
 <p>Manual update: <code>/gendoc-upgrade</code> or <code>~/.claude/skills/gendoc/setup upgrade</code></p>
 <hr>
 <h2>Design Principles</h2>
-<p>gendoc enforces two non-negotiable architectural principles on all generated documents:</p>
+<p>gendoc enforces three non-negotiable architectural principles on all generated documents:</p>
 <p><strong>1. HA / SCALE / SPOF / BCP from Day One</strong></p>
 <p>Every generated system has ≥ 2 replicas at minimum. There is no &quot;small&quot; or &quot;single-instance&quot; mode. Cost is the minimum number of servers required to eliminate all single points of failure.</p>
 <p><strong>2. Spring Modulith — Microservice Decomposability</strong></p>
@@ -142,6 +154,73 @@ git clone https://github.com/ibalasite/gendoc.git &quot;$env:USERPROFILE\.claude
 <tr><td>HC-5</td><td>Module dependency graph must be a DAG (no circular dependencies)</td></tr>
 </table>
 <p>References: Martin Fowler &quot;MonolithFirst&quot; (2015) · Sam Newman <em>Monolith to Microservices</em> (O&#x27;Reilly 2019) · Spring Modulith (spring.io, 2022)</p>
+<p><strong>3. Clean Architecture + SOLID — Dependency Rule Enforced</strong></p>
+<p>Every generated backend system follows Robert C. Martin&#x27;s 4-layer Clean Architecture with explicit dependency direction. EDD §3.1b anchors the SOLID table and Dependency Rule; all downstream documents (ARCH, test-plan, DEVELOPER_GUIDE) are enforced to align.</p>
+<table>
+<tr><th>Layer</th><th>Role</th><th>Import Rule</th></tr>
+<tr><td>Presentation</td><td>Controllers, Request/Response DTOs</td><td>→ Application only</td></tr>
+<tr><td>Application</td><td>Use Cases, Application Services</td><td>→ Domain only</td></tr>
+<tr><td>Domain</td><td>Entities, Value Objects, Repository <strong>Interfaces</strong></td><td>No outward imports</td></tr>
+<tr><td>Infrastructure</td><td>RepositoryImpl, Adapters, ORM, external SDKs</td><td>→ Domain interfaces (DIP)</td></tr>
+</table>
+<p><strong>禁止清單 (Hard Constraints):</strong></p>
+<ul><li>Domain layer must not import any ORM / DB / HTTP / external SDK</li><li>Application layer must not directly <code>new</code> any Infrastructure concrete class (use DIP via constructor injection)</li><li>All 5 SOLID principles must be named with concrete class/interface examples in EDD §3.1b</li></ul>
+<p>References: Robert C. Martin <em>Clean Architecture</em> (2017) · <em>Agile Software Development</em> SOLID chapters (2002)</p>
+<hr>
+<h2>Pipeline Architecture — Single Source of Truth (SSOT)</h2>
+<p>The <code>gendoc-gen-dryrun</code> step enforces a complete <strong>Single Source of Truth (SSOT)</strong> architecture for all quantitative metrics and document specification rules. This ensures that:</p>
+<ol><li><strong>Adding a new DRYRUN 前的 step</strong> (e.g., REVIEW.md before DRYRUN) automatically contributes its metrics — no code changes needed</li><li><strong>Adding a new DRYRUN 后的 step</strong> (e.g., PERFORMANCE after SCHEMA) automatically generates complete specification rules — no code changes needed</li><li>All 20 quantitative indicators and 34 step specifications are defined in <strong>one authoritative location</strong>: <code>templates/pipeline.json</code></li></ol>
+<h3>pipeline.json Structure</h3>
+<pre><code class="language-json">{
+  &quot;metrics&quot;: [
+    {
+      &quot;id&quot;: &quot;persona_count&quot;,
+      &quot;source_step&quot;: &quot;IDEA&quot;,
+      &quot;grep_pattern&quot;: &quot;^## Persona:&quot;,
+      &quot;fallback&quot;: 1,
+      &quot;description&quot;: &quot;Number of personas defined in IDEA&quot;
+    },
+    // ... 19 more metrics
+  ],
+  &quot;steps&quot;: [
+    {
+      &quot;id&quot;: &quot;API&quot;,
+      &quot;spec_rules&quot;: {
+        &quot;quantitative_specs&quot;: {
+          &quot;min_endpoint_count&quot;: &quot;max(5, rest_endpoint_count)&quot;
+        },
+        &quot;content_mapping&quot;: {
+          &quot;entity_coverage&quot;: &quot;All {entity_count} entities from EDD must appear in API request/response models&quot;
+        },
+        &quot;cross_file_validation&quot;: {
+          &quot;entity_parity&quot;: &quot;API endpoints &gt;= EDD entity definitions&quot;
+        }
+      }
+    },
+    // ... 33 more steps
+  ]
+}</code></pre>
+<h3>How It Works</h3>
+<p><strong><code>dryrun_core.py</code> — Dynamic Metric Extraction &amp; Spec Derivation</strong></p>
+<p>Instead of hardcoding 20 metrics and 34 step specifications:</p>
+<pre><code class="language-python"># OLD (hardcoded, violates SSOT):
+def extract_metrics(self):
+    self.persona_count = self._count_personas()  # ← hardcoded
+    self.moscow_p0_count = self._count_moscow()  # ← hardcoded
+    # ... repeat 18 times
+
+# NEW (dynamic from pipeline.json):
+def extract_metrics(self):
+    for metric_def in self.pipeline[&#x27;metrics&#x27;]:
+        grep_pattern = metric_def[&#x27;grep_pattern&#x27;]
+        source_step = metric_def[&#x27;source_step&#x27;]
+        source_file = self.docs_dir / f&quot;{source_step}.md&quot;
+        metrics[metric_id] = self._grep_count(source_file, grep_pattern)</code></pre>
+<p><strong>Result</strong>: Code is 44% shorter, 100% data-driven, and adding new metrics/steps requires editing only <code>pipeline.json</code> + adding the three-file template set (<code>.md</code>, <code>.gen.md</code>, <code>.review.md</code>).</p>
+<h3>Validation Layers</h3>
+<p>The DRYRUN output (<code>MANIFEST.md</code> + <code>.gendoc-rules/*.json</code>) is validated against four layers:</p>
+<ol><li><strong>Quantitative</strong> — 10 structural checks (placeholder count, section count, endpoint count, etc.)</li><li><strong>Content Mapping</strong> — 4 cross-document reference checks (entity coverage, user story traceability, etc.)</li><li><strong>Cross-File Validation</strong> — 4 inter-document consistency checks (entity parity, relationship mapping, etc.)</li><li><strong>Integration</strong> — AI findings + Shell findings merged and deduplicated</li></ol>
+<p>See <code>tools/bin/review.sh</code> for all 18 built-in rules. Each rule includes a <code>suggested_fix</code> hint for automated or manual remediation.</p>
 <hr>
 <h2>Document Architecture — SDLC Foundation</h2>
 <p>gendoc&#x27;s document pipeline is grounded in established <strong>Software Development Lifecycle (SDLC)</strong> theory. The Requirements Engineering and Design phases are decomposed into four distinct layers, each answering a single question for a specific audience:</p>
@@ -326,7 +405,7 @@ git clone https://github.com/ibalasite/gendoc.git &quot;$env:USERPROFILE\.claude
 <ol><li>Edit skill files in <code>skills/&lt;skill-name&gt;/SKILL.md</code> or templates in <code>templates/</code></li><li>Commit and push to remote</li><li>On any machine: run <code>/gendoc-upgrade</code> or <code>~/.claude/skills/gendoc/setup upgrade</code></li><li>Test with Claude Code — SessionStart hook auto-pulls every hour</li></ol>
 <hr>
 <h2>License</h2>
-<p>MIT © ibalasite</p><section style="margin-top:2.5rem"><h2 style="font-size:1rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem">文件導覽</h2><div class="index-grid"><a class="index-card" href="prd.html"><span class="index-card__icon">📝</span><span class="index-card__title">產品需求文件 (PRD)</span></a><a class="index-card" href="client.html"><span class="index-card__icon">📄</span><span class="index-card__title">Client</span></a><a class="index-card" href="currentanalysis.html"><span class="index-card__icon">📄</span><span class="index-card__title">Currentanalysis</span></a><a class="index-card" href="gendoc-redesign-decisions.html"><span class="index-card__icon">📄</span><span class="index-card__title">Gendoc-Redesign-Decisions</span></a><a class="index-card" href="ha-spof-modification-plan.html"><span class="index-card__icon">📄</span><span class="index-card__title">Ha-Spof-Modification-Plan</span></a></div></section><section style="margin-top:3rem;padding:1.5rem;background:#fff;border:1px solid var(--border);border-radius:8px;"><h2 style="margin-top:0">📊 專案健康狀態</h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;margin-top:1rem"><div style="text-align:center;padding:1rem;background:var(--page-bg);border-radius:6px"><div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem">已完成 STEP</div><div style="font-size:1.5rem;font-weight:700;color:var(--accent)">0/20</div></div></div></section></main>
+<p>MIT © ibalasite</p><section style="margin-top:2.5rem"><h2 style="font-size:1rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem">文件導覽</h2><div class="index-grid"><a class="index-card" href="prd.html"><span class="index-card__icon">📝</span><span class="index-card__title">產品需求文件 (PRD)</span></a><a class="index-card" href="client.html"><span class="index-card__icon">📄</span><span class="index-card__title">Client</span></a><a class="index-card" href="dryrun_api_verification.html"><span class="index-card__icon">📄</span><span class="index-card__title">Dryrun Api Verification</span></a><a class="index-card" href="dryrun_core_implementation_plan.html"><span class="index-card__icon">📄</span><span class="index-card__title">Dryrun Core Implementation Plan</span></a><a class="index-card" href="dryrun_get_upstream_verification.html"><span class="index-card__icon">📄</span><span class="index-card__title">Dryrun Get Upstream Verification</span></a><a class="index-card" href="dryrun_parameter_extraction.html"><span class="index-card__icon">📄</span><span class="index-card__title">Dryrun Parameter Extraction</span></a><a class="index-card" href="dryrun_spec_formulas.html"><span class="index-card__icon">📄</span><span class="index-card__title">Dryrun Spec Formulas</span></a><a class="index-card" href="gendoc_flow_single_step_design.html"><span class="index-card__icon">📄</span><span class="index-card__title">Gendoc Flow Single Step Design</span></a><a class="index-card" href="hardcoded_specs_audit.html"><span class="index-card__icon">📄</span><span class="index-card__title">Hardcoded Specs Audit</span></a><a class="index-card" href="implementation_verification_report.html"><span class="index-card__icon">📄</span><span class="index-card__title">Implementation Verification Report</span></a><a class="index-card" href="pipeline_input_validation_report.html"><span class="index-card__icon">📄</span><span class="index-card__title">Pipeline Input Validation Report</span></a><a class="index-card" href="pipeline_layer_classification_notes.html"><span class="index-card__icon">📄</span><span class="index-card__title">Pipeline Layer Classification Notes</span></a><a class="index-card" href="rules_json_schema.html"><span class="index-card__icon">📄</span><span class="index-card__title">Rules Json Schema</span></a><a class="index-card" href="currentanalysis.html"><span class="index-card__icon">📄</span><span class="index-card__title">Currentanalysis</span></a><a class="index-card" href="gendoc-redesign-decisions.html"><span class="index-card__icon">📄</span><span class="index-card__title">Gendoc-Redesign-Decisions</span></a><a class="index-card" href="ha-spof-modification-plan.html"><span class="index-card__icon">📄</span><span class="index-card__title">Ha-Spof-Modification-Plan</span></a><a class="index-card" href="progress.html"><span class="index-card__icon">📄</span><span class="index-card__title">Progress</span></a></div></section><section style="margin-top:3rem;padding:1.5rem;background:#fff;border:1px solid var(--border);border-radius:8px;"><h2 style="margin-top:0">📊 專案健康狀態</h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;margin-top:1rem"><div style="text-align:center;padding:1rem;background:var(--page-bg);border-radius:6px"><div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem">已完成 STEP</div><div style="font-size:1.5rem;font-weight:700;color:var(--accent)">0/20</div></div></div></section></main>
   </div>
   <script type="module">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';

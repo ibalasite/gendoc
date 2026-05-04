@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hardcoded Specs Audit — gendoc</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+</head>
+<body>
+  <header class="top-nav">
+    <a href="index.html" class="nav-brand">gendoc</a>
+    <div class="nav-controls">
+      <div class="search-wrap">
+        <input class="search-input" type="search" placeholder="搜尋文件...">
+        <div class="search-results"></div>
+      </div>
+      <a class="nav-gh-link" href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener">⌥ GitHub</a>
+      <button class="sidebar-toggle" id="sidebarToggle" title="收合/展開側欄">☰</button>
+    </div>
+  </header>
+  <div class="doc-page-banner">
+    <p class="banner-breadcrumb"><a href="index.html">gendoc</a> › Hardcoded Specs Audit</p>
+    <h1 class="banner-title">Hardcoded Specs Audit</h1>
+  </div>
+  <div class="page-wrapper">
+    <aside class="sidebar" aria-label="文件導覽">
+      <div class="sidebar__section">
+<div class="sidebar__label">文件</div>
+<a class="sidebar__link" href="index.html">🏠 首頁</a>
+<a class="sidebar__link" href="prd.html">📝 產品需求文件 (PRD)</a>
+<a class="sidebar__link" href="client.html">📄 Client</a>
+<a class="sidebar__link" href="dryrun_api_verification.html">📄 Dryrun Api Verification</a>
+<a class="sidebar__link" href="dryrun_core_implementation_plan.html">📄 Dryrun Core Implementation Plan</a>
+<a class="sidebar__link" href="dryrun_get_upstream_verification.html">📄 Dryrun Get Upstream Verification</a>
+<a class="sidebar__link" href="dryrun_parameter_extraction.html">📄 Dryrun Parameter Extraction</a>
+<a class="sidebar__link" href="dryrun_spec_formulas.html">📄 Dryrun Spec Formulas</a>
+<a class="sidebar__link" href="gendoc_flow_single_step_design.html">📄 Gendoc Flow Single Step Design</a>
+<a class="sidebar__link active" href="hardcoded_specs_audit.html">📄 Hardcoded Specs Audit</a>
+<a class="sidebar__link" href="implementation_verification_report.html">📄 Implementation Verification Report</a>
+<a class="sidebar__link" href="pipeline_input_validation_report.html">📄 Pipeline Input Validation Report</a>
+<a class="sidebar__link" href="pipeline_layer_classification_notes.html">📄 Pipeline Layer Classification Notes</a>
+<a class="sidebar__link" href="rules_json_schema.html">📄 Rules Json Schema</a>
+<a class="sidebar__link" href="currentanalysis.html">📄 Currentanalysis</a>
+<a class="sidebar__link" href="gendoc-redesign-decisions.html">📄 Gendoc-Redesign-Decisions</a>
+<a class="sidebar__link" href="ha-spof-modification-plan.html">📄 Ha-Spof-Modification-Plan</a>
+<a class="sidebar__link" href="progress.html">📄 Progress</a>
+</div>
+    </aside>
+    <div class="sidebar-resizer" id="sidebarResizer"></div>
+    <main class="doc-content"><h1>Hardcoded 規格審查報告（D-SSOT-4.1 STEP 4）</h1>
+<h2>掃描範圍</h2>
+<ul><li><strong>skills/</strong> 目錄：所有 .md 和 .py 檔案</li><li><strong>templates/</strong> 目錄：所有 .gen.md 和 .md 檔案</li><li><strong>tools/bin/</strong> 目錄：所有 .sh 和 .py 檔案</li></ul>
+<p><strong>掃描命令</strong>：</p>
+<pre><code class="language-bash">grep -r &quot;min_.*count\|min_.*section\|= max(\|= min(\|= ceil(&quot; \
+  /projects/gendoc/skills/ \
+  /projects/gendoc/templates/ \
+  /projects/gendoc/tools/ \
+  --include=&quot;*.md&quot; --include=&quot;*.py&quot; --include=&quot;*.sh&quot;</code></pre>
+<hr>
+<h2>掃描結果</h2>
+<h3>1. 規格定義（skills/ 中的設計文檔）</h3>
+<p><strong>位置</strong>：<code>skills/gendoc-gen-dryrun/SKILL.md</code></p>
+<p>發現內容：規格定義表格，記錄了各 step 的 min_count 公式（如 <code>min_endpoint_count = rest_endpoint_count (min 5)</code>）</p>
+<p><strong>評估</strong>：✅ <strong>可接受</strong></p>
+<ul><li>這是 DRYRUN 設計文檔，記錄的是規格定義本身，而非實現中的 hardcoded 值</li><li>無需修改，已由 dryrun_core.py 參數化</li></ul>
+<p><strong>位置</strong>：<code>skills/gendoc-repair/SKILL.md</code></p>
+<p>發現內容：修復工具中的 min_h2_sections 檢查</p>
+<p><strong>評估</strong>：✅ <strong>可接受</strong></p>
+<ul><li>修復工具讀取 .gendoc-rules/*.json 來驗證，不是 hardcoded</li></ul>
+<hr>
+<h3>2. 模板文件（templates/ 中的 .gen.md）</h3>
+<p><strong>位置</strong>：<code>templates/ADMIN_IMPL.gen.md</code>、<code>templates/API.gen.md</code>、<code>templates/ARCH.gen.md</code></p>
+<p>發現內容：預設值（如「預設 260px」、「預設 10000ms」、「預設 2000ms」）</p>
+<p><strong>評估</strong>：✅ <strong>可接受</strong></p>
+<ul><li>這些是後備預設值（fallback defaults），明確標記為「若 CONSTANTS.md 無此欄位，使用預設值 X」</li><li>遵循「邊界驗證」原則，只在上游文件缺失時使用</li><li>無需修改</li></ul>
+<p><strong>位置</strong>：<code>templates/DRYRUN.gen.md</code></p>
+<p>發現內容：MANIFEST 模板中的 min_* 欄位</p>
+<p><strong>評估</strong>：✅ <strong>可接受</strong></p>
+<ul><li>這是模板定義，記錄的是預期的欄位名稱，非 hardcoded 數值</li></ul>
+<hr>
+<h3>3. 核心工具（tools/ 和 scripts）</h3>
+<p><strong>位置</strong>：<code>tools/bin/dryrun_core.py</code></p>
+<p>發現內容：STEP 3 中新實現的參數化公式（如 <code>max(5, rest_endpoint_count)</code>）</p>
+<p><strong>評估</strong>：✅ <strong>已修正</strong></p>
+<ul><li>新實現完全參數化，所有公式由 DRYRUN_SPEC_FORMULAS.md 定義</li><li>無 hardcoded 值</li></ul>
+<p><strong>位置</strong>：<code>tools/bin/gate-check.sh</code></p>
+<p>發現內容：<code>actual = max(table_count // 3, pk_count)</code> 啟發式估計</p>
+<p><strong>評估</strong>：⚠️ <strong>需評估</strong></p>
+<ul><li>這是旁路檢查的 fallback 邏輯</li><li>不影響 DRYRUN 流程（DRYRUN 已參數化）</li><li>建議保留（gate-check 的職責是 fast validation，不是精確計數）</li></ul>
+<hr>
+<h2>判定結果</h2>
+<h3>規格定義尋找</h3>
+<table>
+<tr><th>類別</th><th>位置</th><th>狀態</th><th>備註</th></tr>
+<tr><td>DRYRUN 規格文檔</td><td>skills/gendoc-gen-dryrun/SKILL.md</td><td>✅ OK</td><td>設計文檔，非實現代碼</td></tr>
+<tr><td>修復工具規格檢查</td><td>skills/gendoc-repair/SKILL.md</td><td>✅ OK</td><td>讀 .gendoc-rules/*.json，參數化</td></tr>
+<tr><td>模板預設值</td><td>templates/*.gen.md</td><td>✅ OK</td><td>明確標記 fallback，遵循邊界驗證</td></tr>
+<tr><td>dryrun_core.py</td><td>tools/bin/dryrun_core.py</td><td>✅ 已修正</td><td>STEP 3 完全參數化</td></tr>
+<tr><td>gate-check fallback</td><td>tools/bin/gate-check.sh</td><td>⚠️ 非關鍵</td><td>不影響 DRYRUN，可保留</td></tr>
+</table>
+<hr>
+<h2>改正方案</h2>
+<h3>需要改正的項目</h3>
+<p><strong>無</strong>：掃描結果中未發現需要改正的 hardcoded 規格定義。</p>
+<p>所有規格推導邏輯均已按照以下原則實現：</p>
+<ol><li><strong>Pipeline SSOT</strong>：所有步驟定義在 templates/pipeline.json</li><li><strong>參數化提取</strong>：四個核心參數由 dryrun_core.py extract_parameters() 動態提取</li><li><strong>公式化推導</strong>：所有規格公式由 DRYRUN_SPEC_FORMULAS.md 定義，在 dryrun_core.py derive_specifications() 中實現</li><li><strong>邊界驗證</strong>：預設值僅在上游文件缺失時使用，且明確標記來源</li></ol>
+<hr>
+<h2>後續行動</h2>
+<h3>STEP 5：修正 Hardcoded 規格</h3>
+<p><strong>狀態</strong>：✅ <strong>無需執行</strong></p>
+<p>掃描結果表明，當前代碼已符合設計要求，無需進行批量修正。唯一的非關鍵項（gate-check 啟發式邏輯）可保留現狀。</p>
+<h3>建議</h3>
+<ol><li><strong>代碼審查通過</strong>：硬編碼規格掃描通過，可安心進入 STEP 6（review.sh 實現）</li><li><strong>保留 fallback 預設值</strong>：模板中的預設值是合理的邊界驗證邏輯，無需移除</li><li><strong>持續監控</strong>：未來新增 step 或 skill 時，確保遵循參數化原則</li></ol>
+<hr>
+<h2>文件清單</h2>
+<table>
+<tr><th>掃描檔案</th><th>結論</th></tr>
+<tr><td>skills/gendoc-*.md</td><td>✅ 已驗證，無規格硬編碼</td></tr>
+<tr><td>templates/*.gen.md</td><td>✅ 已驗證，預設值符合設計</td></tr>
+<tr><td>tools/bin/*.py</td><td>✅ 已驗證，DRYRUN 已參數化</td></tr>
+<tr><td>tools/bin/*.sh</td><td>✅ 已驗證，gate-check 啟發式邏輯正常</td></tr>
+</table>
+<p><strong>掃描完成日期</strong>：2026-05-04</p>
+<p><strong>掃描版本</strong>：STEP 4 完整掃描</p>
+<hr>
+<h2>進度</h2>
+<ul><li>✅ STEP 1：參數提取規則設計</li><li>✅ STEP 2：規格推導公式設計</li><li>✅ STEP 3：dryrun_core.py 實現</li><li>✅ STEP 4：全專案 hardcoded 規格掃描（本報告）</li><li>⏳ STEP 5：修正 hardcoded 規格（無需執行）</li><li>⏳ STEP 6：審查工具 review.sh 實現</li></ul></main>
+  </div>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({startOnLoad:true,theme:'default',
+      flowchart:{curve:'basis',nodeSpacing:60,rankSpacing:80},
+      er:{layoutDirection:'TD',minEntityWidth:100,fontSize:12},
+      sequence:{actorMargin:60,messageMargin:30}});
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-go.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
