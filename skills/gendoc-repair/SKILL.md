@@ -84,12 +84,12 @@ print(f"[Step 0] Pipeline: {len(steps)} steps")
 
 ```bash
 # BRD.md 必須存在（沒有 BRD 則無法繼續）
-if [[ ! -f "docs/BRD.md" ]]; then
-  echo "[ABORT] docs/BRD.md 不存在，無法執行 repair。"
+if [[ ! -f "docs/BRD.md" ]] || [[ ! -s "docs/BRD.md" ]]; then
+  echo "[ABORT] docs/BRD.md 不存在或為空，無法執行 repair。"
   echo "[Hint]  請先執行 /gendoc-auto 或手動提供 BRD.md"
   exit 1
 fi
-echo "[R-01] ✅ docs/BRD.md 存在"
+echo "[R-01] ✅ docs/BRD.md 存在且非空"
 ```
 
 ---
@@ -407,16 +407,12 @@ for _round in range(1, _MAX_ROUNDS + 1):
 
     _round_failures[_round] = [sid for sid, _, _ in _fail_this_round]
 
-    # 補跑每個 FAIL 的 step（繼續，不中止）
-    if _round < _MAX_ROUNDS:
-        print(f"\n[Branch B] 開始補跑 {len(_fail_this_round)} 個 step...")
-        for sid, layer, _ in _fail_this_round:
-            print(f"[Branch B] ▶ 補跑 {sid}（{layer} FAIL）")
-            # 用 Skill tool 呼叫 gendoc-flow --only {sid}
-            # 等待回傳，失敗則記錄繼續
-    else:
-        # 已達最大輪次，不再補跑
-        pass
+    # 補跑每個 FAIL 的 step（每輪都補跑，包括第 3 輪；單一失敗不中止）
+    print(f"\n[Branch B] 開始補跑 {len(_fail_this_round)} 個 step...")
+    for sid, layer, _ in _fail_this_round:
+        print(f"[Branch B] ▶ 補跑 {sid}（{layer} FAIL）")
+        # 用 Skill tool 呼叫 gendoc-flow --only {sid}
+        # 等待回傳，失敗則記錄繼續
 ```
 
 **每個 step 補跑指令（在上面迴圈的「補跑」位置執行）：**
@@ -427,15 +423,33 @@ for _round in range(1, _MAX_ROUNDS + 1):
 若 Skill tool 回傳失敗 → 印出 [WARN] {sid} 補跑失敗，繼續下一個 step。
 ```
 
-### B-3：最終報告
+### B-3：最終驗證 + 報告
+
+```python
+# 判斷是否有任一輪全部通過（break 路徑）
+_all_passed_early = any(v == [] for v in _round_failures.values())
+
+if _all_passed_early:
+    last_fails = []
+else:
+    # 3 輪都有 FAIL，且第 3 輪已補跑 → 再做最終掃描（只驗，不補跑）
+    _final_fail = []
+    for step in _post_dryrun:
+        sid  = step['id']
+        cond = step.get('condition', 'always')
+        if not _eval_condition(cond, _CLIENT_TYPE, _HAS_ADMIN):
+            continue
+        l1_ok = _check_step_l1(step)
+        l2_ok, _ = _check_step_l2(step) if l1_ok else (False, [])
+        if not (l1_ok and l2_ok):
+            _final_fail.append(sid)
+    last_fails = _final_fail
+```
 
 ```python
 print("\n" + "="*60)
 print("[gendoc-repair] 最終報告")
 print("="*60)
-
-all_rounds = sorted(_round_failures.keys())
-last_fails  = _round_failures.get(max(all_rounds), []) if all_rounds else []
 
 if not last_fails:
     print("✅ 所有 step 通過 L1+L2 驗證，專案已完整。")
