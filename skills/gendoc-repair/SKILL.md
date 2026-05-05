@@ -600,32 +600,16 @@ for _round in range(1, _MAX_ROUNDS + 1):
 **每個 step 補跑指令（在上面迴圈的「補跑」位置執行）：**
 
 ```python
-# 先從 pipeline 查出此 step 是否為 special_skill
-_step_def = next((s for s in steps if s['id'] == sid), {})
-_special_sk = _step_def.get('special_skill', '')
-
-if _special_sk:
-    # ⚠️ ENFORCEMENT：special_skill step 補跑只允許用 Skill() 呼叫其 special_skill
-    # 禁止使用 Write/Edit/Bash 直接在 output 目錄建立或補充檔案
-    print(f"[Branch B] ▶ {sid} 為 special_skill（{_special_sk}），必須且只能呼叫 Skill(\"{_special_sk}\")")
-    # 用 Skill tool 呼叫 {_special_sk}（不傳 args；各 special_skill skill 自行讀 pipeline）
-    # 等待回傳。
-    # 呼叫返回後：依 pipeline.json output 欄位確認預期路徑是否存在
-    _expected_outputs = _step_def.get('output', [])
-    _output_ok = all(
-        (os.path.isdir(p.rstrip('/')) and os.listdir(p.rstrip('/'))) if p.endswith('/')
-        else (os.path.isfile(p) and os.path.getsize(p) > 0)
-        for p in _expected_outputs
-    ) if _expected_outputs else False
-    if not _output_ok:
-        print(f"[WARN] {sid} Skill 呼叫後輸出路徑仍不存在，不寫入 special_completed，告知使用者需手動介入")
-    # 不得改用 Write/Edit/Bash 補生成
-else:
-    # 標準 step：呼叫 gendoc-flow --only {sid}
-    # 用 Skill tool 呼叫 gendoc-flow，args="--only {sid}"
-    # 等待回傳。
-    # 若 Skill tool 回傳失敗 → 印出 [WARN] {sid} 補跑失敗，繼續下一個 step。
-    pass
+# 所有 step（含 special_skill）一律透過 gendoc-flow --only 補跑
+# gendoc-flow 自行依 pipeline.json special_skill 欄位決定呼叫哪個 skill
+# repair 不重複實作 special_skill 偵測邏輯（避免兩套邏輯漂移）
+print(f"[Branch B] ▶ 補跑 {sid} → Skill('gendoc-flow', args='--only {sid}')")
+# 用 Skill tool 呼叫 gendoc-flow，args="--only {sid}"
+# 等待回傳。
+# gendoc-flow 內部會：
+#   special_skill step → 呼叫對應 Skill + 驗證輸出 + 寫入 special_completed
+#   標準 step         → 生成文件 + git commit + 更新 completed_steps
+# 若 Skill tool 回傳失敗 → 印出 [WARN] {sid} 補跑失敗，繼續下一個 step。
 ```
 
 ### B-3：最終驗證 + 報告

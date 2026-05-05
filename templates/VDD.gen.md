@@ -269,7 +269,7 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
    - Preload 僅 Critical Weight/Style（主 Body 字型的 Regular 400）
    - Subset 策略（若有中文：繁體中文 Unicode Range 或 Google Fonts `&subset=chinese-traditional`）
 
-4. **§5.1 Responsive Typography（斷點字型縮放規格）**（必填）：
+4. **§5.3 Responsive Typography（斷點字型縮放規格）**（必填）：
 
    依據 §5 Type Scale 各層級，計算每個斷點的實際渲染字型大小。
    從 `clamp(min, preferred, max)` 公式推導各斷點值（320/375/768/1024/1440px）。
@@ -421,6 +421,33 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 }
 ```
 
+#### §6.1 Token 應用矩陣（必填）
+
+從 §6 Layer 2 Semantic Token 展開使用場景對應表。
+覆蓋 color / spacing / radius / shadow 四類，每類 **≥ 4 個 token**。
+**禁止出現「請設計師填入」；所有值從 Layer 1–3 推導**。
+
+| Token 名稱 | 值（Semantic → Primitive） | 適用元件 / 場景 | 禁用場景 |
+|-----------|--------------------------|--------------|---------|
+| `--color-primary` | → `--color-blue-500` | CTA Button 背景、選中狀態、Focus Ring | 大面積背景底色 |
+| `--color-primary-hover` | → `--color-blue-600` | Button :hover 狀態 | 非互動元素 |
+| `--color-surface` | → `--color-neutral-50` | Card 背景、Modal 背景、Sidebar | 文字顏色 |
+| `--color-text-primary` | → `--color-neutral-900` | 主要內文、標題 | 低對比背景上（< 4.5:1） |
+| `--color-error` | → `--color-red-500` | 表單錯誤邊框、Error Toast | 成功狀態 |
+| `--space-4` | 4px | 元件內部最小間距、Icon 與文字間距 | Section 級別間距 |
+| `--space-16` | 16px | Card padding、表單欄位間距 | Hero 區塊留白 |
+| `--space-section` | clamp(4rem, 3rem+5vw, 10rem) | Section 上下留白 | 元件內部間距 |
+| `--space-gutter` | 依斷點（見 §7.2）| Grid Column Gutter | Row 間距 |
+| `--radius-sm` | 4px | Input、Badge | 大型 Card |
+| `--radius-md` | 8px | Button、Card | 全圓元素 |
+| `--radius-lg` | 16px | Modal、Drawer | 小型 Badge |
+| `--radius-full` | 9999px | Avatar、Pill Tag、Toggle | 矩形 Card |
+| `--shadow-sm` | 0 1px 3px rgba(0,0,0,.12) | Input :focus-within、Dropdown | 平面卡片 |
+| `--shadow-md` | 0 4px 16px rgba(0,0,0,.12) | Card、Modal | Tooltip |
+| `--shadow-lg` | 0 8px 32px rgba(0,0,0,.16) | Sticky Header、浮動 Panel | 一般 Card |
+| `--shadow-inner` | inset 0 2px 4px rgba(0,0,0,.08) | Input 按下狀態、凹陷區塊 | 懸浮卡片 |
+| （依 §6 實際 Token 完整補充）| | | |
+
 ---
 
 ### §4 詳細生成規則 / §5 元件規格（Character & UI Component Detail Rules）
@@ -517,32 +544,6 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
    | Design Token 同步 | 使用 Style Dictionary / Theo 從 Figma Token 匯出至 CSS / JSON |
    | 交付物 | Figma Link + Storybook Link + Token JSON 檔 |
    | 更新頻率 | 每個 Sprint 結束，QA 進入前完成 Figma → Code 同步 |
-
-4. **§6.1 Token 應用矩陣**（必填）：
-
-   從 §6 Layer 2 Semantic Token 展開使用場景對應表。
-   覆蓋 color / spacing / radius / shadow 四類，每類 **≥ 4 個 token**。
-   **禁止出現「請設計師填入」；所有值從 Layer 1–3 推導**。
-
-   | Token 名稱 | 值（Semantic → Primitive） | 適用元件 / 場景 | 禁用場景 |
-   |-----------|--------------------------|--------------|---------|
-   | `--color-primary` | → `--color-blue-500` | CTA Button 背景、選中狀態、Focus Ring | 大面積背景底色 |
-   | `--color-primary-hover` | → `--color-blue-600` | Button :hover 狀態 | 非互動元素 |
-   | `--color-surface` | → `--color-neutral-50` | Card 背景、Modal 背景、Sidebar | 文字顏色 |
-   | `--color-text-primary` | → `--color-neutral-900` | 主要內文、標題 | 低對比背景上（< 4.5:1） |
-   | `--color-error` | → `--color-red-500` | 表單錯誤邊框、Error Toast | 成功狀態 |
-   | `--space-4` | 4px | 元件內部最小間距、Icon 與文字間距 | Section 級別間距 |
-   | `--space-16` | 16px | Card padding、表單欄位間距 | Hero 區塊留白 |
-   | `--space-section` | clamp(4rem, 3rem+5vw, 10rem) | Section 上下留白 | 元件內部間距 |
-   | `--space-gutter` | 依斷點（見 §7.2） | Grid Column Gutter | Row 間距 |
-   | `--radius-sm` | 4px | Input、Badge | 大型 Card |
-   | `--radius-md` | 8px | Button、Card | 全圓元素 |
-   | `--radius-lg` | 16px | Modal、Drawer | 小型 Badge |
-   | `--radius-full` | 9999px | Avatar、Pill Tag、Toggle | 矩形 Card |
-   | `--shadow-sm` | 0 1px 3px rgba(0,0,0,.12) | Input :focus-within、Dropdown | 平面卡片 |
-   | `--shadow-md` | 0 4px 16px rgba(0,0,0,.12) | Card、Modal | Tooltip |
-   | `--shadow-lg` | 0 8px 32px rgba(0,0,0,.16) | Sticky Header、浮動 Panel | 一般 Card |
-   | （依 §6 實際 Token 完整補充）| | | |
 
 ---
 
@@ -690,6 +691,8 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 - [ ] §5 Design Token 三層架構（Primitive / Semantic / Component）全部完整，無裸 placeholder
 - [ ] §5.1 Dark Mode Token Mapping：≥13 個 semantic token，每個有 Light + Dark 兩組 oklch 值 + WCAG 對比度
 - [ ] §5.2 Motion Token：easing 函數已定義（≥3 個 cubic-bezier）；duration 已定義；prefers-reduced-motion 規則已包含
+- [ ] §5.3 Responsive Typography：各斷點（320/375/768/1024/1440px）字型大小均填入具體計算值，無 `Xrem` placeholder；small/caption 固定值已填
+- [ ] §6.1 Token 應用矩陣：color / spacing / radius / shadow 四類各 ≥ 4 個 token；所有值從 Layer 1–3 推導，無「請設計師填入」
 - [ ] §6 [game mode]：角色設計表覆蓋主角 + ≥3 NPC；角色動態狀態表已完成（≥6 個狀態）
 - [ ] §6 [saas-web / mobile mode]：UI 元件視覺規格表 ≥8 個元件；每個元件有 Default / Hover / Focus / Active / Disabled / Error / Empty / Loading 8 種狀態
 - [ ] §7 Asset Pipeline：素材分類規格表已填寫（圖示 / 插圖 / 照片 / Hero / 字型）；命名規範已定義；Figma → Code 交付規格已填寫

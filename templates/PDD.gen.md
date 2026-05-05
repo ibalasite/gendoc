@@ -228,7 +228,7 @@ Border Radius / Shadow / Transition Duration
 | 載入中 | API 呼叫期間 | Skeleton Screen（非 Spinner）| 資料回傳後漸入 |
 | 喜愛/收藏 | 點擊心形按鈕 | Heart fill + 爆炸粒子效果 | 再次點擊取消 |
 | 刪除確認 | 點擊刪除 | Shake + 確認對話框 | 確認後 Collapse 動畫 |
-| <基於 PRD 特有功能> | <規則> | <回饋> | <迴圈> |
+| （依 PRD 特有功能完整補充，不得留空白列）| | | |
 
 ### §6.6 Gesture & Touch Design（若有 Mobile 需求）
 

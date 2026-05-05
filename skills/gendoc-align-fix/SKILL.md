@@ -163,13 +163,11 @@ if _need_rerun:
     print()
 
     # 重跑每個不達標的 step（依序執行）
-    for sid, special_sk, _ in _need_rerun:
-        if special_sk:
-            print(f"[Step 0.5] ▶ 呼叫 Skill(\"{special_sk}\") 重跑 {sid}...")
-            # 用 Skill 工具呼叫 {special_sk}；等待回傳後重新驗證
-        else:
-            print(f"[Step 0.5] ▶ 呼叫 gendoc-flow --only {sid} 重跑...")
-            # 用 Skill 工具呼叫 gendoc-flow，args="--only {sid}"；等待回傳後重新驗證
+    # 所有 step（含 special_skill）一律透過 gendoc-flow --only 執行
+    # gendoc-flow 自行依 pipeline.json special_skill 欄位決定呼叫哪個 skill
+    for sid, _, _ in _need_rerun:
+        print(f"[Step 0.5] ▶ 呼叫 gendoc-flow --only {sid} 重跑...")
+        # 用 Skill 工具呼叫 gendoc-flow，args="--only {sid}"；等待回傳後重新驗證
         print(f"[Step 0.5] 重新驗證 {sid} spec_rules 是否通過...")
         # 若重跑後仍未達標 → 記錄警告，繼續下一個（不中止）
 
