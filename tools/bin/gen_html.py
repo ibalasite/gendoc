@@ -7,6 +7,7 @@
 
 import os, re, json, html as _html, subprocess, urllib.request, urllib.error, zlib
 from pathlib import Path
+from typing import Optional
 
 # ─── PlantUML support ────────────────────────────────────────────────────────
 
@@ -26,7 +27,7 @@ def _plantuml_encode(text: str) -> str:
                    chars[b[2] & 63]]
     return ''.join(result)
 
-def _plantuml_to_svg(text: str) -> str | None:
+def _plantuml_to_svg(text: str) -> Optional[str]:
     """Convert PlantUML text → inline SVG string. Returns None on failure.
     Priority: 1) local plantuml CLI  2) plantuml.com server  3) None"""
     if text in _puml_cache:
