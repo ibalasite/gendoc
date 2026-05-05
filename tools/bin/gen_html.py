@@ -1,12 +1,79 @@
 #!/usr/bin/env python3
 # tools/bin/gen_html.py
-# VERSION: 3.6.0
+# VERSION: 3.7.0
 # Maintained by gendoc — DO NOT EDIT IN TARGET PROJECTS
 # Install: ~/.claude/skills/gendoc/setup  →  ~/.claude/skills/gendoc/tools/bin/gen_html.py
 # Usage:   python3 ~/.claude/skills/gendoc/tools/bin/gen_html.py   (run from project root)
 
-import os, re, json, html as _html
+import os, re, json, html as _html, subprocess, urllib.request, urllib.error, zlib
 from pathlib import Path
+
+# ─── PlantUML support ────────────────────────────────────────────────────────
+
+PLANTUML_SERVER = 'https://www.plantuml.com/plantuml'
+_puml_cache: dict = {}  # puml_text → svg_string (session cache)
+
+def _plantuml_encode(text: str) -> str:
+    """Encode PlantUML text for plantuml.com server URL (custom base64 of raw DEFLATE)."""
+    raw = zlib.compress(text.encode('utf-8'))[2:-4]  # strip zlib header + Adler32 tail
+    chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_'
+    result = []
+    for i in range(0, len(raw), 3):
+        b = (raw[i:i+3] + b'\x00\x00')[:3]
+        result += [chars[b[0] >> 2],
+                   chars[((b[0] & 3) << 4) | (b[1] >> 4)],
+                   chars[((b[1] & 15) << 2) | (b[2] >> 6)],
+                   chars[b[2] & 63]]
+    return ''.join(result)
+
+def _plantuml_to_svg(text: str) -> str | None:
+    """Convert PlantUML text → inline SVG string. Returns None on failure.
+    Priority: 1) local plantuml CLI  2) plantuml.com server  3) None"""
+    if text in _puml_cache:
+        return _puml_cache[text]
+
+    svg = None
+
+    # 1) Try local plantuml binary (no network, fastest)
+    try:
+        proc = subprocess.run(
+            ['plantuml', '-tsvg', '-pipe', '-charset', 'UTF-8'],
+            input=text.encode('utf-8'), capture_output=True, timeout=15
+        )
+        if proc.returncode == 0 and b'<svg' in proc.stdout:
+            svg = proc.stdout.decode('utf-8')
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+
+    # 2) Fallback: plantuml.com server
+    if svg is None:
+        try:
+            url = f'{PLANTUML_SERVER}/svg/{_plantuml_encode(text)}'
+            with urllib.request.urlopen(url, timeout=12) as r:
+                data = r.read().decode('utf-8')
+                if '<svg' in data:
+                    svg = data
+        except Exception:
+            pass
+
+    if svg:
+        # Strip XML declaration so SVG can be embedded inline
+        svg = re.sub(r'<\?xml[^>]+\?>\s*', '', svg).strip()
+        _puml_cache[text] = svg
+    return svg
+
+def _puml_block_to_html(raw_lines: list[str]) -> str:
+    """Convert a list of plantuml block lines to HTML (inline SVG or code fallback)."""
+    puml = '\n'.join(raw_lines).strip()
+    if not puml.startswith('@startuml'):
+        puml = '@startuml\n' + puml + '\n@enduml'
+    svg = _plantuml_to_svg(puml)
+    if svg:
+        return f'<div class="diagram-container diagram-container--puml">{svg}</div>'
+    # Fallback: show raw source with warning
+    return (f'<pre><code class="language-plantuml">{esc(puml)}</code></pre>'
+            f'<p style="color:var(--text-muted);font-size:0.875rem">⚠️ PlantUML 圖表無法生成'
+            f'（請確認本機已安裝 plantuml 或網路可連至 plantuml.com）</p>')
 
 # Always resolve relative to cwd (the target project root), not this script's location
 BASE = Path.cwd()
@@ -234,6 +301,13 @@ def md_to_html(text, src_dir=None):
                 i += 1
             fixed = _mermaid_fix_block(block)
             out.append('<div class="diagram-container"><pre class="mermaid">' + '\n'.join(esc(l) for l in fixed) + '</pre></div>')
+        elif s.startswith('```plantuml') or s.startswith('```puml'):
+            block = []
+            i += 1
+            while i < len(lines) and lines[i].strip() != '```':
+                block.append(lines[i])
+                i += 1
+            out.append(_puml_block_to_html(block))
         elif s.startswith('```'):
             lang = s[3:].strip()
             block = []
@@ -407,12 +481,28 @@ def scan_subdirectory_docs():
     return result
 
 
+def scan_puml_files():
+    """Scan docs/ recursively for standalone .puml files (excluding pages/).
+    Returns list of (slug, label, path) sorted by path."""
+    if not DOCS_DIR.exists():
+        return []
+    results = []
+    for p in sorted(DOCS_DIR.rglob('*.puml')):
+        if PAGES_DIR.resolve() in p.resolve().parents:
+            continue
+        rel = p.relative_to(DOCS_DIR).with_suffix('')
+        slug = 'puml--' + str(rel).replace('/', '-').replace('\\', '-').lower()
+        label = p.stem.replace('_', ' ').replace('-', ' ').title()
+        results.append((slug, label, p))
+    return results
+
+
 _DIR_ICONS = {
     'req': '📎', 'logic': '📐', 'diagrams': '🖼️', 'features': '🧪',
     'notes': '📓', 'adr': '📋', 'runbooks': '📖', 'specs': '📄',
 }
 
-def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, current, has_req=False):
+def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, current, has_req=False, puml_files=None):
     def link(slug, label, icon=''):
         cls = ' active' if slug == current else ''
         prefix = f'{icon} ' if icon else ''
@@ -450,6 +540,18 @@ def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, curren
         sections.append(link('req', 'req/ 素材清單', '📎'))
         sections.append('</div>')
 
+    # ── PlantUML standalone files ──────────────────────────
+    if puml_files:
+        is_active_puml = any(slug == current for slug, _, _ in puml_files)
+        open_attr = ' open' if is_active_puml else ''
+        sections.append('<div class="sidebar__section">')
+        sections.append(f'<details{open_attr}>')
+        sections.append('<summary>📐 PlantUML</summary>')
+        for slug, label, _ in puml_files:
+            sections.append(link(slug, label))
+        sections.append('</details>')
+        sections.append('</div>')
+
     # ── UML diagrams ───────────────────────────────────────
     if server_diagrams:
         sections.append('<div class="sidebar__section">')
@@ -467,7 +569,7 @@ def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, curren
 
     return '\n'.join(sections)
 
-def render_page(content, title, banner, doc_pages, server_diagrams, frontend_diagrams, sub_docs, current, is_index=False, has_req=False):
+def render_page(content, title, banner, doc_pages, server_diagrams, frontend_diagrams, sub_docs, current, is_index=False, has_req=False, puml_files=None):
     gh = (f'<a class="nav-gh-link" href="{GITHUB_REPO}" target="_blank" rel="noopener">⌥ GitHub</a>'
           if GITHUB_REPO else '')
     if is_index:
@@ -478,7 +580,7 @@ def render_page(content, title, banner, doc_pages, server_diagrams, frontend_dia
                    f'</span>')
     else:
         bc = f'<a href="index.html">{APP_NAME}</a> › {banner}'
-    sidebar_html = make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, current, has_req=has_req)
+    sidebar_html = make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, current, has_req=has_req, puml_files=puml_files)
     return (HTML_TEMPLATE
             .replace('__TITLE__', title)
             .replace('__APP__', APP_NAME)
@@ -616,13 +718,14 @@ def main():
 
     server_diagrams, frontend_diagrams = scan_diagram_pages()
     sub_docs = scan_subdirectory_docs()
+    puml_files = scan_puml_files()
 
     search_data = {}
 
     def write_page(filename, content, title, banner, current, is_index=False):
         html = render_page(content, title, banner,
                            doc_pages, server_diagrams, frontend_diagrams,
-                           sub_docs, current, is_index, has_req=has_req)
+                           sub_docs, current, is_index, has_req=has_req, puml_files=puml_files)
         (PAGES_DIR / filename).write_text(html)
         exc = re.sub(r'<[^>]+>', '', content)[:150]
         search_data[filename] = {"url": filename, "title": title, "excerpt": exc}
@@ -682,6 +785,22 @@ def main():
             write_page(f"{slug}.html", c, label, f'{subdir_name}/ › {label}', slug)
             sub_page_count += 1
 
+    # Standalone .puml files → rendered SVG pages
+    for slug, label, p in puml_files:
+        puml_text = p.read_text(encoding='utf-8')
+        if not puml_text.strip().startswith('@startuml'):
+            puml_text = '@startuml\n' + puml_text + '\n@enduml'
+        svg = _plantuml_to_svg(puml_text)
+        if svg:
+            c = (f'<h1>{esc(label)}</h1>'
+                 f'<div class="diagram-container diagram-container--puml">{svg}</div>')
+        else:
+            c = (f'<h1>{esc(label)}</h1>'
+                 f'<pre><code class="language-plantuml">{esc(puml_text)}</code></pre>'
+                 f'<p style="color:var(--text-muted)">⚠️ PlantUML 圖表無法生成'
+                 f'（請確認本機已安裝 plantuml 或網路可連至 plantuml.com）</p>')
+        write_page(f'{slug}.html', c, label, f'PlantUML › {label}', slug)
+
     (PAGES_DIR / "search-data.json").write_text(
         json.dumps(search_data, ensure_ascii=False, indent=2))
     print("✓ search-data.json")
@@ -690,7 +809,8 @@ def main():
     req_count = int(has_req)
     sub_dirs_count = len(sub_docs)
     print(f"\n✅ 完成：{len(search_data)} 頁"
-          f"（文件 + BDD×{bdd_count} + {total_diag} UML + {sub_page_count} 子目錄×{sub_dirs_count}dirs + req×{req_count}）"
+          f"（文件 + BDD×{bdd_count} + {total_diag} UML + {sub_page_count} 子目錄×{sub_dirs_count}dirs"
+          f" + puml×{len(puml_files)} + req×{req_count}）"
           f"→ {PAGES_DIR}")
 
 if __name__ == "__main__":
