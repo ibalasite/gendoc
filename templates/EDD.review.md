@@ -66,8 +66,13 @@ upstream-alignment:
 **Risk**: 決策理由缺失，未來架構師或新成員無法評估變更成本，容易在不了解 trade-off 的情況下做出破壞架構的決策。
 **Fix**: 補充每個 ADR 的背景、選項比較（優/劣）、決策理由和後果；若選型已確定，至少補充「排除 XXX 的原因」。
 
-#### [MEDIUM] 5 — Mermaid 系統架構圖缺失
-**Check**: EDD 是否包含 §2.1 System Context 圖（C4 Level 1）和 §2.2 Container 圖（C4 Level 2）？圖中所有節點是否與文字描述一致？
+#### [HIGH] 5a — ASCII art 圖表（禁止）
+**Check**: EDD 中是否出現使用 ASCII 字元（┌─┐│└─┘╔═╗║╚═╝+--+|等）繪製的任何圖表、流程圖或架構圖？任何 ASCII art 圖表均視為 HIGH。
+**Risk**: ASCII art 無法在 GitHub/GitLab/Confluence 中被工具解析或自動驗證，且風格不一致；未來 review 腳本無法偵測圖表缺失或品質問題。
+**Fix**: 將所有 ASCII art 圖表替換為 Mermaid 程式碼塊（````mermaid` ... ````）；§2 System Context 使用 `graph TB`；其他圖表依據類型選擇 `flowchart TD` / `sequenceDiagram` / `classDiagram` 等。
+
+#### [MEDIUM] 5b — Mermaid 系統架構圖缺失
+**Check**: EDD 是否包含 §2.1 System Context 圖（C4 Level 1，Mermaid `graph TB`）和 §2.2 Container 圖（C4 Level 2，Mermaid `graph TB`）？圖中所有節點是否與文字描述一致？
 **Risk**: 無架構圖，工程師只能閱讀文字推斷系統結構，溝通成本高且容易產生不同解讀。
 **Fix**: 補充 Mermaid System Context 圖和 Container 圖；確保圖中的服務、資料庫、外部系統與 §3.3 技術棧描述完全一致。
 

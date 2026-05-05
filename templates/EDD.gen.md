@@ -13,6 +13,20 @@ quality-bar: "Pass-0 已輸出 docs/CONSTANTS.md + docs/constants.json；所有 
 
 # EDD 生成規則
 
+## Iron Rule: 禁止 ASCII art — 所有圖表必須使用 Mermaid
+
+**嚴禁** 使用 ASCII 字元（┌─┐│└─┘╔═╗║╚═╝+--+|等）繪製任何圖表、流程圖、架構圖。
+**所有視覺化內容** 必須以 Mermaid 程式碼塊輸出（````mermaid` ... ````），包含但不限於：
+- §2 System Context（C4 L1/L2：`graph TB` 或 `flowchart TB`）
+- §4.5 UML 9 大圖（`classDiagram` / `sequenceDiagram` / `stateDiagram-v2` / `erDiagram` / `flowchart` / `graph`）
+- §13 HA/SCALE 部署圖（`graph TB`）
+- §9 Security / Network 圖（`flowchart TD` / `graph LR`）
+- 其他任何有方框、連線、流程的內容
+
+違反此規則的圖表在 Review 時必須標記 FAIL 並強制重做。
+
+---
+
 ## Iron Rule: 累積上游讀取
 
 每份文件生成時，必須讀取所有上游文件（累積，非僅直接父文件）。
@@ -140,6 +154,53 @@ EDD 必須涵蓋以下所有章節（對應 templates/EDD.md 結構）：
 - DOC-ID：`EDD-<PROJECT_SLUG 大寫>-<YYYYMMDD>`
 - 上游 PDD：`[PDD.md](PDD.md)`（UX / Interaction Design）
 - 上游 PRD：`[PRD.md](PRD.md)`
+
+### §2 System Context（C4 Level 1 + Level 2）
+
+> ⚠️ 本節所有圖表必須使用 Mermaid，嚴禁使用 ASCII art。
+
+生成 **兩張 Mermaid 圖**（`graph TB` 方向）：
+
+**C4 Level 1 — Context Diagram（系統邊界）**：
+
+```mermaid
+graph TB
+  subgraph External["External Actors"]
+    User["使用者\n(Actor 名稱來自 PRD §2)"]
+    ThirdParty["第三方系統"]
+  end
+  subgraph System["系統邊界 (System Name)"]
+    API["API Server"]
+    DB["Database"]
+  end
+  User -->|HTTP/HTTPS| API
+  API -->|SQL| DB
+  ThirdParty -->|API| API
+```
+
+- Actor 名稱必須來自 PRD §2 使用者角色，不得用「用戶」等籠統稱呼
+- 系統邊界使用 `subgraph`；每條連線標注協定
+
+**C4 Level 2 — Container Diagram（容器層）**：
+
+```mermaid
+graph TB
+  subgraph System["System Boundary"]
+    WebApp["Web Frontend\n(React/Vue/CocoCreator)"]
+    APIServer["API Server\n(Spring Boot 3)"]
+    Cache["Redis Cache\n(port 6379)"]
+    MQ["Message Queue\n(NATS)"]
+    DB[(PostgreSQL\n(port 5432))]
+  end
+  Browser["使用者瀏覽器"] -->|HTTPS 443| WebApp
+  WebApp -->|REST/JSON| APIServer
+  APIServer -->|Redis Protocol| Cache
+  APIServer -->|NATS Protocol| MQ
+  APIServer -->|SQL TCP 5432| DB
+```
+
+- 每個容器節點標注技術棧 + 埠號
+- 技術棧必須與 §3.3 技術選型一致
 
 ### §2 技術選型
 

@@ -67,6 +67,11 @@ upstream-alignment:
 
 ### Layer 2: Mermaid 圖表品質（由 Solutions Architect + DevOps Expert 聯合審查，共 5 項）
 
+#### [HIGH] 5a — ASCII art 圖表（禁止）
+**Check**: ARCH 中是否出現使用 ASCII 字元（┌─┐│└─┘╔═╗║╚═╝+--+|等）繪製的任何圖表、流程圖或架構圖？任何 ASCII art 圖表均視為 HIGH。
+**Risk**: ASCII art 無法被工具解析，且與 Mermaid 規範不一致；§3.1~§3.3 C4 圖要求 Mermaid `graph TB` 格式。
+**Fix**: 將所有 ASCII art 圖表替換為 Mermaid 程式碼塊；C4 L1/L2/L3 使用 `graph TB`（TD 方向）；Network Architecture 使用 `flowchart TD`；Communication 圖使用 `flowchart LR`。
+
 #### [CRITICAL] 6 — 關鍵基礎設施元件缺失於圖表
 **Check**: ARCH 圖表中是否展示所有實際使用的基礎設施元件？必含元件清單（若系統使用）：Load Balancer、API Gateway、Application Server(s)、Database Primary + Replica、Cache（Redis）、Message Queue（若有）、CDN（若有靜態資源）。缺少任一已使用的元件視為 CRITICAL。
 **Risk**: 關鍵元件未在 ARCH 中呈現，DevOps 工程師建立 Infrastructure 時遺漏元件，上線前才發現需要緊急補充，延誤交付。

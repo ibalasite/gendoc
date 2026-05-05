@@ -14,6 +14,20 @@ quality-bar: "所有 PRD P0 功能在 §3 元件清單有對應元件；每個 S
 
 # ARCH 生成規則
 
+## Iron Rule: 禁止 ASCII art — 所有圖表必須使用 Mermaid
+
+**嚴禁** 使用 ASCII 字元（┌─┐│└─┘╔═╗║╚═╝+--+|等）繪製任何圖表。
+**所有視覺化內容** 必須以 Mermaid 程式碼塊輸出（````mermaid` ... ````），包含但不限於：
+- §3.1~§3.3 C4 L1/L2/L3（`graph TB` / `flowchart TB`，TD 方向）
+- §3.4 Data Flow Diagram（`sequenceDiagram` 或 `flowchart TD`）
+- §5.2 通訊架構圖（`flowchart LR`）
+- §9.2/§9.4 安全架構 / VPC 拓撲圖（`flowchart TD`）
+- 其他任何有方框、連線、流程的內容
+
+違反此規則的圖表在 Review 時必須標記 FAIL 並強制重做。
+
+---
+
 ## Iron Rule: 累積上游讀取
 
 每份文件生成時，必須讀取所有上游文件（累積，非僅直接父文件）。
@@ -170,11 +184,60 @@ type UserService interface {
 
 ### §3.1~§3.3 C4 Model
 
-- **L1 Context Diagram**：系統邊界 + 外部參與者（用戶、第三方系統）
-- **L2 Container Diagram**：主要容器（Web API / DB / Cache / Queue / Worker）
-- **L3 Component Diagram**：容器內部的主要元件
+> ⚠️ 三張圖均必須使用 Mermaid `graph TB`，嚴禁 ASCII art。包含真實服務名稱（非 placeholder）。
 
-所有 C4 圖均使用 Mermaid，TD 方向，包含真實服務名稱（非 placeholder）。
+**L1 — Context Diagram（系統邊界 + 外部參與者）**：
+
+```mermaid
+graph TB
+  subgraph External["External Actors"]
+    EndUser["終端使用者\n(Actor 來自 PRD §2)"]
+    Admin["管理員"]
+    ThirdParty["第三方系統"]
+  end
+  subgraph SystemBoundary["系統邊界 (System Name)"]
+    WebFrontend["Web Frontend"]
+    APIServer["API Server"]
+  end
+  EndUser -->|HTTPS| WebFrontend
+  Admin -->|HTTPS| WebFrontend
+  WebFrontend -->|REST| APIServer
+  ThirdParty -->|Webhook/API| APIServer
+```
+
+**L2 — Container Diagram（主要容器）**：
+
+```mermaid
+graph TB
+  subgraph System["System Boundary"]
+    FE["Web Frontend\n(React/Vue)"]
+    API["API Server\n(Spring Boot 3, :8080)"]
+    Cache["Redis Cache\n(:6379)"]
+    MQ["NATS MQ\n(:4222)"]
+    DB[(PostgreSQL\n(:5432))]
+  end
+  Browser["使用者"] -->|HTTPS :443| FE
+  FE -->|REST/JSON| API
+  API -->|Redis Protocol| Cache
+  API -->|NATS| MQ
+  API -->|SQL| DB
+```
+
+**L3 — Component Diagram（容器內部元件，每個主要容器各一張）**：
+
+```mermaid
+graph TB
+  subgraph APIServer["API Server"]
+    Controller["XxxController\n(HTTP Handler)"]
+    Service["XxxService\n(Business Logic)"]
+    Repo["XxxRepository\n(Data Access)"]
+  end
+  Controller -->|calls| Service
+  Service -->|calls| Repo
+  Repo -->|SQL| DB[(PostgreSQL)]
+```
+
+每個節點標注元件名稱 + 責任層次；依賴方向必須與 EDD §3.1b Dependency Rule 一致（Controller→Service→Repository）。
 
 ### §3.4 Data Flow Diagram
 
