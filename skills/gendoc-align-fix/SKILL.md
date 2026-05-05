@@ -28,6 +28,158 @@ allowed-tools:
 
 ---
 
+## Step 0.5：spec_rules 達標預檢（對齊修復前置條件）
+
+```python
+import os, json, glob as _glob
+
+# [R5-B] 對齊修復前，先確認所有 post-DRYRUN step 的量化指標達標
+# 目的：量化不足的 step 必須重跑（不是修復內容），才進入內容對齊修復
+_rules_dir = '.gendoc-rules'
+
+# 讀取 pipeline.json 取得 post-DRYRUN steps 清單
+_pipeline_file = os.environ.get('GENDOC_TEMPLATES', os.path.expanduser('~/.claude/gendoc/templates'))
+_pipeline_file = os.path.join(_pipeline_file, 'pipeline.json')
+if not os.path.isfile(_pipeline_file):
+    # local-first lookup
+    _pipeline_file = 'templates/pipeline.json'
+
+_steps = []
+if os.path.isfile(_pipeline_file):
+    _pipeline = json.load(open(_pipeline_file, encoding='utf-8'))
+    _steps = _pipeline.get('steps', [])
+    _dryrun_idx = next((i for i, s in enumerate(_steps) if s['id'] == 'DRYRUN'), None)
+    if _dryrun_idx is not None:
+        _steps = _steps[_dryrun_idx + 1:]
+
+# 讀取 state file 取得 client_type / has_admin_backend
+def _eval_cond(cond, ct, adm):
+    if not cond or cond == 'always': return True
+    ct = ct.strip().lower(); adm = adm.strip().lower() in ('true', '1', 'yes')
+    if cond == 'client_type != none': return ct not in ('', 'api-only')
+    if cond == 'client_type != api-only': return ct != 'api-only'
+    if cond == 'has_admin_backend': return adm
+    return True
+
+_state = {}
+for _sf in _glob.glob('.gendoc-state-*.json') or ['.gendoc-state.json']:
+    try: _state = json.load(open(_sf, encoding='utf-8')); break
+    except: pass
+_ct  = _state.get('client_type', '').strip()
+_adm = str(_state.get('has_admin_backend', '')).strip().lower()
+
+# 比對每個 post-DRYRUN step 的 spec_rules
+_need_rerun = []
+
+for step in _steps:
+    sid = step['id']
+    if not _eval_cond(step.get('condition', 'always'), _ct, _adm):
+        continue
+    _rules_file = os.path.join(_rules_dir, f'{sid.lower()}-rules.json')
+    if not os.path.isfile(_rules_file):
+        continue
+    try:
+        rules = json.load(open(_rules_file, encoding='utf-8'))
+    except Exception:
+        continue
+    if not rules:
+        continue
+
+    special_sk = step.get('special_skill', '')
+    fail_reasons = []
+
+    if special_sk:
+        # 目錄型 step：直接使用 _check_directory_step 邏輯
+        # HTML
+        if 'gendoc-gen-html' in special_sk or sid == 'HTML':
+            exp = rules.get('expected_html_files', 0)
+            act = len([f for f in _glob.glob('docs/pages/*.html')
+                       if os.path.basename(f) != 'index.html'])
+            if isinstance(exp, int) and exp > 0 and act < exp:
+                fail_reasons.append(f"expected_html_files: {act}/{exp}")
+        # CONTRACTS
+        elif 'gendoc-gen-contracts' in special_sk or sid == 'CONTRACTS':
+            ec = rules.get('expected_contract_count', 0)
+            es = rules.get('expected_schema_count', 0)
+            if isinstance(ec, int) and ec > 0:
+                oapi_paths = sum(
+                    len([l for l in open(f, errors='ignore').read().split('\n')
+                         if l.strip() and l.startswith('  /') and ':' in l])
+                    for f in _glob.glob('docs/blueprint/contracts/*.yaml')
+                )
+                if oapi_paths < ec: fail_reasons.append(f"contract paths: {oapi_paths}/{ec}")
+            if isinstance(es, int) and es > 0:
+                act_s = len(_glob.glob('docs/blueprint/contracts/schemas/*.json'))
+                if act_s < es: fail_reasons.append(f"schemas: {act_s}/{es}")
+        # MOCK
+        elif 'gendoc-gen-mock' in special_sk or sid == 'MOCK':
+            er = rules.get('expected_mock_route_count', 0)
+            if isinstance(er, int) and er > 0:
+                import re
+                _main = 'docs/blueprint/mock/main.py'
+                act_r = len([l for l in open(_main, errors='ignore').read().split('\n')
+                             if '@app.' in l]) if os.path.isfile(_main) else 0
+                if act_r < er: fail_reasons.append(f"mock routes: {act_r}/{er}")
+        # PROTOTYPE
+        elif 'gendoc-gen-prototype' in special_sk or sid == 'PROTOTYPE':
+            if not os.path.isfile('docs/pages/prototype/index.html'):
+                fail_reasons.append("prototype/index.html 缺失")
+        # UML
+        elif 'gendoc-gen-diagrams' in special_sk or sid == 'UML':
+            seq_exp = rules.get('expected_sequence_count', 0)
+            act_exp = rules.get('expected_activity_count', 0)
+            st_exp  = rules.get('expected_state_count', 0)
+            mandatory = [
+                'docs/diagrams/use-case.md', 'docs/diagrams/class-domain.md',
+                'docs/diagrams/class-application.md', 'docs/diagrams/class-infra-presentation.md',
+                'docs/diagrams/object-snapshot.md', 'docs/diagrams/communication.md',
+                'docs/diagrams/component.md', 'docs/diagrams/deployment.md',
+                'docs/diagrams/er-diagram.md',
+            ]
+            miss = [os.path.basename(f) for f in mandatory if not os.path.isfile(f)]
+            if miss: fail_reasons.append(f"mandatory UML 缺失：{miss}")
+            if isinstance(seq_exp, int) and len(_glob.glob('docs/diagrams/sequence-*.md')) < seq_exp:
+                fail_reasons.append(f"sequence: {len(_glob.glob('docs/diagrams/sequence-*.md'))}/{seq_exp}")
+            if isinstance(act_exp, int) and len(_glob.glob('docs/diagrams/activity-*.md')) < act_exp:
+                fail_reasons.append(f"activity: {len(_glob.glob('docs/diagrams/activity-*.md'))}/{act_exp}")
+    else:
+        # 單一 .md 輸出：比對 min_h2_sections
+        min_h2 = rules.get('min_h2_sections', 0)
+        if isinstance(min_h2, int) and min_h2 > 0:
+            import re
+            for out_path in step.get('output', []):
+                if out_path.endswith('.md') and os.path.isfile(out_path):
+                    actual_h2 = len(re.findall(r'^## ', open(out_path, encoding='utf-8').read(), re.MULTILINE))
+                    if actual_h2 < min_h2:
+                        fail_reasons.append(f"min_h2_sections: {actual_h2}/{min_h2}")
+
+    if fail_reasons:
+        _need_rerun.append((sid, step.get('special_skill', ''), fail_reasons))
+
+if _need_rerun:
+    print(f"\n[Step 0.5] ⚠️  {len(_need_rerun)} 個 step 量化指標未達標，需先重跑再進入內容對齊修復：")
+    for sid, sk, reasons in _need_rerun:
+        print(f"  [{sid}]（{sk or '標準 step'}）：{'; '.join(reasons)}")
+    print()
+
+    # 重跑每個不達標的 step（依序執行）
+    for sid, special_sk, _ in _need_rerun:
+        if special_sk:
+            print(f"[Step 0.5] ▶ 呼叫 Skill(\"{special_sk}\") 重跑 {sid}...")
+            # 用 Skill 工具呼叫 {special_sk}；等待回傳後重新驗證
+        else:
+            print(f"[Step 0.5] ▶ 呼叫 gendoc-flow --only {sid} 重跑...")
+            # 用 Skill 工具呼叫 gendoc-flow，args="--only {sid}"；等待回傳後重新驗證
+        print(f"[Step 0.5] 重新驗證 {sid} spec_rules 是否通過...")
+        # 若重跑後仍未達標 → 記錄警告，繼續下一個（不中止）
+
+    print(f"\n[Step 0.5] 全部重跑完成，繼續進入 Step 1 內容對齊修復")
+else:
+    print("[Step 0.5] ✅ 所有 post-DRYRUN step spec_rules 達標，繼續 Step 1")
+```
+
+---
+
 ## Step 1：確定修復範圍
 
 ```bash
