@@ -279,15 +279,41 @@ Skill 呼叫失敗 → 記錄失敗原因，繼續下一個（不中止）。
 ### A-3：執行 DRYRUN
 
 ```python
-# DRYRUN 執行判斷：內容驅動，不看 state。
+# ── 強制無效化：若 A-2 有任何 pre-DRYRUN step 被重建 ──────────────────────
+# 上游文件被重建 → DRYRUN 量化基線過時 → 刪除所有 rules + 重置 DRYRUN state。
+# 不論 rules 是否存在，一律強制重跑 DRYRUN，確保下游 step 的品質閘門基於最新文件。
+if _any_pre_rebuilt:
+    import glob as _g2
+    _stale_rules = _g2.glob('.gendoc-rules/*.json')
+    for _rf in _stale_rules:
+        os.remove(_rf)
+    print(f"[A-3] ♻️  pre-DRYRUN step 已重建：刪除 {len(_stale_rules)} 個 stale rules")
+
+    # State file：移除 DRYRUN，讓 state 與未做 DRYRUN 一致
+    _sf_list = _g2.glob('.gendoc-state-*.json')
+    if _sf_list:
+        _sd = json.load(open(_sf_list[0], encoding='utf-8'))
+        _cs = _sd.get('completed_steps', [])
+        if 'DRYRUN' in _cs:
+            _cs.remove('DRYRUN')
+            _sd['completed_steps'] = _cs
+            import datetime as _dt
+            _sd['last_updated'] = _dt.datetime.now(
+                _dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+            _tmp = _sf_list[0] + '.tmp'
+            with open(_tmp, 'w', encoding='utf-8') as _fp:
+                json.dump(_sd, _fp, indent=2, ensure_ascii=False)
+            os.replace(_tmp, _sf_list[0])
+            print(f"[A-3] ♻️  state file：DRYRUN 已從 completed_steps 移除（state 等同未執行）")
+
+    _rules_ok = False  # 強制後續判斷為 must-run
+
+# ── DRYRUN 執行判斷：內容驅動，不看 state ─────────────────────────────────
 # 需要重跑的條件（任一成立即跑）：
 #   ① Gate-① 有 pre-DRYRUN step 失敗（_pre_fails 非空）
 #   ② Gate-② .gendoc-rules/ 缺失（_rules_ok = False）
-# 不需要重跑的條件（三項全部成立才跳過）：
-#   pre-DRYRUN 全部 ✅ 且 .gendoc-rules/ 已存在 且 rules 是在最新文件基礎上生成的
-#
-# 注意：即使 DRYRUN 在 completed_steps，只要 .gendoc-rules/ 缺失就必須重跑。
-# State 不是依據，文件和 rules 的實際狀態才是依據。
+#   ③ A-2 重建了任何 pre-DRYRUN step（_any_pre_rebuilt = True → 已強制 _rules_ok = False）
+# 注意：即使 DRYRUN 在 completed_steps，只要 rules 缺失就必須重跑。
 _should_run_dryrun = bool(_pre_fails) or not _rules_ok
 ```
 
@@ -584,6 +610,13 @@ def _check_directory_step(step, rules, special_skill):
 
 ### B-2：執行驗證 + 補跑迴圈
 
+> ⚠️ **強制繼續規則（Claude 執行時必須嚴格遵守，違反即為錯誤）：**
+> 1. 補跑完一個 step 後，**立即繼續下一個**，不得輸出總結也不得停止
+> 2. `_fail_this_round` 中所有 step 全部補跑完畢，才能進入下一輪驗證
+> 3. 即使某個 step（如 PROTOTYPE、HTML）執行時間很長，完成後仍必須繼續
+> 4. Branch B 全部輪次完成前，任何「修復完成」「任務完成」的輸出都是錯誤的
+> 5. 每補跑完一個 step，必須立即印出 `[B-2] 繼續下一個 step...` 再執行下一個
+
 ```python
 for _round in range(1, _MAX_ROUNDS + 1):
     print(f"\n{'='*60}")
@@ -630,12 +663,15 @@ for _round in range(1, _MAX_ROUNDS + 1):
 
     _round_failures[_round] = [sid for sid, _, _ in _fail_this_round]
 
-    # 補跑每個 FAIL 的 step（每輪都補跑，包括第 3 輪；單一失敗不中止）
-    print(f"\n[Branch B] 開始補跑 {len(_fail_this_round)} 個 step...")
-    for sid, layer, _ in _fail_this_round:
-        print(f"[Branch B] ▶ 補跑 {sid}（{layer} FAIL）")
-        # 用 Skill tool 呼叫 gendoc-flow --only {sid}
+    # 補跑每個 FAIL 的 step
+    # ⚠️ 每補跑完一個 step 後必須立即繼續下一個，不得在此停止
+    print(f"\n[Branch B] 開始補跑 {len(_fail_this_round)} 個 step（共 {len(_fail_this_round)} 個，全部完成才結束此輪）...")
+    for _b2_idx, (sid, layer, _) in enumerate(_fail_this_round, 1):
+        print(f"[Branch B] ▶ [{_b2_idx}/{len(_fail_this_round)}] 補跑 {sid}（{layer} FAIL）")
+        # 用 Skill tool 呼叫 gendoc-flow，args="--only {sid}"
         # 等待回傳，失敗則記錄繼續
+        # ← 補跑完成後：必須立即印出下一行並繼續，不得停止
+        print(f"[B-2] 繼續下一個 step...（{_b2_idx}/{len(_fail_this_round)} 已完成）")
 ```
 
 **每個 step 補跑指令（在上面迴圈的「補跑」位置執行）：**
@@ -651,6 +687,7 @@ print(f"[Branch B] ▶ 補跑 {sid} → Skill('gendoc-flow', args='--only {sid}'
 #   special_skill step → 呼叫對應 Skill + 驗證輸出 + 寫入 special_completed
 #   標準 step         → 生成文件 + git commit + 更新 completed_steps
 # 若 Skill tool 回傳失敗 → 印出 [WARN] {sid} 補跑失敗，繼續下一個 step。
+# ⚠️ 補跑完成後立即 print("[B-2] 繼續下一個 step...") 並繼續迴圈，不得停止。
 ```
 
 ### B-3：最終驗證 + 報告
