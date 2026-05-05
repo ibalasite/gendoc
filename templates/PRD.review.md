@@ -158,3 +158,20 @@ upstream-alignment:
 **Check**: US 是否附有 Story Point 估算或 T-Shirt Size（S/M/L/XL）？US 是否符合 INVEST 原則（Independent / Negotiable / Valuable / Estimable / Small / Testable）？無估算不阻塞，但視為 LOW finding。
 **Risk**: 無估算參考，Sprint Planning 需要從零開始估算所有 US，延長 Planning 會議時間；過大的 US（XL 或更大）在 Sprint 中無法完成，影響交付節奏。
 **Fix**: 為每個 US 補充初步 T-Shirt Size（S/M/L/XL）作為 Planning 參考起點，標注估算假設前提；XL 的 US 建議拆分為更小的 Story。
+
+---
+
+## Self-Check：章節完整性驗證
+
+> 此節由 gendoc-flow Review subagent 在每輪 Review 開始前自動執行（Step A-0）。
+> 不需人工逐項填寫；reviewer 執行此 Self-Check 後將結果加入 findings。
+
+**指令：**
+1. 讀取 `{_TEMPLATE_DIR}/PRD.md`，提取所有 `^## ` heading（含條件章節），共約 23 個
+2. 讀取 `docs/PRD.md`，提取所有 `^## ` heading
+3. 逐一比對：template 中每個 heading 是否存在且有實質內容（非空、非 `{{PLACEHOLDER}}`）
+4. 任何缺失或空白 → CRITICAL finding（"§X 章節缺失或無實質內容，template 要求此章節必須填寫"）
+
+**通過條件：**
+- template 中所有 `^## ` heading 均在輸出文件中存在
+- 每個 heading 下方有實質內容（至少 2 行非空行，或說明跳過原因）

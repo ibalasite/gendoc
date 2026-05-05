@@ -212,3 +212,20 @@ upstream-alignment:
 **Check**: **§7.1 Shared State Isolation 是否存在？** 是否列出每個 BC 的 Redis Key Pattern（格式 `{BC_NAME}:{entity_type}:{id}`，每個 BC 一列）？各 BC 的 Key Pattern 前綴是否不重疊？是否有全域可變物件跨服務邊界存取的設計？若 §7.1 缺失、Key Pattern 不完整（有 BC 未列出）、或 Key Pattern 重疊，視為 MEDIUM。
 **Risk**: 未隔離 Redis Namespace 導致服務提取後快取操作相互干擾（FLUSH 影響全域）；缺少 §7.1 則 HC-4 無法在 Design Review 中被機械式驗證。
 **Fix**: 新增 §7.1 並為每個 BC（§4 服務邊界表中的所有 BC）填入 Redis Key Pattern；確認所有 Key Pattern 不重疊；列出需要遷移隔離的現有 Key。
+
+---
+
+## Self-Check：章節完整性驗證
+
+> 此節由 gendoc-flow Review subagent 在每輪 Review 開始前自動執行（Step A-0）。
+> 不需人工逐項填寫；reviewer 執行此 Self-Check 後將結果加入 findings。
+
+**指令：**
+1. 讀取 `{_TEMPLATE_DIR}/ARCH.md`，提取所有 `^## ` heading（含條件章節），共約 22 個
+2. 讀取 `docs/ARCH.md`，提取所有 `^## ` heading
+3. 逐一比對：template 中每個 heading 是否存在且有實質內容（非空、非 `{{PLACEHOLDER}}`）
+4. 任何缺失或空白 → CRITICAL finding（"§X 章節缺失或無實質內容，template 要求此章節必須填寫"）
+
+**通過條件：**
+- template 中所有 `^## ` heading 均在輸出文件中存在
+- 每個 heading 下方有實質內容（至少 2 行非空行，或說明跳過原因）

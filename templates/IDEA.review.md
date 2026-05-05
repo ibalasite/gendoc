@@ -206,3 +206,20 @@ upstream-alignment:
 **Check**: `q4_estimate_basis` 是否說明了推算依據（引用具體競品名稱 + 公開數據 + 估算比例）？若僅有「根據市場研究」「AI 推算」等無可追溯的說明，視為 MEDIUM。
 **Risk**: 推估依據不可追溯，EDD 審查者無法判斷 DAU/PCU 估算的合理性，無法質疑或調整容量規劃假設。
 **Fix**: 補充具體推算過程（例如：「參考 Trello（MAU 5000 萬），目標市場 1% ≈ 50 萬 MAU，DAU 率 20% ≈ 10 萬 DAU；PCU 取 DAU 的 10% ≈ 1 萬」），確保可被 EDD 審查者理解和質疑。
+
+---
+
+## Self-Check：章節完整性驗證
+
+> 此節由 gendoc-flow Review subagent 在每輪 Review 開始前自動執行（Step A-0）。
+> 不需人工逐項填寫；reviewer 執行此 Self-Check 後將結果加入 findings。
+
+**指令：**
+1. 讀取 `{_TEMPLATE_DIR}/IDEA.md`，提取所有 `^## ` heading（含條件章節），共約 9 個
+2. 讀取 `docs/IDEA.md`，提取所有 `^## ` heading
+3. 逐一比對：template 中每個 heading 是否存在且有實質內容（非空、非 `{{PLACEHOLDER}}`）
+4. 任何缺失或空白 → CRITICAL finding（"§X 章節缺失或無實質內容，template 要求此章節必須填寫"）
+
+**通過條件：**
+- template 中所有 `^## ` heading 均在輸出文件中存在
+- 每個 heading 下方有實質內容（至少 2 行非空行，或說明跳過原因）

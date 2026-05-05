@@ -274,3 +274,20 @@ upstream-alignment:
 **Check**: §4 或 §7 設計中，是否有多個 BC 直接讀寫同一 Redis Key（無命名空間隔離），或全域可變物件跨 BC 存取？若有視為 MEDIUM。
 **Risk**: 共享 Redis Key 無 namespace 隔離，一個 BC 的快取操作可能影響其他 BC 狀態。
 **Fix**: 為每個 BC 分配獨立 Redis Key Prefix（如 `member:*`、`wallet:*`），並在設計中記錄每個 BC 的 Key Pattern。
+
+---
+
+## Self-Check：章節完整性驗證
+
+> 此節由 gendoc-flow Review subagent 在每輪 Review 開始前自動執行（Step A-0）。
+> 不需人工逐項填寫；reviewer 執行此 Self-Check 後將結果加入 findings。
+
+**指令：**
+1. 讀取 `{_TEMPLATE_DIR}/EDD.md`，提取所有 `^## ` heading（含條件章節），共約 24 個
+2. 讀取 `docs/EDD.md`，提取所有 `^## ` heading
+3. 逐一比對：template 中每個 heading 是否存在且有實質內容（非空、非 `{{PLACEHOLDER}}`）
+4. 任何缺失或空白 → CRITICAL finding（"§X 章節缺失或無實質內容，template 要求此章節必須填寫"）
+
+**通過條件：**
+- template 中所有 `^## ` heading 均在輸出文件中存在
+- 每個 heading 下方有實質內容（至少 2 行非空行，或說明跳過原因）

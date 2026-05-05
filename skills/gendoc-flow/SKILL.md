@@ -977,10 +977,17 @@ for round in 1..max_rounds:
     重跑 review_integration.sh，確認是否已修復
 
   [Step A — Review]
+  0. 【Self-Check — 章節完整性】讀取 {_TEMPLATE_DIR}/{TYPE}.md，提取所有 `^## ` heading（含條件章節），建立必要章節清單 `_required_sections`。
+     然後讀取輸出文件 {step.output}，提取所有 `^## ` heading，建立實際章節清單 `_actual_sections`。
+     對 `_required_sections` 中每個 heading，確認：
+     - 是否存在於 `_actual_sections`（不區分大小寫）
+     - 若存在，該章節是否有實質內容（非空、非佔位符 `{{...}}`）
+     任何缺失或空白章節 → 記錄為 CRITICAL finding（"§X 章節缺失或無實質內容"）
+     注意：{TYPE}.md 不存在時跳過此步驟（不阻擋 review 繼續）。
   1. 讀取 {_TEMPLATE_DIR}/{TYPE}.review.md — 獲取所有 review items
   2. 讀取被審查的文件（{step.output} 或 {step.output_glob} 的所有檔案）
   3. 逐項執行每個 review item 的 Check，引用文件中的具體§章節
-  4. 統計 CRITICAL / HIGH / MEDIUM / LOW 各級 findings 數量
+  4. 統計 CRITICAL / HIGH / MEDIUM / LOW 各級 findings 數量（含 Step A-0 的 Self-Check findings）
   
   [Finding 合併邏輯]（Step A 完成後立即執行）：
   若 _MECH_COUNT > 0（有 shell findings）：

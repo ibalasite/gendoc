@@ -167,3 +167,20 @@ upstream-alignment:
 **Check**: §Document Control 中的 Figma 設計稿連結是否填寫？§5 各 Screen Spec 末尾的 Figma Frame 連結是否填寫（`{{FIGMA_FRAME_LINK}}`）？§13.2 元件交付規格的 Figma 連結是否填寫？
 **Risk**: 設計稿連結缺失，前端工程師在實作細節（間距、字型大小、陰影、圖示尺寸）時無法自助查閱，需要反覆詢問設計師，降低工程自主性和交付效率。
 **Fix**: 補充 §Document Control 中的 Figma File URL；在 §5 每個 Screen 末尾加入對應 Frame 的直連 Figma 連結；§13.2 元件交付規格填入各元件的 Figma Frame 連結。
+
+---
+
+## Self-Check：章節完整性驗證
+
+> 此節由 gendoc-flow Review subagent 在每輪 Review 開始前自動執行（Step A-0）。
+> 不需人工逐項填寫；reviewer 執行此 Self-Check 後將結果加入 findings。
+
+**指令：**
+1. 讀取 `{_TEMPLATE_DIR}/PDD.md`，提取所有 `^## ` heading（含條件章節），共約 20 個
+2. 讀取 `docs/PDD.md`，提取所有 `^## ` heading
+3. 逐一比對：template 中每個 heading 是否存在且有實質內容（非空、非 `{{PLACEHOLDER}}`）
+4. 任何缺失或空白 → CRITICAL finding（"§X 章節缺失或無實質內容，template 要求此章節必須填寫"）
+
+**通過條件：**
+- template 中所有 `^## ` heading 均在輸出文件中存在
+- 每個 heading 下方有實質內容（至少 2 行非空行，或說明跳過原因）
