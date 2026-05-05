@@ -269,7 +269,7 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
    - Preload 僅 Critical Weight/Style（主 Body 字型的 Regular 400）
    - Subset 策略（若有中文：繁體中文 Unicode Range 或 Google Fonts `&subset=chinese-traditional`）
 
-4. **§5.3 Responsive Typography（斷點字型縮放規格）**（必填）：
+4. **§5.1 Responsive Typography（斷點字型縮放規格）**（必填）：
 
    依據 §5 Type Scale 各層級，計算每個斷點的實際渲染字型大小。
    從 `clamp(min, preferred, max)` 公式推導各斷點值（320/375/768/1024/1440px）。
@@ -381,7 +381,7 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 --input-radius:            var(--radius-md);
 ```
 
-#### §5.1 Dark Mode Token Mapping（至少 13 個 semantic token）
+#### §5.2 Dark Mode Token Mapping（至少 13 個 semantic token）
 
 | Semantic Token | Light Mode 值 | Dark Mode 值 | WCAG 對比度（dark 底）|
 |---------------|-------------|-------------|-------------------|
@@ -399,7 +399,7 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 | `--color-feedback-warning` | `oklch(65% 0.18 80)` | `oklch(72% 0.16 80)` | 4.5:1 ✓ |
 | `--color-feedback-info` | `oklch(60% 0.19 250)` | `oklch(68% 0.16 250)` | 4.5:1 ✓ |
 
-#### §5.2 Motion Tokens（動效代幣）
+#### §5.3 Motion Tokens（動效代幣）
 
 | Token | 值 | 用途 |
 |-------|---|------|
@@ -690,9 +690,9 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 - [ ] §3 品牌色盤：≥5 個色票，每色含 hex + oklch + 用途 + WCAG 對比度驗證
 - [ ] §4 Typography：字型家族 ≤2 個（game 可 +1）；Type Scale ≥6 個層級；行高已定義
 - [ ] §5 Design Token 三層架構（Primitive / Semantic / Component）全部完整，無裸 placeholder
-- [ ] §5.1 Dark Mode Token Mapping：≥13 個 semantic token，每個有 Light + Dark 兩組 oklch 值 + WCAG 對比度
-- [ ] §5.2 Motion Token：easing 函數已定義（≥3 個 cubic-bezier）；duration 已定義；prefers-reduced-motion 規則已包含
-- [ ] §5.3 Responsive Typography：各斷點（320/375/768/1024/1440px）字型大小均填入具體計算值，無 `Xrem` placeholder；small/caption 固定值已填
+- [ ] §5.1 Responsive Typography：各斷點（320/375/768/1024/1440px）字型大小均填入具體計算值，無 `Xrem` placeholder；small/caption 固定值已填
+- [ ] §5.2 Dark Mode Token Mapping：≥13 個 semantic token，每個有 Light + Dark 兩組 oklch 值 + WCAG 對比度
+- [ ] §5.3 Motion Token：easing 函數已定義（≥3 個 cubic-bezier）；duration 已定義；prefers-reduced-motion 規則已包含
 - [ ] §6.1 Token 應用矩陣：color / spacing / radius / shadow 四類各 ≥ 4 個 token；所有值從 Layer 1–3 推導，無「請設計師填入」
 - [ ] §6 [game mode]：角色設計表覆蓋主角 + ≥3 NPC；角色動態狀態表已完成（≥6 個狀態）
 - [ ] §6 [saas-web / mobile mode]：UI 元件視覺規格表 ≥8 個元件；每個元件有 Default / Hover / Focus / Active / Disabled / Error / Empty / Loading 8 種狀態

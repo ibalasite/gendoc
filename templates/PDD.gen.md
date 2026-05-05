@@ -202,20 +202,13 @@ Border Radius / Shadow / Transition Duration
 
 實作方式：CSS Grid（`display: grid; grid-template-columns: repeat(N, 1fr); gap: Xpx`）
 
-### §8 Accessibility 規範
-
-- WCAG 2.1 AA 對比度要求
-- keyboard navigation 支援
-- ARIA label 規範
-- Screen Reader 測試重點
-
-### §6.5 Micro-interaction Catalog
-
 **最低覆蓋要求（低於此視為文件不完整）**：
 - 表單互動：**≥ 3 個**（input focus / validation error / submit success 三項必填）
 - 導覽互動：**≥ 2 個**（hover state / active/selected state）
 - 資料回饋：**≥ 2 個**（loading skeleton / success or error transition）
 - [game] 遊戲互動（若 client_type 為遊戲引擎）：**≥ 2 個**（damage number popup / reward animation）
+
+### §6.5 Micro-interaction Catalog
 
 **以下 Catalog 表格必須全部填滿，不得留空白列或保留 `<基於 PRD 特有功能>` placeholder**：
 
@@ -243,6 +236,13 @@ Border Radius / Shadow / Transition Duration
 | Pinch Zoom | 雙指縮放 | 縮放圖片/地圖 | Scale Transform | 僅特定元件啟用 |
 
 最小觸控目標：44×44px（iOS HIG / Material Design 規範）
+
+### §8 Accessibility 規範
+
+- WCAG 2.1 AA 對比度要求
+- keyboard navigation 支援
+- ARIA label 規範
+- Screen Reader 測試重點
 
 ### §14 References（含效能預算）
 
