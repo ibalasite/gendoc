@@ -306,7 +306,41 @@ _round_failures = {}  # {round: [step_id, ...]}
 
 ```python
 def _check_step_l1(step):
-    """Layer 1：輸出檔案/目錄是否存在且完整（章節數 >= template）"""
+    """Layer 1：輸出檔案/目錄是否存在且完整（章節數 >= template）
+
+    [R3-C] special_skill step：優先讀取 special_completed state（比 file-existence 更可靠）
+    HTML step：額外比對 docs/*.md 數量 vs docs/pages/*.html 數量
+    PROTOTYPE step：必須確認 docs/pages/prototype/index.html 存在
+    """
+    sid = step.get('id', '')
+    special_sk = step.get('special_skill', '')
+
+    # special_skill step：優先使用 special_completed 判斷（不依賴 completed_steps）
+    if special_sk:
+        # 讀取 state file 中的 special_completed
+        _state_files = _glob.glob('.gendoc-state-*.json') or ['.gendoc-state.json']
+        try:
+            _state = json.load(open(_state_files[0], encoding='utf-8'))
+            if _state.get('special_completed', {}).get(sid, False):
+                # special_completed=True 但仍需確認輸出物實際存在
+                pass  # 繼續做文件存在性確認
+        except Exception:
+            pass
+
+    # HTML step：動態計數比對（不依賴 _output_complete 的目錄存在性）
+    if sid == 'HTML' or 'gendoc-gen-html' in special_sk:
+        expected_html = len(_glob.glob('docs/*.md'))
+        actual_html = len([f for f in _glob.glob('docs/pages/*.html')
+                           if os.path.basename(f) != 'index.html'])
+        index_ok = os.path.isfile('docs/pages/index.html')
+        if not index_ok or actual_html < expected_html:
+            return False  # MD/HTML 數量不符 → 需補跑
+        return True
+
+    # PROTOTYPE step：必須確認 prototype/index.html 存在
+    if sid == 'PROTOTYPE' or 'gendoc-gen-prototype' in special_sk:
+        return os.path.isfile('docs/pages/prototype/index.html')
+
     exists, complete, _ = _output_complete(step)  # 復用 A-1 定義的函式（含 section check）
     return exists and complete
 

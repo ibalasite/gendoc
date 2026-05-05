@@ -772,40 +772,56 @@ Python 腳本會：
 
 ---
 
-## Step 6：驗證 gate（必須執行）
+## Step 6：動態驗證 gate（必須執行）
 
 ```bash
-# 必要頁面驗證
-for _PAGE in index; do
-  if [[ ! -f "$(pwd)/docs/pages/${_PAGE}.html" ]]; then
-    echo "STEP_FAILED: ${_PAGE}.html 未產出"
-  else
-    echo "OK: ${_PAGE}.html"
-  fi
-done
+# [R3-B] 動態計數：從 docs/ 直接掃描，不依賴 pipeline.json 硬碼清單
+_EXPECTED=$(find "$(pwd)/docs" -maxdepth 1 -name "*.md" | wc -l | tr -d ' ')
+_ACTUAL=$(find "$(pwd)/docs/pages" -maxdepth 1 -name "*.html" ! -name "index.html" 2>/dev/null | wc -l | tr -d ' ')
 
-# 條件性頁面驗證（有 .md 才需要有 .html）
-for _DOC in idea brd prd pdd edd arch api schema; do
-  _MD="$(pwd)/docs/${_DOC^^}.md"
-  [[ "$_DOC" == "idea" ]] && _MD="$(pwd)/docs/IDEA.md"
-  if [[ -f "$_MD" ]] && [[ ! -f "$(pwd)/docs/pages/${_DOC}.html" ]]; then
-    echo "STEP_FAILED: ${_DOC}.html 未產出（但 ${_DOC^^}.md 存在）"
-  elif [[ -f "$(pwd)/docs/pages/${_DOC}.html" ]]; then
-    echo "OK: ${_DOC}.html"
-  fi
-done
+echo "[Step 6] docs/*.md 數量：$_EXPECTED"
+echo "[Step 6] docs/pages/*.html 數量（排除 index.html）：$_ACTUAL"
 
-# test-plan.md 特殊路徑（lowercase 檔名）
-if [[ -f "$(pwd)/docs/test-plan.md" ]] && [[ ! -f "$(pwd)/docs/pages/test-plan.html" ]]; then
-  echo "STEP_FAILED: test-plan.html 未產出（但 test-plan.md 存在）"
-elif [[ -f "$(pwd)/docs/pages/test-plan.html" ]]; then
-  echo "OK: test-plan.html"
+# index.html 存在性檢查（必要）
+if [[ ! -f "$(pwd)/docs/pages/index.html" ]]; then
+  echo "[STEP_FAILED] index.html 未產出"
+  _GATE_FAIL=1
+else
+  echo "[OK] index.html 存在"
+  _GATE_FAIL=0
 fi
 
-ls -la $(pwd)/docs/pages/*.html
-```
+# 動態比對：MD 數量 vs HTML 數量
+if [[ "$_ACTUAL" -lt "$_EXPECTED" ]]; then
+  echo "[STEP_FAILED] HTML 頁面不足：應有 $_EXPECTED 個，實際 $_ACTUAL 個"
+  echo "[Action] 找出缺少對應 HTML 的 MD 文件："
+  python3 - << 'PYEOF'
+import pathlib, os
+docs_dir = pathlib.Path("docs")
+pages_dir = pathlib.Path("docs/pages")
+md_files = list(docs_dir.glob("*.md"))
+for md in md_files:
+    stem = md.stem.lower()
+    html = pages_dir / f"{stem}.html"
+    if not html.exists():
+        print(f"  缺失：{md.name} → docs/pages/{stem}.html")
+PYEOF
+  # 重新執行 gen_html.py 補生成缺失頁面
+  python3 "$GENDOC_TOOLS/gen_html.py" 2>&1 | tail -5
+  # 二次驗證
+  _ACTUAL2=$(find "$(pwd)/docs/pages" -maxdepth 1 -name "*.html" ! -name "index.html" 2>/dev/null | wc -l | tr -d ' ')
+  if [[ "$_ACTUAL2" -lt "$_EXPECTED" ]]; then
+    echo "[STEP_FAILED] 重跑後仍不足（$_ACTUAL2 / $_EXPECTED），需人工介入"
+    _GATE_FAIL=1
+  else
+    echo "[OK] 重跑成功：$_ACTUAL2 個 HTML 頁面"
+    _GATE_FAIL=0
+  fi
+else
+  echo "[OK] HTML 頁面完整：$_ACTUAL >= $_EXPECTED"
+fi
 
-若任何必要頁面缺失 → 重新執行 `python3 "$GENDOC_TOOLS/gen_html.py"`
+ls -la "$(pwd)/docs/pages/"*.html
 
 ---
 
@@ -943,11 +959,34 @@ _HAS_API=0
 echo "_HAS_FRONTEND=${_HAS_FRONTEND}  _HAS_API=${_HAS_API}"
 ```
 
-**若 `_HAS_FRONTEND=1` 或 `_HAS_API=1`**：用 Skill 工具呼叫 `/gendoc-gen-prototype`：
-- UI prototype：讀取 PRD/PDD/VDD/FRONTEND/AUDIO/ANIM/SCHEMA，生成可點擊畫面
-- API Explorer：讀取 API.md/SCHEMA.md，生成可試打的 mock API 介面
-- 輸出至 `docs/pages/prototype/`
-- 自動更新 README.md 和 `docs/pages/index.html` 中的 prototype 連結
+**若 `_HAS_FRONTEND=1` 或 `_HAS_API=1`**：
+
+```bash
+# [R3-B] 先確認 prototype 是否已完成（避免重複執行）
+if [[ -f "$(pwd)/docs/pages/prototype/index.html" ]]; then
+  echo "[Step 6.5] [Skip] docs/pages/prototype/index.html 已存在，略過 prototype 生成"
+else
+  echo "[Step 6.5] 呼叫 Skill(gendoc-gen-prototype)（第 1 次）..."
+  # 用 Skill 工具呼叫 gendoc-gen-prototype
+  # 等待完成後檢查輸出：
+  if [[ ! -f "$(pwd)/docs/pages/prototype/index.html" ]]; then
+    echo "[Step 6.5] 第 1 次未產出 index.html，重試（第 2 次）..."
+    # 再次呼叫 Skill 工具呼叫 gendoc-gen-prototype（retry）
+    if [[ ! -f "$(pwd)/docs/pages/prototype/index.html" ]]; then
+      echo "[ABORT] gen-prototype 兩次均未產出 docs/pages/prototype/index.html"
+      echo "        gen-html 停止執行：不寫任何 HTML 檔案；不寫入 special_completed['HTML']"
+      echo "        請手動確認 PRD/PDD 是否含足夠的畫面規格後重試"
+      exit 1
+    else
+      echo "[Step 6.5] ✅ 第 2 次重試成功：docs/pages/prototype/index.html 存在"
+    fi
+  else
+    echo "[Step 6.5] ✅ docs/pages/prototype/index.html 產出成功"
+  fi
+fi
+```
+
+自動更新 README.md 和 `docs/pages/index.html` 中的 prototype 連結
 
 **若 `_HAS_FRONTEND=0` 且 `_HAS_API=0`**：
 ```
