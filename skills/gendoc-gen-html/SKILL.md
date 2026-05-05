@@ -775,12 +775,16 @@ Python 腳本會：
 ## Step 6：動態驗證 gate（必須執行）
 
 ```bash
-# [R3-B] 動態計數：從 docs/ 直接掃描，不依賴 pipeline.json 硬碼清單
-_EXPECTED=$(find "$(pwd)/docs" -maxdepth 1 -name "*.md" | wc -l | tr -d ' ')
+# [R3-B] 動態計數：docs/*.md（頂層）+ docs/子目錄/**/*.md（排除 pages/ diagrams/）
+_EXPECTED_TOP=$(find "$(pwd)/docs" -maxdepth 1 -name "*.md" | wc -l | tr -d ' ')
+_EXPECTED_SUB=$(find "$(pwd)/docs" -mindepth 2 -name "*.md" \
+  ! -path "*/pages/*" ! -path "*/diagrams/*" | wc -l | tr -d ' ')
+_EXPECTED=$(( _EXPECTED_TOP + _EXPECTED_SUB ))
 _ACTUAL=$(find "$(pwd)/docs/pages" -maxdepth 1 -name "*.html" ! -name "index.html" 2>/dev/null | wc -l | tr -d ' ')
 
-echo "[Step 6] docs/*.md 數量：$_EXPECTED"
-echo "[Step 6] docs/pages/*.html 數量（排除 index.html）：$_ACTUAL"
+echo "[Step 6] docs/*.md（頂層）：$_EXPECTED_TOP"
+echo "[Step 6] docs/子目錄/**/*.md：$_EXPECTED_SUB"
+echo "[Step 6] docs/pages/*.html（排除 index）：$_ACTUAL"
 
 # index.html 存在性檢查（必要）
 if [[ ! -f "$(pwd)/docs/pages/index.html" ]]; then
@@ -791,20 +795,33 @@ else
   _GATE_FAIL=0
 fi
 
-# 動態比對：MD 數量 vs HTML 數量
+# 動態比對：MD 總數 vs HTML 數量
 if [[ "$_ACTUAL" -lt "$_EXPECTED" ]]; then
   echo "[STEP_FAILED] HTML 頁面不足：應有 $_EXPECTED 個，實際 $_ACTUAL 個"
   echo "[Action] 找出缺少對應 HTML 的 MD 文件："
   python3 - << 'PYEOF'
-import pathlib, os
+import pathlib, re
 docs_dir = pathlib.Path("docs")
 pages_dir = pathlib.Path("docs/pages")
-md_files = list(docs_dir.glob("*.md"))
-for md in md_files:
+excluded = {docs_dir / 'pages', docs_dir / 'diagrams'}
+
+# Top-level docs
+for md in sorted(docs_dir.glob("*.md")):
     stem = md.stem.lower()
     html = pages_dir / f"{stem}.html"
     if not html.exists():
-        print(f"  缺失：{md.name} → docs/pages/{stem}.html")
+        print(f"  缺失（頂層）：{md.name} → docs/pages/{stem}.html")
+
+# Subdirectory docs
+for subdir in sorted(docs_dir.iterdir()):
+    if not subdir.is_dir() or subdir.resolve() in {p.resolve() for p in excluded}:
+        continue
+    for md in sorted(subdir.rglob("*.md")):
+        rel = md.relative_to(subdir).with_suffix('')
+        slug = subdir.name.lower() + '__' + str(rel).replace('/', '-').replace('\\', '-').lower()
+        html = pages_dir / f"{slug}.html"
+        if not html.exists():
+            print(f"  缺失（子目錄）：{md.relative_to(docs_dir)} → docs/pages/{slug}.html")
 PYEOF
   # 重新執行 gen_html.py 補生成缺失頁面
   python3 "$GENDOC_TOOLS/gen_html.py" 2>&1 | tail -5

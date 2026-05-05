@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # tools/bin/gen_html.py
-# VERSION: 3.5.0
+# VERSION: 3.6.0
 # Maintained by gendoc — DO NOT EDIT IN TARGET PROJECTS
 # Install: ~/.claude/skills/gendoc/setup  →  ~/.claude/skills/gendoc/tools/bin/gen_html.py
 # Usage:   python3 ~/.claude/skills/gendoc/tools/bin/gen_html.py   (run from project root)
@@ -44,6 +44,23 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   <title>__TITLE__ — __APP__</title>
   <link rel="stylesheet" href="assets/style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <style>
+    /* ─── Sidebar collapsible folder groups ─── */
+    .sidebar__section details { border: none; }
+    .sidebar__section details > summary {
+      cursor: pointer; list-style: none; display: flex; align-items: center;
+      gap: 0.375rem; padding: 0 1rem; margin-bottom: 0.375rem;
+      font-size: 0.6875rem; font-weight: 600; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.08em; user-select: none;
+    }
+    .sidebar__section details > summary::-webkit-details-marker { display: none; }
+    .sidebar__section details > summary::before {
+      content: '▶'; font-size: 0.5rem; flex-shrink: 0;
+      transition: transform 150ms; color: var(--text-muted);
+    }
+    .sidebar__section details[open] > summary::before { transform: rotate(90deg); }
+    .sidebar__section details .sidebar__link { padding-left: 1.75rem; font-size: 0.8125rem; }
+  </style>
 </head>
 <body>
   <header class="top-nav">
@@ -362,19 +379,78 @@ def scan_diagram_pages():
             server.append(entry)
     return server, frontend
 
-def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, current, has_req=False):
-    def link(slug, label, icon):
+def scan_subdirectory_docs():
+    """Scan docs/ subdirectories recursively for .md files.
+    Excludes: docs/pages/ (output), docs/diagrams/ (handled by scan_diagram_pages).
+    Returns: dict { subdir_name: [(slug, label, path), ...] } ordered by dirname.
+    Slug format: '{subdir}__{relative_stem}' (lowercase, / → -)
+    """
+    excluded = {PAGES_DIR.resolve(), DIAGRAMS_DIR.resolve()}
+    result = {}
+    if not DOCS_DIR.exists():
+        return result
+    for subdir in sorted(DOCS_DIR.iterdir()):
+        if not subdir.is_dir():
+            continue
+        if subdir.resolve() in excluded or subdir.name.startswith('.'):
+            continue
+        md_files = sorted(subdir.rglob("*.md"))
+        if not md_files:
+            continue
+        entries = []
+        for p in md_files:
+            rel = p.relative_to(subdir).with_suffix('')
+            slug = subdir.name.lower() + '__' + str(rel).replace('/', '-').replace('\\', '-').lower()
+            label = p.stem.replace('_', ' ').replace('-', ' ').title()
+            entries.append((slug, label, p))
+        result[subdir.name] = entries
+    return result
+
+
+_DIR_ICONS = {
+    'req': '📎', 'logic': '📐', 'diagrams': '🖼️', 'features': '🧪',
+    'notes': '📓', 'adr': '📋', 'runbooks': '📖', 'specs': '📄',
+}
+
+def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, current, has_req=False):
+    def link(slug, label, icon=''):
         cls = ' active' if slug == current else ''
-        return f'<a class="sidebar__link{cls}" href="{slug}.html">{icon} {label}</a>'
+        prefix = f'{icon} ' if icon else ''
+        return f'<a class="sidebar__link{cls}" href="{slug}.html">{prefix}{label}</a>'
 
     sections = []
 
+    # ── Main docs ──────────────────────────────────────────
     sections.append('<div class="sidebar__section">')
     sections.append('<div class="sidebar__label">文件</div>')
     for slug, label, icon in doc_pages:
         sections.append(link(slug, label, icon))
     sections.append('</div>')
 
+    # ── Subdirectory groups (collapsible) ──────────────────
+    for subdir_name, entries in sub_docs.items():
+        is_active = any(slug == current for slug, _, _ in entries)
+        open_attr = ' open' if is_active else ''
+        icon = _DIR_ICONS.get(subdir_name.lower(), '📁')
+        sections.append('<div class="sidebar__section">')
+        sections.append(f'<details{open_attr}>')
+        sections.append(f'<summary>{icon} {subdir_name}/</summary>')
+        for slug, label, _ in entries:
+            sections.append(link(slug, label))
+        # If req/ subdir: also link to download page
+        if subdir_name.lower() == 'req' and has_req:
+            sections.append(link('req', '📥 附件下載清單'))
+        sections.append('</details>')
+        sections.append('</div>')
+
+    # ── req download page (only if req/ not in sub_docs) ──
+    if has_req and 'req' not in sub_docs:
+        sections.append('<div class="sidebar__section">')
+        sections.append('<div class="sidebar__label">原始素材</div>')
+        sections.append(link('req', 'req/ 素材清單', '📎'))
+        sections.append('</div>')
+
+    # ── UML diagrams ───────────────────────────────────────
     if server_diagrams:
         sections.append('<div class="sidebar__section">')
         sections.append('<div class="sidebar__label">Server UML</div>')
@@ -389,15 +465,9 @@ def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, current, has_req
             sections.append(link(f'diag-{slug}', label, icon))
         sections.append('</div>')
 
-    if has_req:
-        sections.append('<div class="sidebar__section">')
-        sections.append('<div class="sidebar__label">原始素材</div>')
-        sections.append(link('req', 'req/ 素材清單', '📎'))
-        sections.append('</div>')
-
     return '\n'.join(sections)
 
-def render_page(content, title, banner, doc_pages, server_diagrams, frontend_diagrams, current, is_index=False, has_req=False):
+def render_page(content, title, banner, doc_pages, server_diagrams, frontend_diagrams, sub_docs, current, is_index=False, has_req=False):
     gh = (f'<a class="nav-gh-link" href="{GITHUB_REPO}" target="_blank" rel="noopener">⌥ GitHub</a>'
           if GITHUB_REPO else '')
     if is_index:
@@ -408,7 +478,7 @@ def render_page(content, title, banner, doc_pages, server_diagrams, frontend_dia
                    f'</span>')
     else:
         bc = f'<a href="index.html">{APP_NAME}</a> › {banner}'
-    sidebar_html = make_sidebar(doc_pages, server_diagrams, frontend_diagrams, current, has_req=has_req)
+    sidebar_html = make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, current, has_req=has_req)
     return (HTML_TEMPLATE
             .replace('__TITLE__', title)
             .replace('__APP__', APP_NAME)
@@ -545,13 +615,14 @@ def main():
                any(f for f in REQ_DIR.iterdir() if f.is_file() and not f.name.startswith('.')))
 
     server_diagrams, frontend_diagrams = scan_diagram_pages()
+    sub_docs = scan_subdirectory_docs()
 
     search_data = {}
 
     def write_page(filename, content, title, banner, current, is_index=False):
         html = render_page(content, title, banner,
                            doc_pages, server_diagrams, frontend_diagrams,
-                           current, is_index, has_req=has_req)
+                           sub_docs, current, is_index, has_req=has_req)
         (PAGES_DIR / filename).write_text(html)
         exc = re.sub(r'<[^>]+>', '', content)[:150]
         search_data[filename] = {"url": filename, "title": title, "excerpt": exc}
@@ -603,13 +674,24 @@ def main():
         c = md_to_html(p.read_text(), src_dir=p.parent)
         write_page(f"diag-{stem}.html", c, label, label, f'diag-{stem}')
 
+    # Subdirectory docs (recursive scan)
+    sub_page_count = 0
+    for subdir_name, entries in sub_docs.items():
+        for slug, label, p in entries:
+            c = md_to_html(p.read_text(), src_dir=p.parent)
+            write_page(f"{slug}.html", c, label, f'{subdir_name}/ › {label}', slug)
+            sub_page_count += 1
+
     (PAGES_DIR / "search-data.json").write_text(
         json.dumps(search_data, ensure_ascii=False, indent=2))
     print("✓ search-data.json")
     total_diag = len(server_diagrams) + len(frontend_diagrams)
     bdd_count = int(has_server_bdd) + int(has_client_bdd)
     req_count = int(has_req)
-    print(f"\n✅ 完成：{len(search_data)} 頁（文件 + BDD×{bdd_count} + {total_diag} UML 圖表 + req×{req_count}）→ {PAGES_DIR}")
+    sub_dirs_count = len(sub_docs)
+    print(f"\n✅ 完成：{len(search_data)} 頁"
+          f"（文件 + BDD×{bdd_count} + {total_diag} UML + {sub_page_count} 子目錄×{sub_dirs_count}dirs + req×{req_count}）"
+          f"→ {PAGES_DIR}")
 
 if __name__ == "__main__":
     main()
