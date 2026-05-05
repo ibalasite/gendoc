@@ -742,6 +742,23 @@ if step.get("special_skill"):
             os.remove(out_path)
 ```
 
+**[P-09 執行前強制禁令]**
+
+```
+⚠️  此 step 為 special_skill。以下是唯一允許的執行方式：
+    Skill("gendoc-gen-XXX") — XXX 來自 pipeline.json 的 special_skill 欄位
+
+嚴格禁止（任何理由均不例外）：
+    ✗ 用 Write 工具在 output 目錄下建立任何檔案
+    ✗ 用 Edit 工具修改 output 目錄下的任何檔案
+    ✗ 用 Bash 工具在 output 目錄生成或複製檔案
+
+若 Skill 工具呼叫失敗（回傳錯誤或無結果）：
+    → FAIL 此 step（不寫入 special_completed）
+    → 禁止改用 Write/Edit/Bash 補生成
+    → 告知使用者 Skill 呼叫失敗，需手動介入後重試
+```
+
 ```
 用 Skill 工具呼叫 step["special_skill"]，不帶額外 args。
 等待完成後執行以下步驟（順序不可改）：
@@ -786,8 +803,30 @@ if [[ "${step_id}" == "UML" ]]; then
 fi
 ```
 
+```python
+# [P-09 執行後驗證]：依 pipeline.json output 欄位逐一確認預期路徑存在
+# 任一路徑不存在 → FAIL，不執行 git commit，不寫入 special_completed
+_output_paths = step.get("output", [])
+_output_fail = []
+for _p in _output_paths:
+    if _p.endswith('/'):
+        if not (os.path.isdir(_p.rstrip('/')) and os.listdir(_p.rstrip('/'))):
+            _output_fail.append(f"目錄缺失或空：{_p}")
+    else:
+        if not (os.path.isfile(_p) and os.path.getsize(_p) > 0):
+            _output_fail.append(f"檔案缺失或空：{_p}")
+
+if _output_fail:
+    print(f"[P-09] ❌ {step['id']} Skill 呼叫後輸出驗證失敗：")
+    for _msg in _output_fail:
+        print(f"         {_msg}")
+    print(f"[P-09] FAIL — 不寫入 special_completed，告知使用者 Skill 執行未產生預期輸出")
+    # 跳過 git commit 和 special_completed 寫入，繼續下一步
+    # continue  ← 在實際執行脈絡中跳過以下所有寫入動作
 ```
-繼續執行（Fix-B 通過後）：
+
+```
+繼續執行（P-09 輸出驗證通過後）：
   git add {step.output}
   # §8-B Pre-Commit Scan
   _BARE=$(python3 -c "import re,sys; from pathlib import Path; p=re.compile(r'(?<!\w)\{\{([A-Z][A-Z0-9_]*)\}\}(?!\s*[：:\-—])'); a=re.compile(r'\{\{.+?\}\}.*[：:\-—]'); total=sum(1 for f in Path('docs').glob('*.md') for l in f.read_text('utf-8').splitlines() if p.search(l) and not a.search(l)); print(total)" 2>/dev/null || echo "0")
@@ -796,7 +835,9 @@ fi
 ```
 
 ```bash
-# P-09：special_completed 標記（執行成功後才寫）
+# P-09：special_completed 標記（執行成功且輸出驗證通過後才寫）
+# ⚠️ [R3-D 強制順序]：special_completed 必須先寫入，completed_steps 更新在後
+#    不允許任何 code path 在 special_completed 未設定前將此 step 加入 completed_steps
 python3 -c "
 import json, os
 f='${_STATE_FILE}'
@@ -806,12 +847,12 @@ d.setdefault('special_completed', {})['${step.id}'] = True
 tmp=f+'.tmp'
 open(tmp,'w').write(json.dumps(d,indent=2,ensure_ascii=False))
 os.replace(tmp,f)
-print('[P-09] special_completed[${step.id}] = True')
+print('[P-09] special_completed[${step.id}] = True 已寫入（completed_steps 在後）')
 " 2>/dev/null || true
 ```
 
 ```python
-update_state_completed(step["id"])
+update_state_completed(step["id"])  # completed_steps 更新必須在 special_completed 寫入之後
 # 繼續下一步，不進入 gen→review loop。
 ```
 
