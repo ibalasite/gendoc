@@ -20,6 +20,10 @@ upstream-alignment:
   - AUDIO.md 音效清單
   - VDD.md 特效清單
   - ARCH.md §API端點清單 → §9 API 整合規格
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：template 所有 ## 章節（≥14 個）均存在且有實質內容"
+  - "每個 feature module 有完整實作指引"
 ---
 
 # CLIENT_IMPL Review Rules

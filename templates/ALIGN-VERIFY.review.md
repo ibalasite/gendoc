@@ -6,6 +6,9 @@ reviewer-roles:
   primary: "資深 Software Architect（對齊最終驗證者）"
   primary-scope: "全系統最終一致性確認、無殘留差距"
 quality-bar: "所有文件間的對齊差距已清零，ALIGN_REPORT.md 最終狀態顯示四個維度全部通過。"
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：四個對齊維度全部 PASS 或「無差距」"
 ---
 
 # ALIGN-VERIFY Review Items

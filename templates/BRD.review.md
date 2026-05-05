@@ -9,6 +9,10 @@ reviewer-roles:
   tertiary: "資深 QA Expert"
   tertiary-scope: "驗收標準具體度、SMART 指標完整性、Handoff Checklist 可執行性、Kill Conditions 量化閾值"
 quality-bar: "任何下游 PRD 撰寫者拿到此 BRD，無需與 PM 或業務部門對話，即能清楚理解商業目標、利害關係人需求、範圍邊界與成功標準，並直接開始撰寫 PRD。"
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：template 所有 ## 章節（≥22 個）均存在且有實質內容"
+  - "非功能性需求（效能/安全/可用性）均已定義具體數值"
 upstream-alignment:
   - field: 核心問題陳述
     source: IDEA.md §2 Problem Statement

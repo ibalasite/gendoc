@@ -9,6 +9,11 @@ reviewer-roles:
   tertiary: "資深 Security Expert"
   tertiary-scope: "Authentication/Authorization 設計、OWASP API Top 10、Rate Limiting、輸入驗證、敏感資料保護"
 quality-bar: "前端工程師和後端工程師各自閱讀 API.md 後，能直接開始實作，零歧義，所有 Request/Response Schema 清楚，Error 處理明確。"
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：template 所有 ## 章節（≥21 個）均存在且有實質內容"
+  - "每個 endpoint block 含 Possible Errors 表格"
+  - "§12 OpenAPI 3.1 YAML 已生成"
 upstream-alignment:
   - field: PRD P0 功能 → API Endpoint 覆蓋率
     source: PRD.md §功能清單 / User Stories

@@ -9,6 +9,10 @@ reviewer-roles:
   tertiary: "資深 Technical Advisor"
   tertiary-scope: "技術約束完整性、可行性評估、假設驗證方式、競品技術生態合理性"
 quality-bar: "任何產品開發者拿到此 IDEA.md，無需與發想者對話，即能清楚理解商業問題、目標使用者、核心功能範圍與成功標準，並直接開始撰寫 BRD。"
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：template 所有 ## 章節均存在且有實質內容"
+  - "PRD 需求已完整識別（User Story + AC 各 ≥ 3 條）"
 upstream-alignment:
   - field: IDEA 本身是需求鏈起點，無上游文件
     source: N/A

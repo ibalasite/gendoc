@@ -40,6 +40,10 @@ upstream-alignment:
   - field: 渲染技術與 Shader 能力
     source: EDD.md §2 技術棧
     check: 若 EDD 確認 Canvas 2D，§6 是否已改為引擎內建濾鏡替代（禁止列入依賴 WebGL 的自訂 Shader）
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：template 所有 ## 章節（≥12 個）均存在且有實質內容"
+  - "prefers-reduced-motion 替代方案已定義"
 ---
 
 # ANIM Review Items

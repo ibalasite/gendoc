@@ -3,6 +3,10 @@ reviewer-roles:
   - "PRD 數值稽核師（PRD Value Auditor）：逐一核對 CONSTANTS.md 每個數值與 PRD 對應來源，驗證數值正確性"
   - "一致性審查員（Consistency Reviewer）：確認 constants.json 與 CONSTANTS.md 數值完全吻合，確認下游文件引用的數值與本文件一致"
 quality-bar: "全文無 {{PLACEHOLDER}}；每個數值有 PRD §來源；constants.json 已生成且與 .md 一致；§4 SLO 三項均有量化數值；§8 容量三項均有量化數值；§7 業務規則已填入或明確標記「本 PRD 無額外業務規則數值」"
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：template 所有 ## 章節（≥12 個）均存在且有實質內容"
+  - "所有常數有具體數值（無 TBD 或 {{PLACEHOLDER}}）"
 status: DEPRECATED
 deprecated-since: pipeline-v3.0
 replaced-by: EDD Pass-0 (in EDD.gen.md)

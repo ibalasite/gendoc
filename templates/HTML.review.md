@@ -6,6 +6,10 @@ reviewer-roles:
   primary: "Frontend Engineer（HTML 產出審查者）"
   primary-scope: "HTML 完整性、導覽結構、內容正確性"
 quality-bar: "每份 docs/*.md 文件均有對應的可瀏覽 HTML 頁面，index.html 存在且導覽連結正確。"
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：docs/pages/*.html 數量（排除 index.html）>= docs/*.md 數量"
+  - "docs/pages/index.html 存在且非空"
 ---
 
 # HTML Review Items

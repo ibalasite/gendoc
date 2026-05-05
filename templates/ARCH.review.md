@@ -9,6 +9,11 @@ reviewer-roles:
   tertiary: "資深 DevOps Expert"
   tertiary-scope: "部署拓撲、服務發現、負載均衡、監控埋點位置"
 quality-bar: "工程師看完 ARCH 文件，能立即畫出系統的部署圖與資料流圖，不需詢問任何架構師。"
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：template 所有 ## 章節（≥22 個）均存在且有實質內容"
+  - "HA/SCALE/SPOF/BCP 四項均有對應設計"
+  - "LOCAL_DEPLOY 支援 ≥ 2 API replica"
 upstream-alignment:
   - field: 技術選型一致性
     source: EDD.md §3.3 技術棧總覽

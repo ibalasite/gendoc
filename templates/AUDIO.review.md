@@ -9,6 +9,10 @@ reviewer-roles:
   tertiary: "QA 音效測試員（Audio QA，熟悉跨平台音效相容性驗證）"
   tertiary-scope: "§10 測試清單完整性、§5 互斥規則完備性、§1.3 平台限制正確性"
 quality-bar: "專業音效工程師可直接依此文件完成全部音效實作與整合，不需再問任何技術決策問題。"
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：template 所有 ## 章節（≥12 個）均存在且有實質內容"
+  - "AUD-T-005 iOS 解鎖測試存在"
 upstream-alignment:
   - field: 引擎版本與 API
     source: FRONTEND.md §2

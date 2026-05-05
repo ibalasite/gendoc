@@ -37,6 +37,10 @@ upstream-alignment:
   - "ARCH.md Admin Portal 容器：部署位置與技術棧與 §2 一致"
   - "CONSTANTS.md Token TTL 等常數：§5.4 Token 有效期數值引用一致"
   - "PRD.md Admin 功能段落：§7.x 業務功能頁和 §7.2 KPI Cards 覆蓋 PRD 需求"
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：template 所有 ## 章節均存在且有實質內容"
+  - "Admin 後台功能與 PRD §19 AC 對應"
 ---
 
 # ADMIN_IMPL.review.md — Admin 後台實作規格審查標準

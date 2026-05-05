@@ -4,6 +4,10 @@ reviewer-roles:
   - "Performance Budget Auditor / 效能預算審查員：主審所有 file_size_budget 欄位，確認數值符合平台限制（手遊 ≤ 2MB/texture、Web ≤ 200KB/image、BGM ≤ 5MB、SFX ≤ 500KB、VO ≤ 1MB、骨骼動畫 ≤ 2MB、粒子貼圖 ≤ 512KB）"
   - "AI Prompt Quality Reviewer / AI Prompt 品質審查員：主審 prompt 欄位是否有具體且可用的生成提示詞，確認非 needed 狀態的資產均有 prompt"
 quality-bar: "VDD §4 所有角色均有 RES-IMG 行；VDD §5 所有主要 UI 場景均有 RES-IMG 行；VDD §6 場景/背景資產若 §6 存在，每個場景均有 RES-IMG 行；ANIM.md 所有 SKEL/VFX 均有 RES-ANIM 行（若存在）；AUDIO.md 所有 BGM/SFX/VO 均有 RES-BGM/RES-SFX/RES-VO 行（若存在）；所有 file_size_budget 非空白且符合平台預算；status=needed 以外的資產 prompt 非空白；output_path 與 repo 實際目錄結構一致；無裸 placeholder；同前綴 ID 無重複（RES-IMG-001 不重複出現）；§5 授權章節涵蓋所有資產 ID，license_type 非空白"
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：template 所有 ## 章節（≥7 個）均存在且有實質內容"
+  - "所有資源清單有具體規格（無 N/A 錯誤標記）"
 upstream-alignment:
   - "VDD.md §4 角色清單 → RESOURCE.md §1 RES-IMG 行（一對一對應）"
   - "VDD.md §5 UI 視覺系統 → RESOURCE.md §1 UI 場景 RES-IMG 行（UI 背景圖一對一對應；圖示集 1 組對 1 行，description 須含圖示數量與單個尺寸）"

@@ -9,6 +9,11 @@ reviewer-roles:
   tertiary: "資深 Security Expert"
   tertiary-scope: "認證授權設計、資料保護、Secret 管理、OWASP 威脅覆蓋"
 quality-bar: "資深工程師拿到 EDD 後，無需任何補充資訊，即能開始實作所有核心模組、撰寫 API 規格、設計 DB Schema，且不會與任何 PRD 需求衝突。"
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：template 所有 ## 章節（≥24 個）均存在且有實質內容"
+  - "HA/SCALE/SPOF 設計均已覆蓋"
+  - "Bounded Context 邊界明確且 HC-1~HC-5 約束均已驗證"
 upstream-alignment:
   - field: PRD P0 功能覆蓋
     source: PRD.md §功能清單

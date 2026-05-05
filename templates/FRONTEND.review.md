@@ -9,6 +9,10 @@ reviewer-roles:
   tertiary: "QA Expert（資深 QA Engineer）"
   tertiary-scope: "§10 測試策略完整性、E2E 流程覆蓋、Visual Regression 設定、Cross-browser 覆蓋、§12 安全性"
 quality-bar: "資深前端架構師能直接依此文件開始 Sprint 1，不需再問任何技術決策問題。"
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：template 所有 ## 章節（≥18 個）均存在且有實質內容"
+  - "§7.2 狀態管理三條 Iron Rule 均已完整實作（Zustand 型別 + queryKey 工廠 + Token 存儲策略）"
 upstream-alignment:
   - field: Breakpoint 數值
     source: PDD Design Token

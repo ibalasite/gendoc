@@ -9,6 +9,11 @@ reviewer-roles:
   tertiary: "資深 QA Expert"
   tertiary-scope: "Responsive 測試覆蓋、Visual Regression 可行性、互動狀態完整性"
 quality-bar: "前端工程師拿到 PDD 後，不需詢問設計師，能直接從 Design Token 建構 CSS 系統、從 Wireframe 實作所有 Screen、從 Interaction Design 實作所有互動狀態。"
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：template 所有 ## 章節均存在且有實質內容"
+  - "§9.4 Dark Mode Token Mapping：≥13 個 semantic token，表格格式，含 WCAG 對比度"
+  - "§7 Grid 系統已定義具體 CSS 實作值"
 upstream-alignment:
   - field: P0 User Stories 覆蓋
     source: PRD.md §5 User Stories

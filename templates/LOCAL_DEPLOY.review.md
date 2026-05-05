@@ -9,6 +9,11 @@ reviewer-roles:
   tertiary: "技術文件專家"
   tertiary-scope: "結構完整性、Placeholder 覆蓋度、Cross-reference 一致性、Quick Start 可操作性、Common Issues 可診斷性"
 quality-bar: "新進工程師第一天，依此文件操作，5 分鐘內跑起完整本地 K8s 環境，不需問任何人。"
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：template 所有 ## 章節（≥23 個）均存在且有實質內容"
+  - "支援 ≥ 2 API server replica 的啟動方式"
+  - "所有指令可直接複製執行（無需替換 placeholder）"
 upstream-alignment:
   - field: K8s Namespace
     source: EDD §3.5 環境矩陣 Local 欄

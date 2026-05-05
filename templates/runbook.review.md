@@ -9,6 +9,10 @@ reviewer-roles:
   tertiary: "技術文件專家"
   tertiary-scope: "結構一致性、佔位符完整性、Cross-reference 正確性、Table of Contents anchor 驗證"
 quality-bar: "凌晨 3 點被叫醒，零前情提要，能直接執行，不需問任何人。"
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：template 所有 ## 章節（≥17 個）均存在且有實質內容"
+  - "所有操作步驟有驗證指令（不只有文字說明）"
 upstream-alignment:
   - field: Availability SLO 數字
     source: EDD §10.5 SLO/SLI

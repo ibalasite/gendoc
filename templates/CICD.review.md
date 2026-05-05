@@ -22,6 +22,10 @@ upstream-alignment:
   - LOCAL_DEPLOY.md §3.5 Secret Bootstrap matches §10 Secret location table
   - ARCH.md §3 Tech Stack (build tool) matches §1 Agent Pod image
   - SCHEMA.md DB migration tooling matches §4 ci-deploy target migration command (if SCHEMA.md exists)
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：template 所有 ## 章節（≥13 個）均存在且有實質內容"
+  - "Pipeline 涵蓋 build/test/deploy 三個階段"
 ---
 
 # CICD.review.md — CI/CD Pipeline 文件審查標準

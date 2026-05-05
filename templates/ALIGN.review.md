@@ -6,6 +6,10 @@ reviewer-roles:
   primary: "資深 Software Architect（文件一致性審查者）"
   primary-scope: "跨文件一致性、上游對齊完整性、ALIGN_REPORT 結構正確性"
 quality-bar: "ALIGN_REPORT.md 完整記錄四個對齊維度的差距，每個差距有明確的 Fix 建議，無遺漏的對齊維度。"
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：四個對齊維度（docs↔docs / docs↔code / code↔test / docs↔test）均有分析結果"
+  - "每個差距有明確 Fix 建議"
 ---
 
 # ALIGN Review Items

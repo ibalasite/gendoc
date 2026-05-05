@@ -9,6 +9,11 @@ reviewer-roles:
   tertiary: "資深 DevOps Expert"
   tertiary-scope: "CI/CD 測試整合、測試環境可重現性、測試資料管理"
 quality-bar: "任何 QA 工程師拿到 Test Plan，能立即開始撰寫測試案例，所有 PRD P0 功能都有對應測試策略，RTM 可直接追溯。"
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：template 所有 ## 章節均存在且有實質內容"
+  - "測試案例數 >= spec_rules expected_scenario_count"
+  - "HA/SPOF 測試案例已包含"
 upstream-alignment:
   - field: PRD User Story 清單
     source: PRD.md §User Story 清單

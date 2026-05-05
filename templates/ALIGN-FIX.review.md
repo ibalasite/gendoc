@@ -6,6 +6,10 @@ reviewer-roles:
   primary: "資深 Software Architect（對齊修復審查者）"
   primary-scope: "修復完整性、前後一致性驗證、無新引入差距"
 quality-bar: "所有 ALIGN 報告中標記的差距均已被修復，ALIGN_REPORT.md 更新反映修復後狀態，無新引入的不一致。"
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：所有 CRITICAL 差距已修復（或有明確不修復理由）"
+  - "修復未引入新差距"
 ---
 
 # ALIGN-FIX Review Items

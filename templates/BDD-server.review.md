@@ -9,6 +9,11 @@ reviewer-roles:
   tertiary: "資深 QA Expert"
   tertiary-scope: "Edge Case 覆蓋、錯誤路徑、邊界條件、Tag 策略"
 quality-bar: "任何後端工程師拿到 BDD feature files，能直接實作 Step Definitions，所有 API P0 endpoints 都有對應的 BDD scenarios。"
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：所有 PRD domain 有對應 .feature 文件"
+  - "features/step_definitions/ 目錄存在且有步驟定義"
+  - "features/support/world.ts 和 hooks.ts 均存在"
 upstream-alignment:
   - field: API P0 Endpoints
     source: API.md §2 Endpoints

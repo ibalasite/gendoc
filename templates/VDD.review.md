@@ -9,6 +9,10 @@ reviewer-roles:
   tertiary: "資深 Frontend Architect"
   tertiary-scope: "Design Token 可工程實現性、Asset Pipeline 完整性、FRONTEND 交付清晰度"
 quality-bar: "任何前端工程師依此 VDD，能直接取得所有 Design Token、資產規格、元件視覺標準，不需詢問設計師即可實作符合品牌的 FRONTEND 頁面。"
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：template 所有 ## 章節（≥17 個）均存在且有實質內容"
+  - "所有視覺元件有具體規格（無模糊描述）"
 upstream-alignment:
   - field: 品牌色彩 Token 命名
     source: PDD.md §9.3 Design Tokens

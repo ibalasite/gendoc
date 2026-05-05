@@ -9,6 +9,10 @@ reviewer-roles:
   tertiary: "資深 QA Expert"
   tertiary-scope: "AC 可測試性、驗收標準具體度、Edge Case 覆蓋"
 quality-bar: "任何工程師拿到 PRD 後，不需問任何 PM，就能直接開始 Sprint Planning 並拆出所有 User Story。"
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：template 所有 ## 章節（≥23 個）均存在且有實質內容"
+  - "P0 功能列表完整且每個功能有對應 AC"
 upstream-alignment:
   - field: 業務目標
     source: BRD.md §商業目標

@@ -18,6 +18,10 @@ upstream-alignment:
   - EDD.md §3.4 K8S_NAMESPACE used consistently (with -local suffix) in all kubectl commands
   - runbook.md scope matches §6 document boundary description for '生產環境 incident 處理'
   - SCHEMA.md migration-tool value used to select single tool in §1 場景 B and §4 DB Migration FAQ
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：template 所有 ## 章節（≥7 個）均存在且有實質內容"
+  - "本地環境設置步驟完整可執行"
 ---
 
 # DEVELOPER_GUIDE.review.md — 開發者指南審查標準

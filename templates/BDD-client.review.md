@@ -9,6 +9,11 @@ reviewer-roles:
   tertiary: "資深 UX Expert"
   tertiary-scope: "User journey coverage、accessibility testing、responsive testing"
 quality-bar: "QA 工程師拿到 Client BDD files，能直接跑 E2E 測試，覆蓋所有 P0 Screen Flows，且 Playwright/Jest 命令可直接執行。"
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：所有 PRD 前端 flow 有對應 client .feature 文件"
+  - "features/client/support/world.ts（含 Browser/BrowserContext/Page）存在"
+  - "features/client/support/hooks.ts（browser lifecycle hooks）存在"
 upstream-alignment:
   - field: FRONTEND Screen 清單
     source: docs/FRONTEND.md §4 Screen 清單

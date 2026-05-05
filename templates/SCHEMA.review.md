@@ -9,6 +9,11 @@ reviewer-roles:
   tertiary: "資深 Security Expert"
   tertiary-scope: "PII 欄位識別、資料加密、軟刪除策略、Audit Trail"
 quality-bar: "DBA 和後端工程師拿到 SCHEMA.md，能直接執行 SQL 建立完整資料庫，且所有 API endpoint 都能找到對應的資料表和欄位。"
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：template 所有 ## 章節（≥20 個）均存在且有實質內容"
+  - "所有 Table 有 BC Ownership 宣告"
+  - "無跨 BC 的 Foreign Key"
 upstream-alignment:
   - field: API.md Resource → Table 對應
     source: API.md §Endpoints

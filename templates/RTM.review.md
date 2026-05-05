@@ -9,6 +9,11 @@ reviewer-roles:
   tertiary: "資深 Frontend QA Expert"
   tertiary-scope: "E2E 追溯、BDD @tag 對齊、Client 端 User Story 覆蓋"
 quality-bar: "100% PRD P0 User Stories 有對應 Test Case；所有 BDD @smoke tag 在 RTM 有條目；無孤立 Test Case；§1 統計數字與正文完全一致。"
+pass-conditions:
+  - "CRITICAL 數量 = 0"
+  - "Self-Check：所有 PRD P0 需求有對應 RTM 行"
+  - "所有 API Endpoint 有對應 RTM 行"
+  - "所有 RTM 行有對應的 BDD Scenario 或 Test Case ID"
 upstream-alignment:
   - field: P0 User Story 清單
     source: PRD.md §5 User Stories（MoSCoW P0）
