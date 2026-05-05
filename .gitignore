@@ -1,4 +1,6 @@
 .gendoc-state*.json
+.skill-guard.json
+.skill-guard-queue
 .last-update-check
 .update-lock/
 __pycache__/
