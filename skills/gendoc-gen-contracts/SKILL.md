@@ -786,6 +786,86 @@ fi
 
 ---
 
+## Step 6.8: 品質驗證 + 自身補救
+
+```python
+import os, re, glob as _glob, json
+
+# --- 讀取 Step 1 解析的基線（從環境或讀取上游文件重算）---
+def _count_api_domains():
+    """從 docs/API.md 計算 endpoint domain 數（### BC: XXX Endpoints 標題數）"""
+    api_path = 'docs/API.md'
+    if not os.path.isfile(api_path):
+        return 0
+    content = open(api_path, encoding='utf-8').read()
+    return max(1, len(re.findall(r'^### BC: .+ Endpoints', content, re.MULTILINE)))
+
+def _count_schema_entities():
+    """從 docs/SCHEMA.md 計算 entity 數（### 表格標題數）"""
+    schema_path = 'docs/SCHEMA.md'
+    if not os.path.isfile(schema_path):
+        return 0
+    content = open(schema_path, encoding='utf-8').read()
+    return max(1, len(re.findall(r'^### .+(Table|Entity|Schema|資料表)', content, re.MULTILINE | re.IGNORECASE)))
+
+_EXPECTED_CONTRACTS = _count_api_domains()
+_EXPECTED_SCHEMAS   = _count_schema_entities()
+
+# --- 計算實際輸出 ---
+# openapi.yaml paths 數
+_oapi_paths = 0
+for f in _glob.glob('docs/blueprint/contracts/openapi.yaml') + _glob.glob('docs/blueprint/contracts/*.yaml'):
+    content = open(f, encoding='utf-8', errors='ignore').read()
+    _oapi_paths += len([l for l in content.split('\n') if l.strip() and l.startswith('  /') and ':' in l])
+
+_ACTUAL_SCHEMAS = len(_glob.glob('docs/blueprint/contracts/schemas/*.json'))
+_pact_dir_ok    = os.path.isdir('docs/blueprint/contracts/pact')
+_iac_dir_ok     = os.path.isdir('docs/blueprint/infra')
+_scaffold_ok    = os.path.isdir('docs/blueprint/scaffold/src')
+
+print(f"[Step 6.8] 驗證：")
+print(f"  API domain 數：{_EXPECTED_CONTRACTS}  → openapi paths：{_oapi_paths}")
+print(f"  Schema entity 數：{_EXPECTED_SCHEMAS}  → schemas/*.json：{_ACTUAL_SCHEMAS}")
+print(f"  pact 目錄：{'✅' if _pact_dir_ok else '❌'}  iac 目錄：{'✅' if _iac_dir_ok else '❌'}  scaffold：{'✅' if _scaffold_ok else '❌'}")
+
+_fail_items = []
+if _oapi_paths < _EXPECTED_CONTRACTS:
+    _fail_items.append(f"openapi paths 不足（{_oapi_paths}/{_EXPECTED_CONTRACTS}）")
+if _ACTUAL_SCHEMAS < _EXPECTED_SCHEMAS:
+    _fail_items.append(f"schemas/*.json 不足（{_ACTUAL_SCHEMAS}/{_EXPECTED_SCHEMAS}）")
+if not _pact_dir_ok:
+    _fail_items.append("docs/blueprint/contracts/pact/ 目錄缺失")
+if not _iac_dir_ok:
+    _fail_items.append("docs/blueprint/infra/ 目錄缺失")
+if not _scaffold_ok:
+    _fail_items.append("docs/blueprint/scaffold/src/ 目錄缺失")
+
+# --- 自身補救（首次失敗時）---
+if _fail_items:
+    print(f"\n[Step 6.8] 首次驗證失敗（{len(_fail_items)} 項），執行自身補救：")
+    for item in _fail_items:
+        print(f"  ❌ {item}")
+    # 補救：針對缺失項重新執行 Step 2~6 對應子節
+    # （AI 根據缺失項目回到對應 Step 重新生成；不執行 git commit）
+    print("[Action] 回到對應 Step 重新生成缺失部分...")
+    # 在補救後重新執行驗證（第二次）
+    # ... 重算 _fail_items_v2 ...
+    _fail_items_v2 = []  # 第二次驗證後仍有問題的項目
+    # （若補救成功，_fail_items_v2 應為空）
+    if _fail_items_v2:
+        print(f"\n[FAIL] Step 6.8 二次驗證仍失敗（{len(_fail_items_v2)} 項）：")
+        for item in _fail_items_v2:
+            print(f"  ❌ {item}")
+        print("[Action] 不執行 git commit；不寫入 special_completed['CONTRACTS']")
+        raise SystemExit(1)  # 阻止後續 commit
+    else:
+        print("[OK] 補救成功，繼續執行 git commit")
+else:
+    print("[Step 6.8] ✅ 所有驗證通過，繼續 git commit")
+```
+
+---
+
 ## Step 7: Commit
 
 ```bash

@@ -1408,6 +1408,38 @@ PLAYWRIGHT_VERIFY_RESULT:
 
 ---
 
+## Step 4.8：輸出存在性確認 + 自身補救
+
+```bash
+# [R4-C] P-1~P-10 review loop 通過後，git commit 前確認三件套存在
+_MISSING_FILES=""
+[[ ! -f "docs/pages/prototype/index.html"     ]] && _MISSING_FILES="$_MISSING_FILES index.html"
+[[ ! -f "docs/pages/prototype/prototype.css"  ]] && _MISSING_FILES="$_MISSING_FILES prototype.css"
+[[ ! -f "docs/pages/prototype/prototype.js"   ]] && _MISSING_FILES="$_MISSING_FILES prototype.js"
+
+if [[ -n "$_MISSING_FILES" ]]; then
+  echo "[Step 4.8] 首次確認：缺失檔案：$_MISSING_FILES"
+  echo "[Action] 回到 Step 2 重新執行 SPA 生成（第 1 次補救）..."
+  # → 重新執行 Step 2（PROTOTYPE_SPEC → SPA 完整輸出）
+  _MISSING_V2=""
+  [[ ! -f "docs/pages/prototype/index.html"     ]] && _MISSING_V2="$_MISSING_V2 index.html"
+  [[ ! -f "docs/pages/prototype/prototype.css"  ]] && _MISSING_V2="$_MISSING_V2 prototype.css"
+  [[ ! -f "docs/pages/prototype/prototype.js"   ]] && _MISSING_V2="$_MISSING_V2 prototype.js"
+  if [[ -n "$_MISSING_V2" ]]; then
+    echo "[FAIL] 補救後仍缺失：$_MISSING_V2"
+    echo "       不執行 git commit；不寫入 special_completed['PROTOTYPE']"
+    echo "       請手動確認 PRD/PDD 是否含足夠的畫面規格後重試"
+    exit 1
+  else
+    echo "[Step 4.8] ✅ 補救成功，三件套均存在"
+  fi
+else
+  echo "[Step 4.8] ✅ 三件套確認存在（index.html / prototype.css / prototype.js）"
+fi
+```
+
+---
+
 ## Step 5：Git Commit
 
 ```bash

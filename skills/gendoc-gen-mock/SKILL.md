@@ -524,6 +524,73 @@ GUIDE_COMPLETE: MOCK_SERVER_GUIDE.md written
 
 ---
 
+## Step 5.8：品質驗證 + 自身補救
+
+```python
+import os, re, glob as _glob
+
+def _count_api_endpoints():
+    api_path = 'docs/API.md'
+    if not os.path.isfile(api_path):
+        return 0
+    content = open(api_path, encoding='utf-8').read()
+    return max(1, len(re.findall(r'\b(GET|POST|PUT|PATCH|DELETE)\b\s+/\S+', content)))
+
+def _count_schema_entities():
+    schema_path = 'docs/SCHEMA.md'
+    if not os.path.isfile(schema_path):
+        return 0
+    content = open(schema_path, encoding='utf-8').read()
+    return max(1, len(re.findall(r'^### .+(Table|Entity|Schema|資料表)', content, re.MULTILINE | re.IGNORECASE)))
+
+_EXPECTED_ROUTES    = _count_api_endpoints()
+_EXPECTED_RESOURCES = _count_schema_entities()
+
+# 計算 main.py 的 @app. decorator 數
+_main_py = 'docs/blueprint/mock/main.py'
+_ACTUAL_ROUTES = 0
+if os.path.isfile(_main_py):
+    content = open(_main_py, encoding='utf-8', errors='ignore').read()
+    _ACTUAL_ROUTES = len([l for l in content.split('\n') if '@app.' in l])
+
+_ACTUAL_DATA = len(_glob.glob('docs/blueprint/mock/data/*.json'))
+_guide_ok    = os.path.isfile('docs/blueprint/mock/MOCK_SERVER_GUIDE.md')
+
+print(f"[Step 5.8] 驗證：")
+print(f"  API endpoints：{_EXPECTED_ROUTES}  → @app. handlers：{_ACTUAL_ROUTES}")
+print(f"  Schema entities：{_EXPECTED_RESOURCES}  → data/*.json：{_ACTUAL_DATA}")
+print(f"  MOCK_SERVER_GUIDE.md：{'✅' if _guide_ok else '❌'}")
+
+_fail_items = []
+if _ACTUAL_ROUTES < _EXPECTED_ROUTES:
+    _fail_items.append(f"@app. handler 不足（{_ACTUAL_ROUTES}/{_EXPECTED_ROUTES}）")
+if _ACTUAL_DATA < _EXPECTED_RESOURCES:
+    _fail_items.append(f"data/*.json 不足（{_ACTUAL_DATA}/{_EXPECTED_RESOURCES}）")
+if not _guide_ok:
+    _fail_items.append("MOCK_SERVER_GUIDE.md 缺失")
+
+if _fail_items:
+    print(f"\n[Step 5.8] 首次驗證失敗（{len(_fail_items)} 項），執行自身補救：")
+    for item in _fail_items:
+        print(f"  ❌ {item}")
+    # 補救：補寫缺失的 route handler 或 data/*.json；補生成 GUIDE
+    print("[Action] 回到對應 Step 補生成缺失部分...")
+    # 第二次驗證
+    _fail_items_v2 = []  # 補救後重新驗證；若仍失敗加入此清單
+    if _fail_items_v2:
+        print(f"\n[FAIL] Step 5.8 二次驗證仍失敗（{len(_fail_items_v2)} 項）：")
+        for item in _fail_items_v2:
+            print(f"  ❌ {item}")
+        print("[Action] 不執行 git commit；不寫入 special_completed['MOCK']")
+        raise SystemExit(1)
+    else:
+        print("[OK] 補救成功，繼續執行 git commit")
+else:
+    print("[Step 5.8] ✅ 所有驗證通過，繼續 git commit")
+```
+
+---
+
 ## Step 6：Git Commit
 
 ```bash

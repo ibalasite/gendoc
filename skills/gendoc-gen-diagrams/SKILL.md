@@ -1520,6 +1520,108 @@ Frontend 圖合計：N 張（skip 時：0 張）
 
 ---
 
+## Step 5：最終 file-count 驗證 + 自身補救 + git commit
+
+```python
+import os, glob as _glob
+
+# [R4-D] Step 5.1 — 最終點數確認
+_MANDATORY = [
+    'docs/diagrams/use-case.md',
+    'docs/diagrams/class-domain.md',
+    'docs/diagrams/class-application.md',
+    'docs/diagrams/class-infra-presentation.md',
+    'docs/diagrams/object-snapshot.md',
+    'docs/diagrams/communication.md',
+    'docs/diagrams/component.md',
+    'docs/diagrams/deployment.md',
+    'docs/diagrams/er-diagram.md',
+    'docs/diagrams/class-inventory.md',
+]
+_MISSING_MANDATORY = [f for f in _MANDATORY if not os.path.isfile(f)]
+_SEQ_COUNT   = len(_glob.glob('docs/diagrams/sequence-*.md'))
+_ACT_COUNT   = len(_glob.glob('docs/diagrams/activity-*.md'))
+_STATE_COUNT = len(_glob.glob('docs/diagrams/state-machine-*.md'))
+
+print(f"[Step 5.1] Mandatory 圖：缺失 {len(_MISSING_MANDATORY)} 個（應全有）")
+print(f"[Step 5.1] sequence-*.md：{_SEQ_COUNT}，activity-*.md：{_ACT_COUNT}，state-machine-*.md：{_STATE_COUNT}")
+
+# 讀取 .gendoc-rules/uml-rules.json 取得精確期望值
+import json
+_rules_path = '.gendoc-rules/uml-rules.json'
+_seq_exp    = 3   # fallback
+_act_exp    = 3   # fallback
+_st_exp     = 1   # fallback
+if os.path.isfile(_rules_path):
+    try:
+        _rules = json.load(open(_rules_path, encoding='utf-8'))
+        _seq_exp  = _rules.get('expected_sequence_count', _seq_exp)
+        _act_exp  = _rules.get('expected_activity_count', _act_exp)
+        _st_exp   = _rules.get('expected_state_count',    _st_exp)
+    except Exception:
+        pass
+
+_fail5 = []
+if _MISSING_MANDATORY:
+    _fail5.append(f"mandatory 圖缺失：{[os.path.basename(f) for f in _MISSING_MANDATORY]}")
+if _SEQ_COUNT < _seq_exp:
+    _fail5.append(f"sequence 圖不足（{_SEQ_COUNT}/{_seq_exp}）")
+if _ACT_COUNT < _act_exp:
+    _fail5.append(f"activity 圖不足（{_ACT_COUNT}/{_act_exp}）")
+if _STATE_COUNT < _st_exp:
+    _fail5.append(f"state-machine 圖不足（{_STATE_COUNT}/{_st_exp}）")
+
+# [R4-D] Step 5.2 — 自身補救（首次確認缺失時）
+if _fail5:
+    print(f"\n[Step 5.2] 首次確認有缺失（{len(_fail5)} 項），執行自身補救：")
+    for item in _fail5:
+        print(f"  ❌ {item}")
+    # 補救：針對缺失圖類型重新執行 Step 2 對應子節
+    # _MISSING_MANDATORY 非空 → 重新執行對應的 Step 2.x 子節
+    # _SEQ_COUNT < _seq_exp → 補生成缺少的 Sequence Diagrams
+    # _ACT_COUNT < _act_exp → 補生成缺少的 Activity Diagrams
+    # _STATE_COUNT < _st_exp → 補生成缺少的 State Machine Diagrams
+    print("[Action] 重新執行對應 Step 2 子節補生成缺失圖型...")
+    # 重新執行 Step 5.1 第二次確認
+    _MISSING_V2     = [f for f in _MANDATORY if not os.path.isfile(f)]
+    _SEQ_V2         = len(_glob.glob('docs/diagrams/sequence-*.md'))
+    _ACT_V2         = len(_glob.glob('docs/diagrams/activity-*.md'))
+    _STATE_V2       = len(_glob.glob('docs/diagrams/state-machine-*.md'))
+    _fail5_v2 = []
+    if _MISSING_V2:
+        _fail5_v2.append(f"仍缺失：{[os.path.basename(f) for f in _MISSING_V2]}")
+    if _SEQ_V2 < _seq_exp:
+        _fail5_v2.append(f"sequence 仍不足（{_SEQ_V2}/{_seq_exp}）")
+    if _ACT_V2 < _act_exp:
+        _fail5_v2.append(f"activity 仍不足（{_ACT_V2}/{_act_exp}）")
+    if _STATE_V2 < _st_exp:
+        _fail5_v2.append(f"state-machine 仍不足（{_STATE_V2}/{_st_exp}）")
+    if _fail5_v2:
+        print(f"\n[FAIL] Step 5.2 二次確認仍有缺失：")
+        for item in _fail5_v2:
+            print(f"  ❌ {item}")
+        print("[Action] 不執行 git commit；不寫入 special_completed['UML']")
+        raise SystemExit(1)
+    else:
+        print("[Step 5.2] ✅ 補救成功")
+else:
+    print("[Step 5.1] ✅ 所有圖型確認存在，繼續 git commit")
+```
+
+```bash
+# [R4-D] Step 5.3 — git commit（通過才執行）
+_TOTAL_DIAGRAMS=$(find docs/diagrams -name "*.md" | wc -l | tr -d ' ')
+git add docs/diagrams/
+git commit -m "docs(gendoc)[UML]: 生成 UML 架構圖（共 ${_TOTAL_DIAGRAMS} 個）
+
+- 9 種 UML 類型完整覆蓋（Server）
+- sequence-*.md / activity-*.md / state-machine-*.md 各滿足精確期望值
+- class-inventory.md、er-diagram.md 已生成
+- Frontend UML（條件執行）"
+```
+
+---
+
 ## 附錄：UML 九大圖對照表
 
 | # | UML 圖類型 | EDD §章節（新版→舊版）| 輸出檔案 | Mermaid 語法 | 最低張數 |
