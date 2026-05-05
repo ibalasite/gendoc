@@ -385,8 +385,11 @@
       "commit_prefix": "docs(gendoc)[UML]",
       "note": "特殊步驟：gendoc-gen-diagrams 生成 9 張 UML 圖 + class-inventory.md（後者供 test-plan/RTM 讀取）。排在所有設計文件之後以確保上游就緒。has_admin_backend=true 時額外輸出 3 張 Admin 圖。",
       "spec_rules": {
-        "min_diagram_count": 3,
-        "min_class_count": "max(3, {entity_count})",
+        "required_type_coverage": 9,
+        "expected_sequence_count": "max(3, {rest_endpoint_count} / 3)",
+        "expected_activity_count": "max(3, {user_story_count} / 2)",
+        "expected_state_count": "max(1, {entity_count} / 2)",
+        "expected_class_files": 3,
         "max_placeholder_count": 0
       },
       "input": [
@@ -737,8 +740,8 @@
       "commit_prefix": "feat(gendoc)[CONTRACTS]",
       "note": "特殊步驟：從生成文件提取機器可讀規格（OpenAPI YAML, JSON Schema, Pact, IaC, Seed Code）。輸出集中於 docs/blueprint/ 目錄。生成後自動執行 openapi-spec-validator 驗證及 path 數量對齊檢查。has_admin_backend=true 時額外輸出 admin-api.yaml + rbac-seed.json + admin-seed.json。",
       "spec_rules": {
-        "min_h2_sections": 3,
-        "min_lines_per_section": 3,
+        "expected_contract_count": 1,
+        "expected_schema_count": "max(1, {entity_count})",
         "max_placeholder_count": 0
       },
       "input": [
@@ -762,8 +765,8 @@
       "commit_prefix": "feat(gendoc)[MOCK]",
       "note": "特殊步驟：呼叫 gendoc-gen-mock skill，生成 FastAPI mock server + 擬真假資料 + frontend 使用手冊。生成後自動執行 python main.py --check 確認可啟動。整個 docs/blueprint/mock/ 目錄可獨立帶走使用。",
       "spec_rules": {
-        "min_h2_sections": 3,
-        "min_lines_per_section": 3,
+        "expected_mock_route_count": "max(1, {rest_endpoint_count})",
+        "expected_mock_data_count": "max(1, {entity_count})",
         "max_placeholder_count": 0
       },
       "input": [
@@ -785,8 +788,7 @@
       "commit_prefix": "feat(gendoc)[PROTOTYPE]",
       "note": "特殊步驟：呼叫 gendoc-gen-prototype skill，依 PDD/FRONTEND/API.md 生成可點擊的 HTML prototype（UI 流程展示）+ API explorer（交互式 API 文件）。輸出至 docs/pages/prototype/，由 HTML 的 gen_html.py 自動連結到 sidebar。has_admin_backend=true 時額外生成 admin portal prototype 頁面（login/dashboard/user-list/role-management/audit-log）。",
       "spec_rules": {
-        "min_h2_sections": 3,
-        "min_lines_per_section": 3,
+        "expected_screen_count": "max(3, {user_story_count})",
         "max_placeholder_count": 0
       },
       "input": [
@@ -801,14 +803,14 @@
       "output": [
         "docs/pages/"
       ],
-      "multi_file": false,
+      "multi_file": true,
       "condition": "always",
       "special_skill": "gendoc-gen-html",
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[HTML]",
       "note": "特殊步驟：呼叫 gendoc-gen-html skill，不走標準 gen→review 流程。Step 1-B 開頭偵測並刪除舊版 generate_site.py（若存在），強制使用 gen_html.py。",
       "spec_rules": {
-        "min_h2_sections": 1,
+        "expected_html_files": 1,
         "max_placeholder_count": 0
       },
       "input": []

@@ -295,12 +295,107 @@ class DRYRUNEngine:
         except Exception:
             return fallback
 
+    @staticmethod
+    def count_h2_lines(template_path: Path) -> int:
+        """計算 template 檔案中 ^## 行數（含條件章節，不排除）。
+        條件不成立時 template 規範要求輸出中仍須有標題（寫「跳過」標記），
+        因此所有 ## heading 均計入期望值。
+        """
+        try:
+            content = template_path.read_text(encoding='utf-8')
+            return len(re.findall(r'^## ', content, re.MULTILINE))
+        except Exception:
+            return 0
+
+    def inject_multifile_baseline(self, step: dict, params: dict) -> dict:
+        """為 multi_file=true 的 step 計算精確期望值（1:1 從上游推算）。
+
+        設計原則：
+        - 有 1:1 對應關係的 spec_rules 算精確期望值，不是打折下界
+        - 比對邏輯為 actual >= expected（多可以，少不行）
+        - 鍵名使用 expected_* 而非 min_*，語義明確
+        """
+        sid = step['id']
+        result = {}
+
+        if sid == 'HTML':
+            docs_dir = self.docs_dir
+            md_count = len(list(docs_dir.glob('*.md'))) if docs_dir.exists() else 0
+            result['expected_html_files'] = max(1, md_count)
+
+        elif sid == 'CONTRACTS':
+            api_path = self.docs_dir / 'API.md'
+            schema_path = self.docs_dir / 'SCHEMA.md'
+            # API domain count: sections starting with ## (each domain = one contract)
+            api_domains = 0
+            if api_path.exists():
+                api_content = api_path.read_text(encoding='utf-8')
+                # Count distinct API domain sections (##-level headings, excluding global sections)
+                api_domains = len(re.findall(r'^## ', api_content, re.MULTILINE))
+            # Schema entity count: table definitions or ## entity sections
+            schema_entities = params.get('entity_count', 3)
+            result['expected_contract_count'] = max(1, api_domains)
+            result['expected_schema_count'] = max(1, schema_entities)
+
+        elif sid == 'MOCK':
+            api_path = self.docs_dir / 'API.md'
+            endpoint_count = params.get('rest_endpoint_count', 5)
+            entity_count = params.get('entity_count', 3)
+            result['expected_mock_route_count'] = max(1, endpoint_count)
+            result['expected_mock_data_count'] = max(1, entity_count)
+
+        elif sid == 'PROTOTYPE':
+            prd_path = self.docs_dir / 'PRD.md'
+            screen_count = 0
+            if prd_path.exists():
+                prd_content = prd_path.read_text(encoding='utf-8')
+                # Count screen/page definitions in PRD
+                screen_count = len(re.findall(
+                    r'(?:Screen|Page|畫面|頁面)[-_\s]*\d+|##\s+(?:Screen|Page|畫面|頁面)',
+                    prd_content, re.IGNORECASE
+                ))
+            result['expected_screen_count'] = max(3, screen_count)
+
+        elif sid == 'UML':
+            # Type coverage: 9 types must each have >= 1 file
+            result['required_type_coverage'] = 9
+            # Variable-count types from upstream docs
+            prd_path = self.docs_dir / 'PRD.md'
+            edd_path = self.docs_dir / 'EDD.md'
+            schema_path = self.docs_dir / 'SCHEMA.md'
+            # Sequence: major flows from API endpoint groups
+            seq_count = max(3, params.get('rest_endpoint_count', 5) // 3)
+            result['expected_sequence_count'] = seq_count
+            # Activity: business processes from EDD/PRD
+            act_count = max(3, params.get('user_story_count', 5) // 2)
+            result['expected_activity_count'] = act_count
+            # State machine: stateful entities from SCHEMA
+            state_count = max(1, params.get('entity_count', 3) // 2)
+            result['expected_state_count'] = state_count
+            # Class files: fixed 3 (domain/application/infra-presentation)
+            result['expected_class_files'] = 3
+
+        elif sid == 'BDD-server':
+            us = params.get('user_story_count', 5)
+            ac = params.get('acceptance_criteria_count', 2)
+            result['expected_scenario_count'] = max(5, us * ac)
+
+        elif sid == 'BDD-client':
+            us = params.get('user_story_count', 5)
+            ac = params.get('acceptance_criteria_count', 2)
+            result['expected_client_scenario_count'] = max(3, (us * ac * 6) // 10)
+
+        return result
+
     def derive_specifications(self, params: dict = None) -> dict:
         """從 pipeline.json spec_rules 推導所有 step 的量化規格。
 
         spec_rules 為單層 flat dict，所有 value 為整數或可求值公式字串。
         輸出的每個 step spec 中所有 value 均為整數（公式已求值），
         可直接寫入 .gendoc-rules/*.json 供 review.sh 機械比對。
+
+        1:1 step 額外注入 template_h2_count（從 template 檔案動態計算）。
+        multi_file step 改用 inject_multifile_baseline() 注入精確期望值。
 
         Returns:
             dict: {step_id: {metric_key: int, ...}, ...}
@@ -311,6 +406,11 @@ class DRYRUNEngine:
         if not self.pipeline:
             self._load_pipeline()
 
+        # Determine template dir (local-first)
+        cwd_tmpl = self.cwd / 'templates'
+        runtime_tmpl = Path.home() / '.claude' / 'gendoc' / 'templates'
+        _template_dir = cwd_tmpl if cwd_tmpl.is_dir() else runtime_tmpl
+
         specs = {}
 
         for step in self.pipeline.get('steps', []):
@@ -320,11 +420,36 @@ class DRYRUNEngine:
             if not spec_rules:
                 continue
 
-            evaluated = {}
-            for key, value in spec_rules.items():
-                evaluated[key] = self._evaluate_spec_value(value, params)
+            is_multi = step.get('multi_file', False)
 
-            specs[step_id] = evaluated
+            if is_multi:
+                # multi_file steps: inject precise expected values from upstream
+                evaluated = self.inject_multifile_baseline(step, params)
+                # Also evaluate any remaining spec_rules entries
+                for key, value in spec_rules.items():
+                    if key not in evaluated:
+                        evaluated[key] = self._evaluate_spec_value(value, params)
+                # Remove meaningless min_h2_sections for directory-output steps
+                if 'special_skill' in step:
+                    evaluated.pop('min_h2_sections', None)
+                    evaluated.pop('min_lines_per_section', None)
+            else:
+                # 1:1 steps: evaluate formula spec_rules + inject template_h2_count
+                evaluated = {}
+                for key, value in spec_rules.items():
+                    evaluated[key] = self._evaluate_spec_value(value, params)
+
+                tmpl_path = _template_dir / f"{step_id}.md"
+                if tmpl_path.exists():
+                    h2_count = self.count_h2_lines(tmpl_path)
+                    if h2_count > 0:
+                        evaluated['template_h2_count'] = h2_count
+                        # Override min_h2_sections with template-derived value
+                        if 'min_h2_sections' in evaluated:
+                            evaluated['min_h2_sections'] = h2_count
+
+            if evaluated:
+                specs[step_id] = evaluated
 
         self.step_specs = specs
         return specs
