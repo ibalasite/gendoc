@@ -146,6 +146,66 @@ fi
 - Form Validation（React Hook Form / Vee-validate / Zod）
 - UI Component Library（若有）
 
+### §2.3.1 Phaser 場景實現規範（僅 client_type == game 且使用 Phaser.js 時生成）
+
+若 EDD 或 BRD 指定 Phaser.js 作為遊戲引擎，**必須生成場景骨架檔案**：
+
+**`src/scenes/PetIdleScene.ts` 骨架（依實際場景名替換）**：
+```typescript
+import Phaser from 'phaser';
+
+export class PetIdleScene extends Phaser.Scene {
+  private pet!: Phaser.GameObjects.Sprite;
+
+  constructor() {
+    super({ key: 'PetIdleScene' });
+  }
+
+  preload(): void {
+    // 載入精靈圖和音效
+    this.load.atlas('pet', 'assets/pet.png', 'assets/pet.json');
+    this.load.audio('idle-sfx', 'assets/sfx/idle.mp3');
+  }
+
+  create(): void {
+    // 建立精靈並綁定動畫
+    this.pet = this.add.sprite(
+      this.cameras.main.centerX,
+      this.cameras.main.centerY,
+      'pet'
+    );
+
+    this.anims.create({
+      key: 'idle',
+      frames: this.anims.generateFrameNames('pet', { prefix: 'idle_', start: 0, end: 7 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+
+    this.pet.play('idle');
+
+    // 物理碰撞設置（若需要）
+    this.physics.add.overlap(
+      this.pet,
+      this.physics.add.staticGroup(),
+      () => { /* 碰撞處理 */ }
+    );
+
+    // prefers-reduced-motion 檢測
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) {
+      this.pet.stop(); // 停止動畫，改為靜態展示
+    }
+  }
+
+  update(): void {
+    // 每幀更新邏輯
+  }
+}
+```
+
+**Iron Rule**：每個 PRD 定義的遊戲場景必須對應一個 Scene 類別檔案，四個生命週期方法（preload/create/update，constructor）缺一不可。
+
 ---
 
 ## §3 Target Platforms & Compatibility Matrix 生成規則

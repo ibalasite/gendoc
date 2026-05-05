@@ -320,6 +320,57 @@ Then('I should see the dashboard', async function () {
 });
 ```
 
+**Client 支援檔案（必須同步生成）：**
+
+**`features/client/support/world.ts`**：
+```typescript
+import { IWorldOptions, World, setWorldConstructor } from '@cucumber/cucumber';
+import { Browser, BrowserContext, Page, chromium } from '@playwright/test';
+
+export interface ClientWorld {
+  browser: Browser;
+  context: BrowserContext;
+  page: Page;
+}
+
+class CustomClientWorld extends World implements ClientWorld {
+  browser!: Browser;
+  context!: BrowserContext;
+  page!: Page;
+
+  constructor(options: IWorldOptions) {
+    super(options);
+  }
+}
+
+setWorldConstructor(CustomClientWorld);
+```
+
+**`features/client/support/hooks.ts`**：
+```typescript
+import { Before, After, BeforeAll, AfterAll, setDefaultTimeout } from '@cucumber/cucumber';
+import { chromium } from '@playwright/test';
+import { ClientWorld } from './world';
+
+setDefaultTimeout(60_000);
+
+BeforeAll(async () => {
+  // TODO: start app server or point to staging
+});
+
+Before(async function (this: ClientWorld) {
+  this.browser = await chromium.launch({ headless: true });
+  this.context = await this.browser.newContext();
+  this.page = await this.context.newPage();
+});
+
+After(async function (this: ClientWorld) {
+  await this.browser?.close();
+});
+```
+
+使用 `GENERATED_FILE: features/client/support/world.ts` 和 `GENERATED_FILE: features/client/support/hooks.ts` 紀錄。
+
 ---
 
 ## Quality Gate（生成後自檢，交 Review Agent 前必須全部通過）

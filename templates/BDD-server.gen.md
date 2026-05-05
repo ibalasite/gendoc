@@ -297,6 +297,63 @@ Then('I receive HTTP status {int}', async (statusCode) => {
 });
 ```
 
+**支援檔案（必須同步生成）：**
+
+**`features/support/world.ts`（TypeScript 範例）**：
+```typescript
+import { IWorldOptions, World, setWorldConstructor } from '@cucumber/cucumber';
+import axios, { AxiosInstance } from 'axios';
+
+export interface ApiWorld {
+  client: AxiosInstance;
+  response: { status: number; data: unknown } | null;
+  db: { seed: (fixture: string) => Promise<void>; clean: () => Promise<void> };
+}
+
+class CustomWorld extends World implements ApiWorld {
+  client: AxiosInstance;
+  response: { status: number; data: unknown } | null = null;
+  db: { seed: (fixture: string) => Promise<void>; clean: () => Promise<void> };
+
+  constructor(options: IWorldOptions) {
+    super(options);
+    this.client = axios.create({ baseURL: process.env.API_BASE_URL || 'http://localhost:8080' });
+    this.db = {
+      seed: async (fixture) => { /* TODO: load fixture data */ },
+      clean: async () => { /* TODO: truncate test tables */ },
+    };
+  }
+}
+
+setWorldConstructor(CustomWorld);
+```
+
+**`features/support/hooks.ts`**：
+```typescript
+import { BeforeAll, AfterAll, Before, After, setDefaultTimeout } from '@cucumber/cucumber';
+import { ApiWorld } from './world';
+
+setDefaultTimeout(30_000);
+
+BeforeAll(async () => {
+  // TODO: start test database, run migrations
+});
+
+AfterAll(async () => {
+  // TODO: close database connections
+});
+
+Before(async function (this: ApiWorld) {
+  await this.db.clean();
+});
+
+After(async function (this: ApiWorld) {
+  this.response = null;
+});
+```
+
+使用 `GENERATED_FILE: features/support/world.ts` 和 `GENERATED_FILE: features/support/hooks.ts` 紀錄。
+
 ---
 
 ## Quality Gate（生成後自檢，交 Review Agent 前必須全部通過）
