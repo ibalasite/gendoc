@@ -49,7 +49,8 @@ def _plantuml_to_svg(text: str) -> str | None:
     if svg is None:
         try:
             url = f'{PLANTUML_SERVER}/svg/{_plantuml_encode(text)}'
-            with urllib.request.urlopen(url, timeout=12) as r:
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=12) as r:
                 data = r.read().decode('utf-8')
                 if '<svg' in data:
                     svg = data
