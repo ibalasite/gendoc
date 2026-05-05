@@ -146,29 +146,52 @@ def _eval_condition(cond, client_type, has_admin):
         return adm
     return True  # unknown condition → include
 
-def _output_exists(step):
-    """回傳 True 表示 step 的主要輸出已存在且非空"""
+def _output_complete(step, tmpl_dir=''):
+    """回傳 (exists: bool, complete: bool, reason: str)
+    - (False, False, reason) : 主要輸出不存在
+    - (True,  False, reason) : 存在但章節不完整（需重建）
+    - (True,  True,  '')     : 存在且完整
+    """
+    import re
     outputs = step.get('output', [])
     output_glob = step.get('output_glob', '')
 
     if output_glob:
-        # output_glob 格式：path1|path2
         for pattern in output_glob.split('|'):
             pattern = pattern.strip()
             if not _glob.glob(pattern):
-                return False
-        return True
+                return False, False, f'output_glob 無匹配：{pattern}'
+        return True, True, ''
+
+    if not outputs:
+        return False, False, '無輸出定義'
 
     for path in outputs:
         if path.endswith('/'):
-            # 目錄：檢查目錄存在且有檔案
             if not os.path.isdir(path.rstrip('/')) or not os.listdir(path.rstrip('/')):
-                return False
+                return False, False, f'目錄缺失或空：{path}'
         else:
-            # 單一檔案：存在且非空
             if not os.path.isfile(path) or os.path.getsize(path) == 0:
-                return False
-    return bool(outputs)
+                return False, False, f'檔案缺失或空：{path}'
+
+    # Section completeness check（只對單一 .md 檔輸出有效）
+    if tmpl_dir:
+        sid = step['id']
+        tmpl_file = os.path.join(tmpl_dir, f'{sid}.md')
+        for path in outputs:
+            if path.endswith('.md') and os.path.isfile(path) and os.path.isfile(tmpl_file):
+                expected_h2 = len(re.findall(r'^## ', open(tmpl_file, encoding='utf-8').read(), re.MULTILINE))
+                actual_h2   = len(re.findall(r'^## ', open(path,     encoding='utf-8').read(), re.MULTILINE))
+                if expected_h2 > 0 and actual_h2 < expected_h2:
+                    return True, False, f'章節不完整：{actual_h2}/{expected_h2} 個 ## 章節（{path}）'
+                break  # 只比對第一個 .md 輸出
+
+    return True, True, ''
+
+def _output_exists(step):
+    """向下相容封裝：只回傳布林值，供 B-1 _check_step_l1 使用"""
+    exists, complete, _ = _output_complete(step)
+    return exists and complete
 
 # 找出 DRYRUN 的 index
 _dryrun_idx = next((i for i, s in enumerate(steps) if s['id'] == 'DRYRUN'), None)
@@ -188,10 +211,15 @@ for step in _pre_dryrun:
         print(f"[A-1] ⏭️  {sid} — 條件不符（{cond}），略過")
         continue
 
-    if _output_exists(step):
-        print(f"[A-1] ✅ {sid} — 輸出存在")
+    _tmpl_dir = os.environ.get('GENDOC_TEMPLATES', '')
+    exists, complete, reason = _output_complete(step, tmpl_dir=_tmpl_dir)
+    if exists and complete:
+        print(f"[A-1] ✅ {sid} — 輸出完整")
+    elif exists and not complete:
+        print(f"[A-1] ⚠️  {sid} — 輸出存在但不完整（{reason}），標記重建")
+        _a_missing.append(sid)
     else:
-        print(f"[A-1] ❌ {sid} — 輸出缺失，需補跑")
+        print(f"[A-1] ❌ {sid} — 輸出缺失（{reason}），需補跑")
         _a_missing.append(sid)
 
 print(f"\n[A-1] 需補跑 {len(_a_missing)} 個 DRYRUN 前 step：{_a_missing}")
@@ -199,22 +227,36 @@ print(f"\n[A-1] 需補跑 {len(_a_missing)} 個 DRYRUN 前 step：{_a_missing}")
 
 ### A-2：補跑缺失的 DRYRUN 前 Step
 
+```python
+_dryrun_needs_rerun = False  # 任何 pre-DRYRUN step 重建後，DRYRUN 必須重跑
+```
+
 對 `_a_missing` 中的每個 `step_id`，依序執行：
 
 ```
 用 Skill tool 呼叫 gendoc-flow，args="--only {step_id}"
 等待回傳後繼續下一個 step。
-單一 step 失敗 → 記錄失敗原因，繼續下一個（不中止）。
+Skill 呼叫成功（step 重建完成）→ _dryrun_needs_rerun = True
+Skill 呼叫失敗 → 記錄失敗原因（不更新 _dryrun_needs_rerun），繼續下一個（不中止）。
 ```
 
 ### A-3：執行 DRYRUN
 
-所有 DRYRUN 前的 step 補跑完後（無論有無失敗），執行：
+```python
+# 判斷是否需要（重）跑 DRYRUN：
+# 1. DRYRUN 從未完成（not _dryrun_done）
+# 2. 有任何 pre-DRYRUN step 被重建（_dryrun_needs_rerun = True）
+_should_run_dryrun = _dryrun_needs_rerun or not _dryrun_done
+```
+
+若 `_should_run_dryrun = True`，執行：
 
 ```
 用 Skill tool 呼叫 gendoc-gen-dryrun
 等待回傳。
 ```
+
+若 `_should_run_dryrun = False`（DRYRUN 已完成且無 step 重建），跳過 DRYRUN，直接進入 A-4。
 
 DRYRUN 完成後，檢查 `.gendoc-rules/*.json` 是否已生成：
 
@@ -264,8 +306,9 @@ _round_failures = {}  # {round: [step_id, ...]}
 
 ```python
 def _check_step_l1(step):
-    """Layer 1：輸出檔案/目錄是否存在且非空"""
-    return _output_exists(step)  # 復用 A-1 定義的函式
+    """Layer 1：輸出檔案/目錄是否存在且完整（章節數 >= template）"""
+    exists, complete, _ = _output_complete(step)  # 復用 A-1 定義的函式（含 section check）
+    return exists and complete
 
 def _check_step_l2(step):
     """Layer 2：rules.json 品質門檻是否達標
@@ -297,7 +340,10 @@ def _check_step_l2(step):
             break
 
     if not doc_text:
-        # 輸出不是單一 .md（e.g., 目錄型 step）→ 只看 L1
+        # 目錄型輸出（special_skill step）→ 呼叫專屬計量函式
+        sk = step.get('special_skill', '')
+        if os.path.isfile(rules_file):
+            return _check_directory_step(step, rules, sk)
         return True, []
 
     failed_checks = []
@@ -357,6 +403,108 @@ def _count_metric(text: str, key: str) -> int:
         return len(re.findall(r'^## .+', text, re.MULTILINE))
 
     return 0
+
+
+def _check_directory_step(step, rules, special_skill):
+    """驗證目錄型 step（special_skill）是否符合 rules.json 的精確期望值。
+    驗證語義：actual >= expected（精確值是計算基準，多可少不行）。
+    回傳 (passed: bool, details: list[str])
+    """
+    failed = []
+    sk = special_skill.lower() if special_skill else ''
+
+    if 'gendoc-gen-html' in sk or step.get('id', '') == 'HTML':
+        # HTML：計算 docs/*.md 數 vs docs/pages/*.html 數（排除 index.html）
+        expected = rules.get('expected_html_files', 0)
+        actual = len([f for f in _glob.glob('docs/pages/*.html')
+                      if os.path.basename(f) != 'index.html'])
+        if isinstance(expected, int) and expected > 0 and actual < expected:
+            failed.append(f"expected_html_files: 需 ≥{expected}，實際 ={actual}")
+
+    elif 'gendoc-gen-contracts' in sk or step.get('id', '') == 'CONTRACTS':
+        # CONTRACTS：openapi.yaml paths 數 + schemas/*.json 數
+        ec = rules.get('expected_contract_count', 0)
+        es = rules.get('expected_schema_count', 0)
+        # 計算 openapi.yaml 中的 paths entry 數
+        oapi_files = _glob.glob('docs/blueprint/contracts/openapi.yaml') + \
+                     _glob.glob('docs/blueprint/contracts/*.yaml')
+        actual_paths = 0
+        for f in oapi_files:
+            content = open(f, encoding='utf-8', errors='ignore').read()
+            actual_paths += len([l for l in content.split('\n')
+                                 if l.strip() and l.startswith('  /') and ':' in l])
+        actual_schemas = len(_glob.glob('docs/blueprint/contracts/schemas/*.json'))
+        if isinstance(ec, int) and ec > 0 and actual_paths < ec:
+            failed.append(f"expected_contract_count: 需 ≥{ec}，實際 ={actual_paths}")
+        if isinstance(es, int) and es > 0 and actual_schemas < es:
+            failed.append(f"expected_schema_count: 需 ≥{es}，實際 ={actual_schemas}")
+
+    elif 'gendoc-gen-mock' in sk or step.get('id', '') == 'MOCK':
+        # MOCK：main.py @app. decorator 數 + data/*.json 數
+        er = rules.get('expected_mock_route_count', 0)
+        ed = rules.get('expected_mock_data_count', 0)
+        mock_main = 'docs/blueprint/mock/main.py'
+        actual_routes = 0
+        if os.path.isfile(mock_main):
+            content = open(mock_main, encoding='utf-8', errors='ignore').read()
+            actual_routes = len([l for l in content.split('\n') if '@app.' in l])
+        actual_data = len(_glob.glob('docs/blueprint/mock/data/*.json'))
+        if isinstance(er, int) and er > 0 and actual_routes < er:
+            failed.append(f"expected_mock_route_count: 需 ≥{er}，實際 ={actual_routes}")
+        if isinstance(ed, int) and ed > 0 and actual_data < ed:
+            failed.append(f"expected_mock_data_count: 需 ≥{ed}，實際 ={actual_data}")
+
+    elif 'gendoc-gen-prototype' in sk or step.get('id', '') == 'PROTOTYPE':
+        # PROTOTYPE：index.html + prototype.css + prototype.js 必須存在
+        ep = rules.get('expected_screen_count', 0)
+        required_files = ['docs/pages/prototype/index.html',
+                          'docs/pages/prototype/prototype.css',
+                          'docs/pages/prototype/prototype.js']
+        missing = [f for f in required_files if not os.path.isfile(f)]
+        if missing:
+            failed.append(f"prototype 必要檔案缺失：{missing}")
+        if isinstance(ep, int) and ep > 0:
+            # 計算 docs/pages/prototype/ 下 HTML 頁面數（route 數）
+            actual_screens = len(_glob.glob('docs/pages/prototype/**/*.html', recursive=True))
+            if actual_screens < ep:
+                failed.append(f"expected_screen_count: 需 ≥{ep}，實際 ={actual_screens}")
+
+    elif 'gendoc-gen-diagrams' in sk or step.get('id', '') == 'UML':
+        # UML：雙層驗證（type coverage + variable-count）
+        # Layer A：mandatory 單檔 + class 組
+        mandatory = [
+            'docs/diagrams/use-case.md',
+            'docs/diagrams/object-snapshot.md',
+            'docs/diagrams/communication.md',
+            'docs/diagrams/component.md',
+            'docs/diagrams/deployment.md',
+            'docs/diagrams/er-diagram.md',
+            'docs/diagrams/class-domain.md',
+            'docs/diagrams/class-application.md',
+            'docs/diagrams/class-infra-presentation.md',
+        ]
+        missing_mandatory = [f for f in mandatory if not os.path.isfile(f)]
+        if missing_mandatory:
+            failed.append(f"UML mandatory 圖缺失（{len(missing_mandatory)} 個）：{missing_mandatory}")
+        # Layer B：variable-count types
+        seq_exp = rules.get('expected_sequence_count', 0)
+        act_exp = rules.get('expected_activity_count', 0)
+        st_exp  = rules.get('expected_state_count', 0)
+        cls_exp = rules.get('expected_class_files', 3)
+        seq_act = len(_glob.glob('docs/diagrams/sequence-*.md'))
+        act_act = len(_glob.glob('docs/diagrams/activity-*.md'))
+        st_act  = len(_glob.glob('docs/diagrams/state-machine-*.md'))
+        cls_act = len(_glob.glob('docs/diagrams/class-*.md'))
+        if isinstance(seq_exp, int) and seq_exp > 0 and seq_act < seq_exp:
+            failed.append(f"expected_sequence_count: 需 ≥{seq_exp}，實際 ={seq_act}")
+        if isinstance(act_exp, int) and act_exp > 0 and act_act < act_exp:
+            failed.append(f"expected_activity_count: 需 ≥{act_exp}，實際 ={act_act}")
+        if isinstance(st_exp, int) and st_exp > 0 and st_act < st_exp:
+            failed.append(f"expected_state_count: 需 ≥{st_exp}，實際 ={st_act}")
+        if isinstance(cls_exp, int) and cls_exp > 0 and cls_act < cls_exp:
+            failed.append(f"expected_class_files: 需 ≥{cls_exp}，實際 ={cls_act}")
+
+    return (len(failed) == 0), failed
 ```
 
 ### B-2：執行驗證 + 補跑迴圈
@@ -417,10 +565,33 @@ for _round in range(1, _MAX_ROUNDS + 1):
 
 **每個 step 補跑指令（在上面迴圈的「補跑」位置執行）：**
 
-```
-用 Skill tool 呼叫 gendoc-flow，args="--only {sid}"
-等待回傳。
-若 Skill tool 回傳失敗 → 印出 [WARN] {sid} 補跑失敗，繼續下一個 step。
+```python
+# 先從 pipeline 查出此 step 是否為 special_skill
+_step_def = next((s for s in steps if s['id'] == sid), {})
+_special_sk = _step_def.get('special_skill', '')
+
+if _special_sk:
+    # ⚠️ ENFORCEMENT：special_skill step 補跑只允許用 Skill() 呼叫其 special_skill
+    # 禁止使用 Write/Edit/Bash 直接在 output 目錄建立或補充檔案
+    print(f"[Branch B] ▶ {sid} 為 special_skill（{_special_sk}），必須且只能呼叫 Skill(\"{_special_sk}\")")
+    # 用 Skill tool 呼叫 {_special_sk}（不傳 args；各 special_skill skill 自行讀 pipeline）
+    # 等待回傳。
+    # 呼叫返回後：依 pipeline.json output 欄位確認預期路徑是否存在
+    _expected_outputs = _step_def.get('output', [])
+    _output_ok = all(
+        (os.path.isdir(p.rstrip('/')) and os.listdir(p.rstrip('/'))) if p.endswith('/')
+        else (os.path.isfile(p) and os.path.getsize(p) > 0)
+        for p in _expected_outputs
+    ) if _expected_outputs else False
+    if not _output_ok:
+        print(f"[WARN] {sid} Skill 呼叫後輸出路徑仍不存在，不寫入 special_completed，告知使用者需手動介入")
+    # 不得改用 Write/Edit/Bash 補生成
+else:
+    # 標準 step：呼叫 gendoc-flow --only {sid}
+    # 用 Skill tool 呼叫 gendoc-flow，args="--only {sid}"
+    # 等待回傳。
+    # 若 Skill tool 回傳失敗 → 印出 [WARN] {sid} 補跑失敗，繼續下一個 step。
+    pass
 ```
 
 ### B-3：最終驗證 + 報告
