@@ -479,7 +479,16 @@ Match: 0（Match Width — 寬固定，高自動）
 
 ### §9.4 Dark Mode Token Mapping
 
-至少 13 個 semantic token，每個 Token 有 Light + Dark 兩組值（無 hardcode hex），含 WCAG 對比度值。
+**Iron Rule（L2-A）：** 必須以表格格式輸出，至少 13 行，每行含以下所有欄位：
+
+| Token Name | Light 值（OKLCH） | Dark 值（OKLCH） | WCAG AA 對比度（≥4.5:1） | 用途說明 |
+|------------|-------------------|-----------------|--------------------------|---------|
+| `--color-surface` | `oklch(98% 0 0)` | `oklch(12% 0 0)` | 14.5:1 | 頁面底層背景 |
+| `--color-surface-raised` | `oklch(95% 0 0)` | `oklch(18% 0 0)` | 11.2:1 | Card / Modal 背景 |
+| `--color-text-primary` | `oklch(15% 0 0)` | `oklch(92% 0 0)` | 15.8:1 | 正文、標題 |
+| *(依此格式填入其餘 token，至少 13 行)* | | | | |
+
+**禁止**：以散文描述取代表格（例如「文字顏色為深色」）；禁止使用 hardcode hex 值（必須使用 OKLCH 表示）；禁止留空 WCAG 欄位。
 
 ### §6.1.1 Motion Design Spec
 

@@ -338,6 +338,43 @@ export class PetIdleScene extends Phaser.Scene {
 - React：Server State = TanStack Query；Global = Zustand；Form = React Hook Form
 - Vue：Server State = TanStack Query 或 Pinia with fetchData；Global = Pinia；Form = VeeValidate
 
+**Iron Rule（L2-C）— 狀態管理實作細節（三條，缺一不可）：**
+
+**Iron Rule §7.2-A（Zustand slice 型別）：** 每個 Zustand slice 必須輸出完整的 TypeScript 型別範例，包含 state 型別和 actions 型別：
+```typescript
+// 範例（依實際業務域命名）
+interface {Domain}State {
+  items: {DomainItem}[]
+  selectedId: string | null
+  isLoading: boolean
+}
+interface {Domain}Actions {
+  fetchItems: () => Promise<void>
+  selectItem: (id: string) => void
+  reset: () => void
+}
+type {Domain}Store = {Domain}State & {Domain}Actions
+```
+禁止只寫 `const useStore = create(...)` 而不定義 state / actions 型別。
+
+**Iron Rule §7.2-B（TanStack Query queryKey 規範）：** 必須定義 queryKey 階層式命名規範，格式為 `['entity', identifier, 'relation']`，並配合常數定義：
+```typescript
+// queryKey 工廠範例（依實際 entity 命名）
+const {entity}Keys = {
+  all: ['{entity}'] as const,
+  lists: () => [...{entity}Keys.all, 'list'] as const,
+  detail: (id: string) => [...{entity}Keys.all, 'detail', id] as const,
+}
+// staleTime 必須引用 CONSTANTS.md 常數（不得 hardcode）
+staleTime: CACHE_TTL.{ENTITY}_LIST  // 來自 CONSTANTS.md
+```
+禁止使用字串陣列而不定義 queryKey 工廠函式。
+
+**Iron Rule §7.2-C（Token 存儲安全）：** 必須明確說明以下三點：
+1. **存儲位置**：`accessToken` → memory（Zustand）；`refreshToken` → `httpOnly cookie`（server-side set）
+2. **XSS 風險說明**：`localStorage` 存 accessToken 的 XSS 暴露風險，及為何選擇 memory + httpOnly cookie 策略
+3. **Token 過期恢復流程**：`accessToken` 過期 → axios interceptor 捕獲 401 → 自動發送 `POST /auth/refresh`（cookie 自動附帶）→ 成功則重試原請求，失敗則 logout + redirect 到 `/login`
+
 ### §7.3 Cache 與持久化
 
 至少填寫：User Profile（localStorage, Session）和一個業務資料的快取策略。
