@@ -1158,4 +1158,24 @@ d['has_admin_backend'] = True    # 或 False
 
 ---
 
+## §99 執行禁令（AI 行為約束）
+
+> **以下禁令適用於所有 gendoc skill 執行期間。違反任何一條即為架構違規，輸出結果無效。**
+
+### 禁令 R2：禁止在目標專案建立 `templates/pipeline.json`
+
+**在任何 skill 執行過程中，禁止以任何形式在目標專案的 `templates/` 目錄下建立或寫入 `pipeline.json`。**
+
+禁止的操作包括但不限於：
+- `cp ~/.claude/.../pipeline.json templates/pipeline.json`
+- `json.dump(pipeline, open('templates/pipeline.json', 'w'))`
+- Write tool 寫入 `templates/pipeline.json`
+- `echo '...' > templates/pipeline.json`
+
+**正確做法：** 若需要讀取 pipeline.json，只能從 `$GENDOC_TEMPLATES/pipeline.json` 讀取（runtime 位置），不得在目標專案複製或新建。
+
+Local-first 查找邏輯（若目標專案 `templates/pipeline.json` 存在，代表使用者自行放置的合法客製化，只讀不寫）是合法的。**skill 不得主動建立此檔案。**
+
+---
+
 *此參考文件由 gendoc 維護，如有邏輯更新請同步更新所有引用此文件的 SKILL.md。*
