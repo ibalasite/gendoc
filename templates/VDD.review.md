@@ -113,7 +113,7 @@ upstream-alignment:
 - 圖示庫來源（自製 / 採用 Phosphor / Heroicons 等，附版本）
 若非遊戲類但完全缺少此章節視為 HIGH。若為遊戲類，此項標注為 N/A 並跳過。
 **Risk**: 插圖和圖示風格未定義，設計師和前端工程師在各頁面混用不同風格的圖示（有些線條粗細 1px、有些 2px；有些 Sharp Corner、有些 Round），造成介面視覺噪音，品牌精緻感下降。
-**Fix**: 補充 §7 Illustration & Icon Style 規格，明確指定圖示庫（附版本號）和圖示 Grid 規格；若使用自製圖示，附設計 Grid 原型（Figma 連結）。
+**Fix**: 補充 §7 Illustration & Icon Style 規格，明確指定圖示庫（附版本號）和圖示 Grid 規格；若使用自製圖示，附設計 Grid 文字描述（Stroke 寬度、圓角規則、基礎 Grid 尺寸）。
 
 #### [MEDIUM] 9 — 情感色調映射缺失
 **Check**: §2.3 Emotional Tone Mapping 是否存在？是否為主要品牌情感（如「信任感 / 活力 / 精確性」）映射出對應的視覺決策（顏色選擇邏輯、形狀圓角決策、字體選擇理由）？完全缺失此章節視為 MEDIUM。
@@ -152,18 +152,19 @@ upstream-alignment:
 - **紋理 / 背景圖片**：格式（WebP 或 AVIF）、最大檔案大小上限
 缺少任一類資產的匯出規格視為 HIGH。
 **Risk**: 資產匯出規格缺失，前端工程師和設計師各自決定格式（混用 PNG / SVG / JPEG），導致檔案過大或解析度不足；圖示未統一尺寸造成對齊問題；無命名規則使 Asset 管理混亂。
-**Fix**: 補充 §9.1 Asset Export Specifications，為每類資產定義格式、解析度、命名規則、優化工具和最大檔案大小上限；提供 Figma Export 設定截圖或說明。
+**Fix**: 補充 §9.1 Asset Export Specifications，為每類資產定義格式、解析度、命名規則、優化工具和最大檔案大小上限；以 `public/assets/` 路徑清單取代截圖說明。
 
-#### [HIGH] 14 — Figma → Code 交付清單缺失
-**Check**: §10 Design Handoff 是否包含以下清單？
-- Figma 設計稿連結（File URL + 各 Frame / Component 的直連 Link）
-- Auto Layout 使用狀態確認（所有元件是否已使用 Auto Layout，防止 fixed 尺寸問題）
-- Component Properties 設定說明（Variants、Interactive Components 配置）
-- Redline 規格確認方法（Figma Dev Mode 或 Zeplin 等工具的交付方式）
-- 已知偏差說明（設計稿與最終實作的已知差異點）
-完全缺少 §10 章節視為 HIGH。
-**Risk**: 交付清單缺失，前端工程師在實作過程中不知從哪個 Figma 版本取用規格，可能引用過舊的設計稿導致實作偏差；Auto Layout 未設定造成前端測量尺寸錯誤，反覆對稿浪費時間。
-**Fix**: 補充 §10 Design Handoff Checklist，提供 Figma File URL 和所有 P0 元件的 Frame 直連 Link；確認 Auto Layout 狀態並在文件中明確標注。
+#### [HIGH] 14 — Design Token → Code 交付清單缺失
+**Check**: §7 Asset Pipeline item 3（Design Token → Code 交付規格）是否包含以下清單？
+- Token 來源路徑（`src/tokens/` 目錄結構）
+- CSS 輸出路徑（`tokens.css` 生成路徑）
+- Token 名稱 = CSS 自訂屬性 = 元件 class 命名一致性規則
+- 素材輸出格式與 `public/assets/` 路徑清單
+- Token 更新後的同步流程（Style Dictionary build → commit tokens.css）
+- 已知實作偏差說明（設計規格與最終實作的已知差異點）
+完全缺少 §7 Design Token → Code 交付規格視為 HIGH。
+**Risk**: 交付清單缺失，前端工程師無法確認 Token 值來源，CSS 變數命名可能與 Token 定義脫節，導致樣式不一致。
+**Fix**: 補充 §7 Asset Pipeline 的 Design Token → Code 交付規格；提供 Token 來源路徑、CSS 輸出路徑、命名對齊規則；確認素材路徑清單完整。
 
 #### [HIGH] 15 — 響應式視覺行為規則未定義
 **Check**: §6.3 Responsive Visual Behavior 是否定義以下內容？
@@ -213,7 +214,7 @@ upstream-alignment:
 - 禁止使用方式（禁止拉伸 / 扭曲 / 修改顏色 / 添加效果，附禁止示例）
 缺少任一維度視為 MEDIUM。
 **Risk**: Logo 使用規範不完整，外部設計師或行銷人員在社群素材、投影片、廣告中各自修改 Logo（調整顏色、加陰影、壓縮比例），累積性地侵蝕品牌識別完整性。
-**Fix**: 補充 §2.2 完整 Logo Usage Guidelines，提供 SVG 主版 + PNG 備用版 + 各顏色版本的 Figma 連結；明確標注 Safe Zone 尺寸和最小使用尺寸。
+**Fix**: 補充 §2.2 完整 Logo Usage Guidelines，提供 SVG 主版 + PNG 備用版 + 各顏色版本的檔案路徑（`public/assets/logo/`）；明確標注 Safe Zone 尺寸和最小使用尺寸。
 
 #### [MEDIUM] 20 — 文件控制資訊不完整
 **Check**: VDD 的 Document Control 區塊是否填寫以下所有欄位？
@@ -236,7 +237,7 @@ upstream-alignment:
 **Fix**: 補充 §11 Brand Extension 基本規則，至少定義 2 個未來延伸場景的視覺規則；若目前無子品牌計畫，標注「未來擴展時需更新此章節」並提供空白框架。
 
 #### [LOW] 22 — 裸 Placeholder 掃描（全文）
-**Check**: 掃描 VDD 全文中所有 `{{PLACEHOLDER}}` 格式的未替換字串。重點掃描章節：§1.1（Brand Positioning）、§2.1（Moodboard 連結）、§3（色彩 HEX 值）、§4（字體名稱）、§5（Token 值）、§9（Figma Asset 連結）、Document Control（版本 / 作者 / 日期）。列出所有裸 placeholder 的位置（章節 + 欄位名稱）和數量。
+**Check**: 掃描 VDD 全文中所有 `{{PLACEHOLDER}}` 格式的未替換字串。重點掃描章節：§1.1（Brand Positioning）、§2.1（Moodboard 連結）、§3（色彩 HEX 值）、§4（字體名稱）、§5（Token 值）、§7（Asset 路徑）、Document Control（版本 / 作者 / 日期）。列出所有裸 placeholder 的位置（章節 + 欄位名稱）和數量。
 **Risk**: 含裸 placeholder 的 VDD 無法作為工程實作依據，前端工程師需人工追問設計師每個空白欄位的真實值，失去文件作為「單一事實來源」的核心價值；VDD 的可信度在工程團隊中下降，未來更新難以推動。
 **Fix**: 對每個裸 placeholder，依上游文件（PRD / PDD / BRD）推斷並填入真實值；若確實無法確定，改為 `（待確認：[說明待確認的原因]）` 格式，不得保留機器格式的 `{{PLACEHOLDER}}`。若裸 placeholder 發現於 §3 色彩值或 §5 Token 值，該 placeholder 應同時標注為 CRITICAL（觸發 Item 1 或 Item 12），不得僅記錄為 LOW。
 

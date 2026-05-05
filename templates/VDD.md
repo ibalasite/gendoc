@@ -32,7 +32,7 @@
 | **上游 PDD** | [PDD.md](PDD.md)（UX / Interaction Design） |
 | **下游 EDD** | [EDD.md](EDD.md)（Tech Spec） |
 | **下游 FRONTEND** | [FRONTEND.md](FRONTEND.md)（前端實作） |
-| **設計稿（Figma）** | {{FIGMA_LINK}} |
+| **設計規格版本** | {{DESIGN_SPEC_VERSION}} |
 | **品牌指南** | {{BRAND_GUIDE_LINK}} |
 | **審閱者** | {{ART_DIRECTOR}}, {{PM}}, {{ENGINEERING_LEAD}} |
 | **核准者** | {{DESIGN_LEAD}} |
@@ -406,10 +406,10 @@
 | **色彩限制** | 使用品牌主色盤（§3.1），最多 **5 種色彩**（含黑、白、透明背景）|
 
 **插畫色彩限制詳細規則：**
-- **預設上限：5 種填色**（不含透明 / `none` 填色）。計算方式：在 Figma 中開啟插畫 Frame，於右側 Design 面板「Selection colors」中確認唯一填色數量 ≤ 5。
+- **預設上限：5 種填色**（不含透明 / `none` 填色）。計算方式：確認插畫中唯一填色數量 ≤ 5。
 - **漸層計算：** 單一線性或放射漸層算作 **1 種色彩**，漸層的起止色必須來自 §3.1 品牌主色盤 Token（不得使用任意色）。
 - **品牌色盤對齊：** 所有填色必須完全對應 §3.1 定義的 Token 值（Hex 精確匹配）；禁止使用主色盤以外的自由色。
-- **Figma 驗證步驟：** ① 選取插畫頂層 Frame → ② 查看右側「Fill」清單 → ③ 確認所有色票均出現在 Figma Variables / Local styles 中且命名對應品牌 Token。
+- **驗證方式：** 確認插畫所有色票均對應 §3.1 定義的 Token 名稱（kebab-case 命名，Hex 精確匹配）。
 
 ---
 
@@ -774,7 +774,7 @@
 | Android XML | Android 原生 | `res/values/design_tokens.xml` |
 | iOS Swift | iOS 原生 | `DesignTokens.swift` |
 
-**Token 管理工具：** {{TOKEN_TOOL}}（e.g. Style Dictionary / Token Studio for Figma）
+**Token 管理工具：** {{TOKEN_TOOL}}（e.g. Style Dictionary / Amazon Style Dictionary / custom scripts）
 
 **Style Dictionary 最小配置（`config.json`）：**
 
@@ -919,33 +919,34 @@
 - Hero 圖片必須提供 `srcset`（320w / 768w / 1280w / 1920w）
 - 使用 `<picture>` 元素提供 AVIF + WebP + JPEG 多格式降級
 
-### 7.4 Figma → Code 交付規範（Figma-to-Code Handoff）
+### 7.4 Design Token → Code 交付規範（Design-to-Code Handoff）
 
 **交付流程：**
 
-1. 設計稿在 Figma 中標記為 `READY FOR DEV`
-2. 工程師使用 Figma Dev Mode 查看規格
-3. 所有可匯出資產在 Figma 中設定 Export 格式
-4. Token 透過 Token Studio 插件同步至程式碼庫
+1. VDD 中所有 Design Token 已定義至 `src/tokens/` 目錄下的 JSON/YAML（Style Dictionary 格式）
+2. 執行 Style Dictionary build，生成 `src/styles/tokens.css`（CSS 自訂屬性）和 `src/lib/tokens.ts`（TypeScript 型別）
+3. 可匯出資產已輸出至 `public/assets/`，並在 §7.1-7.3 中標注路徑和格式要求
+4. CI 驗證 Token JSON → CSS 的一致性，發現漂移即阻塞 PR
 
-**Figma 圖層命名規範：**
+**資產命名規範：**
 
 ```
-頁面層級：  [Page] {ScreenName}/{BreakpointName}
-Frame 層級：[Frame] {ComponentName}/{VariantName}/{State}
-元件層級：  [Component] {ComponentName}/{SubComponent}
-匯出資產：  [Export] {AssetName}@{Density}
+Token 名稱：  kebab-case（e.g. color-primary-500, shadow-card-default）
+CSS 變數：    --{token-name}（e.g. --color-primary-500）
+Icon 檔案：   {icon-name}.svg（e.g. arrow-right.svg）
+插畫檔案：    {illustration-name}.svg（e.g. empty-state-search.svg）
+圖片資產：    {asset-name}@{density}.{ext}（e.g. hero-banner@2x.webp）
 ```
 
 **交付檢查清單：**
 
 - [ ] 所有元件均有完整的互動狀態（Default / Hover / Focus / Active / Disabled）
-- [ ] 所有 Design Token 已在 Figma Variables 中定義且與程式碼同步
-- [ ] 圖示已加入 Figma Component Library 並設定 SVG Export
-- [ ] 所有圖片已標注尺寸規格和格式要求
-- [ ] 動效規格（timing / easing）已在 Figma Prototype 或說明欄中標注
-- [ ] 無障礙注釋（Accessibility Annotation）Plugin 標注已完成
-- [ ] 響應式 Frame 已涵蓋所有需要的 Breakpoint
+- [ ] 所有 Design Token 已定義在 `src/tokens/` 並通過 Style Dictionary build
+- [ ] 圖示已匯出至 `src/assets/icons/` 並設定 SVG Export 格式
+- [ ] 所有圖片已標注尺寸規格和格式要求（§7.3）
+- [ ] 動效規格（timing / easing）已在 §6.3 動效 Token 中標注
+- [ ] 無障礙注釋（Accessibility Annotation）已完成（§9）
+- [ ] 響應式規格已涵蓋所有需要的 Breakpoint（§5.3）
 
 ---
 
@@ -990,8 +991,6 @@ Frame 層級：[Frame] {ComponentName}/{VariantName}/{State}
 | 主要 CTA | 40px 高 / primary-500 背景 | `button-primary-bg` | 視覺重量最高 |
 | 卡片 | 12px 圓角 / shadow-sm | `card-radius`, `card-shadow` | 柔和邊角符合品牌調性 |
 
-**Figma 連結：** {{FIGMA_FRAME_LINK_1}}
-
 ---
 
 ### 8.2 {{SCREEN_NAME_2}}（{{SCREEN_FUNCTION_2}}）
@@ -1034,8 +1033,6 @@ Frame 層級：[Frame] {ComponentName}/{VariantName}/{State}
 | 側邊欄背景 | neutral-50 | `color-surface-raised` | 低對比區分功能區 |
 | 互動按鈕 | 40px 高 / primary-500 | `button-primary-bg`, `button-radius` | 主要操作視覺重量最高 |
 | 輸入框 | 1px neutral-300 邊框 / input-radius | `input-border-default`, `input-radius` | 收斂的表單視覺風格 |
-
-**Figma 連結：** {{FIGMA_FRAME_LINK_2}}
 
 ---
 
@@ -1118,7 +1115,7 @@ Frame 層級：[Frame] {ComponentName}/{VariantName}/{State}
 | 階段 | 工具 | 標準 | 時機 |
 |------|------|------|------|
 | 像素比對 | Playwright 截圖 / Percy | 關鍵畫面無視覺回歸 | 每次 PR |
-| Design Token 驗證 | Style Dictionary CI | Token 值與 Figma 100% 一致 | 每次 Token 更新 |
+| Design Token 驗證 | Style Dictionary CI | Token JSON 與生成的 CSS 100% 一致 | 每次 Token 更新 |
 | 色彩對比度 | axe-core / Lighthouse | 全部 AA 合規 | 每次 PR |
 | 響應式驗證 | Playwright 多 Viewport | 320 / 768 / 1024 / 1440 截圖 | 每次 PR |
 | 動效驗證 | 手動 + `prefers-reduced-motion` | 所有動畫有降級方案 | Sprint Review |
@@ -1128,16 +1125,16 @@ Frame 層級：[Frame] {ComponentName}/{VariantName}/{State}
 - [ ] Logo SVG（主版、深色版、符號版）已交付
 - [ ] 圖示庫 SVG 已匯出至 `src/assets/icons/`
 - [ ] 插畫 SVG / WebP 已匯出至 `src/assets/illustrations/`
-- [ ] 所有 Design Token 已同步至程式碼（CSS / JSON / TS）
+- [ ] 所有 Design Token 已同步至程式碼（CSS / JSON / TS），Style Dictionary build 通過
 - [ ] 字型檔案（`.woff2`）已放置至 `public/fonts/`
-- [ ] Figma 圖層命名符合交付規範（§7.4）
-- [ ] 所有畫面已標記 `READY FOR DEV`
+- [ ] 資產命名符合 §7.4 交付規範（kebab-case）
+- [ ] §7.4 Engineering Handoff Checklist 所有項目已完成
 
 ### 11.3 設計→工程溝通協議
 
 - 視覺設計變更在進入 Sprint 後需 Art Director + PM 雙重確認
-- 工程師若發現視覺偏差，在 Figma 開 Comment 並 @{{VISUAL_DESIGNER}} 於 {{N}} 個工作日內回應
-- 新增 / 修改 Design Token 必須同時更新 Figma Variables 和程式碼
+- 工程師若發現視覺偏差，開 issue 標注問題並 @{{VISUAL_DESIGNER}}，於 {{N}} 個工作日內回應
+- 新增 / 修改 Design Token 必須同時更新 `src/tokens/` 的 Token 定義和執行 Style Dictionary build
 - 資產命名不符規範時，工程師有權退回並要求重新命名
 
 ### 11.4 VDD → FRONTEND.md 交叉對照（VDD → FRONTEND Cross-Reference）
@@ -1162,7 +1159,7 @@ Frame 層級：[Frame] {ComponentName}/{VariantName}/{State}
 | §6.4 | Token 輸出格式（CSS / JSON / TS、Style Dictionary）| FRONTEND §2（Build Pipeline / Token Generation）|
 | §7.1 | 資產類型與格式規範 | FRONTEND §7（Asset Formats / Image Optimization）|
 | §7.3 | 圖片規格（loading、fetchpriority、srcset）| FRONTEND §7（Image Component / Performance）|
-| §7.4 | Figma → Code 交付規範 | FRONTEND §1（Project Setup / Design Handoff Process）|
+| §7.4 | Design Token → Code 交付規範 | FRONTEND §1（Project Setup / Design Handoff Process）|
 | §9 | 無障礙與包容性設計（WCAG 合規矩陣）| FRONTEND §9（Accessibility Implementation）|
 | §11.1 | 視覺 QA 流程 | FRONTEND §10（QA / Testing — Visual Regression）|
 
@@ -1174,8 +1171,6 @@ Frame 層級：[Frame] {ComponentName}/{VariantName}/{State}
 - PRD（產品需求）：[PRD.md](PRD.md)
 - EDD（工程設計）：[EDD.md](EDD.md)
 - FRONTEND（前端實作）：[FRONTEND.md](FRONTEND.md)
-- Figma 設計稿：{{FIGMA_LINK}}
-- Figma 元件庫：{{FIGMA_COMPONENT_LIBRARY_LINK}}
 - 品牌指南：{{BRAND_GUIDE_LINK}}
 - Mood Board：{{MOODBOARD_LINK}}
 - W3C Design Tokens 規範：https://www.w3.org/community/design-tokens/

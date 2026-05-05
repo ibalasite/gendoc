@@ -31,7 +31,7 @@
 | **日期** | {{DATE}} |
 | **上游 PRD** | [PRD.md](PRD.md) |
 | **下游 EDD** | [EDD.md](EDD.md)（Tech Spec） |
-| **設計稿（Figma）** | {{FIGMA_LINK}} |
+| **設計規格版本** | {{DESIGN_SPEC_VERSION}} |
 | **審閱者** | {{PM}}, {{ENGINEERING_LEAD}}, {{QA_LEAD}} |
 | **核准者** | {{DESIGN_LEAD}} |
 
@@ -300,8 +300,6 @@ flowchart TD
 | 下拉刷新 | 重新載入資料 | Spinner | 直到完成 |
 | 左滑 {{ITEM}} | 顯示刪除操作 | Reveal | 200ms |
 
-**Figma 連結：** {{FIGMA_FRAME_LINK}}
-
 ---
 
 ### 5.2 {{SCREEN_NAME_2}}
@@ -514,7 +512,7 @@ flowchart TD
 |----------|:---:|---------|---------|---------|:---:|
 | 1.1.1 非文字內容 | AA | 所有圖片/圖示有 alt 或 aria-label | `<img alt="...">` / `aria-label` | axe-core | M |
 | 1.3.1 資訊與關係 | AA | 語意化 HTML，heading 層次正確 | `<h1>→<h2>→<h3>` 不跳層 | Screen Reader | M |
-| 1.4.3 對比度（文字）| AA | 正文 ≥ 4.5:1，大字 ≥ 3:1 | 設計時用 Colour Contrast Analyser 驗證 | axe-core / Figma Plugin | M |
+| 1.4.3 對比度（文字）| AA | 正文 ≥ 4.5:1，大字 ≥ 3:1 | 設計時用 Colour Contrast Analyser 驗證 | axe-core / axe DevTools | M |
 | 1.4.11 對比度（UI 元件）| AA | 按鈕邊框、輸入框邊框 ≥ 3:1 | 設計 Token 中明確指定 Border Color | 手動測試 | M |
 | 2.1.1 鍵盤操作 | AA | 所有功能可以純鍵盤操作 | Tab 導覽順序、Enter/Space 觸發 | 手動測試（無滑鼠）| M |
 | 2.4.3 焦點順序 | AA | Tab 順序符合視覺閱讀流程 | DOM 順序與視覺一致，避免 tabindex > 0 | 手動測試 | M |
@@ -523,14 +521,14 @@ flowchart TD
 | 3.3.2 標籤或說明 | AA | 表單欄位有明確標籤 | `<label for="id">` 或 `aria-label` | axe-core | M |
 | 4.1.2 名稱、角色、值 | AA | 自訂元件有 ARIA role/state | `role="button"` / `aria-expanded` 等 | axe-core + Screen Reader | M |
 | 1.4.4 調整文字大小 | AA | 放大至 200% 不遺失功能 | CSS 使用 `rem`/`em`，無 overflow | 瀏覽器 200% 縮放測試 | R |
-| 2.5.5 觸控目標大小 | AA | 可點擊目標 ≥ 44×44px | CSS min-width/min-height | Figma 測量 | R |
+| 2.5.5 觸控目標大小 | AA | 可點擊目標 ≥ 44×44px | CSS min-width/min-height | CSS 手動測量 | R |
 
 *M = 強制（上線前必須通過）；R = 建議（最佳實踐）*
 
 **無障礙測試工具清單：**
 - 自動化：axe-core（整合至 CI）、Lighthouse Accessibility Score（目標 ≥ 95）
 - 輔助技術：NVDA（Windows）/ VoiceOver（macOS）/ TalkBack（Android）
-- 顏色：Colour Contrast Analyser、Figma Contrast Plugin
+- 顏色：Colour Contrast Analyser、axe DevTools
 - 人工測試：鍵盤操作（無滑鼠全程測試）、縮放至 200%
 
 ---
@@ -545,15 +543,15 @@ flowchart TD
 
 ### 9.2 本次新增 / 修改的元件
 
-| 元件名稱 | 類型 | 狀態 | 說明 | Figma |
-|---------|------|------|------|-------|
-| {{COMPONENT_1}} | New | 新建 | {{DESCRIPTION}} | {{LINK}} |
-| {{COMPONENT_2}} | Modified | 修改現有 | {{CHANGE}} | {{LINK}} |
+| 元件名稱 | 類型 | 狀態 | 說明 | 狀態數 |
+|---------|------|------|------|--------|
+| {{COMPONENT_1}} | New | 新建 | {{DESCRIPTION}} | {{N}} 態 |
+| {{COMPONENT_2}} | Modified | 修改現有 | {{CHANGE}} | {{N}} 態 |
 
 ### 9.3 Design Tokens（設計變數）
 
 **Design Token 三層架構：**
-<!-- 遵循 W3C Design Tokens 社群規範與 Figma Variables 三層設計，確保語意清晰、易於主題切換 -->
+<!-- 遵循 W3C Design Tokens 社群規範，確保語意清晰、易於主題切換 -->
 
 **Layer 1 — Primitive Tokens（原始值）**
 > 定義系統中所有原子值，不帶語意含義，僅描述「是什麼」
@@ -1293,8 +1291,8 @@ Cocos Creator 使用 TypeScript 搭配 `@ccclass` decorator 宣告元件，以 `
 | 類型 | 工具 | 連結 | 對應流程 |
 |------|------|------|---------|
 | Low-fidelity Wireframe | {{TOOL}} | {{LINK}} | §4.1 主流程 |
-| High-fidelity Prototype | Figma | {{LINK}} | §4.1, 4.2 |
-| Interactive Prototype | Figma / Framer | {{LINK}} | §4.1 完整互動 |
+| High-fidelity Prototype | {{TOOL}} | {{LINK}} | §4.1, 4.2 |
+| Interactive Prototype | {{TOOL}} | {{LINK}} | §4.1 完整互動 |
 
 ### 11.2 設計驗證計畫
 
@@ -1317,7 +1315,7 @@ Cocos Creator 使用 TypeScript 搭配 `@ccclass` decorator 宣告元件，以 `
 
 ## 13. Engineering Handoff Specification
 
-### 13.1 開發前確認清單（Figma Handoff Checklist）
+### 13.1 開發前確認清單（Engineering Handoff Checklist）
 
 - [ ] 所有畫面均有完整的 4 種狀態（Default / Hover / Focus / Disabled）
 - [ ] 所有錯誤狀態畫面已設計
@@ -1332,15 +1330,15 @@ Cocos Creator 使用 TypeScript 搭配 `@ccclass` decorator 宣告元件，以 `
 
 ### 13.2 元件交付規格
 
-| 元件 | Figma Frame | 狀態數量 | 對應開發組件 | 備注 |
-|------|------------|---------|------------|------|
-| {{COMPONENT_1}} | {{LINK}} | {{N}} 態 | {{DEV_COMPONENT}} | |
-| {{COMPONENT_2}} | {{LINK}} | {{N}} 態 | {{DEV_COMPONENT}} | |
+| 元件 | 狀態數量 | 對應開發組件 | CSS Token 參照 | 備注 |
+|------|---------|------------|--------------|------|
+| {{COMPONENT_1}} | {{N}} 態 | {{DEV_COMPONENT}} | `{{TOKEN_NAME}}` | |
+| {{COMPONENT_2}} | {{N}} 態 | {{DEV_COMPONENT}} | `{{TOKEN_NAME}}` | |
 
 ### 13.3 設計→工程溝通協議
 
 - 設計稿進入 READY FOR DEV 狀態前，必須通過設計主管 review
-- 工程師發現設計缺漏時，開 Figma Comment 標注，@{{DESIGNER_NAME}} 在 {{N}} 個工作日內回應
+- 工程師發現設計缺漏時，開 issue 標注問題並 @{{DESIGNER_NAME}}，在 {{N}} 個工作日內回應
 - 設計變更在進入 Sprint 後需 PM + Tech Lead 雙重確認
 
 ### 13.4 Usability Testing Protocol
@@ -1385,7 +1383,6 @@ Cocos Creator 使用 TypeScript 搭配 `@ccclass` decorator 宣告元件，以 `
 
 - PRD：[PRD.md](PRD.md)
 - BRD：[BRD.md](BRD.md)
-- Figma Design File：{{LINK}}
 - Design System：{{LINK}}
 - 用戶研究報告：{{LINK}}
 - 競品體驗分析：{{LINK}}

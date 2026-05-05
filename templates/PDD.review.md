@@ -147,7 +147,7 @@ upstream-alignment:
 #### [HIGH] 17 — 色彩對比度未驗證
 **Check**: §9.3 / §9.4 中 Primary/Secondary 文字色與背景色的對比度數值是否有明確記錄？正文是否達 WCAG AA 標準（4.5:1）、大字（18px+）是否達 3:1？UI 元件邊框（按鈕邊框、輸入框邊框）是否達 3:1（WCAG 1.4.11）？未提供對比度數值視為 HIGH finding。
 **Risk**: 對比度不足影響視障和低視力用戶閱讀；在 Dark Mode 下對比度問題尤為常見（設計師在 Light Mode 下驗證後未重新驗算 Dark Mode）。
-**Fix**: 使用 WCAG 對比度工具（WebAIM Contrast Checker / Figma Contrast Plugin）逐一驗算，在 §9.4 Dark Mode Token 表格的 WCAG 對比度欄位填入實際計算值；不達標的 Token 值需調整。
+**Fix**: 使用 WCAG 對比度工具（WebAIM Contrast Checker / axe DevTools）逐一驗算，在 §9.4 Dark Mode Token 表格的 WCAG 對比度欄位填入實際計算值；不達標的 Token 值需調整。
 
 #### [MEDIUM] 18 — Responsive 關鍵元件行為缺漏
 **Check**: §7.2 是否覆蓋所有 P0 Screen 的關鍵元件在三種尺寸（Mobile / Tablet / Desktop）的響應行為？特別檢查：導覽（Tab Bar / Drawer / Side Nav 的切換邏輯）、Modal（Bottom Sheet vs 對話框）、表格（卡片式 vs 完整表格）三類元件。
@@ -164,14 +164,14 @@ upstream-alignment:
 **Fix**: 逐一修正語法錯誤；節點 ID 只使用英數字和底線；帶空格或特殊字元的標籤使用引號包裹；Mermaid Live Editor 驗證後再提交。
 
 #### [MEDIUM] 20 — 裸 Placeholder
-**Check**: 是否有 `{{PLACEHOLDER}}` 格式未替換的空白佔位符？重點掃描：§Document Control（DOC-ID / Figma 連結 / 審閱者）、§9.3 Token 的 `#{{HEX}}` 值、§5 Screen 的 `{{COMPONENT_1}}`、§13.2 元件交付規格的 `{{LINK}}`。
-**Risk**: 裸 placeholder 留存，前端工程師無法確認文件的完整性，需要人工追問設計師；Figma 連結缺失是最常見的阻塞問題，前端無法取得精確尺寸和 Export 素材。
-**Fix**: 替換所有裸 placeholder 為真實值；Figma 連結必須在文件 APPROVED 前填入；若暫時無法確定，改為 `（待確認：描述說明）` 格式。
+**Check**: 是否有 `{{PLACEHOLDER}}` 格式未替換的空白佔位符？重點掃描：§Document Control（DOC-ID / 設計規格版本 / 審閱者）、§9.3 Token 的 `#{{HEX}}` 值、§5 Screen 的 `{{COMPONENT_1}}`、§13.2 元件交付規格的 `{{LINK}}`、§13.4 Usability Testing Protocol 的 `{{TEST_OBJECTIVE}}`。
+**Risk**: 裸 placeholder 留存，前端工程師無法確認文件的完整性，需要人工追問 PM 或設計決策方；Token 值缺失是最常見的阻塞問題，前端無法建構 CSS 變數系統。
+**Fix**: 替換所有裸 placeholder 為真實值；若暫時無法確定，改為 `（待確認：描述說明）` 格式；嚴禁以空字串或 `N/A` 代替有意義欄位。
 
-#### [LOW] 21 — 設計稿連結缺失
-**Check**: §Document Control 中的 Figma 設計稿連結是否填寫？§5 各 Screen Spec 末尾的 Figma Frame 連結是否填寫（`{{FIGMA_FRAME_LINK}}`）？§13.2 元件交付規格的 Figma 連結是否填寫？
-**Risk**: 設計稿連結缺失，前端工程師在實作細節（間距、字型大小、陰影、圖示尺寸）時無法自助查閱，需要反覆詢問設計師，降低工程自主性和交付效率。
-**Fix**: 補充 §Document Control 中的 Figma File URL；在 §5 每個 Screen 末尾加入對應 Frame 的直連 Figma 連結；§13.2 元件交付規格填入各元件的 Figma Frame 連結。
+#### [LOW] 21 — Component 狀態規格完整性缺失
+**Check**: §13.2 元件交付規格是否列出所有互動元件？每個元件的狀態數量是否 ≥ 4（Default / Hover / Focus / Disabled）？§5 各 Screen Spec 是否有每個 P0 畫面的 stateDiagram 或狀態清單？
+**Risk**: 狀態規格不完整，前端工程師無法確認哪些狀態需要實作，導致 Hover、Disabled 等狀態在實作時被遺漏或各自發揮，造成不一致的視覺體驗。
+**Fix**: 補充 §13.2 所有互動元件的狀態清單（≥ 4 種狀態）；在 §5 每個 P0 畫面末尾加入 Mermaid stateDiagram；確保 §13.1 Engineering Handoff Checklist 的所有 checkbox 均已勾選或說明不適用。
 
 ---
 

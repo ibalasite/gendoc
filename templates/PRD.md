@@ -610,7 +610,7 @@ stateDiagram-v2
 - BRD：[BRD.md](BRD.md)
 - 競品分析：{{LINK}}
 - 用戶研究報告：{{LINK}}
-- 設計稿（Figma）：{{LINK}}
+- 設計規格：{{LINK}}
 - Analytics Dashboard：{{LINK}}
 
 ---

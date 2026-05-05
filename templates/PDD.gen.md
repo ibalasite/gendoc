@@ -6,7 +6,7 @@ upstream-docs:
   - docs/IDEA.md
   - docs/BRD.md
   - docs/PRD.md
-quality-bar: "含 User Personas（≥2 個）、User Journey Map（5 階段）、JTBD（3 類）、Service Blueprint、WCAG 2.1 AA 合規矩陣（12 準則）、Dark Mode Token Mapping（≥13 tokens）、Motion Design Spec（easing 函數 + prefers-reduced-motion）、Engineering Handoff Checklist（含 Figma link + ≥4 states per interactive component）、Design Token 三層架構；所有章節均需有具體內容，不得留空或填 placeholder。"
+quality-bar: "含 User Personas（≥2 個）、User Journey Map（5 階段）、JTBD（3 類）、Service Blueprint、WCAG 2.1 AA 合規矩陣（12 準則）、Dark Mode Token Mapping（≥13 tokens）、Motion Design Spec（easing 函數 + prefers-reduced-motion）、Engineering Handoff Checklist（Component 狀態規格表 ≥4 states per interactive component + 畫面狀態轉換圖覆蓋所有 P0 畫面）、Design Token 三層架構；所有章節均需有具體內容，不得留空或填 placeholder。"
 ---
 
 # PDD 生成規則
@@ -79,7 +79,7 @@ Document Control + Platform Scope Declaration 之後，依序包含：
 - §10 Copy & Content Design（§10.1 Tone of Voice + §10.2 關鍵文案清單 + §10.3 i18n 字串清單）
 - §11 Prototype & Validation Plan（§11.1 Prototype 連結 + §11.2 設計驗證計畫）
 - §12 Open Questions（設計待解問題）
-- §13 Engineering Handoff Specification（Figma Handoff Checklist + Usability Testing Protocol）
+- §13 Engineering Handoff Specification（Component State Spec + Screen State Diagram + Usability Testing Protocol）
 - §14 References（含效能預算 Core Web Vitals 目標：LCP/INP/CLS + JS Bundle Budget）
 - §15 Approval Sign-off（Design Lead + PM + Engineering Lead 簽核表）
 - Appendix：BDD 連結、Screen Inventory
@@ -251,7 +251,7 @@ Border Radius / Shadow / Transition Duration
 - JS Bundle < 300kb gzipped
 - 圖片最大尺寸 / format（AVIF / WebP）
 
-**References**：列出設計參考來源（Figma link、設計規範、競品分析報告等）。
+**References**：列出設計參考來源（競品截圖、設計規範連結、線稿描述、競品分析報告等；以文字描述或連結呈現，不要求任何特定工具的連結格式）。
 
 ### §13 Engineering Handoff Specification
 
@@ -520,7 +520,7 @@ Match: 0（Match Width — 寬固定，高自動）
 - [ ] §10 Copy & Content Design：Tone of Voice（§10.1）+ 關鍵文案清單（§10.2）+ i18n 字串清單（§10.3）是否已生成？
 - [ ] §11 Prototype & Validation Plan：Prototype 連結（§11.1）+ 設計驗證計畫（§11.2）是否已填寫？
 - [ ] §12 Open Questions：設計待解問題是否已列出？
-- [ ] §13 Engineering Handoff Checklist：包含 Figma link、Component 狀態數（≥4 states per interactive component）
+- [ ] §13 Engineering Handoff Checklist：Component 狀態規格表（≥4 states per interactive component，每格填具體 CSS Token）；畫面狀態轉換圖（每個 P0 畫面一張 stateDiagram）
 - [ ] §13 Design QA 驗收標準：有明確的通過/失敗標準
 - [ ] §15 Approval Sign-off：Design Lead + PM + Engineering Lead 的簽核表是否已建立？
 - [ ] User Journey Map 已完成

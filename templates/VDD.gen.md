@@ -535,15 +535,16 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
    - 禁止空格、特殊字元（除連字符）
    - 版本號不放在檔名（改用 Content Hash 或 CDN 快取控制）
 
-3. **Figma → Code 交付規格**：
+3. **Design Token → Code 交付規格**：
 
    | 步驟 | 說明 |
    |------|------|
-   | Export 設定 | 圖示：SVG；插圖：SVG + PNG @2x；照片：AVIF + WebP @2x |
-   | 命名對齊 | Figma Component 名稱 = Token 名稱 = CSS class 名稱（kebab-case）|
-   | Design Token 同步 | 使用 Style Dictionary / Theo 從 Figma Token 匯出至 CSS / JSON |
-   | 交付物 | Figma Link + Storybook Link + Token JSON 檔 |
-   | 更新頻率 | 每個 Sprint 結束，QA 進入前完成 Figma → Code 同步 |
+   | Token 來源 | `src/tokens/` 目錄下的 JSON / YAML 定義（Style Dictionary 格式）|
+   | CSS 輸出路徑 | `src/styles/tokens.css`（`--token-name: value` CSS 自訂屬性）|
+   | 命名對齊 | Token 名稱 = CSS 自訂屬性名稱 = 元件 class 名稱（全部 kebab-case）|
+   | 圖示格式 | SVG 為主；複雜插圖提供 AVIF + WebP @2x |
+   | 交付物 | Token JSON 檔 + 生成的 `tokens.css` + 各素材 `public/assets/` 路徑清單 |
+   | 同步節點 | 每次 Token 值修改後重新執行 Style Dictionary build，提交 tokens.css 至 repo |
 
 ---
 
@@ -653,7 +654,7 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
    - 不以純色彩區分狀態（Always 搭配圖示或文字標籤）
    - 紅色 Error 必須搭配 ✕ 圖示
    - 綠色 Success 必須搭配 ✓ 圖示
-   - 測試工具：Colour Contrast Analyser / Figma A11y Plugin / Stark
+   - 測試工具：Colour Contrast Analyser / axe DevTools / Stark / WAVE
 
 4. **圖示無障礙**：
 
@@ -695,7 +696,7 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 - [ ] §6.1 Token 應用矩陣：color / spacing / radius / shadow 四類各 ≥ 4 個 token；所有值從 Layer 1–3 推導，無「請設計師填入」
 - [ ] §6 [game mode]：角色設計表覆蓋主角 + ≥3 NPC；角色動態狀態表已完成（≥6 個狀態）
 - [ ] §6 [saas-web / mobile mode]：UI 元件視覺規格表 ≥8 個元件；每個元件有 Default / Hover / Focus / Active / Disabled / Error / Empty / Loading 8 種狀態
-- [ ] §7 Asset Pipeline：素材分類規格表已填寫（圖示 / 插圖 / 照片 / Hero / 字型）；命名規範已定義；Figma → Code 交付規格已填寫
+- [ ] §7 Asset Pipeline：素材分類規格表已填寫（圖示 / 插圖 / 照片 / Hero / 字型）；命名規範已定義；Design Token → Code 交付規格已填寫（Token 來源路徑 + CSS 輸出路徑 + 命名對齊規則）
 - [ ] §8 Screen Visual Specs：覆蓋所有 PRD P0 功能對應畫面（或依 PDD §4 Screen 清單）；每個 Screen 含視覺層次 + 佈局 + 色彩 + 空狀態設計
 - [ ] §9 Accessibility：WCAG AA 對比度驗證表已完成；焦點樣式規範已定義；色盲無障礙檢核已說明
 - [ ] 若 PDD.md 存在：VDD Design Token 與 PDD §9 Token 完全對齊，無衝突
