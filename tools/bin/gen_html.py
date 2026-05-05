@@ -301,7 +301,7 @@ def md_to_html(text, src_dir=None):
                 i += 1
             fixed = _mermaid_fix_block(block)
             out.append('<div class="diagram-container"><pre class="mermaid">' + '\n'.join(esc(l) for l in fixed) + '</pre></div>')
-        elif s.startswith('```plantuml') or s.startswith('```puml'):
+        elif re.match(r'^```\s*(plantuml|puml)\b', s):
             block = []
             i += 1
             while i < len(lines) and lines[i].strip() != '```':
