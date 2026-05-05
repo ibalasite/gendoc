@@ -209,3 +209,21 @@ upstream-alignment:
 | LOW | ≤ 5（R-11 port 號不一致、R-12 §5.1 指令不一致、R-13 migration-tool 選擇不阻斷 commit，但須記錄）|
 
 **CRITICAL 為 0 且 HIGH 為 0 → PASSED，可進行 commit。**
+
+
+---
+
+## Self-Check：章節完整性驗證
+
+> 此節由 gendoc-flow Review subagent 在每輪 Review 開始前自動執行（Step A-0）。
+> 不需人工逐項填寫；reviewer 執行此 Self-Check 後將結果加入 findings。
+
+**指令：**
+1. 讀取 `{_TEMPLATE_DIR}/DEVELOPER_GUIDE.md`，提取所有 `^## ` heading（含條件章節），共約 7 個
+2. 讀取 `docs/DEVELOPER_GUIDE.md`，提取所有 `^## ` heading
+3. 逐一比對：template 中每個 heading 是否存在且有實質內容（非空、非 `{{PLACEHOLDER}}`）
+4. 任何缺失或空白 → CRITICAL finding（"§X 章節缺失或無實質內容，template 要求此章節必須填寫"）
+
+**通過條件：**
+- template 中所有 `^## ` heading 均在輸出文件中存在
+- 每個 heading 下方有實質內容（至少 2 行非空行，或說明跳過原因）

@@ -244,3 +244,21 @@ upstream-alignment:
 **Risk**：使用者看到未加 N/A 後綴的審查項目，不知道這些項目可以略過（因為對應文件不存在），可能誤以為有漏填，造成困惑或不必要的追問。
 
 **Fix**：依目前 docs/ 目錄下 ANIM.md、AUDIO.md 是否存在及 VDD.md §6 是否存在，手動為 §4 中對應項目補充「（N/A — ANIM.md 不存在）」、「（N/A — AUDIO.md 不存在）」或「（N/A — VDD.md §6 不存在）」後綴；若文件已存在則移除錯誤的 N/A 後綴。
+
+
+---
+
+## Self-Check：章節完整性驗證
+
+> 此節由 gendoc-flow Review subagent 在每輪 Review 開始前自動執行（Step A-0）。
+> 不需人工逐項填寫；reviewer 執行此 Self-Check 後將結果加入 findings。
+
+**指令：**
+1. 讀取 `{_TEMPLATE_DIR}/RESOURCE.md`，提取所有 `^## ` heading（含條件章節），共約 7 個
+2. 讀取 `docs/RESOURCE.md`，提取所有 `^## ` heading
+3. 逐一比對：template 中每個 heading 是否存在且有實質內容（非空、非 `{{PLACEHOLDER}}`）
+4. 任何缺失或空白 → CRITICAL finding（"§X 章節缺失或無實質內容，template 要求此章節必須填寫"）
+
+**通過條件：**
+- template 中所有 `^## ` heading 均在輸出文件中存在
+- 每個 heading 下方有實質內容（至少 2 行非空行，或說明跳過原因）

@@ -204,3 +204,21 @@ upstream-alignment:
 **Check**: §10 是否保留了 AUD-T-005 iOS 首次播放解鎖測試（gen agent 不得刪除此預置測試）？
 **Risk**: iOS 特有的 Web Audio Context 鎖定機制未被測試覆蓋，上線後 iOS 用戶完全無聲，且此測試為必要預置，刪除後需人工補回。
 **Fix**: 確認 AUD-T-005「iOS Safari 首次點擊後 BGM/SFX 正常播放」測試案例存在於 §10 清單中；若缺失，立即補充。
+
+
+---
+
+## Self-Check：章節完整性驗證
+
+> 此節由 gendoc-flow Review subagent 在每輪 Review 開始前自動執行（Step A-0）。
+> 不需人工逐項填寫；reviewer 執行此 Self-Check 後將結果加入 findings。
+
+**指令：**
+1. 讀取 `{_TEMPLATE_DIR}/AUDIO.md`，提取所有 `^## ` heading（含條件章節），共約 12 個
+2. 讀取 `docs/AUDIO.md`，提取所有 `^## ` heading
+3. 逐一比對：template 中每個 heading 是否存在且有實質內容（非空、非 `{{PLACEHOLDER}}`）
+4. 任何缺失或空白 → CRITICAL finding（"§X 章節缺失或無實質內容，template 要求此章節必須填寫"）
+
+**通過條件：**
+- template 中所有 `^## ` heading 均在輸出文件中存在
+- 每個 heading 下方有實質內容（至少 2 行非空行，或說明跳過原因）

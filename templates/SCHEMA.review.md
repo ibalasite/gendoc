@@ -213,3 +213,21 @@ upstream-alignment:
 **Check**: SCHEMA.md 的 Document Control 是否有 `Owning BC / Service` 欄位（或等效章節），且每張 Table 均標注其所屬 BC？若無明確的 BC Ownership 宣告，工程師無法判斷哪些 FK 是跨 BC（違反 HC-1），視為 HIGH。
 **Risk**: 無 BC Ownership 宣告，跨 BC FK 在 Code Review 中無法機械式驗證；下游 ARCH 的 §4.0 API-BC-Schema 映射表也無法正確填入 Owned Tables 欄位。
 **Fix**: 在 SCHEMA.md Document Control 補充 `Owning BC / Service` 欄位，標注每張 Table 所屬 BC（與 EDD §3.4 Bounded Context Map 保持一致）；若多張 Table 屬於同一 BC，可在章節標題標注「BC: {BC_NAME}」。
+
+
+---
+
+## Self-Check：章節完整性驗證
+
+> 此節由 gendoc-flow Review subagent 在每輪 Review 開始前自動執行（Step A-0）。
+> 不需人工逐項填寫；reviewer 執行此 Self-Check 後將結果加入 findings。
+
+**指令：**
+1. 讀取 `{_TEMPLATE_DIR}/SCHEMA.md`，提取所有 `^## ` heading（含條件章節），共約 20 個
+2. 讀取 `docs/SCHEMA.md`，提取所有 `^## ` heading
+3. 逐一比對：template 中每個 heading 是否存在且有實質內容（非空、非 `{{PLACEHOLDER}}`）
+4. 任何缺失或空白 → CRITICAL finding（"§X 章節缺失或無實質內容，template 要求此章節必須填寫"）
+
+**通過條件：**
+- template 中所有 `^## ` heading 均在輸出文件中存在
+- 每個 heading 下方有實質內容（至少 2 行非空行，或說明跳過原因）

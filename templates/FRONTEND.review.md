@@ -191,3 +191,21 @@ upstream-alignment:
 **Check**: §7.1 Global State Schema 的 `{{DOMAIN_STATE}}` 是否有填入業務域的具體資料結構（至少一個業務域，如 `items`、`orders`、`players`）？§15.1 資料夾結構的 `{{feature}}` 是否有替換為真實業務域名稱？
 **Risk**: 業務域 State 和資料夾結構保留泛化佔位符，前端工程師無法直接參考建立 State 結構。
 **Fix**: 依 PRD 主要業務資源（如 `products`、`users`）填入至少一個具體的業務域 State 定義和資料夾名稱。
+
+
+---
+
+## Self-Check：章節完整性驗證
+
+> 此節由 gendoc-flow Review subagent 在每輪 Review 開始前自動執行（Step A-0）。
+> 不需人工逐項填寫；reviewer 執行此 Self-Check 後將結果加入 findings。
+
+**指令：**
+1. 讀取 `{_TEMPLATE_DIR}/FRONTEND.md`，提取所有 `^## ` heading（含條件章節），共約 18 個
+2. 讀取 `docs/FRONTEND.md`，提取所有 `^## ` heading
+3. 逐一比對：template 中每個 heading 是否存在且有實質內容（非空、非 `{{PLACEHOLDER}}`）
+4. 任何缺失或空白 → CRITICAL finding（"§X 章節缺失或無實質內容，template 要求此章節必須填寫"）
+
+**通過條件：**
+- template 中所有 `^## ` heading 均在輸出文件中存在
+- 每個 heading 下方有實質內容（至少 2 行非空行，或說明跳過原因）

@@ -171,3 +171,21 @@ upstream-alignment:
 - 上游對齊欄位全部確認（PRD P0、API Endpoints、BDD @smoke、test-plan 目標）✅
 
 > 由 `/reviewdoc RTM` 自動執行本 checklist。
+
+
+---
+
+## Self-Check：欄位完整性驗證
+
+> RTM 為表格結構，此節驗證欄位完整性而非 H2 章節數。
+
+**指令：**
+1. 讀取 `docs/RTM.md`，確認主表格含以下欄位：需求 ID、功能描述、API Endpoint、BDD Scenario、Test Case
+2. 逐行確認：無空欄（`—` 或 `N/A` 須有明確理由）
+3. 與上游對齊：所有 PRD P0 需求有對應行，所有 API Endpoint 有對應行
+4. 任何欄位缺失或上游引用不存在 → CRITICAL finding
+
+**通過條件：**
+- 所有 PRD P0 需求有對應 RTM 行
+- 所有 API Endpoint 有對應 RTM 行
+- 所有 RTM 行有對應的 BDD Scenario 或 Test Case ID

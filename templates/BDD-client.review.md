@@ -138,3 +138,25 @@ upstream-alignment:
 **Check**: Client BDD 的 Given/When/Then 是否正確對應 UI 行為語義？Given = UI 初始狀態（「畫面顯示登入表單」「用戶已在首頁」）；When = 用戶操作（「用戶點擊提交按鈕」「用戶輸入無效 Email」）；Then = 可觀察的 UI 結果（「表單顯示驗證錯誤訊息」「畫面跳轉至首頁」）。逐一列出 UI 語義不正確的 Step 及所在檔案。
 **Risk**: Client BDD Step 語義錯誤，Step Definitions 難以用 Playwright/Cypress 實作對應的 UI 互動，維護者在實作時需要猜測業務意圖，增加實作錯誤風險。
 **Fix**: 重寫語義不清的 Client Step：Given 描述 UI 初始狀態，When 描述具體的用戶互動操作（點擊、輸入、滑動），Then 描述可觀察的 UI 狀態變化或畫面跳轉。
+
+---
+
+## Self-Check：BDD-client 完整性驗證
+
+> 此節由 gendoc-flow Review subagent 在每輪 Review 開始前自動執行（Step A-0）。
+> BDD-client 為 1:多輸出，Self-Check 驗證前端 flow 覆蓋率而非單一文件章節。
+
+**指令：**
+1. 讀取 `docs/PRD.md`，提取所有前端 flow / User Story 清單 → `_required_flows`
+2. 讀取 `docs/PDD.md`，提取所有畫面 / Page 清單（補充 PRD 的 flow 清單）
+3. 掃描 `features/client/**/*.feature` 中的 Feature 標題，提取 client flow 清單 → `_actual_flows`
+4. 逐一確認：`_required_flows` 中每個前端 flow 至少有一個對應的 client `.feature` 檔案
+5. 確認 client step definitions 存在（`features/client/step_definitions/` 或等效目錄）
+6. 確認 `features/client/support/world.ts` 存在（ClientWorld：Browser/BrowserContext/Page）
+7. 確認 `features/client/support/hooks.ts` 存在（Before/After browser lifecycle hooks）
+8. 任何缺失 → CRITICAL finding（說明缺少哪個 flow 或支援檔案）
+
+**通過條件：**
+- 所有 PRD 前端 flow 均有對應的 client `.feature` 檔案
+- client step definitions 存在且非空
+- `world.ts`（含 Browser/BrowserContext/Page）和 `hooks.ts` 均存在

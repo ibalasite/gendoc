@@ -202,3 +202,21 @@ upstream-alignment:
 **Check**（若 §6 有 Shader 特效）：§10 是否包含「在 iOS / Android / Web Chrome 分別截圖比對 Shader 效果」的測試？
 **Risk**: Shader 在不同 GPU 廠商（ARM Mali / Qualcomm Adreno / Apple GPU / Intel）上渲染結果不同。
 **Fix**: 補充 ANIM-T-SHADER 跨平台截圖對比測試。
+
+
+---
+
+## Self-Check：章節完整性驗證
+
+> 此節由 gendoc-flow Review subagent 在每輪 Review 開始前自動執行（Step A-0）。
+> 不需人工逐項填寫；reviewer 執行此 Self-Check 後將結果加入 findings。
+
+**指令：**
+1. 讀取 `{_TEMPLATE_DIR}/ANIM.md`，提取所有 `^## ` heading（含條件章節），共約 12 個
+2. 讀取 `docs/ANIM.md`，提取所有 `^## ` heading
+3. 逐一比對：template 中每個 heading 是否存在且有實質內容（非空、非 `{{PLACEHOLDER}}`）
+4. 任何缺失或空白 → CRITICAL finding（"§X 章節缺失或無實質內容，template 要求此章節必須填寫"）
+
+**通過條件：**
+- template 中所有 `^## ` heading 均在輸出文件中存在
+- 每個 heading 下方有實質內容（至少 2 行非空行，或說明跳過原因）

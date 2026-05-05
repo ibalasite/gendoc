@@ -258,3 +258,21 @@ upstream-alignment:
 **Check**: §14 HA 核查清單中，是否包含「Event Consumer 冪等性」項目（同一 Domain Event 被消費兩次時，業務結果不重複執行）？若 API.md 中有 Event-Driven 相關端點（Webhook、Event Listener）但核查清單未提及冪等性，視為 MEDIUM。
 **Risk**: Event Consumer 不冪等，在 MQ 的 At-least-once 投遞語義下，重複投遞會觸發重複業務操作（重複付款、重複建立資源）。
 **Fix**: 在 §14 HA 核查清單補充「Event Consumer 冪等性：消費前先查 `processed_event_id`，已處理則直接 ACK 不執行業務邏輯」；引用 EDD §3.4 Domain Event Schema 的 `event_id` 欄位。
+
+
+---
+
+## Self-Check：章節完整性驗證
+
+> 此節由 gendoc-flow Review subagent 在每輪 Review 開始前自動執行（Step A-0）。
+> 不需人工逐項填寫；reviewer 執行此 Self-Check 後將結果加入 findings。
+
+**指令：**
+1. 讀取 `{_TEMPLATE_DIR}/API.md`，提取所有 `^## ` heading（含條件章節），共約 21 個
+2. 讀取 `docs/API.md`，提取所有 `^## ` heading
+3. 逐一比對：template 中每個 heading 是否存在且有實質內容（非空、非 `{{PLACEHOLDER}}`）
+4. 任何缺失或空白 → CRITICAL finding（"§X 章節缺失或無實質內容，template 要求此章節必須填寫"）
+
+**通過條件：**
+- template 中所有 `^## ` heading 均在輸出文件中存在
+- 每個 heading 下方有實質內容（至少 2 行非空行，或說明跳過原因）

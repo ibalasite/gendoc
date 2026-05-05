@@ -166,3 +166,24 @@ upstream-alignment:
 **Risk**: 隱性 bean 依賴或跨 schema 查詢在全系統運行時不易被偵測，只有隔離啟動才能暴露。
 **Fix**: 依 BDD.md §18.1 / §18.2 為各 BC 補充冷啟動 Scenario，Given 設定其他 BC 為 WireMock stub，Then 驗證 ApplicationContext 啟動成功且 health 端點回傳 up。
 
+
+---
+
+## Self-Check：BDD-server 完整性驗證
+
+> 此節由 gendoc-flow Review subagent 在每輪 Review 開始前自動執行（Step A-0）。
+> BDD-server 為 1:多輸出，Self-Check 驗證覆蓋率而非單一文件章節。
+
+**指令：**
+1. 讀取 `docs/PRD.md`，提取所有 domain / module 清單 → `_required_domains`
+2. 掃描 `features/**/*.feature` 中的 Feature 標題，提取 domain 清單 → `_actual_domains`
+3. 逐一確認：`_required_domains` 中每個 domain 至少有一個對應的 `.feature` 檔案
+4. 確認 `features/step_definitions/` 目錄存在且有 `.ts` 或 `.js` 步驟定義檔案
+5. 確認 `features/support/world.ts` 存在（CustomWorld class）
+6. 確認 `features/support/hooks.ts` 存在（BeforeAll / Before / After hooks）
+7. 任何缺失 → CRITICAL finding（說明缺少哪個 domain 或支援檔案）
+
+**通過條件：**
+- 所有 PRD domain 均有對應的 `.feature` 檔案
+- step definitions 存在（不為空目錄）
+- `world.ts` 和 `hooks.ts` 均存在
