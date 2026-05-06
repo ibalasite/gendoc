@@ -364,11 +364,18 @@ for f in _glob.glob(f'{_rules_dir}/*.json'):
     except Exception:
         _rules_map[sid] = {}
 
-# _dryrun_idx / _post_dryrun_steps 已在 Gate 定義，直接使用
-_post_dryrun = _post_dryrun_steps
+# per-step 重試狀態（取代全局 _MAX_ROUNDS）
+_MAX_PER_STEP    = 3                 # 每個 step 最多失敗幾次
+_fail_count      = {}                # {step_id: int}  累計失敗次數
+_permanently_failed = []             # [(sid, layer, details)]  已放棄
+_done            = []                # [sid]  已通過
 
-_MAX_ROUNDS = 3
-_round_failures = {}  # {round: [step_id, ...]}
+# pending：condition 成立的 post-DRYRUN steps（依 pipeline.json 順序）
+_pending = [
+    s for s in _post_dryrun_steps
+    if _eval_condition(s.get('condition', 'always'), _CLIENT_TYPE, _HAS_ADMIN)
+]
+print(f"[Branch B] 待處理 {len(_pending)} 個 steps：{[s['id'] for s in _pending]}")
 ```
 
 ### B-1：三層 FAIL 偵測函式
