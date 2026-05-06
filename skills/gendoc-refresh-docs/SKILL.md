@@ -5,6 +5,8 @@ description: |
   若 docs/PRD.md 存在則自動遞增版本並補寫 changelog 條目，
   最後重建 docs/pages/index.html + prd.html（呼叫 gen_html.py）。
   專為 gendoc 本身的文件維護設計；不依賴 .gendoc-state.json。
+  支援 args 輸入：/gendoc-refresh-docs <文字> 可直接提供想記錄的內容，
+  skill 以 args 為主要更新依據，git log 僅作輔助背景；無 args 則完整分析 git log。
 allowed-tools:
   - Read
   - Write
@@ -22,7 +24,25 @@ allowed-tools:
 
 ---
 
-## Step 0：環境初始化
+## 使用方式
+
+```
+# 無 args：自動分析 git log，AI 推導變更內容
+/gendoc-refresh-docs
+
+# 有 args：使用者直接提供想記錄的內容（主要依據），git log 僅輔助
+/gendoc-refresh-docs 新增 gendoc-refresh-docs skill，支援 args 直接輸入變更描述
+/gendoc-refresh-docs 修復 Windows hook 路徑問題；gendoc-guard hook 改為靜態 .py 腳本
+/gendoc-refresh-docs v4.1 — 補完 SECS 白名單三層攔截，PreToolUse exit 2 阻擋未授權呼叫
+```
+
+args 可以是完整的 changelog 草稿，也可以是粗糙的關鍵字；AI 會根據 README 現狀與 git log 背景補全細節。
+
+---
+
+## Step 0：環境初始化 + Args 讀取
+
+### Step 0-A：環境檢查
 
 ```bash
 source "$HOME/.claude/skills/gendoc/bin/gendoc-env.sh"
@@ -44,9 +64,40 @@ if [[ ! -f "$GENDOC_TOOLS/gen_html.py" ]]; then
 fi
 ```
 
+### Step 0-B：讀取 Args（`_USER_CONTEXT`）
+
+**[AI 指令]** 檢查 Skill tool 呼叫時傳入的 `args` 值：
+
+- **有 args**（使用者輸入了文字）→ 將 args 全文儲存為 `_USER_CONTEXT`，並輸出：
+  ```
+  [Args] _USER_CONTEXT：「<args 內容>」
+  [模式] 使用者提供內容 — git log 僅作輔助背景
+  ```
+- **無 args**（args 為空或未傳入）→ `_USER_CONTEXT` 設為空字串，並輸出：
+  ```
+  [Args] 無輸入
+  [模式] 自動 git log 分析
+  ```
+
+`_USER_CONTEXT` 的值在後續所有 Step 中持續有效，不得清空或覆蓋。
+
 ---
 
 ## Step 1：收集近期變更摘要
+
+**[AI 指令]** 依 `_USER_CONTEXT` 決定執行路徑：
+
+**路徑 A — `_USER_CONTEXT` 非空（使用者提供了 args）：**
+
+```bash
+# 取最近 5 筆 log 作為輔助背景，不做完整分析
+echo "=== git log（輔助背景，最近 5 筆） ==="
+git log --oneline -5
+```
+
+讀取 git log 後，以 `_USER_CONTEXT` 為**主要更新依據**，git log 僅用來補充時間點、commit hash 等輔助資訊。不需要從 git log 推導完整變更清單，`_USER_CONTEXT` 已提供。
+
+**路徑 B — `_USER_CONTEXT` 為空（無 args）：**
 
 ```bash
 # 取上次 README 或 PRD 有 commit 以來的 git log；若找不到則取最近 20 筆
@@ -64,7 +115,11 @@ echo "=== 已修改的檔案（近期） ==="
 git diff --name-only "${_LAST_DOC_HASH:-HEAD~10}..HEAD" 2>/dev/null | sort | uniq
 ```
 
-**[AI 指令]** 閱讀上方 git log 與修改清單，在記憶體中整理本次需要寫進文件的重點變更。後續 Step 2 / Step 3 均以此為依據，不再重複執行 git 指令。
+閱讀上方 git log 與修改清單，完整推導本次需要寫進文件的重點變更。
+
+---
+
+**[共同規則]** 不論走哪條路徑，完成本 Step 後在記憶體中儲存最終 `_CHANGE_SUMMARY`（供 Step 2 / Step 3 使用），不再重複執行 git 指令。
 
 ---
 
@@ -73,7 +128,7 @@ git diff --name-only "${_LAST_DOC_HASH:-HEAD~10}..HEAD" 2>/dev/null | sort | uni
 **[AI 指令]**
 
 1. 用 Read 工具讀取 `README.md`（全文）
-2. 根據 Step 1 收集的變更，**外科手術式修改**受影響的段落：
+2. 以 `_CHANGE_SUMMARY` 為依據，**外科手術式修改**受影響的段落：
    - 若新增 skill → 在 Skills 表格新增一列
    - 若修改 `tools/bin/` 工具 → 更新 Repository Structure 對應行
    - 若修改設計原則 → 更新 Design Principles 對應段落
@@ -81,6 +136,8 @@ git diff --name-only "${_LAST_DOC_HASH:-HEAD~10}..HEAD" 2>/dev/null | sort | uni
    - **其他段落不動**，保持現有內容
 3. 用 Edit 工具逐段修改（不整體 Write 覆蓋，避免意外遺失內容）
 4. 完成後輸出修改摘要（改了哪幾行/哪幾個段落）
+
+> 若 `_USER_CONTEXT` 非空，優先忠實呈現使用者提供的措辭與重點；AI 只補充細節與格式，不重新詮釋。
 
 ---
 
@@ -128,8 +185,10 @@ PYEOF
 2. 在 Change Log 表格**最上方**插入新行：
 
    ```
-   | <NEXT_VERSION> | 2026-MM-DD | PM Agent | <根據 Step 1 變更摘要，用繁體中文撰寫> |
+   | <NEXT_VERSION> | 2026-MM-DD | PM Agent | <根據 _CHANGE_SUMMARY，用繁體中文撰寫> |
    ```
+
+   > 若 `_USER_CONTEXT` 非空，changelog 條目內容以使用者提供的文字為主軸；AI 補充技術細節、加強可讀性，不得扭曲使用者原意。
 
 3. 同步更新 frontmatter `<!-- Version: <NEXT_VERSION> ... -->` 和 Document Control 表格中的版本號與日期
 4. 用 Edit 工具執行修改（精確替換，不整體覆蓋）
