@@ -1,6 +1,6 @@
 ---
-name: skill-guard
-description: 監控任意 skill 執行，session 中斷時自動排隊重新喚起。用法：/skill-guard <skill-name>
+name: gendoc-guard
+description: 監控任意 skill 執行，session 中斷時自動排隊重新喚起。用法：/gendoc-guard <skill-name>
 version: 1.0.0
 allowed-tools:
   - Read
@@ -10,10 +10,10 @@ allowed-tools:
   - Skill
 ---
 
-# skill-guard
+# gendoc-guard
 
 ```
-Input:   /skill-guard <target-skill-name>
+Input:   /gendoc-guard <target-skill-name>
 Output:  執行目標 skill，中斷時自動排隊下次 session 繼續
 Purpose: 不修改任何目標 skill，外掛式監控 + 自動重啟
 ```
@@ -26,8 +26,8 @@ Purpose: 不修改任何目標 skill，外掛式監控 + 自動重啟
 # 從 args 取得目標 skill 名稱
 _TARGET="${ARGS:-}"
 if [ -z "$_TARGET" ]; then
-  echo "[GUARD] ❌ 用法：/skill-guard <skill-name>"
-  echo "         例如：/skill-guard gendoc-repair"
+  echo "[GUARD] ❌ 用法：/gendoc-guard <skill-name>"
+  echo "         例如：/gendoc-guard gendoc-repair"
   exit 1
 fi
 echo "[GUARD] 目標 skill：/$_TARGET"
@@ -42,20 +42,20 @@ echo "[GUARD] 工作目錄：$(pwd)"
 import json, os, stat
 
 HOME = os.path.expanduser('~')
-BIN_DIR = os.path.join(HOME, '.claude', 'skill-guard', 'bin')
+BIN_DIR = os.path.join(HOME, '.claude', 'gendoc-guard', 'bin')
 os.makedirs(BIN_DIR, exist_ok=True)
 
-STOP_HOOK_PATH    = os.path.join(BIN_DIR, 'skill-guard-stop-hook.sh')
-SESSION_HOOK_PATH = os.path.join(BIN_DIR, 'skill-guard-session-start.sh')
+STOP_HOOK_PATH    = os.path.join(BIN_DIR, 'gendoc-guard-stop-hook.sh')
+SESSION_HOOK_PATH = os.path.join(BIN_DIR, 'gendoc-guard-session-start.sh')
 SETTINGS_PATH     = os.path.join(HOME, '.claude', 'settings.json')
 
 # ── 寫 Stop hook script ────────────────────────────────────────────────────
 STOP_HOOK_SCRIPT = r'''#!/usr/bin/env bash
-# skill-guard Stop hook：偵測被中斷的 skill session，寫入 queue 等待下次喚起
+# gendoc-guard Stop hook：偵測被中斷的 skill session，寫入 queue 等待下次喚起
 set -euo pipefail
 
-GUARD_FILE=".skill-guard.json"
-QUEUE_FILE=".skill-guard-queue"
+GUARD_FILE=".gendoc-guard.json"
+QUEUE_FILE=".gendoc-guard-queue"
 
 # 讀取 stdin（Stop hook 規範：必須 passthrough stdout）
 RAW=$(cat)
@@ -114,7 +114,7 @@ except Exception:
 if [ "$RETRY" -ge "$MAX_RETRIES" ]; then
   >&2 echo "[GUARD] ⛔ /$TARGET 已達最大重試次數（$MAX_RETRIES），停止監控"
   # 通知使用者放棄
-  osascript -e "display notification \"/$TARGET 達到最大重試 $MAX_RETRIES 次，請手動確認\" with title \"Skill Guard: 已停止\" sound name \"Basso\"" 2>/dev/null || true
+  osascript -e "display notification \"/$TARGET 達到最大重試 $MAX_RETRIES 次，請手動確認\" with title \"Gendoc Guard: 已停止\" sound name \"Basso\"" 2>/dev/null || true
   # 清除 marker
   python3 -c "
 import json, os
@@ -154,21 +154,21 @@ QEOF
 
 >&2 echo ""
 >&2 echo "╔══════════════════════════════════════════════════╗"
->&2 echo "║  [SKILL-GUARD] /$TARGET session 中斷             ║"
+>&2 echo "║  [GENDOC-GUARD] /$TARGET session 中斷             ║"
 >&2 echo "║  已排隊 (重試 $NEXT_RETRY/$MAX_RETRIES)           ║"
 >&2 echo "║  下次開啟此目錄的 claude session 將自動繼續       ║"
 >&2 echo "╚══════════════════════════════════════════════════╝"
 
 # macOS 通知
-osascript -e "display notification \"/$TARGET 中斷，下次開啟 session 將自動繼續 (重試 $NEXT_RETRY/$MAX_RETRIES)\" with title \"Skill Guard\" sound name \"Ping\"" 2>/dev/null || true
+osascript -e "display notification \"/$TARGET 中斷，下次開啟 session 將自動繼續 (重試 $NEXT_RETRY/$MAX_RETRIES)\" with title \"Gendoc Guard\" sound name \"Ping\"" 2>/dev/null || true
 '''
 
 # ── 寫 SessionStart hook script ───────────────────────────────────────────
 SESSION_HOOK_SCRIPT = r'''#!/usr/bin/env bash
-# skill-guard SessionStart hook：偵測 queue，inject additionalContext 自動喚起
+# gendoc-guard SessionStart hook：偵測 queue，inject additionalContext 自動喚起
 set -euo pipefail
 
-QUEUE_FILE=".skill-guard-queue"
+QUEUE_FILE=".gendoc-guard-queue"
 
 # 讀取 stdin（SessionStart hook 規範：必須 passthrough）
 RAW=$(cat)
@@ -208,19 +208,19 @@ except Exception:
 # 移除 queue file（避免重複觸發）
 rm -f "$QUEUE_FILE"
 
-# 更新 .skill-guard.json status 回 running（如果存在）
-if [ -f ".skill-guard.json" ]; then
+# 更新 .gendoc-guard.json status 回 running（如果存在）
+if [ -f ".gendoc-guard.json" ]; then
   python3 - <<PYEOF
 import json, os
 from datetime import datetime, timezone
 try:
-    d = json.load(open('.skill-guard.json'))
+    d = json.load(open('.gendoc-guard.json'))
     d['status'] = 'running'
     d['resumed_at'] = datetime.now(timezone.utc).isoformat()
-    tmp = '.skill-guard.json.tmp'
+    tmp = '.gendoc-guard.json.tmp'
     with open(tmp, 'w') as f:
         json.dump(d, f, indent=2)
-    os.replace(tmp, '.skill-guard.json')
+    os.replace(tmp, '.gendoc-guard.json')
 except Exception:
     pass
 PYEOF
@@ -236,9 +236,9 @@ import json, sys
 
 # 讀原始 RAW（此處已在 bash 中 passthrough，需重新輸出 + additionalContext）
 msg = (
-    f"[SKILL-GUARD RESUME] 上一個 session 執行 /{sys.argv[1]} 時中斷（重試 {sys.argv[2]}/{sys.argv[3]}）。"
-    f"請立即執行 /skill-guard {sys.argv[1]} 繼續未完成的工作。"
-    f"不要等待使用者指示，直接呼叫 Skill tool 執行 skill-guard，args=\"{sys.argv[1]}\"。"
+    f"[GENDOC-GUARD RESUME] 上一個 session 執行 /{sys.argv[1]} 時中斷（重試 {sys.argv[2]}/{sys.argv[3]}）。"
+    f"請立即執行 /gendoc-guard {sys.argv[1]} 繼續未完成的工作。"
+    f"不要等待使用者指示，直接呼叫 Skill tool 執行 gendoc-guard，args=\"{sys.argv[1]}\"。"
 )
 out = {"additionalContext": msg}
 print(json.dumps(out))
@@ -310,7 +310,7 @@ import json, os
 from datetime import datetime, timezone
 
 _target = os.environ.get('_TARGET', '')
-_guard_file = '.skill-guard.json'
+_guard_file = '.gendoc-guard.json'
 
 # 讀取既有 marker（resume 模式）
 _existing = {}
@@ -360,7 +360,7 @@ print(f"[GUARD] max_retries = {marker['max_retries']}")
 import json, os
 from datetime import datetime, timezone
 
-_guard_file = '.skill-guard.json'
+_guard_file = '.gendoc-guard.json'
 
 if os.path.exists(_guard_file):
     try:
@@ -381,7 +381,7 @@ print(f"[GUARD] Stop hook 不會觸發重啟（status=complete）")
 
 ## 附錄：Marker 格式
 
-`.skill-guard.json` 存在於目標專案根目錄，不加入 git（應在 `.gitignore` 中排除）。
+`.gendoc-guard.json` 存在於目標專案根目錄，不加入 git（應在 `.gitignore` 中排除）。
 
 | 欄位 | 說明 |
 |------|------|
@@ -395,13 +395,13 @@ print(f"[GUARD] Stop hook 不會觸發重啟（status=complete）")
 ## 附錄：流程圖
 
 ```
-/skill-guard gendoc-repair
+/gendoc-guard gendoc-repair
       │
       ▼
 Step 1：自安裝 Stop + SessionStart hook（idempotent）
       │
       ▼
-Step 2：寫 .skill-guard.json {status: running}
+Step 2：寫 .gendoc-guard.json {status: running}
       │
       ▼
 Step 3：Skill tool → gendoc-repair
@@ -415,18 +415,18 @@ Step 3：Skill tool → gendoc-repair
                 │
                 ├── retry >= max → 通知停止
                 │
-                └── retry < max → 寫 .skill-guard-queue，macOS 通知
+                └── retry < max → 寫 .gendoc-guard-queue，macOS 通知
                                         │
                                         ▼
                                   下次 claude session 開啟
                                         │
                                         ▼
                                   SessionStart hook
-                                  讀 .skill-guard-queue
+                                  讀 .gendoc-guard-queue
                                   inject additionalContext
                                         │
                                         ▼
                                   Claude 自動執行
-                                  /skill-guard gendoc-repair
+                                  /gendoc-guard gendoc-repair
                                   （retry_count + 1）
 ```
