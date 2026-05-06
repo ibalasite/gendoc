@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""gendoc-guard Stop hook: session 中斷時寫 queue + macOS 通知"""
-import json, os, sys, subprocess
+"""gendoc-guard Stop hook: per-turn completion check. Returns decision:block if task incomplete."""
+import json, os, sys
 from datetime import datetime, timezone
 
-GUARD_FILE   = '.gendoc-guard.json'
-QUEUE_FILE   = '.gendoc-guard-queue'
-HISTORY_FILE = '.gendoc-guard-history.jsonl'
+GUARD_FILE = '.gendoc-guard.json'
+MAX_BLOCKS = 20
 
 raw = sys.stdin.buffer.read()
 sys.stdout.buffer.write(raw)
@@ -22,65 +21,26 @@ except Exception:
 if d.get('status') != 'running':
     sys.exit(0)
 
-target      = d.get('target_skill', '')
-retry       = int(d.get('retry_count', 0))
-max_retries = int(d.get('max_retries', 5))
-cwd         = d.get('cwd', '.')
-
-if retry >= max_retries:
-    sys.stderr.write(f'[GUARD] ⛔ /{target} 已達最大重試次數（{max_retries}），停止監控\n')
-    subprocess.run(
-        ['osascript', '-e',
-         f'display notification "/{target} 達到最大重試 {max_retries} 次，請手動確認"'
-         f' with title "Gendoc Guard: 已停止" sound name "Basso"'],
-        capture_output=True
-    )
-    d['status'] = 'max_retries_exceeded'
-    tmp = GUARD_FILE + '.tmp'
-    with open(tmp, 'w', encoding='utf-8') as f:
-        json.dump(d, f, indent=2)
-    os.replace(tmp, GUARD_FILE)
+# 安全閥：block 次數過多時放行，避免無限迴圈
+block_count = int(d.get('stop_block_count', 0)) + 1
+if block_count > MAX_BLOCKS:
+    sys.stderr.write(f'[GUARD] ⚠️  已攔截 {MAX_BLOCKS} 次，放行本次 stop（請手動確認任務狀態）\n')
     sys.exit(0)
 
-next_retry = retry + 1
-
-d['retry_count'] = next_retry
-d['status']      = 'queued'
-d['queued_at']   = datetime.now(timezone.utc).isoformat()
+# 更新 block 計數
+d['stop_block_count'] = block_count
 tmp = GUARD_FILE + '.tmp'
-with open(tmp, 'w', encoding='utf-8') as f:
-    json.dump(d, f, indent=2)
-os.replace(tmp, GUARD_FILE)
+try:
+    with open(tmp, 'w', encoding='utf-8') as f:
+        json.dump(d, f, indent=2, ensure_ascii=False)
+    os.replace(tmp, GUARD_FILE)
+except Exception:
+    pass
 
-last_history = []
-if os.path.isfile(HISTORY_FILE):
-    try:
-        lines = open(HISTORY_FILE, encoding='utf-8').readlines()
-        last_history = [json.loads(l.strip()) for l in lines[-20:] if l.strip()]
-    except Exception:
-        pass
+target = d.get('target_skill', '未知任務')
+sys.stderr.write(f'[GUARD] 任務 /{target} 尚未完成（status=running），強制繼續...\n')
 
-queue = {
-    'target_skill': target,
-    'retry_count':  next_retry,
-    'max_retries':  max_retries,
-    'cwd':          cwd,
-    'queued_at':    datetime.now(timezone.utc).isoformat(),
-    'last_history': last_history,
-}
-with open(QUEUE_FILE, 'w', encoding='utf-8') as f:
-    json.dump(queue, f, indent=2, ensure_ascii=False)
-
-sys.stderr.write('\n')
-sys.stderr.write('╔══════════════════════════════════════════════════╗\n')
-sys.stderr.write(f'║  [GENDOC-GUARD] /{target} session 中斷\n')
-sys.stderr.write(f'║  已排隊 (重試 {next_retry}/{max_retries})\n')
-sys.stderr.write('║  下次開啟此目錄的 claude session 將自動繼續\n')
-sys.stderr.write('╚══════════════════════════════════════════════════╝\n')
-
-subprocess.run(
-    ['osascript', '-e',
-     f'display notification "/{target} 中斷，下次開啟 session 將自動繼續 (重試 {next_retry}/{max_retries})"'
-     f' with title "Gendoc Guard" sound name "Ping"'],
-    capture_output=True
-)
+print(json.dumps({
+    "decision": "block",
+    "reason": f"任務 /{target} 尚未完成。請繼續執行，完成後執行 Step 4 將 status 更新為 complete。"
+}))

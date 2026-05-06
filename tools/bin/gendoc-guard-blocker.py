@@ -1,8 +1,19 @@
 #!/usr/bin/env python3
-"""gendoc-guard PreToolUse hook: SECS whitelist enforcement. exit 2 = block."""
+"""gendoc-guard PreToolUse hook: SECS + guard enforcement. exit 2 = block."""
 import json, os, sys, re
+from datetime import datetime, timezone
 
 GUARD_FILE = '.gendoc-guard.json'
+HOOK_SCRIPTS = frozenset({
+    'gendoc-guard-blocker.py',
+    'gendoc-guard-history.py',
+    'gendoc-guard-stop.py',
+})
+GUARD_FILES = frozenset({
+    '.gendoc-guard.json',
+    '.gendoc-guard-queue',
+    '.gendoc-guard-history.jsonl',
+})
 
 raw = sys.stdin.buffer.read()
 sys.stdout.buffer.write(raw)
@@ -26,61 +37,109 @@ except Exception:
 
 tool = call.get('tool_name', '')
 inp  = call.get('tool_input', {})
-wl   = guard.get('secs_whitelist', {})
 
+
+def block(stale_msg=None):
+    if stale_msg:
+        sys.stderr.write(f'\n[GUARD] {stale_msg}\n')
+    else:
+        sys.stderr.write('\n[GUARD] 操作不被允許。\n')
+    sys.exit(2)
+
+
+# ── R-01：Stale guard 偵測（跨 session 殘留）─────────────────────────
+last_hb = guard.get('last_heartbeat', '')
+if last_hb:
+    try:
+        hb_time = datetime.fromisoformat(last_hb)
+        now = datetime.now(timezone.utc)
+        if (now - hb_time).total_seconds() > 3600:
+            target = guard.get('target_skill', '')
+            block(stale_msg=f'前次 guard session 中斷，請執行 /gendoc-guard {target} 繼續。')
+    except Exception:
+        pass
+
+# ── R-07：禁止讀取 hook 腳本 ─────────────────────────────────────────
+if tool == 'Read':
+    path = inp.get('file_path', '')
+    if any(hs in path for hs in HOOK_SCRIPTS):
+        block()
+
+# ── R-06：禁止寫入 guard 控制檔 ─────────────────────────────────────
+if tool in ('Write', 'Edit'):
+    path = inp.get('file_path', '')
+    if os.path.basename(path) in GUARD_FILES:
+        block()
+    # R-02：禁止寫入 .py 超過 30 行
+    if path.endswith('.py'):
+        content = inp.get('content', inp.get('new_string', ''))
+        if content.count('\n') + 1 > 30:
+            block()
+
+if tool == 'Bash':
+    cmd = inp.get('command', '')
+
+    # R-04：禁止 touch
+    if re.search(r'\btouch\b', cmd):
+        block()
+
+    # R-07：Bash 讀取 hook 腳本
+    if any(hs in cmd for hs in HOOK_SCRIPTS):
+        if re.search(r'\b(cat|less|head|tail|grep|more|view)\b', cmd):
+            block()
+
+    # R-03：禁止執行 session 內寫入的 .py 檔
+    written_files = set(guard.get('written_files', []))
+    if written_files:
+        written_basenames = {os.path.basename(f) for f in written_files}
+        for m in re.finditer(r'python3?\s+([^\s;|&<>]+\.py)', cmd):
+            if os.path.basename(m.group(1)) in written_basenames:
+                block()
+
+    # ── Inline Python 分析 ──────────────────────────────────────────
+    codes = []
+    for _, code in re.findall(
+        r'python3?\s+-\s+<<[\'"]?(\w+)[\'"]?\n(.*?)\n\1', cmd, re.DOTALL
+    ):
+        codes.append(code)
+    for m in re.finditer(r"python3?\s+-c\s+['\"]([^'\"]{20,})['\"]", cmd, re.DOTALL):
+        codes.append(m.group(1))
+
+    wl           = guard.get('secs_whitelist', {})
+    allow_ipy_wr = wl.get('allow_inline_python_write', False)
+    known_fns    = set(wl.get('known_functions', []))
+    WRITE_PATS   = [
+        r"open\s*\([^)]*['\"][wa]",
+        r"json\.dump\s*\(",
+        r"\.write\s*\(",
+        r"os\.replace\s*\(",
+        r"os\.rename\s*\(",
+    ]
+
+    for code in codes:
+        if code.count('\n') + 1 > 30:
+            block()
+        # R-05：os.utime
+        if re.search(r'os\.utime\s*\(', code):
+            block()
+        if 'sys.stdout.reconfigure' in code:
+            block()
+        if any(re.search(p, code) for p in WRITE_PATS) and not allow_ipy_wr:
+            block()
+        for fn in known_fns:
+            if re.search(rf'\bdef\s+{re.escape(fn)}\b', code):
+                block()
+
+# ── SECS whitelist：Skill tool ───────────────────────────────────
+wl = guard.get('secs_whitelist', {})
 if not wl:
     sys.exit(0)
 
 allowed_skills = set(wl.get('skill_calls', []))
-known_fns      = set(wl.get('known_functions', []))
-allow_ipy_wr   = wl.get('allow_inline_python_write', False)
-
-WRITE_PATS = [
-    r"open\s*\([^)]*['\"][wa]['\"]",
-    r"json\.dump\s*\(",
-    r"\.write\s*\(",
-    r"os\.replace\s*\(",
-    r"os\.rename\s*\(",
-]
-
-def has_write(code):
-    return any(re.search(p, code) for p in WRITE_PATS)
-
-def block(reason):
-    target = guard.get('target_skill', '?')
-    sys.stderr.write('\n╔══════════════════════════════════════════════════╗\n')
-    sys.stderr.write(f'║  [SECS] BLOCKED: /{target}\n')
-    sys.stderr.write(f'║  {reason[:80]}\n')
-    if allowed_skills:
-        sys.stderr.write(f'║  Whitelisted skills: {sorted(allowed_skills)}\n')
-    sys.stderr.write('╚══════════════════════════════════════════════════╝\n')
-    sys.exit(2)
 
 if tool == 'Skill':
     name = inp.get('skill', '')
     if name and allowed_skills and name not in allowed_skills:
-        block(f'Skill "{name}" 不在白名單。允許：{sorted(allowed_skills)}')
-    sys.exit(0)
-
-if tool == 'Bash':
-    cmd = inp.get('command', '')
-    hdocs = re.findall(
-        r'python3?\s+-\s+<<[\'"]?(\w+)[\'"]?\n(.*?)\n\1',
-        cmd, re.DOTALL
-    )
-    codes = [code for _, code in hdocs]
-    for m in re.finditer(r"python3?\s+-c\s+['\"]([^'\"]{20,})['\"]", cmd, re.DOTALL):
-        codes.append(m.group(1))
-    for code in codes:
-        n_lines = code.count('\n') + 1
-        if n_lines > 30:
-            block(f'Inline Python {n_lines} 行 > 30 行上限 — 應透過 Skill tool 執行')
-        if 'sys.stdout.reconfigure' in code:
-            block('sys.stdout.reconfigure 在 inline Python 中 — 已知 SSOT 繞過模式')
-        if has_write(code) and not allow_ipy_wr:
-            block('Inline Python 含寫檔操作，但目標 SKILL.md 不包含 inline write — 繞過嘗試')
-        for fn in known_fns:
-            if re.search(rf'\bdef\s+{re.escape(fn)}\b', code):
-                block(f'重新定義 SKILL.md 函式 "{fn}" — 應直接呼叫 Skill tool')
+        block()
 
 sys.exit(0)

@@ -48,6 +48,7 @@ do_uninstall() {
   log "[uninstall] 移除 hook..."
   if [[ -f "$SETTINGS_HOOK" ]]; then
     python3 "$SETTINGS_HOOK" remove
+    python3 "$SETTINGS_HOOK" remove-guard
   fi
 
   log "[uninstall] 移除 copied skills..."
@@ -102,6 +103,8 @@ _deploy_tools() {
 _register_hook() {
   log "[deploy] 註冊 SessionStart hook..."
   python3 "$SETTINGS_HOOK" add "$HOOK_CMD"
+  log "[deploy] 註冊 guard hooks (PreToolUse / PostToolUse / Stop)..."
+  python3 "$SETTINGS_HOOK" add-guard "$RUNTIME_DIR/tools/bin"
 }
 
 # ── dispatch ──────────────────────────────────────────────────────────────────
