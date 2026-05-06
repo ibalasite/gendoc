@@ -768,52 +768,31 @@ if not _pending:
     print(f"\n[Branch B] ✅ 所有 pending steps 已結算（{len(_done)} 通過，{len(_permanently_failed)} 永久失敗）")
 ```
 
-### B-3：最終驗證 + 報告
-
-```python
-# 判斷是否有任一輪全部通過（break 路徑）
-_all_passed_early = any(v == [] for v in _round_failures.values())
-
-if _all_passed_early:
-    last_fails = []
-else:
-    # 3 輪都有 FAIL，且第 3 輪已補跑 → 再做最終掃描（只驗，不補跑）
-    _final_fail = []
-    for step in _post_dryrun:
-        sid  = step['id']
-        cond = step.get('condition', 'always')
-        if not _eval_condition(cond, _CLIENT_TYPE, _HAS_ADMIN):
-            continue
-        l1_stale = False
-        if step.get('special_skill'):
-            l1_stale, _ = _check_step_l1_mtime(step)
-        l2_ok = _check_step_l2(step) if not l1_stale else False
-        l3_ok, _ = _check_step_l3(step) if l2_ok else (False, [])
-        if l1_stale or not l2_ok or not l3_ok:
-            _final_fail.append(sid)
-    last_fails = _final_fail
-```
+### B-3：最終報告
 
 ```python
 print("\n" + "="*60)
 print("[gendoc-repair] 最終報告")
 print("="*60)
+print(f"✅ 通過：{len(_done)} 個 step")
+for sid in _done:
+    print(f"   ✅ {sid}")
 
-if not last_fails:
-    print("✅ 所有 step 通過 L1+L2+L3 驗證，專案已完整。")
-else:
-    print(f"⚠️  達到最大重試輪次（{_MAX_ROUNDS}），以下 step 仍未通過：")
-    for sid in last_fails:
-        print(f"   ❌ {sid}")
+if _permanently_failed:
+    print(f"\n❌ 永久失敗：{len(_permanently_failed)} 個 step（已達 {_MAX_PER_STEP} 次上限）")
+    for sid, layer, details in _permanently_failed:
+        print(f"   ❌ [{layer}] {sid}: {'; '.join(details)}")
     print()
     print("[Hint] 手動排查方式：")
-    for sid in last_fails:
+    for sid, _, _ in _permanently_failed:
         print(f"   /gendoc-flow --only {sid}")
     print()
     print("可能原因：")
     print("  1. 上游文件品質不足，導致該 step 無法生成合格內容")
     print("  2. client_type / has_admin_backend 設定與實際需求不符")
     print("  3. 需要人工檢視並補充上游文件（BRD、PRD、EDD、ARCH）")
+else:
+    print("\n✅ 所有 step 通過 L1+L2+L3 驗證，專案已完整。")
 ```
 
 ---
