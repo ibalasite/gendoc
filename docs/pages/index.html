@@ -80,6 +80,7 @@
 <tr><td><code>gendoc-gen-client-bdd</code></td><td><code>/gendoc-gen-client-bdd</code></td><td>Client-facing BDD feature files (web/game projects)</td></tr>
 <tr><td><code>gendoc-repair</code></td><td><code>/gendoc-repair</code></td><td>DRYRUN-aware backfill — brings any incomplete project to the same state as <code>gendoc-auto</code> + <code>gendoc-flow</code> would produce. Requires <code>docs/BRD.md</code> to exist. Binary gate: if <code>.gendoc-rules/<em>.json</code> absent or DRYRUN not in completed_steps → Branch A (complete upstream steps → run DRYRUN); otherwise → Branch B (compare all post-DRYRUN steps against <code>.gendoc-rules/</em>.json</code> quality gates using two-layer FAIL detection: output missing + rules not met → redo, loop until all pass, max 3 retries)</td></tr>
 <tr><td><code>gendoc-rebuild-templates</code></td><td><code>/gendoc-rebuild-templates</code></td><td>Rebuild all document templates from scratch</td></tr>
+<tr><td><code>gendoc-guard</code></td><td><code>/gendoc-guard &lt;skill&gt;</code></td><td>Skill execution compliance monitor — wraps any skill with session resume, PreToolUse whitelist enforcement (SECS), and PostToolUse execution history</td></tr>
 <tr><td><code>gendoc-upgrade</code></td><td><code>/gendoc-upgrade</code></td><td>Manual skill upgrade</td></tr>
 <tr><td><code>reviewtemplate</code></td><td><code>/reviewtemplate &lt;TYPE&gt;</code></td><td>Review &amp; iteratively fix a template three-file set (TYPE.md + .gen.md + .review.md)</td></tr>
 </table>
@@ -156,7 +157,10 @@ git clone https://github.com/ibalasite/gendoc.git &quot;$env:USERPROFILE\.claude
 <tr><td>HC-5</td><td>Module dependency graph must be a DAG (no circular dependencies)</td></tr>
 </table>
 <p>References: Martin Fowler &quot;MonolithFirst&quot; (2015) · Sam Newman <em>Monolith to Microservices</em> (O&#x27;Reilly 2019) · Spring Modulith (spring.io, 2022)</p>
-<p><strong>3. Clean Architecture + SOLID — Dependency Rule Enforced</strong></p>
+<p><strong>3. Skill Execution Compliance (SECS) — Physical Enforcement over Advisory</strong></p>
+<p><code>gendoc-guard</code> wraps any skill with a statically-derived whitelist (tool types, allowed Skill calls, allowed scripts, known function names, inline Python write permission). A PreToolUse hook blocks unauthorized calls in three layers: pure-read passthrough → whitelist enforcement → universal pattern detection (&gt;30-line inline scripts, <code>sys.stdout.reconfigure</code>). A PostToolUse hook records every call to <code>.gendoc-guard-history.jsonl</code> for accurate resume with breakpoint context. No individual skill needs modification.</p>
+<p>Four static Python scripts in <code>tools/bin/</code> implement the hook layer — deployed by <code>setup upgrade</code>, registered by <code>gendoc-guard</code> Step 1 into <code>~/.claude/settings.json</code>. No dynamic script writing; no bash dependency; cross-platform (macOS / Linux / Windows).</p>
+<p><strong>4. Clean Architecture + SOLID — Dependency Rule Enforced</strong></p>
 <p>Every generated backend system follows Robert C. Martin&#x27;s 4-layer Clean Architecture with explicit dependency direction. EDD §3.1b anchors the SOLID table and Dependency Rule; all downstream documents (ARCH, test-plan, DEVELOPER_GUIDE) are enforced to align.</p>
 <table>
 <tr><th>Layer</th><th>Role</th><th>Import Rule</th></tr>
@@ -360,7 +364,14 @@ IDEA → BRD → PRD → EDD → ARCH    →    DRYRUN    →    API → SCHEMA 
 │   ├── gendoc-settings-hook       # settings.json editor (bash wrapper)
 │   └── gendoc-settings-hook.py    # settings.json editor (Python)
 ├── tools/
-│   └── bin/                       # Pipeline tools (gen_html.py etc.)
+│   └── bin/                       # Pipeline tools + gendoc-guard hook scripts
+│       ├── gen_html.py            # HTML documentation site generator
+│       ├── dryrun_core.py         # DRYRUN parameter extraction engine
+│       ├── review.sh / review_integration.sh  # DRYRUN output validation
+│       ├── gendoc-guard-blocker.py      # PreToolUse SECS whitelist hook (exit 2 = block)
+│       ├── gendoc-guard-history.py      # PostToolUse execution history hook
+│       ├── gendoc-guard-session-start.py # SessionStart resume injection hook
+│       └── gendoc-guard-stop.py         # Stop hook — queue + macOS notification
 ├── skills/                        # Source of truth for all SKILL.md files
 │   ├── gendoc-auto/
 │   ├── gendoc-flow/
@@ -370,7 +381,7 @@ IDEA → BRD → PRD → EDD → ARCH    →    DRYRUN    →    API → SCHEMA 
 │   ├── BRD.md / BRD.gen.md
 │   └── ...
 └── docs/                          # gendoc&#x27;s own project documentation
-    ├── PRD.md                     # Product Requirements Document (v3.6)
+    ├── PRD.md                     # Product Requirements Document (v4.0)
     ├── gendoc-redesign-decisions.md  # Architecture design decisions log
     └── pages/                     # Generated HTML site (GitHub Pages)</code></pre>
 <hr>

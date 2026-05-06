@@ -170,6 +170,8 @@ References: Martin Fowler "MonolithFirst" (2015) · Sam Newman *Monolith to Micr
 **3. Skill Execution Compliance (SECS) — Physical Enforcement over Advisory**
 `gendoc-guard` wraps any skill with a statically-derived whitelist (tool types, allowed Skill calls, allowed scripts, known function names, inline Python write permission). A PreToolUse hook blocks unauthorized calls in three layers: pure-read passthrough → whitelist enforcement → universal pattern detection (>30-line inline scripts, `sys.stdout.reconfigure`). A PostToolUse hook records every call to `.gendoc-guard-history.jsonl` for accurate resume with breakpoint context. No individual skill needs modification.
 
+Four static Python scripts in `tools/bin/` implement the hook layer — deployed by `setup upgrade`, registered by `gendoc-guard` Step 1 into `~/.claude/settings.json`. No dynamic script writing; no bash dependency; cross-platform (macOS / Linux / Windows).
+
 **4. Clean Architecture + SOLID — Dependency Rule Enforced**  
 Every generated backend system follows Robert C. Martin's 4-layer Clean Architecture with explicit dependency direction. EDD §3.1b anchors the SOLID table and Dependency Rule; all downstream documents (ARCH, test-plan, DEVELOPER_GUIDE) are enforced to align.
 
@@ -442,7 +444,14 @@ gendoc/
 │   ├── gendoc-settings-hook       # settings.json editor (bash wrapper)
 │   └── gendoc-settings-hook.py    # settings.json editor (Python)
 ├── tools/
-│   └── bin/                       # Pipeline tools (gen_html.py etc.)
+│   └── bin/                       # Pipeline tools + gendoc-guard hook scripts
+│       ├── gen_html.py            # HTML documentation site generator
+│       ├── dryrun_core.py         # DRYRUN parameter extraction engine
+│       ├── review.sh / review_integration.sh  # DRYRUN output validation
+│       ├── gendoc-guard-blocker.py      # PreToolUse SECS whitelist hook (exit 2 = block)
+│       ├── gendoc-guard-history.py      # PostToolUse execution history hook
+│       ├── gendoc-guard-session-start.py # SessionStart resume injection hook
+│       └── gendoc-guard-stop.py         # Stop hook — queue + macOS notification
 ├── skills/                        # Source of truth for all SKILL.md files
 │   ├── gendoc-auto/
 │   ├── gendoc-flow/
@@ -452,7 +461,7 @@ gendoc/
 │   ├── BRD.md / BRD.gen.md
 │   └── ...
 └── docs/                          # gendoc's own project documentation
-    ├── PRD.md                     # Product Requirements Document (v3.6)
+    ├── PRD.md                     # Product Requirements Document (v4.0)
     ├── gendoc-redesign-decisions.md  # Architecture design decisions log
     └── pages/                     # Generated HTML site (GitHub Pages)
 ```

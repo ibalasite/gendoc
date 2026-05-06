@@ -1,6 +1,6 @@
 # PRD — Product Requirements Document
 <!-- 對應學術標準：IEEE 830 (SRS)，對應業界：Google PRD / Amazon PRFAQ -->
-<!-- Version: v3.9 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 -->
+<!-- Version: v4.0 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 -->
 
 ---
 
@@ -10,10 +10,10 @@
 |------|------|
 | **DOC-ID** | PRD-GENDOC-20260422 |
 | **產品名稱** | gendoc — AI-Driven Implementation Blueprint Generator |
-| **文件版本** | v3.9 |
+| **文件版本** | v4.0 |
 | **狀態** | ACTIVE |
 | **作者（PM）** | AI Product Manager Agent |
-| **日期** | 2026-05-04 |
+| **日期** | 2026-05-06 |
 | **上游來源** | gendoc 開源專案（github.com/ibalasite/gendoc） |
 | **審閱者** | 技術架構師、QA Lead |
 | **核准者** | 待定 |
@@ -24,6 +24,7 @@
 
 | 版本 | 日期 | 作者 | 變更摘要 |
 |------|------|------|---------|
+| v4.0 | 2026-05-06 | PM Agent | **gendoc-guard hook 層靜態化重構**：廢除 Step 1 動態寫出 `.sh` bash 字串的做法，改為四個靜態 Python 腳本（`tools/bin/gendoc-guard-{stop,session-start,blocker,history}.py`），由 `setup upgrade` 部署至 `~/.claude/skills/gendoc/tools/bin/`。Step 1 僅負責將 `python3 {path}` 形式的 hook 命令寫入 `~/.claude/settings.json`（idempotent，不重複登記）。改動三大效益：(1) **跨平台修復**：舊版在 Windows 上因 bash 不存在 + 路徑反斜線截斷導致所有 hook 失效（`bash: C:Users...blocker-hook.sh: No such file or directory`）；新版以 `python3` 執行，Python 接受正斜線路徑，Windows/macOS/Linux 行為一致；(2) **防繞過**：舊版 AI 看到 hook 失敗後可自行用 Write tool 重建 `.sh` 腳本；新版腳本為靜態部署檔案，AI 沒有理由或模板去重建；(3) **無 bash 依賴**：hook 腳本中的 Windows encoding（cp950）問題一併消除，Python 腳本頭部宣告 UTF-8；SECS 白名單執行路徑完整可用。 |
 | v3.9 | 2026-05-06 | PM Agent | **gendoc-repair Branch B 三層驗證架構（§7.8）**：廢除獨立 Phase C，將 mtime Stale 檢查整合為 Branch B L1（special_skill 步驟限定）。新三層結構：**L1（mtime Stale，special_skill only）**— 輸入集比輸出集新 → STALE → 短路直接補跑，不檢查 L2/L3；輸出不存在 → STALE（L2 補不到的情況）；觸發集空 → 隱式展開為所有 `docs/*.md`；非 special_skill 步驟跳過 L1；**L2（輸出完整性，原 L1）**— 輸出檔案/目錄存在且非空；**L3（量化品質，原 L2）**— `.gendoc-rules/{step_id}-rules.json` 門檻達標（rules.json 不存在 → PASS）。短路語意：L1 STALE → 立即補跑，不跑 L2/L3；L2 FAIL → 補跑，不跑 L3；L3 FAIL → 補跑。Phase C 完全刪除，避免 AI 跳過獨立相位。 |
 | v3.8 | 2026-05-06 | PM Agent | **special_skill 步驟 Stale 自動重建規則（§7.8）**：(1) **兩類步驟語意分離**：AI gen 步驟保持「外科修補」（review→fix loop，最小修改原則），special_skill 步驟改為「Makefile mtime 語意完整重建」（純轉換函式，輸入確定輸出，過期即錯誤）；(2) **演算法設計**：`newest_input = max(mtime(trigger_files))`，`oldest_output = min(mtime(output_files))`，`newest_input > oldest_output` → STALE → 重建；觸發集空陣列時隱式展開為所有 `docs/*.md`；(3) **零硬編碼**：觸發集（`input[]`）、輸出基準（`output`）、啟用旗標（`special_skill` 存在）全部從 `pipeline.json` 動態讀取，新增步驟無需改程式碼；(4) **執行規則**：自動執行無需確認、遵循 pipeline 順序、重建後不回頭觸發 AI gen 步驟、FRESH 步驟直接跳過；(5) **受影響步驟**：HTML、UML、UML-CICD、ALIGN、ALIGN-FIX、ALIGN-VERIFY、CONTRACTS、MOCK、PROTOTYPE（共 9 個 special_skill 步驟）。 |
 | v3.7 | 2026-05-05 | PM Agent | **gendoc-repair 邏輯重設計（簡化為二元 Gate + 結果驅動補全）**：(1) **前置檢查簡化**：只檢查 `docs/BRD.md` 存在且非空即可繼續；移除 IDEA.md 檢查（部分專案合法地無 IDEA.md）；BRD 缺失直接停止，提示使用者手動建立或執行 `/gendoc-auto`。(2) **DRYRUN 狀態簡化為二元 Gate**：廢除三態偵測（NONE/DEFAULTS/OK）；Gate 條件為「`.gendoc-rules/*.json` 存在 AND DRYRUN 在 completed_steps 中」；二元結果決定進入分支 A 或分支 B；移除 DEFAULTS 偵測（訊號在 dryrun_core.py 輸出中不存在）、上游就緒度預檢、基線過時偵測（git 時間戳比對）等複雜度。(3) **分支 A（DRYRUN 未完成）**：目標為讓 DRYRUN 成功執行；從 pipeline.json 找出所有 DRYRUN 上游 step，依 client_type/has_admin_backend 條件過濾；逐一判定輸出存在性，缺失者依 pipeline 順序補跑（gendoc-flow --only）；全部就緒後執行 DRYRUN；完成後進入分支 B。(4) **分支 B（DRYRUN 已完成）**：目標為讓所有下游 step 通過品質驗證；FAIL 判定採兩層：層 1 語意（輸出不存在或目錄為空）+ 層 2 品質（讀 `.gendoc-rules/{step_id}-rules.json` 比對實際輸出）；redo list = 所有 FAIL step；兩層都通過者直接跳過，**不依賴 completed_steps 做跳過判斷**（相容舊格式 state file）；直接執行補跑，不詢問使用者；補跑完成後重新驗（最多 3 次），全過則結束，3 次後仍失敗則停止提示手動排查。(5) **state file 使用範圍縮小**：僅讀取 client_type、has_admin_backend（pipeline 條件過濾）和 completed_steps（Gate 判斷 DRYRUN 是否完成）；不再用 completed_steps 判斷下游 step 是否需補跑。**廢除項目**：DEFAULTS 三態偵測邏輯（Step 1.6 L475-488）、Step 3 使用者確認選單（[1]補跑/[2]只看報告）、上游就緒度預檢（entity/US/layer 計數）、基線過時偵測（git 時間戳）。 |
