@@ -243,27 +243,25 @@ else:
 
 ---
 
-## Step 4：正常完成，清除 Marker
+## Step 4：正常完成，刪除所有 guard 檔案
 
 ```python
-import json, os
-from datetime import datetime, timezone
+import os
 
-_guard_file = '.gendoc-guard.json'
+_GUARD_FILES = [
+    '.gendoc-guard.json',
+    '.gendoc-guard-queue',
+    '.gendoc-guard-history.jsonl',
+]
 
-if os.path.exists(_guard_file):
+for _f in _GUARD_FILES:
     try:
-        d = json.load(open(_guard_file, encoding='utf-8'))
-        d['status'] = 'complete'
-        d['completed_at'] = datetime.now(timezone.utc).isoformat()
-        with open(_guard_file, 'w', encoding='utf-8') as f:
-            json.dump(d, f, indent=2, ensure_ascii=False)
-    except Exception:
+        os.remove(_f)
+    except FileNotFoundError:
         pass
 
 print(f"\n[GUARD] ✅ /{os.environ.get('_TARGET','')} 正常完成，監控結束")
-print(f"[GUARD] marker 狀態已更新為 complete")
-print(f"[GUARD] Stop hook 不會觸發重啟（status=complete）")
+print(f"[GUARD] guard 檔案已清除，Stop hook 不再觸發")
 ```
 
 ---

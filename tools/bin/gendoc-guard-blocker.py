@@ -83,6 +83,10 @@ if tool == 'Bash':
     if re.search(r'\btouch\b', cmd):
         block()
 
+    # R-13：禁止空 commit
+    if re.search(r'\bgit\b.*\bcommit\b.*--allow-empty', cmd):
+        block()
+
     # R-07：Bash 讀取 hook 腳本
     if any(hs in cmd for hs in HOOK_SCRIPTS):
         if re.search(r'\b(cat|less|head|tail|grep|more|view)\b', cmd):
