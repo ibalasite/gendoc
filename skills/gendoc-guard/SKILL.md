@@ -238,6 +238,40 @@ def _extract_whitelist(path, depth=0, visited=None):
         if any(re.search(p, block) for p in WRITE_PATS):
             result['allow_inline_python_write'] = True
 
+    # 掃描 code block 中引用的 JSON 設定檔，提取 skill 名稱（如 pipeline.json special_skill）
+    json_refs = set()
+    for block in re.findall(r'```[^\n]*\n(.*?)```', content, re.DOTALL):
+        for m in re.finditer(r"""['"]([^'"*\s]+\.json)['"]""", block):
+            json_refs.add(Path(m.group(1)).name)
+        for m in re.finditer(r'\b([a-zA-Z0-9_-]+\.json)\b', block):
+            json_refs.add(m.group(1))
+    json_refs = {r for r in json_refs if len(r) > 8}
+
+    SKILL_NAME_RE = re.compile(r'\b([a-zA-Z][a-zA-Z0-9]*(?:-[a-zA-Z0-9]+)+)\b')
+
+    def _walk_json(obj):
+        if isinstance(obj, str):
+            for m in SKILL_NAME_RE.finditer(obj):
+                if '-' in m.group(1):
+                    result['skill_calls'].add(m.group(1))
+        elif isinstance(obj, dict):
+            for v in obj.values():
+                _walk_json(v)
+        elif isinstance(obj, list):
+            for v in obj:
+                _walk_json(v)
+
+    for ref in json_refs:
+        for base in [path.parent.parent / 'templates',
+                     Path.home() / '.claude' / 'skills' / 'gendoc' / 'templates']:
+            p = base / ref
+            if p.exists():
+                try:
+                    _walk_json(json.loads(p.read_text(encoding='utf-8')))
+                except Exception:
+                    pass
+                break
+
     # 遞迴展開 sub-skill 白名單
     parent_dir = path.parent.parent
     for sub in list(result['skill_calls']):
