@@ -737,6 +737,132 @@ else:
 
 ---
 
+## Phase C：special_skill 步驟 mtime Stale 自動重建
+
+> 此 Phase 在 Branch B 完成後執行。Branch B 負責「輸出缺失或品質不足」的補跑；Phase C 負責「輸出存在且品質通過，但比觸發檔案還舊」的重建。兩者互補，不重疊。
+
+### C-1：掃描所有 special_skill 步驟
+
+```python
+import json, os, glob as _glob
+from datetime import datetime
+
+_pipeline_raw = open(_PIPELINE_FILE, encoding='utf-8').read()
+_pipeline     = json.loads(_pipeline_raw)
+_all_steps    = _pipeline.get('steps', [])
+
+_special_steps = [s for s in _all_steps if s.get('special_skill')]
+
+print(f"\n{'='*60}")
+print(f"[Phase C] special_skill mtime 重建檢查（{len(_special_steps)} 個步驟）")
+print(f"{'='*60}")
+```
+
+### C-2：mtime 比對函式
+
+```python
+def _get_mtime(path_pattern: str) -> float | None:
+    """回傳符合 pattern 的所有檔案中的最大 mtime；無檔案時回傳 None。"""
+    matched = _glob.glob(path_pattern, recursive=True)
+    if not matched:
+        return None
+    return max(os.path.getmtime(p) for p in matched if os.path.isfile(p))
+
+def _get_oldest_output_mtime(output_spec) -> float | None:
+    """回傳輸出集的最小 mtime（最舊的輸出檔）；無輸出時回傳 None。"""
+    if isinstance(output_spec, str):
+        output_spec = [output_spec]
+    mtimes = []
+    for pattern in output_spec:
+        matched = _glob.glob(pattern, recursive=True)
+        for p in matched:
+            if os.path.isfile(p):
+                mtimes.append(os.path.getmtime(p))
+    return min(mtimes) if mtimes else None
+
+def _is_stale(step: dict) -> tuple[bool, str]:
+    """
+    回傳 (is_stale, reason)。
+    is_stale=True → 需要重建；False → 跳過。
+    """
+    trigger_files = step.get('input', [])
+
+    # 空 input[] → 隱式觸發集：所有 docs/*.md
+    if not trigger_files:
+        trigger_files = _glob.glob('docs/*.md')
+
+    # 找最新的觸發檔 mtime
+    newest_input = None
+    for pattern in trigger_files:
+        m = _get_mtime(pattern)
+        if m is not None:
+            newest_input = max(newest_input or 0, m)
+
+    if newest_input is None:
+        return False, "觸發集無檔案，略過"
+
+    # 找最舊的輸出檔 mtime
+    output_spec = step.get('output', [])
+    oldest_output = _get_oldest_output_mtime(output_spec)
+
+    if oldest_output is None:
+        # 輸出根本不存在 → Branch B 應已處理，Phase C 略過
+        return False, "輸出不存在（Branch B 已補跑）"
+
+    if newest_input > oldest_output:
+        input_dt  = datetime.fromtimestamp(newest_input).strftime('%H:%M:%S')
+        output_dt = datetime.fromtimestamp(oldest_output).strftime('%H:%M:%S')
+        return True, f"輸入較新（input={input_dt} > output={output_dt}）"
+
+    return False, "FRESH"
+```
+
+### C-3：執行 Stale 重建
+
+```python
+_stale_steps = []
+
+for step in _special_steps:
+    sid  = step['id']
+    cond = step.get('condition', 'always')
+
+    # 條件過濾（與 Branch B 相同）
+    if not _eval_condition(cond, _CLIENT_TYPE, _HAS_ADMIN):
+        print(f"[C-3] ⏭️  {sid} — 條件不符（{cond}），略過")
+        continue
+
+    stale, reason = _is_stale(step)
+
+    if stale:
+        print(f"[C-3] 🔄 STALE  {sid} — {reason}")
+        _stale_steps.append(sid)
+    else:
+        print(f"[C-3] ✅ FRESH  {sid} — {reason}")
+
+print(f"\n[Phase C] 共 {len(_stale_steps)} 個 STALE 步驟需重建：{_stale_steps}")
+```
+
+**重建執行（自動，無需確認）：**
+
+```python
+# ⚠️ 依 pipeline 順序重建（已由 _special_steps 保證），上游先、下游後
+# ⚠️ 重建完一個立即繼續下一個，不輸出總結、不等待使用者
+
+for _c_idx, sid in enumerate(_stale_steps, 1):
+    print(f"\n[Phase C] ▶ [{_c_idx}/{len(_stale_steps)}] 重建 {sid}")
+    # 用 Skill tool 呼叫 gendoc-flow，args="--only {sid}"
+    # gendoc-flow 偵測 special_skill 欄位，呼叫對應 Skill（如 gendoc-gen-html）
+    # 等待回傳後立即繼續，失敗時印出 [WARN] 並繼續
+    print(f"[C-3] {sid} 重建完成，繼續下一個...")
+
+if _stale_steps:
+    print(f"\n[Phase C] ✅ {len(_stale_steps)} 個 STALE 步驟重建完畢")
+else:
+    print(f"\n[Phase C] ✅ 所有 special_skill 步驟均為 FRESH，無需重建")
+```
+
+---
+
 ## 工具使用規則
 
 | 情境 | 工具 |
@@ -757,4 +883,6 @@ else:
 4. **不讀** `$_CWD/templates/` — pipeline 只從 `$GENDOC_TEMPLATES` 讀取
 5. **不直接修改** `~/.claude/skills/` — 只修改 `~/projects/gendoc/skills/`
 6. **單 step 失敗不中止** — 記錄失敗，繼續下一個 step
+7. **Phase C 不詢問使用者** — mtime 比對是機械判斷，STALE 立即重建，無需確認
+8. **Phase C 的觸發集從 pipeline.json 讀取** — `input[]` 為空時隱式展開為 `docs/*.md`，零硬編碼
 7. **最多 3 輪重試** — 超過後報告失敗原因，不無限迴圈
