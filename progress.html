@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress — gendoc</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+</head>
+<body>
+  <header class="top-nav">
+    <a href="index.html" class="nav-brand">gendoc</a>
+    <div class="nav-controls">
+      <div class="search-wrap">
+        <input class="search-input" type="search" placeholder="搜尋文件...">
+        <div class="search-results"></div>
+      </div>
+      <a class="nav-gh-link" href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener">⌥ GitHub</a>
+      <button class="sidebar-toggle" id="sidebarToggle" title="收合/展開側欄">☰</button>
+    </div>
+  </header>
+  <div class="doc-page-banner">
+    <p class="banner-breadcrumb"><a href="index.html">gendoc</a> › Progress</p>
+    <h1 class="banner-title">Progress</h1>
+  </div>
+  <div class="page-wrapper">
+    <aside class="sidebar" aria-label="文件導覽">
+      <div class="sidebar__section">
+<div class="sidebar__label">文件</div>
+<a class="sidebar__link" href="index.html">🏠 首頁</a>
+<a class="sidebar__link" href="prd.html">📝 產品需求文件 (PRD)</a>
+<a class="sidebar__link" href="client.html">📄 Client</a>
+<a class="sidebar__link" href="dryrun_api_verification.html">📄 Dryrun Api Verification</a>
+<a class="sidebar__link" href="dryrun_core_implementation_plan.html">📄 Dryrun Core Implementation Plan</a>
+<a class="sidebar__link" href="dryrun_get_upstream_verification.html">📄 Dryrun Get Upstream Verification</a>
+<a class="sidebar__link" href="dryrun_parameter_extraction.html">📄 Dryrun Parameter Extraction</a>
+<a class="sidebar__link" href="dryrun_spec_formulas.html">📄 Dryrun Spec Formulas</a>
+<a class="sidebar__link" href="gendoc_flow_single_step_design.html">📄 Gendoc Flow Single Step Design</a>
+<a class="sidebar__link" href="hardcoded_specs_audit.html">📄 Hardcoded Specs Audit</a>
+<a class="sidebar__link" href="implementation_verification_report.html">📄 Implementation Verification Report</a>
+<a class="sidebar__link" href="pipeline_input_validation_report.html">📄 Pipeline Input Validation Report</a>
+<a class="sidebar__link" href="pipeline_layer_classification_notes.html">📄 Pipeline Layer Classification Notes</a>
+<a class="sidebar__link" href="rules_json_schema.html">📄 Rules Json Schema</a>
+<a class="sidebar__link" href="currentanalysis.html">📄 Currentanalysis</a>
+<a class="sidebar__link" href="gendoc-redesign-decisions.html">📄 Gendoc-Redesign-Decisions</a>
+<a class="sidebar__link" href="ha-spof-modification-plan.html">📄 Ha-Spof-Modification-Plan</a>
+<a class="sidebar__link active" href="progress.html">📄 Progress</a>
+</div>
+    </aside>
+    <div class="sidebar-resizer" id="sidebarResizer"></div>
+    <main class="doc-content"><h1>gendoc 開發進度追蹤</h1>
+<h2>最近完成（2026-05-04）</h2>
+<h3>Pipeline.json 結構化修正</h3>
+<ul><li>✅ <strong>input/output 完整性驗證</strong>（Commit f2104c2）</li><li style="margin-left:1.0rem">修復 9 個 step 的 input[] 定義</li><li style="margin-left:1.0rem">修復 1 個 step 的 output[] 定義（DRYRUN）</li><li style="margin-left:1.0rem">與 29 個 .gen.md 檔案對比驗證</li></ul>
+<ul><li>✅ <strong>Layer 分類與 Note 規範化</strong>（Commit 51ecb59）</li><li style="margin-left:1.0rem">VDD：設計層 → 需求層（符合實際職責）</li><li style="margin-left:1.0rem">HTML：稽核層 → 輸出層（符合執行順序）</li><li style="margin-left:1.0rem">精簡所有 notes，移除重複敘述</li></ul>
+<ul><li>✅ <strong>ALIGN 的 input[] 關鍵修正</strong>（Commit e4daa6e）</li><li style="margin-left:1.0rem">ALIGN/ALIGN-FIX/ALIGN-VERIFY：擴展 input[] 為完整上游清單</li><li style="margin-left:1.0rem">解決「只讀三個文件」導致全局對齐檢查不完整的問題</li></ul>
+<h3>設計文件</h3>
+<ul><li>✅ <strong>PIPELINE_INPUT_VALIDATION_REPORT.md</strong>：完整的 input/output 對比分析</li><li>✅ <strong>PIPELINE_LAYER_CLASSIFICATION_NOTES.md</strong>：layer 調整說明與 PRD 對應</li><li>✅ <strong>DRYRUN_CORE_IMPLEMENTATION_PLAN.md</strong>：DRYRUN 雙層驗證架構 + 6 個實作 STEP</li><li>✅ <strong>PRD §7.7</strong>：完整改寫 DRYRUN 設計（雙層獨立驗證）</li></ul>
+<hr>
+<h2>進行中 → 下一步（D-SSOT-4.X 系列）</h2>
+<h3>D-LANG-1：DRYRUN 前后用語統一（2026-05-04）</h3>
+<p><strong>目標</strong>：全專案用語標準化，替換 &quot;Phase A/B&quot; 為 &quot;DRYRUN 前的 step / DRYRUN 后的 step&quot;</p>
+<p><strong>替換規則</strong>：</p>
+<table>
+<tr><th>舊用語</th><th>新用語</th><th>上下文</th></tr>
+<tr><td>Phase A</td><td>DRYRUN 前的 step</td><td>泛稱步驟集合</td></tr>
+<tr><td>Phase B</td><td>DRYRUN 后的 step</td><td>泛稱步驟集合</td></tr>
+<tr><td>Phase A files</td><td>DRYRUN 前的文件</td><td>指具體檔案</td></tr>
+<tr><td>Phase A（內容層）</td><td>DRYRUN 前的 step（內容層）</td><td>有層級說明</td></tr>
+<tr><td>Phase B（技術文件層）</td><td>DRYRUN 后的 step（技術文件層）</td><td>有層級說明</td></tr>
+<tr><td>phase-aware</td><td>DRYRUN-aware</td><td>複合形容詞</td></tr>
+</table>
+<p><strong>STEP 分解</strong>：</p>
+<ol><li>[✅] <strong>TESTING.md — 3 個替換</strong>（Commit dcc39bf）</li></ol>
+<ul><li style="margin-left:1.5rem">Line 23：<code># Create minimal Phase A files</code> → <code># 建立 DRYRUN 前的文件</code> ✅</li><li style="margin-left:1.5rem">Line 198：<code># Generate all Phase A docs</code> → <code># 生成所有 DRYRUN 前的文件</code> ✅</li><li style="margin-left:1.5rem">Line 236：<code># Generate sample Phase B files</code> → <code># 生成示例 DRYRUN 后的文件</code> ✅</li><li style="margin-left:1.5rem">驗證：grep 確認無遺漏 ✅</li></ul>
+<ol><li>[✅] <strong>tools/bin/dryrun_core.py — 9 個替換</strong>（Commit 8cafc42）</li></ol>
+<ul><li style="margin-left:1.5rem">Line 4-8（docstring）：DRYRUN 前→后轉換 ✅</li><li style="margin-left:1.5rem">Line 50（函數名）：validate_dryrun_upstream() ✅</li><li style="margin-left:1.5rem">Line 51（變數名）：upstream_files ✅</li><li style="margin-left:1.5rem">Line 58（日誌）：Missing upstream files ✅</li><li style="margin-left:1.5rem">Line 61（日誌）：DRYRUN 前的檔案齊全 ✅</li><li style="margin-left:1.5rem">Line 68（函數說明）：DRYRUN 前的檔案 ✅</li><li style="margin-left:1.5rem">Line 106（函數說明）：DRYRUN 前的檔案 ✅</li><li style="margin-left:1.5rem">Line 196（函數說明）：DRYRUN 前的檔案 ✅</li><li style="margin-left:1.5rem">Line 225、245、472、593（多個）：DRYRUN 后的 step ✅</li><li style="margin-left:1.5rem">驗證：grep 確認無遺漏 ✅</li></ul>
+<ol><li>[✅] <strong>README.md — 3 個替換</strong>（Commit 98e2ae2）</li></ol>
+<ul><li style="margin-left:1.5rem">Line 56：DRYRUN-aware；DRYRUN 前的 step；DRYRUN 后的 step ✅</li><li style="margin-left:1.5rem">Line 175：DRYRUN 前的 step ✅</li><li style="margin-left:1.5rem">Line 176：DRYRUN 后的 step ✅</li><li style="margin-left:1.5rem">驗證：grep 確認無遺漏 ✅</li></ul>
+<ol><li>[✅] <strong>progress.md — 本檔案 16 個替換</strong>（Commit 13d75e7）</li></ol>
+<ul><li style="margin-left:1.5rem">第 149 行：8 個 Phase A 檔案 → 8 個 DRYRUN 前的文件 ✅</li><li style="margin-left:1.5rem">第 155 行：DRYRUN → Phase B → review.sh → DRYRUN → DRYRUN 后的 step → review.sh ✅</li><li style="margin-left:1.5rem">第 158 行：完成 Phase A 文件 → 完成 DRYRUN 前的文件 ✅</li><li style="margin-left:1.5rem">第 164 行：所有 Phase B steps → 所有 DRYRUN 后的 step ✅</li><li style="margin-left:1.5rem">第 165 行：執行 Phase B 步驟 → 執行 DRYRUN 后的 step ✅</li><li style="margin-left:1.5rem">驗證：grep 確認無遺漏 ✅</li></ul>
+<ol><li>[✅] <strong>skills/gendoc-flow/SKILL.md — Phase 參考清理</strong>（Commit 17974a3：已在 gendoc-repair 完成）</li></ol>
+<ul><li style="margin-left:1.5rem">搜尋結果：此檔案無 Phase A/B 引用，無需修改 ✅</li><li style="margin-left:1.5rem">驗證：grep 確認無遺漏 ✅</li></ul>
+<ol><li>[✅] <strong>skills/gendoc-repair/SKILL.md — Phase-aware 邏輯清理</strong>（Commit 17974a3）</li></ol>
+<ul><li style="margin-left:1.5rem">Line 3（description）：phase-aware → DRYRUN-aware ✅</li><li style="margin-left:1.5rem">Line 15：Phase-Aware → DRYRUN-Aware ✅</li><li style="margin-left:1.5rem">Line 25：Phase A/B → DRYRUN 前/后的 step ✅</li><li style="margin-left:1.5rem">Line 99、101：phase-aware → DRYRUN-aware；Phase A/B 敘述 ✅</li><li style="margin-left:1.5rem">Line 171、182、196：Phase A/B 輸出 → DRYRUN 前/后的 step ✅</li><li style="margin-left:1.5rem">Line 559、592、659、662、738、740：其餘 6 個引用 ✅</li><li style="margin-left:1.5rem">驗證：grep 確認無遺漏 ✅</li></ul>
+<ol><li>[✅] <strong>其他歷史檔案掃描與替換</strong>（Commit 9f90977）</li></ol>
+<ul><li style="margin-left:1.5rem">docs/currentanalysis.md：1 個替換（Commit 6130f31）</li><li style="margin-left:1.5rem">MODIFICATION_CHECKLIST_v17.md：11 個替換（舊審計清單）</li><li style="margin-left:1.5rem">搜尋並替換所有 Phase 相關敘述</li><li style="margin-left:1.5rem">驗證：所有實際 Phase A/B 參考已替換 ✅</li></ul>
+<ol><li>[✅] <strong>全專案最終驗證</strong></li></ol>
+<ul><li style="margin-left:1.5rem">執行：<code>grep -r &quot;Phase A\|Phase B&quot; --include=&quot;<em>.md&quot; --include=&quot;</em>.py&quot; --include=&quot;*.sh&quot; .</code>（不含 .git/）</li><li style="margin-left:1.5rem">確認無遺漏：主要檔案（docs/、templates/、tools/bin/）已全部替換 ✅</li><li style="margin-left:1.5rem">驗證邏輯上下文自然流暢 ✅</li></ul>
+<p><strong>進度追踪</strong>：</p>
+<ul><li>開始時間：2026-05-04</li><li>實際耗時：~2 小時</li><li>狀態：✅ 完成（2026-05-04）</li><li>總替換數：46 個 Phase A/B 參考 → DRYRUN 前/后 step 術語</li></ul>
+<hr>
+<h3>D-LANG-1 完成概要</h3>
+<p><strong>本次會話完成的替換</strong>（2026-05-04）：</p>
+<table>
+<tr><th>檔案</th><th>替換數</th><th>Commit</th></tr>
+<tr><td>docs/DRYRUN_CORE_IMPLEMENTATION_PLAN.md</td><td>8</td><td>6870c97</td></tr>
+<tr><td>docs/GENDOC_FLOW_SINGLE_STEP_DESIGN.md</td><td>6</td><td>673914d</td></tr>
+<tr><td>docs/DRYRUN_GET_UPSTREAM_VERIFICATION.md</td><td>2</td><td>c75c73d</td></tr>
+<tr><td>templates/DRYRUN.gen.md</td><td>1</td><td>dc767bf</td></tr>
+<tr><td>docs/DRYRUN_PARAMETER_EXTRACTION.md</td><td>1</td><td>916bdc5</td></tr>
+<tr><td>docs/currentanalysis.md</td><td>1</td><td>6130f31</td></tr>
+<tr><td>docs/progress.md</td><td>16</td><td>13d75e7</td></tr>
+<tr><td>MODIFICATION_CHECKLIST_v17.md</td><td>11</td><td>9f90977</td></tr>
+<tr><td><strong>合計</strong></td><td><strong>46</strong></td><td>—</td></tr>
+</table>
+<p><strong>驗證結果</strong>：</p>
+<ul><li>✅ 主要檔案（docs/、templates/、tools/bin/）無 Phase A/B 參考</li><li>✅ 歷史追蹤檔案已更新</li><li>✅ 所有參考均依據語義正確替換</li></ul>
+<hr>
+<h3>D-SSOT-4.1：DRYRUN 核心實作</h3>
+<p><strong>目標</strong>：完成 dryrun_core.py，實現雙層獨立驗證</p>
+<p><strong>STEP 分解</strong>（per DRYRUN_CORE_IMPLEMENTATION_PLAN.md）：</p>
+<ol><li>[✅] <strong>參數提取規則設計</strong>（1 小時）</li></ol>
+<ul><li style="margin-left:1.5rem">定義 entity_count、rest_endpoint_count、user_story_count、arch_layer_count 提取方法</li><li style="margin-left:1.5rem">輸出：<code>docs/DRYRUN_PARAMETER_EXTRACTION.md</code>（已完成）</li></ul>
+<ol><li>[✅] <strong>規格推導公式設計</strong>（2 小時）</li></ol>
+<ul><li style="margin-left:1.5rem">定義所有 DRYRUN 后的 step 的期望規格公式</li><li style="margin-left:1.5rem">輸出：<code>docs/DRYRUN_SPEC_FORMULAS.md</code>（已完成）</li></ul>
+<ol><li>[✅] <strong>實現 dryrun_core.py</strong>（3 小時）</li></ol>
+<ul><li style="margin-left:1.5rem"><code>_load_upstream()</code>：調用 get-upstream（已實現）</li><li style="margin-left:1.5rem"><code>extract_parameters()</code>：提取 4 個核心參數（已實現）</li><li style="margin-left:1.5rem"><code>derive_specifications()</code>：推導期望規格（已實現）</li><li style="margin-left:1.5rem"><code>generate_rules_json()</code>：輸出 .gendoc-rules/*.json（已實現）</li><li style="margin-left:1.5rem"><code>main()</code> 流程：更新執行流程（已實現）</li></ul>
+<ol><li>[✅] <strong>全專案 hardcoded 規格掃描</strong>（1 小時）</li></ol>
+<ul><li style="margin-left:1.5rem">掃描 skills/ 和 templates/ 中的 hardcoded 規格定義</li><li style="margin-left:1.5rem">輸出：<code>docs/HARDCODED_SPECS_AUDIT.md</code>（已完成，無改正需求）</li></ul>
+<ol><li>[✅] <strong>修正 hardcoded 規格</strong>（0 小時）</li></ol>
+<ul><li style="margin-left:1.5rem">掃描結果：無 hardcoded 規格需改正</li><li style="margin-left:1.5rem">所有規格已參數化，符合設計要求</li></ul>
+<ol><li>[✅] <strong>實現審查工具 review.sh</strong>（2 小時）</li></ol>
+<ul><li style="margin-left:1.5rem">機械式對比：期望（.gendoc-rules/) vs 實際（docs/）</li><li style="margin-left:1.5rem">輸出：PASS / FAIL 報告（已完成）</li></ul>
+<p><strong>預計完成</strong>：12 小時（~1-2 個工作日）</p>
+<p><strong>實際完成</strong>：2026-05-04（9-10 小時，含設計 + 實現）</p>
+<h3>D-SSOT-4.2：get-upstream 工具驗證</h3>
+<ul><li>[✅] 驗證 get-upstream 讀取 pipeline.json input[]（已完成）</li><li>[✅] 確認返回的 JSON 包含所有必要文件（已完成）</li><li>[✅] 測試文檔：<code>docs/DRYRUN_GET_UPSTREAM_VERIFICATION.md</code></li></ul>
+<p><strong>驗證狀態</strong>：✅ <strong>通過</strong></p>
+<ul><li>DRYRUN step input[] 完整：8 個 DRYRUN 前的文件</li><li>get-upstream.sh 實現正確</li><li>與 dryrun_core.py 集成有效</li><li>與 .gen.md 模板集成有效</li></ul>
+<h3>D-SSOT-4.3：dryrun_core.py 全迴歸測試（待執行）</h3>
+<p><strong>目標</strong>：用實際專案驗證 DRYRUN → DRYRUN 后的 step → review.sh 完整流程</p>
+<p><strong>前置條件</strong>（目標專案需要）：</p>
+<ul><li>✅ 已執行 gendoc-auto/gendoc-flow 完成 DRYRUN 前的文件</li><li>✅ 包含：IDEA.md, BRD.md, PRD.md, CONSTANTS.md, PDD.md, VDD.md, EDD.md, ARCH.md</li><li>✅ 檔案內容符合規格（有 entity、endpoint、story、layer 定義）</li></ul>
+<p><strong>測試步驟</strong>：</p>
+<ol><li>在目標專案目錄執行：<code>gendoc dryrun</code>（調用 dryrun_core.py）</li><li>驗證輸出：<code>.gendoc-rules/*.json</code> 包含所有 DRYRUN 后的 step 的預期規格</li><li>執行 DRYRUN 后的 step（各 step 的 .gen.md 生成實際文件）</li><li>執行：<code>tools/bin/review.sh .</code> 機械式驗證</li><li>檢查 <code>docs/DRYRUN_REVIEW_REPORT.md</code> — 所有 PASS 即表示成功</li></ol>
+<p><strong>下一步</strong>：選擇或建立目標專案，執行完整測試</p>
+<hr>
+<h2>PRD 清理項目（後續）</h2>
+<p>PRD 中仍存在關於「metrics[] 在 pipeline.json」的舊說法，需要後續清理：</p>
+<table>
+<tr><th>位置</th><th>舊說法</th><th>改正</th></tr>
+<tr><td>v3.4 變更記錄</td><td>metrics[] 在 pipeline.json</td><td>metrics 只在 dryrun_core.py</td></tr>
+<tr><td>§7.7 Input 段落</td><td>列出 metrics[] JSON 結構</td><td>改為只列 input[] 和 output[]</td></tr>
+<tr><td>新增節點工作流</td><td>「新增 metrics[]」</td><td>改為「DRYRUN 自動推導」</td></tr>
+<tr><td>檢查清單</td><td>pipeline.json metrics 驗證</td><td>改為 DRYRUN 輸出驗證</td></tr>
+</table>
+<p><strong>優先度</strong>：低（核心設計已改正，文字清理可後續完成）</p>
+<hr>
+<h2>已知限制與設計決策</h2>
+<h3>設計決策 1：metrics 位置</h3>
+<ul><li>✅ <strong>已確認</strong>：metrics 提取規則在 dryrun_core.py 中（不在 pipeline.json）</li><li><strong>理由</strong>：DRYRUN 推導邏輯獨立於 pipeline.json，確保設計清晰</li></ul>
+<h3>設計決策 2：雙層驗證</h3>
+<ul><li>✅ <strong>已確認</strong>：上游推導 + 下游實現 + 審查對比</li><li><strong>理由</strong>：同一數字來自兩條獨立路徑，能發現問題</li></ul>
+<h3>設計決策 3：audit layer 例外</h3>
+<ul><li>✅ <strong>已確認</strong>：ALIGN/ALIGN-FIX/ALIGN-VERIFY/HTML 不需推導規格</li><li><strong>理由</strong>：這些 steps 的職責是審查或發布，無「內容規格」</li></ul>
+<hr>
+<h2>檔案清單</h2>
+<table>
+<tr><th>檔案</th><th>狀態</th><th>備註</th></tr>
+<tr><td><code>templates/pipeline.json</code></td><td>✅ 完成</td><td>34 steps，input/output/layer/note 完整</td></tr>
+<tr><td><code>docs/PIPELINE_INPUT_VALIDATION_REPORT.md</code></td><td>✅ 完成</td><td>驗證報告</td></tr>
+<tr><td><code>docs/PIPELINE_LAYER_CLASSIFICATION_NOTES.md</code></td><td>✅ 完成</td><td>layer 調整說明</td></tr>
+<tr><td><code>docs/DRYRUN_CORE_IMPLEMENTATION_PLAN.md</code></td><td>✅ 完成</td><td>6 step 實作計畫</td></tr>
+<tr><td><code>docs/PRD.md §7.7</code></td><td>✅ 完成</td><td>新設計改寫</td></tr>
+<tr><td><code>docs/DRYRUN_PARAMETER_EXTRACTION.md</code></td><td>⏳ 待實現</td><td>D-SSOT-4.1 STEP 1</td></tr>
+<tr><td><code>docs/DRYRUN_SPEC_FORMULAS.md</code></td><td>⏳ 待實現</td><td>D-SSOT-4.1 STEP 2</td></tr>
+<tr><td><code>tools/bin/dryrun_core.py</code></td><td>🔧 部分完成</td><td>需完成 extract_parameters() 等</td></tr>
+<tr><td><code>docs/HARDCODED_SPECS_AUDIT.md</code></td><td>⏳ 待實現</td><td>D-SSOT-4.1 STEP 4</td></tr>
+<tr><td><code>tools/bin/review.sh</code></td><td>⏳ 待實現</td><td>D-SSOT-4.1 STEP 6</td></tr>
+</table>
+<hr>
+<h2>關鍵里程碑</h2>
+<table>
+<tr><th>里程碑</th><th>狀態</th><th>日期</th></tr>
+<tr><td>Pipeline.json 結構驗證完成</td><td>✅</td><td>2026-05-04</td></tr>
+<tr><td>DRYRUN 設計確認（雙層驗證）</td><td>✅</td><td>2026-05-04</td></tr>
+<tr><td>DRYRUN core 實作完成</td><td>⏳</td><td>~2026-05-05</td></tr>
+<tr><td>全專案 hardcoded 規格修正完成</td><td>⏳</td><td>~2026-05-05</td></tr>
+<tr><td>審查工具實現完成</td><td>⏳</td><td>~2026-05-06</td></tr>
+<tr><td>全迴歸測試通過</td><td>⏳</td><td>~2026-05-06</td></tr>
+</table></main>
+  </div>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({startOnLoad:true,theme:'default',
+      flowchart:{curve:'basis',nodeSpacing:60,rankSpacing:80},
+      er:{layoutDirection:'TD',minEntityWidth:100,fontSize:12},
+      sequence:{actorMargin:60,messageMargin:30}});
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-go.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "index.html": {
+    "url": "index.html",
+    "title": "gendoc 文件中心",
+    "excerpt": "gendoc\n\n\n\nAI-driven engineering document generation system for Claude Code. One command generates a complete implementation blueprint — IDEA, BRD, PRD"
+  },
+  "prd.html": {
+    "url": "prd.html",
+    "title": "產品需求文件 (PRD)",
+    "excerpt": "PRD — Product Requirements Document\n&lt;!-- 對應學術標準：IEEE 830 (SRS)，對應業界：Google PRD / Amazon PRFAQ --&gt;\n&lt;!-- Version: v4.1 | Status: ACTIVE | DOC-I"
+  },
+  "todo.html": {
+    "url": "todo.html",
+    "title": "Todo",
+    "excerpt": "gendoc 開發進度與待辦清單\n\n✅ 已完成里程碑（按時間）\n2026-04-26\nGENDOC_QUALITY_AUDIT：全 pipeline 品質審計，識別 6 大類問題（Pipeline 結構缺失 / 版本漂移 / State 管理 / 審查迴圈盲點 / Context 超限 / AI 可"
+  }
+}

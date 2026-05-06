@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gendoc-Redesign-Decisions — gendoc</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+</head>
+<body>
+  <header class="top-nav">
+    <a href="index.html" class="nav-brand">gendoc</a>
+    <div class="nav-controls">
+      <div class="search-wrap">
+        <input class="search-input" type="search" placeholder="搜尋文件...">
+        <div class="search-results"></div>
+      </div>
+      <a class="nav-gh-link" href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener">⌥ GitHub</a>
+      <button class="sidebar-toggle" id="sidebarToggle" title="收合/展開側欄">☰</button>
+    </div>
+  </header>
+  <div class="doc-page-banner">
+    <p class="banner-breadcrumb"><a href="index.html">gendoc</a> › Gendoc-Redesign-Decisions</p>
+    <h1 class="banner-title">Gendoc-Redesign-Decisions</h1>
+  </div>
+  <div class="page-wrapper">
+    <aside class="sidebar" aria-label="文件導覽">
+      <div class="sidebar__section">
+<div class="sidebar__label">文件</div>
+<a class="sidebar__link" href="index.html">🏠 首頁</a>
+<a class="sidebar__link" href="prd.html">📝 產品需求文件 (PRD)</a>
+<a class="sidebar__link" href="client.html">📄 Client</a>
+<a class="sidebar__link" href="dryrun_api_verification.html">📄 Dryrun Api Verification</a>
+<a class="sidebar__link" href="dryrun_core_implementation_plan.html">📄 Dryrun Core Implementation Plan</a>
+<a class="sidebar__link" href="dryrun_get_upstream_verification.html">📄 Dryrun Get Upstream Verification</a>
+<a class="sidebar__link" href="dryrun_parameter_extraction.html">📄 Dryrun Parameter Extraction</a>
+<a class="sidebar__link" href="dryrun_spec_formulas.html">📄 Dryrun Spec Formulas</a>
+<a class="sidebar__link" href="gendoc_flow_single_step_design.html">📄 Gendoc Flow Single Step Design</a>
+<a class="sidebar__link" href="hardcoded_specs_audit.html">📄 Hardcoded Specs Audit</a>
+<a class="sidebar__link" href="implementation_verification_report.html">📄 Implementation Verification Report</a>
+<a class="sidebar__link" href="pipeline_input_validation_report.html">📄 Pipeline Input Validation Report</a>
+<a class="sidebar__link" href="pipeline_layer_classification_notes.html">📄 Pipeline Layer Classification Notes</a>
+<a class="sidebar__link" href="rules_json_schema.html">📄 Rules Json Schema</a>
+<a class="sidebar__link" href="currentanalysis.html">📄 Currentanalysis</a>
+<a class="sidebar__link active" href="gendoc-redesign-decisions.html">📄 Gendoc-Redesign-Decisions</a>
+<a class="sidebar__link" href="ha-spof-modification-plan.html">📄 Ha-Spof-Modification-Plan</a>
+<a class="sidebar__link" href="progress.html">📄 Progress</a>
+</div>
+    </aside>
+    <div class="sidebar-resizer" id="sidebarResizer"></div>
+    <main class="doc-content"><h1>gendoc 重新設計 — 決策清單</h1>
+<blockquote><p>本文件列出所有待決策的修改項目，請在「決策」欄填入 ✅ 同意 / ❌ 拒絕 / 🔄 修改（附說明）。</p></blockquote>
+<hr>
+<h2>背景確認</h2>
+<p><strong>LOCAL_DEPLOY 是否參考 RUNBOOK？</strong></p>
+<p>確認：否。<code>LOCAL_DEPLOY.gen.md</code> 的 upstream-docs = <code>req/, IDEA, BRD, PRD, PDD, EDD, ARCH, API, SCHEMA, test-plan, BDD</code>，RUNBOOK 不在其中。兩者是獨立文件，無依賴關係，捆在同一 step 純屬歷史遺留。</p>
+<hr>
+<h2>新 Step 命名對照表（提案）</h2>
+<table>
+<tr><th>原始 ID</th><th>新 ID</th><th>說明</th></tr>
+<tr><td>STEP A / DOC-A</td><td>D01-IDEA</td><td>以 template 檔名命名</td></tr>
+<tr><td>STEP B / DOC-B</td><td>D02-BRD</td><td></td></tr>
+<tr><td>DOC-03</td><td>D03-PRD</td><td></td></tr>
+<tr><td>DOC-04</td><td>D04-PDD</td><td></td></tr>
+<tr><td>DOC-05</td><td>D05-EDD</td><td></td></tr>
+<tr><td>DOC-06</td><td>D06-ARCH</td><td></td></tr>
+<tr><td>DOC-07</td><td>D07-API</td><td></td></tr>
+<tr><td>DOC-08</td><td>D08-SCHEMA</td><td></td></tr>
+<tr><td>DOC-09</td><td>D09-test-plan</td><td>對應 test-plan.md</td></tr>
+<tr><td>DOC-10</td><td>D10-BDD</td><td></td></tr>
+<tr><td>DOC-10-D（前半）</td><td>D11-runbook</td><td><strong>新增，獨立拆出</strong></td></tr>
+<tr><td>DOC-10-D（後半）</td><td>D12-LOCAL_DEPLOY</td><td><strong>新增，獨立拆出</strong></td></tr>
+<tr><td>DOC-11</td><td>D13-ALIGN</td><td>跨文件對齊掃描</td></tr>
+<tr><td>DOC-12</td><td>D14-HTML</td><td>HTML 生成</td></tr>
+<tr><td>DOC-12P</td><td>D14-HTML-P</td><td>GitHub Pages 驗證（子步驟，不獨立計數）</td></tr>
+</table>
+<p><strong>Review step 命名規則：</strong> 每個 D0N-XXX 對應一個 D0N-XXX-R（Review Loop），例如 D03-PRD-R。</p>
+<hr>
+<h2>修改清單</h2>
+<h3>#1 gendoc-flow — 刪除 §STEP-MAPPING 死碼</h3>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>SKILL</strong></td><td>gendoc-flow</td></tr>
+<tr><td><strong>問題</strong></td><td>§STEP-MAPPING（約 37 行）將舊 autodev 31步 ID 轉換為新 ID，但此對照表的輸出變數 <code>_AUTODEV_STEP</code> 從未被 skip 條件使用</td></tr>
+<tr><td><strong>說明</strong></td><td>這段 mapping 是在舊版外部 SDLC 架構下遺留的死碼，當時目的是讓外部系統設定 31 步編號後映射到 gendoc 內部步驟，現在整個架構已移除外部依賴，這段完全無效</td></tr>
+<tr><td><strong>建議</strong></td><td>直接刪除 §STEP-MAPPING 整段（lines 59-96），不留替代</td></tr>
+<tr><td><strong>改後影響</strong></td><td>gendoc-flow 少 37 行，無功能影響，skip 條件讀取 <code>start_step</code> 邏輯不變</td></tr>
+<tr><td><strong>決策</strong></td><td>同意</td></tr>
+</table>
+<hr>
+<h3>#2 gendoc-flow — 清除 &quot;autodev&quot; 字眼</h3>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>SKILL</strong></td><td>gendoc-flow</td></tr>
+<tr><td><strong>問題</strong></td><td>Step 0 說明文字和變數命名中仍有 &quot;autodev&quot; 字樣（如 <code>_AUTODEV_STEP</code>）</td></tr>
+<tr><td><strong>說明</strong></td><td>上次重構清了大部分，但 gendoc-flow 內部的 autodev 引用沒有完整清除</td></tr>
+<tr><td><strong>建議</strong></td><td>一併在 #1 刪除 §STEP-MAPPING 時清除所有 autodev 字樣；Step 0 說明改為「gendoc-flow step 控制」</td></tr>
+<tr><td><strong>改後影響</strong></td><td>純文字清理，無功能影響</td></tr>
+<tr><td><strong>決策</strong></td><td>同意</td></tr>
+</table>
+<hr>
+<h3>#3 gendoc-flow — DOC-10-D 拆分為兩個獨立 Step</h3>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>SKILL</strong></td><td>gendoc-flow</td></tr>
+<tr><td><strong>問題</strong></td><td>DOC-10-D 把 runbook（A+B）和 LOCAL_DEPLOY（C+D）捆在同一個 step，共用一個 skip 條件「兩者都非空才跳過」</td></tr>
+<tr><td><strong>說明</strong></td><td><strong>確認：LOCAL_DEPLOY 不參考 RUNBOOK，兩者是完全獨立的文件。</strong> 捆綁導致無法分別重跑：RUNBOOK 審查完成後若想單獨重跑 LOCAL_DEPLOY，必須整段重跑，也會重新觸發 RUNBOOK 流程</td></tr>
+<tr><td><strong>建議</strong></td><td>拆成兩個獨立 step：<code>D11-runbook</code>（含 D11-runbook-R Review Loop）和 <code>D12-LOCAL_DEPLOY</code>（含 D12-LOCAL_DEPLOY-R Review Loop），各自有獨立 skip 條件</td></tr>
+<tr><td><strong>改後影響</strong></td><td>總 step 數從 14 變 16（加上兩個 -R），gendoc-config 選單同步新增兩個選項；舊的 DOC-10-D skip 條件邏輯需拆分為兩條</td></tr>
+<tr><td><strong>決策</strong></td><td>同意</td></tr>
+</table>
+<hr>
+<h3>#4 gendoc-flow — 所有 Step ID 改為新命名格式</h3>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>SKILL</strong></td><td>gendoc-flow</td></tr>
+<tr><td><strong>問題</strong></td><td>所有 step 使用 <code>DOC-03</code>、<code>DOC-10</code> 等不可讀 ID，看不出在產生什麼文件</td></tr>
+<tr><td><strong>說明</strong></td><td><code>DOC-03</code> 沒有語義，新人或三個月後的自己都不知道是什麼。<code>D03-PRD</code> 同時表達「第3步」和「產生 PRD」</td></tr>
+<tr><td><strong>建議</strong></td><td>依新對照表全部替換（見上方命名表）。Skip 條件的整數比較邏輯：從 step 字串取出前兩位數字（<code>D03-PRD</code> → <code>3</code>），保持 <code>_START_STEP &gt; N</code> 比較方式</td></tr>
+<tr><td><strong>改後影響</strong></td><td>gendoc-flow 全文 step ID 更新；gendoc-config 選單 ID 同步；gendoc-auto 中的 step ID 同步；state file 中的 <code>start_step</code> 值從 <code>&quot;DOC-03&quot;</code> 格式改為 <code>&quot;D03-PRD&quot;</code> 格式</td></tr>
+<tr><td><strong>決策</strong></td><td>同意</td></tr>
+</table>
+<hr>
+<h3>#5 gendoc-flow — commit 範例還有舊系統字樣</h3>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>SKILL</strong></td><td>gendoc-flow</td></tr>
+<tr><td><strong>問題</strong></td><td>gendoc-flow 的 commit 範例寫著舊格式 <code>docs(legacy)[DOC-03]: ...</code>，重構後漏掉了</td></tr>
+<tr><td><strong>說明</strong></td><td>只是 commit 範例文字，不影響實際執行，但不一致</td></tr>
+<tr><td><strong>建議</strong></td><td>改為 <code>docs(gendoc)[D03-PRD]: ...</code> 格式（配合 #4 新命名）</td></tr>
+<tr><td><strong>改後影響</strong></td><td>純文字，無功能影響</td></tr>
+<tr><td><strong>決策</strong></td><td>同意</td></tr>
+</table>
+<hr>
+<h3>#6 gendoc-flow — <code>_LOOP_COUNT</code> 本地計算值錯誤</h3>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>SKILL</strong></td><td>gendoc-flow</td></tr>
+<tr><td><strong>問題</strong></td><td>Step 0 本地計算 <code>_LOOP_COUNT</code>：<code>rapid=1</code>、<code>standard=2</code>，但 gendoc-config 的實際定義是 <code>rapid=3</code>、<code>standard=5</code>。另外有一個不存在的策略 <code>thorough</code></td></tr>
+<tr><td><strong>說明</strong></td><td>「變數統一 config set，其他 skill 只能用」原則的違反。gendoc-flow 自己算出錯誤的值，蓋過了 config 設定的正確值</td></tr>
+<tr><td><strong>建議</strong></td><td>刪除本地 <code>_LOOP_COUNT</code> 計算邏輯，改為直接從 state file 讀取 <code>max_rounds</code>（由 gendoc-config 設定的正確值）</td></tr>
+<tr><td><strong>改後影響</strong></td><td>Review loop 的最大輪次會正確反映使用者在 gendoc-config 的選擇；移除 <code>thorough</code> 策略這個不存在的分支</td></tr>
+<tr><td><strong>決策</strong></td><td>同意</td></tr>
+</table>
+<hr>
+<h3>#7 gendoc-flow — skip 條件整數比較將在字串 ID 下失效</h3>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>SKILL</strong></td><td>gendoc-flow</td></tr>
+<tr><td><strong>問題</strong></td><td>Skip 條件是 <code>_START_STEP &gt; 3</code>（整數比較），但執行 #4 後 <code>start_step</code> 變成字串 <code>&quot;D03-PRD&quot;</code>，整數比較會報錯或永遠 false</td></tr>
+<tr><td><strong>說明</strong></td><td>Python 比較 <code>&quot;D03-PRD&quot; &gt; 3</code> 會 TypeError；bash 比較 <code>-gt</code> 對非純數字字串結果不確定</td></tr>
+<tr><td><strong>建議</strong></td><td>Skip 條件改為先從 step 字串提取數字：`_STEP_NUM=$(echo &quot;$_START_STEP&quot;</td><td>grep -oP &#x27;^\d+&#x27;)<code> 或 Python </code>int(start_step.split(&#x27;-&#x27;)[0][1:])`，再做整數比較</td></tr>
+<tr><td><strong>改後影響</strong></td><td>Skip 條件行為與現在完全一致，只是能正確處理字串格式的 step ID</td></tr>
+<tr><td><strong>決策</strong></td><td>同意</td></tr>
+</table>
+<hr>
+<h3>#8 gendoc-config — <code>current_step</code> vs <code>start_step</code> key 不一致（關鍵 bug）</h3>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>SKILL</strong></td><td>gendoc-config</td></tr>
+<tr><td><strong>問題</strong></td><td>gendoc-config Step 5 寫入 state file 時用的 key 是 <code>current_step</code>，但 gendoc-flow Step 0 讀取時用的 key 是 <code>start_step</code></td></tr>
+<tr><td><strong>說明</strong></td><td>兩個 key 永遠不會對到，導致「從某個 STEP 重新開始」功能完全失效——gendoc-config 設定的值 gendoc-flow 永遠讀不到</td></tr>
+<tr><td><strong>建議</strong></td><td>統一 key 名稱。建議用 <code>start_step</code>（語義更清楚：「從這個 step 開始」），gendoc-config 改為寫 <code>start_step</code></td></tr>
+<tr><td><strong>改後影響</strong></td><td>「從某個 STEP 重新開始」功能恢復正常，這是目前完全失效的功能</td></tr>
+<tr><td><strong>決策</strong></td><td>同意</td></tr>
+</table>
+<hr>
+<h3>#9 gendoc-config — 選單還有舊格式選項</h3>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>SKILL</strong></td><td>gendoc-config</td></tr>
+<tr><td><strong>問題</strong></td><td>Step 2「從某個 STEP 重新開始」的選項列表：混合了 <code>STEP A/B/C/D</code>（gendoc-auto 內部步驟代號）和 <code>DOC-03</code>~<code>DOC-12P</code>（舊 ID），兩套命名同時存在</td></tr>
+<tr><td><strong>說明</strong></td><td>執行 #4 後，選單所有 ID 都要換成新格式；STEP A/B 要合併進 D01-IDEA/D02-BRD</td></tr>
+<tr><td><strong>建議</strong></td><td>選單改為新 ID 清單（D01-IDEA 至 D14-HTML，含各 -R Review step），同步新增 D11-runbook 和 D12-LOCAL_DEPLOY 選項</td></tr>
+<tr><td><strong>改後影響</strong></td><td>使用者看到的選單語義清晰，且與實際 step 一一對應</td></tr>
+<tr><td><strong>決策</strong></td><td>同意</td></tr>
+</table>
+<hr>
+<h3>#10 gendoc-config — <code>execution_mode</code> 被硬編碼為 <code>full-auto</code></h3>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>SKILL</strong></td><td>gendoc-config</td></tr>
+<tr><td><strong>問題</strong></td><td>Step 5 寫入 state file 時：<code>execution_mode = &#x27;full-auto&#x27;</code>（hardcoded），不管使用者在 Step 3 選了什麼模式</td></tr>
+<tr><td><strong>說明</strong></td><td>使用者選 <code>interactive</code> → config 確認顯示 interactive → 實際寫入 state 卻是 <code>full-auto</code>，下次執行永遠是全自動模式</td></tr>
+<tr><td><strong>建議</strong></td><td>改為寫入 <code>_NEW_MODE</code>（Step 3 使用者選擇的變數）</td></tr>
+<tr><td><strong>改後影響</strong></td><td>使用者選擇的 interactive 模式會正確被保存，下次執行 gendoc-flow/gendoc-auto 會按選擇的模式運作</td></tr>
+<tr><td><strong>決策</strong></td><td>gendoc 不再有interactive 需求，接下來只auto模式，變數先保留</td></tr>
+</table>
+<hr>
+<h3>#11 gendoc-auto — 啟動時覆蓋 gendoc-config 設定的變數</h3>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>SKILL</strong></td><td>gendoc-auto</td></tr>
+<tr><td><strong>問題</strong></td><td>gendoc-auto 啟動時（lines 233-237）hardcode 寫入 state file：<code>execution_mode=&#x27;full-auto&#x27;</code>、<code>review_strategy=&#x27;standard&#x27;</code>、<code>max_rounds=5</code>、<code>stop_condition=&#x27;...&#x27;</code>，無條件覆蓋使用者透過 gendoc-config 設定的值</td></tr>
+<tr><td><strong>說明</strong></td><td>「只有 config 能 SET 變數」原則的最大違反。使用者執行 gendoc-config 設成 exhaustive 模式，馬上執行 gendoc-auto，config 設定被清空回 standard</td></tr>
+<tr><td><strong>建議</strong></td><td>gendoc-auto 改為「若 state file 不存在才寫入預設值；若已存在則不觸碰這些欄位」。或者完全移除這段硬編碼，讓 gendoc-config 負責初始設定</td></tr>
+<tr><td><strong>改後影響</strong></td><td>gendoc-config 的設定終於有意義；使用者客製化的 review 策略會被尊重</td></tr>
+<tr><td><strong>決策</strong></td><td>同意</td></tr>
+</table>
+<hr>
+<h3>#12 gendoc-shared — DEPRECATED 段落仍有 SET/GET 程式碼</h3>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>SKILL</strong></td><td>gendoc-shared</td></tr>
+<tr><td><strong>問題</strong></td><td>§gendoc_loop_count 和 §gendoc_start_step 兩段標記為 DEPRECATED，但 SET/GET 程式碼還在，其他 skill 可能誤用</td></tr>
+<tr><td><strong>說明</strong></td><td>標記 DEPRECATED 卻不刪除是最壞的狀況：閱讀者不確定是否應該用，工具掃描可能誤判為有效 API</td></tr>
+<tr><td><strong>建議</strong></td><td>刪除這兩個 DEPRECATED 段落的所有 SET/GET 程式碼，只保留一行說明「已廢棄，請改用 state file 的 max_rounds / start_step」</td></tr>
+<tr><td><strong>改後影響</strong></td><td>gendoc-shared 更乾淨；若有 skill 誤用了 DEPRECATED 函式，會提前發現（但目前確認無 skill 呼叫這兩段）</td></tr>
+<tr><td><strong>決策</strong></td><td>同意</td></tr>
+</table>
+<hr>
+<h3>#13 gendoc-shared — STATE-SCHEMA 描述過時</h3>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>SKILL</strong></td><td>gendoc-shared</td></tr>
+<tr><td><strong>問題</strong></td><td>STATE-SCHEMA 中：<code>start_step</code> 描述為「autodev 31步編號」；<code>current_step</code> 描述為 <code>&quot;01&quot;–&quot;31&quot;</code></td></tr>
+<tr><td><strong>說明</strong></td><td>這些是舊架構的遺留描述，與現在的實際格式不符，會誤導未來的開發者</td></tr>
+<tr><td><strong>建議</strong></td><td>更新 STATE-SCHEMA：<code>start_step</code> 改為「gendoc-flow step ID，格式 D01-IDEA 至 D14-HTML」；移除 <code>current_step</code>（或標注為 legacy alias）</td></tr>
+<tr><td><strong>改後影響</strong></td><td>文件正確，無功能影響</td></tr>
+<tr><td><strong>決策</strong></td><td>同意</td></tr>
+</table>
+<hr>
+<h2>執行順序建議</h2>
+<p>若全部核准，建議按此順序修改（避免互相依賴問題）：</p>
+<ol><li>gendoc-shared（#12、#13）— 先修基礎定義</li><li>gendoc-config（#8、#9、#10）— 修設定層</li><li>gendoc-auto（#11）— 修入口點</li><li>gendoc-flow（#1、#2、#6、#7、#3、#4、#5）— 最後修主流程</li></ol>
+<hr>
+<h2>不在本次範圍的項目</h2>
+<ul><li>gendoc-gen-* 系列 skill（各文件生成 skill）：不改 step 內容，只有 gendoc-config 選單 ID 需要同步</li><li>templates/<em>.gen.md / </em>.review.md / templates/*.md  不改</li><li>bin/ 工具：不改</li></ul></main>
+  </div>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({startOnLoad:true,theme:'default',
+      flowchart:{curve:'basis',nodeSpacing:60,rankSpacing:80},
+      er:{layoutDirection:'TD',minEntityWidth:100,fontSize:12},
+      sequence:{actorMargin:60,messageMargin:30}});
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-go.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dryrun Parameter Extraction — gendoc</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+</head>
+<body>
+  <header class="top-nav">
+    <a href="index.html" class="nav-brand">gendoc</a>
+    <div class="nav-controls">
+      <div class="search-wrap">
+        <input class="search-input" type="search" placeholder="搜尋文件...">
+        <div class="search-results"></div>
+      </div>
+      <a class="nav-gh-link" href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener">⌥ GitHub</a>
+      <button class="sidebar-toggle" id="sidebarToggle" title="收合/展開側欄">☰</button>
+    </div>
+  </header>
+  <div class="doc-page-banner">
+    <p class="banner-breadcrumb"><a href="index.html">gendoc</a> › Dryrun Parameter Extraction</p>
+    <h1 class="banner-title">Dryrun Parameter Extraction</h1>
+  </div>
+  <div class="page-wrapper">
+    <aside class="sidebar" aria-label="文件導覽">
+      <div class="sidebar__section">
+<div class="sidebar__label">文件</div>
+<a class="sidebar__link" href="index.html">🏠 首頁</a>
+<a class="sidebar__link" href="prd.html">📝 產品需求文件 (PRD)</a>
+<a class="sidebar__link" href="client.html">📄 Client</a>
+<a class="sidebar__link" href="dryrun_api_verification.html">📄 Dryrun Api Verification</a>
+<a class="sidebar__link" href="dryrun_core_implementation_plan.html">📄 Dryrun Core Implementation Plan</a>
+<a class="sidebar__link" href="dryrun_get_upstream_verification.html">📄 Dryrun Get Upstream Verification</a>
+<a class="sidebar__link active" href="dryrun_parameter_extraction.html">📄 Dryrun Parameter Extraction</a>
+<a class="sidebar__link" href="dryrun_spec_formulas.html">📄 Dryrun Spec Formulas</a>
+<a class="sidebar__link" href="gendoc_flow_single_step_design.html">📄 Gendoc Flow Single Step Design</a>
+<a class="sidebar__link" href="hardcoded_specs_audit.html">📄 Hardcoded Specs Audit</a>
+<a class="sidebar__link" href="implementation_verification_report.html">📄 Implementation Verification Report</a>
+<a class="sidebar__link" href="pipeline_input_validation_report.html">📄 Pipeline Input Validation Report</a>
+<a class="sidebar__link" href="pipeline_layer_classification_notes.html">📄 Pipeline Layer Classification Notes</a>
+<a class="sidebar__link" href="rules_json_schema.html">📄 Rules Json Schema</a>
+<a class="sidebar__link" href="currentanalysis.html">📄 Currentanalysis</a>
+<a class="sidebar__link" href="gendoc-redesign-decisions.html">📄 Gendoc-Redesign-Decisions</a>
+<a class="sidebar__link" href="ha-spof-modification-plan.html">📄 Ha-Spof-Modification-Plan</a>
+<a class="sidebar__link" href="progress.html">📄 Progress</a>
+</div>
+    </aside>
+    <div class="sidebar-resizer" id="sidebarResizer"></div>
+    <main class="doc-content"><h1>DRYRUN 參數提取規則</h1>
+<h2>概述</h2>
+<p>dryrun_core.py 的 <code>extract_parameters()</code> 方法需從 DRYRUN 前的 step 文件中提取四個核心參數，作為推導 DRYRUN 后的 step 規格的基礎。本文檔定義每個參數的提取方法、正規表示式、fallback 邏輯與驗證規則。</p>
+<hr>
+<h2>核心原則</h2>
+<ol><li><strong>無硬編碼預設值</strong>：若參數無法提取，使用明確的 fallback（記錄於 MANIFEST.md），不得以無來源的推測值填補</li><li><strong>可追蹤性</strong>：每個提取結果必須記錄其來源（檔案名、章節、行號）以供審查</li><li><strong>容錯優雅</strong>：若上游文件缺失，回傳 <code>0</code> 並標記 <code>source: &quot;missing&quot;</code> 而非 exception</li><li><strong>跨版本穩定性</strong>：使用 markdown heading 級別與內容模式（而非行號）來定位內容</li></ol>
+<hr>
+<h2>參數 1：entity_count</h2>
+<h3>定義</h3>
+<p>系統中定義的 entity/class 總數。來自 EDD.md 的資料模型部分。</p>
+<h3>提取方法</h3>
+<h4>來源文件：<code>docs/EDD.md</code></h4>
+<h4>目標位置：</h4>
+<ul><li>主位置：§4.4 Class Inventory（若存在）</li><li>備選位置：§5.5 Data Model（§5.5.1 Entity Definition 小節）</li></ul>
+<h4>提取規則</h4>
+<p><strong>步驟 1：定位章節</strong></p>
+<pre><code class="language-bash"># 查找 §4.4 或 §5.5 標題
+grep -n &quot;^## .*4.4.*Class.*Inventory\|^## .*5.5.*Data.*Model&quot; docs/EDD.md</code></pre>
+<p><strong>步驟 2：提取 entity 列表</strong></p>
+<p>假設該章節包含一個 markdown 表格或列表，格式為：</p>
+<pre><code class="">### Entities / Classes
+| Class Name | Module | Description |
+|---|---|---|
+| User | auth | 使用者帳號 |
+| Game | core | 遊戲局 |
+...</code></pre>
+<p>或者列表格式：</p>
+<pre><code class="">- `User` (auth module): 使用者帳號
+- `Game` (core module): 遊戲局
+...</code></pre>
+<p><strong>提取命令：</strong></p>
+<pre><code class="language-bash"># 方式 A：表格計數（跳過 header 和分隔符）
+entity_count=$(awk &#x27;/^## .*Class.*Inventory/,/^##/&#x27; docs/EDD.md | \
+  grep -E &quot;^\s*\|\s*\`?[A-Z][a-zA-Z0-9]*\`?&quot; | \
+  grep -v &quot;^[|:-]&quot; | \
+  wc -l)
+
+# 方式 B：列表計數（符合 &quot;- `ClassName`&quot; 或 &quot;- ClassName&quot; 模式）
+entity_count=$(awk &#x27;/^## .*Class.*Inventory/,/^##/&#x27; docs/EDD.md | \
+  grep -E &quot;^\s*-\s+\`?[A-Z][a-zA-Z0-9]*\`?&quot; | \
+  wc -l)
+
+# 若兩者都無匹配，嘗試計算所有 ### SubEntity 小標題
+entity_count=$(awk &#x27;/^## .*\(Data Model|Class.*Inventory\)/,/^##/&#x27; docs/EDD.md | \
+  grep -c &quot;^### [A-Z]&quot;)</code></pre>
+<p><strong>步驟 3：驗證與 fallback</strong></p>
+<ul><li>若 entity_count ≥ 1 且 ≤ 200，接受該值</li><li>若 entity_count = 0：</li><li style="margin-left:1.0rem">檢查是否章節存在但為空（返回 <code>0</code>，標記 source: &quot;empty_section&quot;）</li><li style="margin-left:1.0rem">檢查是否 EDD.md 根本不存在（返回 <code>0</code>，標記 source: &quot;missing_file&quot;）</li><li style="margin-left:1.0rem">檢查 §5.5 下是否有任何小標題 <code>###</code> 作為 entity（若有，計數）</li><li>若 entity_count &gt; 200：標記異常，使用conservative fallback（見下文）</li></ul>
+<h4>Fallback 值</h4>
+<table>
+<tr><th>條件</th><th>Fallback</th><th>記錄</th></tr>
+<tr><td>EDD.md 不存在</td><td><code>3</code></td><td><code>entity_count: 3 (fallback: missing_file)</code></td></tr>
+<tr><td>章節存在但無 entity 定義</td><td><code>3</code></td><td><code>entity_count: 3 (fallback: empty_section)</code></td></tr>
+<tr><td>提取異常（&gt;200 或匹配失敗）</td><td><code>3</code></td><td><code>entity_count: 3 (fallback: extraction_failed)</code></td></tr>
+</table>
+<h4>輸出格式（dryrun_core.py 記錄於 MANIFEST.md）</h4>
+<pre><code class="">**entity_count**: 10 (source: docs/EDD.md §5.5.1, line 45-89)</code></pre>
+<hr>
+<h2>參數 2：rest_endpoint_count</h2>
+<h3>定義</h3>
+<p>系統暴露的 REST API endpoint 總數（唯一 HTTP method + path 組合）。來自 PRD.md 和/或 EDD.md。</p>
+<h3>提取方法</h3>
+<h4>來源文件：</h4>
+<ul><li>優先：<code>docs/PRD.md</code> 的 REST API 需求部分</li><li>備選：<code>docs/EDD.md</code> 的 API 設計部分</li></ul>
+<h4>目標位置：</h4>
+<ul><li>主位置：PRD.md §2 User Stories with API Mapping 或 §3 Functional Requirements</li><li>備選位置：EDD.md §5.1 API Specification</li></ul>
+<h4>提取規則</h4>
+<p><strong>步驟 1：掃描 endpoint 定義</strong></p>
+<p>假設 PRD 中包含類似以下格式：</p>
+<pre><code class="">### API Requirements
+- GET /api/users
+- GET /api/users/{id}
+- POST /api/users
+- PUT /api/users/{id}
+- DELETE /api/users/{id}
+- GET /api/games
+- POST /api/games/{gameId}/players
+...</code></pre>
+<p>或表格格式：</p>
+<pre><code class="">| Method | Path | Description |
+|--------|------|---|
+| GET | /api/users | 列取使用者 |
+| POST | /api/users | 新增使用者 |
+...</code></pre>
+<p><strong>提取命令：</strong></p>
+<pre><code class="language-bash"># 方式 A：尋找 &quot;METHOD /path&quot; 模式（含大括號參數）
+rest_endpoint_count=$(grep -Eo &quot;(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS) /[a-zA-Z0-9/_\{\}-]*&quot; docs/PRD.md | \
+  sort -u | \
+  wc -l)
+
+# 方式 B：表格中 Method + Path 的組合計數
+rest_endpoint_count=$(awk &#x27;/^### API Requirements/,/^##/&#x27; docs/PRD.md | \
+  grep -E &quot;^\s*\|(GET|POST|PUT|DELETE|PATCH)&quot; | \
+  awk &#x27;{print $2, $4}&#x27; | \
+  sort -u | \
+  wc -l)
+
+# 方式 C：若 EDD 存在，檢查 EDD §5.1
+if [[ -f docs/EDD.md ]]; then
+  edd_endpoints=$(grep -Eo &quot;(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS) /[a-zA-Z0-9/_\{\}-]*&quot; docs/EDD.md | sort -u | wc -l)
+  [[ $edd_endpoints -gt $rest_endpoint_count ]] &amp;&amp; rest_endpoint_count=$edd_endpoints
+fi</code></pre>
+<p><strong>步驟 2：去重與計數</strong></p>
+<ul><li>同一個 HTTP method + path 組合只計算一次（例如 <code>GET /api/users</code> 在文件中出現多次仍只算 1）</li><li>不同 method 作用在同一 path 視為不同 endpoint（例如 <code>GET /api/users</code> 和 <code>POST /api/users</code> 計為 2）</li></ul>
+<p><strong>步驟 3：驗證與 fallback</strong></p>
+<ul><li>若 rest_endpoint_count ≥ 1 且 ≤ 500，接受該值</li><li>若 rest_endpoint_count = 0：</li><li style="margin-left:1.0rem">檢查 PRD.md 是否缺失（返回 fallback）</li><li style="margin-left:1.0rem">檢查章節是否存在但無 endpoint 定義（可能是 API-only 專案，未在 PRD 寫詳細 endpoint）</li><li>若 rest_endpoint_count &gt; 500：可能是掃描規則過於寬鬆，手動調整</li></ul>
+<h4>Fallback 值</h4>
+<table>
+<tr><th>條件</th><th>Fallback</th><th>記錄</th></tr>
+<tr><td>PRD.md 不存在或無 API 部分</td><td><code>5</code></td><td><code>rest_endpoint_count: 5 (fallback: missing_api_section)</code></td></tr>
+<tr><td>章節存在但無 endpoint 定義</td><td><code>5</code></td><td><code>rest_endpoint_count: 5 (fallback: empty_api_section)</code></td></tr>
+<tr><td>提取失敗或異常</td><td><code>5</code></td><td><code>rest_endpoint_count: 5 (fallback: extraction_failed)</code></td></tr>
+</table>
+<h4>輸出格式</h4>
+<pre><code class="">**rest_endpoint_count**: 12 (source: docs/PRD.md §3.2 API Requirements, 12 unique endpoints found)</code></pre>
+<hr>
+<h2>參數 3：user_story_count</h2>
+<h3>定義</h3>
+<p>系統中定義的 user story/用戶需求總數。來自 PRD.md。</p>
+<h3>提取方法</h3>
+<h4>來源文件：<code>docs/PRD.md</code></h4>
+<h4>目標位置：</h4>
+<ul><li>主位置：§2 User Stories 或 §3 Functional Requirements</li><li>備選位置：附錄中的 User Story 列表</li></ul>
+<h4>提取規則</h4>
+<p><strong>步驟 1：定位 user story 章節</strong></p>
+<pre><code class="language-bash"># 尋找標題
+grep -n &quot;^## .*User Stories\|^## .*Functional Requirements\|^## .*需求&quot; docs/PRD.md | head -1</code></pre>
+<p><strong>步驟 2：提取 user story 定義</strong></p>
+<p>假設使用者故事採用標準格式：</p>
+<pre><code class="">### US-001: User Registration
+As a new user, I want to create an account, so that I can access the system.
+
+Acceptance Criteria:
+- AC1: Email validation
+- AC2: Password strength check
+
+### US-002: User Login
+As a registered user, I want to login with email and password...</code></pre>
+<p>或者使用表格格式：</p>
+<pre><code class="">| Story ID | Title | As a... | I want... | So that... |
+|----------|-------|---------|-----------|------------|
+| US-001 | User Registration | new user | create account | access system |
+...</code></pre>
+<p><strong>提取命令：</strong></p>
+<pre><code class="language-bash"># 方式 A：計算 &quot;### US-*&quot; 或 &quot;### Story-*&quot; 小標題
+user_story_count=$(awk &#x27;/^## .*User Stories/,/^##[^#]/&#x27; docs/PRD.md | \
+  grep -c &quot;^### .*US-[0-9]\|^### .*Story-[0-9]&quot;)
+
+# 方式 B：計算包含 &quot;As a&quot; 的行數（粗略估計）
+user_story_count=$(grep -c &quot;^As a &quot; docs/PRD.md)
+
+# 方式 C：表格計數（跳過 header）
+user_story_count=$(awk &#x27;/^## .*User Stories/,/^##/&#x27; docs/PRD.md | \
+  grep -E &quot;^\|.*US-[0-9]|^\|.*Story-[0-9]&quot; | \
+  grep -v &quot;^|.*ID.*|&quot; | \
+  wc -l)</code></pre>
+<p><strong>步驟 3：驗證與 fallback</strong></p>
+<ul><li>若 user_story_count ≥ 1 且 ≤ 500，接受該值</li><li>若 user_story_count = 0：</li><li style="margin-left:1.0rem">檢查 PRD.md 是否缺失</li><li style="margin-left:1.0rem">檢查 User Stories 章節是否為空（可能是 API-only 專案，無前端 UI 故事）</li><li style="margin-left:1.0rem">檢查是否故事在附錄或其他位置（手動掃描）</li></ul>
+<h4>Fallback 值</h4>
+<table>
+<tr><th>條件</th><th>Fallback</th><th>記錄</th></tr>
+<tr><td>PRD.md 不存在或無 User Stories 章節</td><td><code>20</code></td><td><code>user_story_count: 20 (fallback: missing_us_section)</code></td></tr>
+<tr><td>User Stories 章節存在但為空</td><td><code>20</code></td><td><code>user_story_count: 20 (fallback: empty_us_section)</code></td></tr>
+<tr><td>提取失敗</td><td><code>20</code></td><td><code>user_story_count: 20 (fallback: extraction_failed)</code></td></tr>
+</table>
+<h4>輸出格式</h4>
+<pre><code class="">**user_story_count**: 18 (source: docs/PRD.md §2 User Stories, 18 stories found)</code></pre>
+<hr>
+<h2>參數 4：arch_layer_count</h2>
+<h3>定義</h3>
+<p>系統架構中定義的層級/服務邊界總數。來自 ARCH.md。</p>
+<h3>提取方法</h3>
+<h4>來源文件：<code>docs/ARCH.md</code></h4>
+<h4>目標位置：</h4>
+<ul><li>主位置：§3 Architecture Overview 或 §2 Layered Architecture</li><li>備選位置：§4 Microservices Boundaries</li></ul>
+<h4>提取規則</h4>
+<p><strong>步驟 1：判定架構類型並定位</strong></p>
+<pre><code class="language-bash"># 檢查是否為分層架構（N-Tier）或微服務
+if grep -q &quot;Layered\|Layer\|N-Tier\|N-tier\|分層&quot; docs/ARCH.md; then
+  arch_type=&quot;layered&quot;
+  # 尋找層級定義
+  layer_lines=$(grep -n &quot;^### .*Layer\|^### .*層&quot; docs/ARCH.md | wc -l)
+elif grep -q &quot;Microservices\|Micro-service\|微服務&quot; docs/ARCH.md; then
+  arch_type=&quot;microservices&quot;
+  # 尋找服務邊界定義
+  layer_lines=$(grep -n &quot;^### .*Service\|^### .*服務&quot; docs/ARCH.md | wc -l)
+else
+  arch_type=&quot;unknown&quot;
+  layer_lines=0
+fi</code></pre>
+<p><strong>步驟 2：提取層級/服務定義</strong></p>
+<p>假設 ARCH 包含：</p>
+<pre><code class="">## 3. Architecture Overview
+
+### Presentation Layer
+描述前端層、API Gateway 等
+
+### Business Logic Layer
+描述核心業務邏輯層
+
+### Data Access Layer
+描述資料存取層
+
+### Infrastructure Layer
+描述基礎設施層（監控、日誌等）</code></pre>
+<p>或微服務架構：</p>
+<pre><code class="">## 4. Microservices Boundaries
+
+### User Service
+- 負責使用者管理
+
+### Game Service
+- 負責遊戲邏輯
+
+### Payment Service
+- 負責支付流程</code></pre>
+<p><strong>提取命令：</strong></p>
+<pre><code class="language-bash"># 方式 A：計算 &quot;### ... Layer&quot; 或 &quot;### ... Service&quot; 的小標題
+arch_layer_count=$(grep -c &quot;^### .*Layer\|^### .*層\|^### .*Service\|^### .*服務&quot; docs/ARCH.md)
+
+# 方式 B：若無明確小標題，計算同級別的二級標題
+if [[ $arch_layer_count -eq 0 ]]; then
+  # 取得首個 ## 後的所有 ### 直到下一個 ##
+  arch_layer_count=$(awk &#x27;/^## .*Architecture|^## .*Microservices/,/^## [^#]/&#x27; docs/ARCH.md | \
+    grep -c &quot;^### &quot;)
+fi</code></pre>
+<p><strong>步驟 3：驗證與 fallback</strong></p>
+<ul><li>若 arch_layer_count ≥ 2 且 ≤ 50，接受該值（通常 N-Tier 有 3-5 層）</li><li>若 arch_layer_count &lt; 2：</li><li style="margin-left:1.0rem">檢查 ARCH.md 是否缺失</li><li style="margin-left:1.0rem">檢查架構定義是否在其他位置（例如 EDD.md §3）</li><li style="margin-left:1.0rem">視為簡單架構，使用 fallback</li></ul>
+<h4>Fallback 值</h4>
+<table>
+<tr><th>條件</th><th>Fallback</th><th>記錄</th></tr>
+<tr><td>ARCH.md 不存在</td><td><code>4</code></td><td><code>arch_layer_count: 4 (fallback: missing_file)</code></td></tr>
+<tr><td>無層級定義或過於簡略</td><td><code>4</code></td><td><code>arch_layer_count: 4 (fallback: simple_architecture)</code></td></tr>
+<tr><td>提取失敗</td><td><code>4</code></td><td><code>arch_layer_count: 4 (fallback: extraction_failed)</code></td></tr>
+</table>
+<h4>輸出格式</h4>
+<pre><code class="">**arch_layer_count**: 5 (source: docs/ARCH.md §3 Architecture Overview, 5 layers: Presentation, Business Logic, Data Access, Infrastructure, Cross-cutting Concerns)</code></pre>
+<hr>
+<h2>第五參數（可選）：admin_feature_count</h2>
+<h3>定義</h3>
+<p>系統中 Admin 相關功能數量（僅當 <code>has_admin_backend == true</code> 時提取）。來自 EDD.md。</p>
+<h3>提取方法</h3>
+<h4>觸發條件</h4>
+<ul><li>檢查 <code>.gendoc-state.json</code> 中 <code>has_admin_backend</code> 字段是否為 <code>true</code></li><li>若為 <code>false</code> 或 <code>null</code>，跳過此參數，記錄 <code>admin_feature_count: N/A (reason: has_admin_backend=false)</code></li></ul>
+<h4>提取規則</h4>
+<p>若觸發，查找 EDD.md 中的 Admin 相關 entity/feature 定義：</p>
+<pre><code class="language-bash"># 計算 Admin-related entity
+admin_count=$(grep -Ei &quot;admin|管理&quot; docs/EDD.md | grep &quot;^###&quot; | wc -l)</code></pre>
+<h4>Fallback 值</h4>
+<pre><code class="">admin_feature_count: 5 (fallback: default admin features)</code></pre>
+<hr>
+<h2>提取流程（dryrun_core.py 中的 extract_parameters 實作）</h2>
+<pre><code class="language-python">def extract_parameters(self):
+    &quot;&quot;&quot;
+    從上游文件提取四個核心參數。
+    返回：{
+        &quot;entity_count&quot;: int,
+        &quot;rest_endpoint_count&quot;: int,
+        &quot;user_story_count&quot;: int,
+        &quot;arch_layer_count&quot;: int,
+        &quot;admin_feature_count&quot;: int or None,
+        &quot;metadata&quot;: {
+            &quot;entity_count_source&quot;: &quot;docs/EDD.md §5.5.1&quot;,
+            &quot;entity_count_extracted_at&quot;: &quot;line 45-89&quot;,
+            &quot;rest_endpoint_count_source&quot;: &quot;docs/PRD.md §3.2&quot;,
+            ...
+        }
+    }
+    &quot;&quot;&quot;
+    
+    # Step 1: 讀取上游文件（藉由 _load_upstream()）
+    upstream_content = self._load_upstream()
+    
+    # Step 2: 逐一提取參數
+    params = {}
+    
+    # 2.1 entity_count
+    params[&quot;entity_count&quot;] = self._extract_entity_count(upstream_content)
+    
+    # 2.2 rest_endpoint_count
+    params[&quot;rest_endpoint_count&quot;] = self._extract_rest_endpoint_count(upstream_content)
+    
+    # 2.3 user_story_count
+    params[&quot;user_story_count&quot;] = self._extract_user_story_count(upstream_content)
+    
+    # 2.4 arch_layer_count
+    params[&quot;arch_layer_count&quot;] = self._extract_arch_layer_count(upstream_content)
+    
+    # 2.5 admin_feature_count（若適用）
+    params[&quot;admin_feature_count&quot;] = self._extract_admin_feature_count(upstream_content)
+    
+    # Step 3: 記錄提取來源（供 MANIFEST.md）
+    params[&quot;metadata&quot;] = {
+        &quot;extraction_timestamp&quot;: datetime.now().isoformat(),
+        &quot;total_fallback_count&quot;: count_fallback_params(params),
+        &quot;extraction_success_rate&quot;: calculate_success_rate(params)
+    }
+    
+    return params</code></pre>
+<hr>
+<h2>檢查清單</h2>
+<ul><li style="list-style:none"><input type="checkbox" disabled> 四個參數的提取規則已定義</li><li style="list-style:none"><input type="checkbox" disabled> 每個參數的 fallback 邏輯清晰</li><li style="list-style:none"><input type="checkbox" disabled> 提取命令（bash/python）可在目標專案中執行</li><li style="list-style:none"><input type="checkbox" disabled> 輸出格式便於 MANIFEST.md 記錄</li><li style="list-style:none"><input type="checkbox" disabled> 測試用例已準備（對應實際專案的幾個示例）</li></ul>
+<hr>
+<h2>相關檔案</h2>
+<table>
+<tr><th>檔案</th><th>用途</th></tr>
+<tr><td><code>templates/pipeline.json</code></td><td>DRYRUN step 的 input[] 定義</td></tr>
+<tr><td><code>docs/DRYRUN_SPEC_FORMULAS.md</code></td><td>參數如何用於推導規格（下一個 STEP）</td></tr>
+<tr><td><code>tools/bin/dryrun_core.py</code></td><td>實作此提取規則</td></tr>
+<tr><td><code>docs/MANIFEST.md</code></td><td>記錄提取結果（輸出檔）</td></tr>
+</table></main>
+  </div>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({startOnLoad:true,theme:'default',
+      flowchart:{curve:'basis',nodeSpacing:60,rankSpacing:80},
+      er:{layoutDirection:'TD',minEntityWidth:100,fontSize:12},
+      sequence:{actorMargin:60,messageMargin:30}});
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-go.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
