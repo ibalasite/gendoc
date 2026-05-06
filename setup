@@ -75,6 +75,11 @@ do_upgrade() {
   log "[upgrade] git pull..."
   git -C "$RUNTIME_DIR" pull --ff-only
 
+  # Re-exec the freshly pulled setup so new functions (e.g. _register_hook) take effect
+  exec "$RUNTIME_DIR/setup" _post_upgrade
+}
+
+_post_upgrade() {
   _deploy_skills
   _deploy_tools
   _register_hook
@@ -110,9 +115,10 @@ _register_hook() {
 
 # ── dispatch ──────────────────────────────────────────────────────────────────
 case "$CMD" in
-  install)   do_install ;;
-  uninstall) do_uninstall ;;
-  upgrade)   do_upgrade ;;
+  install)       do_install ;;
+  uninstall)     do_uninstall ;;
+  upgrade)       do_upgrade ;;
+  _post_upgrade) _post_upgrade ;;
   *)
     echo "用法：./setup [install|uninstall|upgrade]"
     echo "  install   — clone + deploy + register hook（預設）"
