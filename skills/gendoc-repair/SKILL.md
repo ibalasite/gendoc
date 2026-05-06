@@ -50,6 +50,8 @@ fi
 ## Step 0：讀取 State File + Pipeline
 
 ```bash
+source "$HOME/.claude/skills/gendoc/bin/gendoc-env.sh"
+
 # State file（在目標專案目錄，gendoc-shared 已確保存在）
 _STATE_FILE=$(ls .gendoc-state-*.json 2>/dev/null | head -1 || echo ".gendoc-state.json")
 
