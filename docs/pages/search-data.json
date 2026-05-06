@@ -9,84 +9,9 @@
     "title": "產品需求文件 (PRD)",
     "excerpt": "PRD — Product Requirements Document\n&lt;!-- 對應學術標準：IEEE 830 (SRS)，對應業界：Google PRD / Amazon PRFAQ --&gt;\n&lt;!-- Version: v3.6 | Status: ACTIVE | DOC-I"
   },
-  "client.html": {
-    "url": "client.html",
-    "title": "Client",
-    "excerpt": "CLIENT — Client Frontend Design Document (FDD)\n&lt;!-- SDLC Client Layer — Frontend Architecture, Screen Flow, Cross-platform Compatibility --&gt;\n&lt"
-  },
-  "dryrun_api_verification.html": {
-    "url": "dryrun_api_verification.html",
-    "title": "Dryrun Api Verification",
-    "excerpt": "✅ DRYRUN ↔ API.md 邏輯驗證報告\n日期: 2026-05-04\n修復内容: 發現並修復 SSOT 邏輯不一致\n狀態: ✅ 邏輯鏈接正常\n\n發現的問題\n問題 1：derive_specifications() 仍使用硬編碼公式 ❌\n症狀：\nAPI、SCHEMA、FRONTEND 等 s"
-  },
-  "dryrun_core_implementation_plan.html": {
-    "url": "dryrun_core_implementation_plan.html",
-    "title": "Dryrun Core Implementation Plan",
-    "excerpt": "DRYRUN Core 實作計畫\n核心設計原則（確認）\n雙層獨立驗證架構\nDRYRUN 前的文件\n    ↓\n[DRYRUN 推導層] → 期望規格（計劃）\n    ↓\n.gendoc-rules/*.json（DRYRUN 推導結果）\n    ↓\nDRYRUN 后的 step 各 STEP 實現\n"
-  },
-  "dryrun_get_upstream_verification.html": {
-    "url": "dryrun_get_upstream_verification.html",
-    "title": "Dryrun Get Upstream Verification",
-    "excerpt": "get-upstream 工具驗證報告\n目標\n驗證 tools/bin/get-upstream.sh 工具能否正確讀取 pipeline.json 中定義的 DRYRUN step 的 input[] 字段，並返回所有必要的上游文件內容。\n\n驗證項目\n1. Pipeline.json 定義檢查\n檢"
-  },
-  "dryrun_parameter_extraction.html": {
-    "url": "dryrun_parameter_extraction.html",
-    "title": "Dryrun Parameter Extraction",
-    "excerpt": "DRYRUN 參數提取規則\n概述\ndryrun_core.py 的 extract_parameters() 方法需從 DRYRUN 前的 step 文件中提取四個核心參數，作為推導 DRYRUN 后的 step 規格的基礎。本文檔定義每個參數的提取方法、正規表示式、fallback 邏輯與驗證規則"
-  },
-  "dryrun_spec_formulas.html": {
-    "url": "dryrun_spec_formulas.html",
-    "title": "Dryrun Spec Formulas",
-    "excerpt": "DRYRUN 規格推導公式\n概述\n本文檔定義 DRYRUN 后各 step 的期望規格推導公式。每個公式基於 DRYRUN 前提取的四個核心參數，推導該 step 的期望產出規格（如表格數、endpoint 數、section 數等）。\n核心原則：\n公式在 dryrun_core.py 的 deri"
-  },
-  "gendoc_flow_single_step_design.html": {
-    "url": "gendoc_flow_single_step_design.html",
-    "title": "Gendoc Flow Single Step Design",
-    "excerpt": "gendoc-flow 單步執行模式設計\n背景與需求\n現狀：gendoc-flow 支援「從頭開始」或「從指定步驟開始往後執行」，但無法「只執行某一步驟」。\n需求：\n# 舊行為（目前支援）\ngendoc-flow              # 從頭開始執行全流水線\ngendoc-flow --sta"
-  },
-  "hardcoded_specs_audit.html": {
-    "url": "hardcoded_specs_audit.html",
-    "title": "Hardcoded Specs Audit",
-    "excerpt": "Hardcoded 規格審查報告（D-SSOT-4.1 STEP 4）\n掃描範圍\nskills/ 目錄：所有 .md 和 .py 檔案templates/ 目錄：所有 .gen.md 和 .md 檔案tools/bin/ 目錄：所有 .sh 和 .py 檔案\n掃描命令：\ngrep -r &quot;"
-  },
-  "implementation_verification_report.html": {
-    "url": "implementation_verification_report.html",
-    "title": "Implementation Verification Report",
-    "excerpt": "gendoc Implementation Verification Report\nDate: 2026-05-04\nStatus: ✅ Code Implementation Complete — Awaiting Runtime Testing\n\nImplementation Status\nPh"
-  },
-  "pipeline_input_validation_report.html": {
-    "url": "pipeline_input_validation_report.html",
-    "title": "Pipeline Input Validation Report",
-    "excerpt": "Pipeline Input/Output 驗證報告\n根據詳細掃描所有 step 的 .gen.md upstream-docs 與 pipeline.json input[] 欄位的對比分析。\n\n執行摘要\n\n類別數量影響優先度\n🔴 完全錯誤（input 與 gen.md 無關）1input 無法提"
-  },
-  "pipeline_layer_classification_notes.html": {
-    "url": "pipeline_layer_classification_notes.html",
-    "title": "Pipeline Layer Classification Notes",
-    "excerpt": "Pipeline.json Layer 分類調整紀錄\n摘要\n在完成 pipeline.json 的 input/output 驗證與 notes 規範化後，發現 2 個 step 的 layer 分類不符合邏輯，已根據 Architecture Expert 審查進行修正。\n\n變動清單\n1. VDD"
-  },
-  "rules_json_schema.html": {
-    "url": "rules_json_schema.html",
-    "title": "Rules Json Schema",
-    "excerpt": ".gendoc-rules/*.json 統一格式標準\n概述\n所有 .gendoc-rules/&lt;step-id&gt;-rules.json 檔案遵循此統一格式。該格式由 dryrun_core.py 生成，是所有 review 工具和生成器的單一真相來源（SSOT）。\n根層結構（必須）\n{"
-  },
-  "currentanalysis.html": {
-    "url": "currentanalysis.html",
-    "title": "Currentanalysis",
-    "excerpt": "gendoc 專案現況分析 — 專家評估報告\n&lt;!-- 評估日期：2026-05-03 | 評估人：Claude Sonnet 4.6 --&gt;\n\n核心問題：「讓 AI 或工程師按規格書直接建置系統」—— 這個目標合理嗎？\n結論\n目標合理，而且是正確的方向。但有三個結構性風險值得正視。\n\n"
-  },
-  "gendoc-redesign-decisions.html": {
-    "url": "gendoc-redesign-decisions.html",
-    "title": "Gendoc-Redesign-Decisions",
-    "excerpt": "gendoc 重新設計 — 決策清單\n本文件列出所有待決策的修改項目，請在「決策」欄填入 ✅ 同意 / ❌ 拒絕 / 🔄 修改（附說明）。\n\n背景確認\nLOCAL_DEPLOY 是否參考 RUNBOOK？\n確認：否。LOCAL_DEPLOY.gen.md 的 upstream-docs = req/"
-  },
-  "ha-spof-modification-plan.html": {
-    "url": "ha-spof-modification-plan.html",
-    "title": "Ha-Spof-Modification-Plan",
-    "excerpt": "HA/SPOF 違規修改計劃\n原則：所有 gendoc 生成的系統文件，架構設計必須以 HA + SCALE + BCP 為前提，無「小/中/大規模」選擇，成本計算以消除所有 SPOF 的最小 Server 數為準。\n&gt;\n狀態說明：決策 欄位留空，請使用者填入 ✅批准 / ❌拒絕 / ✏️修改"
-  },
-  "progress.html": {
-    "url": "progress.html",
-    "title": "Progress",
-    "excerpt": "gendoc 開發進度追蹤\n最近完成（2026-05-04）\nPipeline.json 結構化修正\n✅ input/output 完整性驗證（Commit f2104c2）修復 9 個 step 的 input[] 定義修復 1 個 step 的 output[] 定義（DRYRUN）與 29 個"
+  "todo.html": {
+    "url": "todo.html",
+    "title": "Todo",
+    "excerpt": "gendoc 開發進度與待辦清單\n\n✅ 已完成里程碑（按時間）\n2026-04-26\nGENDOC_QUALITY_AUDIT：全 pipeline 品質審計，識別 6 大類問題（Pipeline 結構缺失 / 版本漂移 / State 管理 / 審查迴圈盲點 / Context 超限 / AI 可"
   }
 }

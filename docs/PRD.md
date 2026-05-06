@@ -1340,6 +1340,77 @@ for each step in pipeline.json where step.special_skill is defined:
 
 ---
 
+## 7.9 Skill Execution Compliance System (SECS)
+
+### 7.9.1 問題背景
+
+Claude 執行 skill 時，SKILL.md 是 advisory 指令，不是物理約束。Claude 可以：
+- 用 inline Python 自製邏輯繞過 skill 定義的步驟
+- 呼叫 SKILL.md 沒定義的 sub-skill 或腳本
+- 跳過 phase 直接宣告完成
+
+**實際觀察（2026-05-06，gendoc-repair）：**Claude 自行重寫 SKILL.md 已定義的驗證函式，以 30 行以上的自製腳本宣告步驟通過，直接寫入 `status=complete`，Phase-C 從未執行。Resume 無斷點，每次從頭，相同違規重複發生。
+
+### 7.9.2 設計原則
+
+SECS 掛在 `gendoc-guard` 上，**零改動任何其他 skill**。白名單由靜態分析 SKILL.md 機械推導，不含業務邏輯知識。
+
+### 7.9.3 白名單建立（靜態分析）
+
+`gendoc-guard` Step 2 對 target skill 的 SKILL.md 靜態分析並寫入 `.gendoc-guard.json`：
+
+| 提取項目 | 方法 |
+|---------|------|
+| 允許 tool 類型 | frontmatter `allowed-tools` |
+| 允許 Skill 呼叫 | code block 中的 `Skill("...")` |
+| 允許腳本呼叫 | code block 中帶路徑的 `bash *.sh`、`python3 *.py` |
+| 允許 Write 目標 | code block 中明確的 Write 路徑 |
+| 允許 function 名稱 | code block 中所有 `def 函式名` 模式 |
+| 是否允許 inline Python write | SKILL.md 中是否存在含 write 操作的 inline Python |
+
+對每個允許的 Skill 呼叫，遞迴讀該 sub-skill 的 SKILL.md，合併白名單（整個呼叫樹的聯集）。
+
+### 7.9.4 攔截規則（PreToolUse hook）
+
+三層規則，依序套用：
+
+**純 read 放行層（最優先，任何 skill 通用）**
+若 Bash tool 含 inline Python，且不含 `open(...'w'/'a'/'wb')`、`json.dump`、`.write(`、`os.replace`、`os.rename`、`subprocess` → 直接放行。
+
+**白名單層（從 SKILL.md 靜態推導）**
+- Skill tool：skill_name 不在 whitelist → 阻斷
+- Write tool：副檔名為 `.sh` 或 `.py` → 阻斷
+- Bash tool：含帶路徑的 `*.sh/.py` 且不在 whitelist → 阻斷
+- Bash tool：含 inline Python write 且 `allow_inline_python_write=false` → 阻斷
+- Bash tool：含 `def {known_functions 中任一函式名}` → 阻斷
+
+**通用偵測層（所有 skill 有效，不需白名單）**
+- Bash tool inline Python 行數 > 30 → 阻斷
+- Bash tool 含 `sys.stdout.reconfigure` → 阻斷
+
+阻斷訊息：`[SECS] 不合法的呼叫：{tool}({input_summary}) — 原因：{rule}。唯一合法的下一步：回到 SKILL.md，繼續執行下一個合法步驟。`
+
+### 7.9.5 執行歷史（PostToolUse hook）
+
+每次 tool call append 到 `.gendoc-guard-history.jsonl`，記錄 tool、input、allowed、blocked、reason。Stop hook 附加最後 20 筆 + violation count 到 queue；SessionStart hook 注入 additionalContext，讓 resume 的 Claude 知道最後合法呼叫位置與違規記錄。
+
+### 7.9.6 實作範圍
+
+只改 `gendoc-guard`：
+- Step 1：安裝 PreToolUse（blocker）+ PostToolUse（history）hook
+- Step 2：靜態分析 SKILL.md，遞迴展開，寫白名單
+- Stop hook：附加 history 摘要到 queue
+- SessionStart hook：注入 history 摘要到 additionalContext
+
+新增 runtime 腳本（Step 1 自動安裝）：`gendoc-guard-blocker-hook.sh`、`gendoc-guard-history-hook.sh`
+
+### 7.9.7 限制
+
+- 直接呼叫 skill（不透過 `/gendoc-guard`）不受 SECS 保護
+- inline Python 純 read 操作，對所有 skill 一律放行
+
+---
+
 ## 8. 模板系統
 
 ### 8.1 模板三件套設計

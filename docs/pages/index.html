@@ -6,6 +6,23 @@
   <title>gendoc 文件中心 — gendoc</title>
   <link rel="stylesheet" href="assets/style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <style>
+    /* ─── Sidebar collapsible folder groups ─── */
+    .sidebar__section details { border: none; }
+    .sidebar__section details > summary {
+      cursor: pointer; list-style: none; display: flex; align-items: center;
+      gap: 0.375rem; padding: 0 1rem; margin-bottom: 0.375rem;
+      font-size: 0.6875rem; font-weight: 600; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.08em; user-select: none;
+    }
+    .sidebar__section details > summary::-webkit-details-marker { display: none; }
+    .sidebar__section details > summary::before {
+      content: '▶'; font-size: 0.5rem; flex-shrink: 0;
+      transition: transform 150ms; color: var(--text-muted);
+    }
+    .sidebar__section details[open] > summary::before { transform: rotate(90deg); }
+    .sidebar__section details .sidebar__link { padding-left: 1.75rem; font-size: 0.8125rem; }
+  </style>
 </head>
 <body>
   <header class="top-nav">
@@ -29,22 +46,7 @@
 <div class="sidebar__label">文件</div>
 <a class="sidebar__link active" href="index.html">🏠 首頁</a>
 <a class="sidebar__link" href="prd.html">📝 產品需求文件 (PRD)</a>
-<a class="sidebar__link" href="client.html">📄 Client</a>
-<a class="sidebar__link" href="dryrun_api_verification.html">📄 Dryrun Api Verification</a>
-<a class="sidebar__link" href="dryrun_core_implementation_plan.html">📄 Dryrun Core Implementation Plan</a>
-<a class="sidebar__link" href="dryrun_get_upstream_verification.html">📄 Dryrun Get Upstream Verification</a>
-<a class="sidebar__link" href="dryrun_parameter_extraction.html">📄 Dryrun Parameter Extraction</a>
-<a class="sidebar__link" href="dryrun_spec_formulas.html">📄 Dryrun Spec Formulas</a>
-<a class="sidebar__link" href="gendoc_flow_single_step_design.html">📄 Gendoc Flow Single Step Design</a>
-<a class="sidebar__link" href="hardcoded_specs_audit.html">📄 Hardcoded Specs Audit</a>
-<a class="sidebar__link" href="implementation_verification_report.html">📄 Implementation Verification Report</a>
-<a class="sidebar__link" href="pipeline_input_validation_report.html">📄 Pipeline Input Validation Report</a>
-<a class="sidebar__link" href="pipeline_layer_classification_notes.html">📄 Pipeline Layer Classification Notes</a>
-<a class="sidebar__link" href="rules_json_schema.html">📄 Rules Json Schema</a>
-<a class="sidebar__link" href="currentanalysis.html">📄 Currentanalysis</a>
-<a class="sidebar__link" href="gendoc-redesign-decisions.html">📄 Gendoc-Redesign-Decisions</a>
-<a class="sidebar__link" href="ha-spof-modification-plan.html">📄 Ha-Spof-Modification-Plan</a>
-<a class="sidebar__link" href="progress.html">📄 Progress</a>
+<a class="sidebar__link" href="todo.html">📄 Todo</a>
 </div>
     </aside>
     <div class="sidebar-resizer" id="sidebarResizer"></div>
@@ -76,7 +78,7 @@
 <tr><td><code>gendoc-gen-prototype</code></td><td><code>/gendoc-gen-prototype</code></td><td>Interactive HTML prototype — UI flow (web/game) or API Explorer with mock engine (api-only)</td></tr>
 <tr><td><code>gendoc-gen-diagrams</code></td><td><code>/gendoc-gen-diagrams</code></td><td>Generate Server 9 UML types + Frontend 16 UML types (UML) + class-inventory.md; 30+ precision validation checks; enforces no <code>&lt;br/&gt;</code> in stateDiagram-v2 / sequenceDiagram; bans experimental charts (pie/xychart-beta/bar)</td></tr>
 <tr><td><code>gendoc-gen-client-bdd</code></td><td><code>/gendoc-gen-client-bdd</code></td><td>Client-facing BDD feature files (web/game projects)</td></tr>
-<tr><td><code>gendoc-repair</code></td><td><code>/gendoc-repair</code></td><td>DRYRUN-aware backfill — brings any incomplete project to the same state as <code>gendoc-auto</code> + <code>gendoc-flow</code> would produce. Categorizes gaps into DRYRUN 前的 step / DRYRUN Gate / DRYRUN 后的 step; detects DRYRUN state (none / defaults / ok); validates completed docs against <code>.gendoc-rules/*.json</code> quality gates; two-phase repair mode: complete DRYRUN 前的 step → trigger DRYRUN → continue DRYRUN 后的 step</td></tr>
+<tr><td><code>gendoc-repair</code></td><td><code>/gendoc-repair</code></td><td>DRYRUN-aware backfill — brings any incomplete project to the same state as <code>gendoc-auto</code> + <code>gendoc-flow</code> would produce. Requires <code>docs/BRD.md</code> to exist. Binary gate: if <code>.gendoc-rules/<em>.json</code> absent or DRYRUN not in completed_steps → Branch A (complete upstream steps → run DRYRUN); otherwise → Branch B (compare all post-DRYRUN steps against <code>.gendoc-rules/</em>.json</code> quality gates using two-layer FAIL detection: output missing + rules not met → redo, loop until all pass, max 3 retries)</td></tr>
 <tr><td><code>gendoc-rebuild-templates</code></td><td><code>/gendoc-rebuild-templates</code></td><td>Rebuild all document templates from scratch</td></tr>
 <tr><td><code>gendoc-upgrade</code></td><td><code>/gendoc-upgrade</code></td><td>Manual skill upgrade</td></tr>
 <tr><td><code>reviewtemplate</code></td><td><code>/reviewtemplate &lt;TYPE&gt;</code></td><td>Review &amp; iteratively fix a template three-file set (TYPE.md + .gen.md + .review.md)</td></tr>
@@ -395,7 +397,7 @@ IDEA → BRD → PRD → EDD → ARCH    →    DRYRUN    →    API → SCHEMA 
 <ol><li>Edit skill files in <code>skills/&lt;skill-name&gt;/SKILL.md</code> or templates in <code>templates/</code></li><li>Commit and push to remote</li><li>On any machine: run <code>/gendoc-upgrade</code> or <code>~/.claude/skills/gendoc/setup upgrade</code></li><li>Test with Claude Code — SessionStart hook auto-pulls every hour</li></ol>
 <hr>
 <h2>License</h2>
-<p>MIT © ibalasite</p><section style="margin-top:2.5rem"><h2 style="font-size:1rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem">文件導覽</h2><div class="index-grid"><a class="index-card" href="prd.html"><span class="index-card__icon">📝</span><span class="index-card__title">產品需求文件 (PRD)</span></a><a class="index-card" href="client.html"><span class="index-card__icon">📄</span><span class="index-card__title">Client</span></a><a class="index-card" href="dryrun_api_verification.html"><span class="index-card__icon">📄</span><span class="index-card__title">Dryrun Api Verification</span></a><a class="index-card" href="dryrun_core_implementation_plan.html"><span class="index-card__icon">📄</span><span class="index-card__title">Dryrun Core Implementation Plan</span></a><a class="index-card" href="dryrun_get_upstream_verification.html"><span class="index-card__icon">📄</span><span class="index-card__title">Dryrun Get Upstream Verification</span></a><a class="index-card" href="dryrun_parameter_extraction.html"><span class="index-card__icon">📄</span><span class="index-card__title">Dryrun Parameter Extraction</span></a><a class="index-card" href="dryrun_spec_formulas.html"><span class="index-card__icon">📄</span><span class="index-card__title">Dryrun Spec Formulas</span></a><a class="index-card" href="gendoc_flow_single_step_design.html"><span class="index-card__icon">📄</span><span class="index-card__title">Gendoc Flow Single Step Design</span></a><a class="index-card" href="hardcoded_specs_audit.html"><span class="index-card__icon">📄</span><span class="index-card__title">Hardcoded Specs Audit</span></a><a class="index-card" href="implementation_verification_report.html"><span class="index-card__icon">📄</span><span class="index-card__title">Implementation Verification Report</span></a><a class="index-card" href="pipeline_input_validation_report.html"><span class="index-card__icon">📄</span><span class="index-card__title">Pipeline Input Validation Report</span></a><a class="index-card" href="pipeline_layer_classification_notes.html"><span class="index-card__icon">📄</span><span class="index-card__title">Pipeline Layer Classification Notes</span></a><a class="index-card" href="rules_json_schema.html"><span class="index-card__icon">📄</span><span class="index-card__title">Rules Json Schema</span></a><a class="index-card" href="currentanalysis.html"><span class="index-card__icon">📄</span><span class="index-card__title">Currentanalysis</span></a><a class="index-card" href="gendoc-redesign-decisions.html"><span class="index-card__icon">📄</span><span class="index-card__title">Gendoc-Redesign-Decisions</span></a><a class="index-card" href="ha-spof-modification-plan.html"><span class="index-card__icon">📄</span><span class="index-card__title">Ha-Spof-Modification-Plan</span></a><a class="index-card" href="progress.html"><span class="index-card__icon">📄</span><span class="index-card__title">Progress</span></a></div></section><section style="margin-top:3rem;padding:1.5rem;background:#fff;border:1px solid var(--border);border-radius:8px;"><h2 style="margin-top:0">📊 專案健康狀態</h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;margin-top:1rem"><div style="text-align:center;padding:1rem;background:var(--page-bg);border-radius:6px"><div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem">已完成 STEP</div><div style="font-size:1.5rem;font-weight:700;color:var(--accent)">0/20</div></div></div></section></main>
+<p>MIT © ibalasite</p><section style="margin-top:2.5rem"><h2 style="font-size:1rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem">文件導覽</h2><div class="index-grid"><a class="index-card" href="prd.html"><span class="index-card__icon">📝</span><span class="index-card__title">產品需求文件 (PRD)</span></a><a class="index-card" href="todo.html"><span class="index-card__icon">📄</span><span class="index-card__title">Todo</span></a></div></section><section style="margin-top:3rem;padding:1.5rem;background:#fff;border:1px solid var(--border);border-radius:8px;"><h2 style="margin-top:0">📊 專案健康狀態</h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;margin-top:1rem"><div style="text-align:center;padding:1rem;background:var(--page-bg);border-radius:6px"><div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem">已完成 STEP</div><div style="font-size:1.5rem;font-weight:700;color:var(--accent)">0/20</div></div></div></section></main>
   </div>
   <script type="module">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';

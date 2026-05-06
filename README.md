@@ -55,6 +55,7 @@ Key capabilities:
 | `gendoc-gen-client-bdd` | `/gendoc-gen-client-bdd` | Client-facing BDD feature files (web/game projects) |
 | `gendoc-repair` | `/gendoc-repair` | DRYRUN-aware backfill — brings any incomplete project to the same state as `gendoc-auto` + `gendoc-flow` would produce. Requires `docs/BRD.md` to exist. Binary gate: if `.gendoc-rules/*.json` absent or DRYRUN not in completed_steps → Branch A (complete upstream steps → run DRYRUN); otherwise → Branch B (compare all post-DRYRUN steps against `.gendoc-rules/*.json` quality gates using two-layer FAIL detection: output missing + rules not met → redo, loop until all pass, max 3 retries) |
 | `gendoc-rebuild-templates` | `/gendoc-rebuild-templates` | Rebuild all document templates from scratch |
+| `gendoc-guard` | `/gendoc-guard <skill>` | Skill execution compliance monitor — wraps any skill with session resume, PreToolUse whitelist enforcement (SECS), and PostToolUse execution history |
 | `gendoc-upgrade` | `/gendoc-upgrade` | Manual skill upgrade |
 | `reviewtemplate` | `/reviewtemplate <TYPE>` | Review & iteratively fix a template three-file set (TYPE.md + .gen.md + .review.md) |
 
@@ -166,7 +167,10 @@ All subsystems (e.g. member / wallet / deposit / lobby / game) are designed as B
 
 References: Martin Fowler "MonolithFirst" (2015) · Sam Newman *Monolith to Microservices* (O'Reilly 2019) · Spring Modulith (spring.io, 2022)
 
-**3. Clean Architecture + SOLID — Dependency Rule Enforced**  
+**3. Skill Execution Compliance (SECS) — Physical Enforcement over Advisory**
+`gendoc-guard` wraps any skill with a statically-derived whitelist (tool types, allowed Skill calls, allowed scripts, known function names, inline Python write permission). A PreToolUse hook blocks unauthorized calls in three layers: pure-read passthrough → whitelist enforcement → universal pattern detection (>30-line inline scripts, `sys.stdout.reconfigure`). A PostToolUse hook records every call to `.gendoc-guard-history.jsonl` for accurate resume with breakpoint context. No individual skill needs modification.
+
+**4. Clean Architecture + SOLID — Dependency Rule Enforced**  
 Every generated backend system follows Robert C. Martin's 4-layer Clean Architecture with explicit dependency direction. EDD §3.1b anchors the SOLID table and Dependency Rule; all downstream documents (ARCH, test-plan, DEVELOPER_GUIDE) are enforced to align.
 
 | Layer | Role | Import Rule |
