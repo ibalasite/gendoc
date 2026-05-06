@@ -1,6 +1,6 @@
 # PRD — Product Requirements Document
 <!-- 對應學術標準：IEEE 830 (SRS)，對應業界：Google PRD / Amazon PRFAQ -->
-<!-- Version: v4.0 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 -->
+<!-- Version: v4.1 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 -->
 
 ---
 
@@ -10,7 +10,7 @@
 |------|------|
 | **DOC-ID** | PRD-GENDOC-20260422 |
 | **產品名稱** | gendoc — AI-Driven Implementation Blueprint Generator |
-| **文件版本** | v4.0 |
+| **文件版本** | v4.1 |
 | **狀態** | ACTIVE |
 | **作者（PM）** | AI Product Manager Agent |
 | **日期** | 2026-05-06 |
@@ -24,6 +24,7 @@
 
 | 版本 | 日期 | 作者 | 變更摘要 |
 |------|------|------|---------|
+| v4.1 | 2026-05-06 | PM Agent | **gendoc-repair Branch B per-step 重試重設計 + gendoc-guard 架構修正**：(1) **Branch B per-step 獨立重試（§7.8）**：廢除全局 `_MAX_ROUNDS=3` 輪次制，改為 per-step `_fail_count[sid]` 獨立計數；核心演算法改為 `while _pending` 迴圈，每輪依序驗證 `_pending` 中的 step，失敗立即補跑（Skill call）並加入 `_next_pending`，通過加入 `_done`；step 累計失敗達 `_MAX_PER_STEP=3` 次後移入 `_permanently_failed`，不再驗證也不再補跑；其他 step 不受影響繼續跑，徹底解決「一個 step 誤判三次耗盡全局配額、連帶阻斷所有其他 step」問題；安全閥：`_round > _MAX_PER_STEP` 時強制終止防止無限迴圈（R-5）；B-3 最終報告改為直接從 `_done` / `_permanently_failed` 讀取，移除額外最終掃描邏輯；(2) **gendoc-guard hook 管理移至 setup（§7.9）**：`gendoc-guard` 移除原 Step 1（動態 hook 安裝邏輯）；三個 hook（PreToolUse blocker / PostToolUse history / Stop）改由 `setup` 的 `_register_hook()` idempotent 安裝，`do_uninstall` 呼叫 `remove-guard` 清除；`gendoc-settings-hook.py` 新增 `add-guard` / `remove-guard` 命令；`setup upgrade` 改用 `exec "$RUNTIME_DIR/setup" _post_upgrade` re-exec，確保 git pull 後新函式定義正確載入；(3) **R-13：攔截空 commit**：`gendoc-guard-blocker.py` 新增 R-13，Bash 命令包含 `git commit --allow-empty` 時 block；防止 touch 觸發空 commit 繞過品質管制；(4) **guard 正常完成刪除控制檔案**：Step 3 改為刪除 `.gendoc-guard.json` + `.gendoc-guard-queue` + `.gendoc-guard-history.jsonl`，不再設 `status=complete`；確保 Stop hook 不再觸發。 |
 | v4.0 | 2026-05-06 | PM Agent | **gendoc-guard hook 層靜態化重構**：廢除 Step 1 動態寫出 `.sh` bash 字串的做法，改為四個靜態 Python 腳本（`tools/bin/gendoc-guard-{stop,session-start,blocker,history}.py`），由 `setup upgrade` 部署至 `~/.claude/skills/gendoc/tools/bin/`。Step 1 僅負責將 `python3 {path}` 形式的 hook 命令寫入 `~/.claude/settings.json`（idempotent，不重複登記）。改動三大效益：(1) **跨平台修復**：舊版在 Windows 上因 bash 不存在 + 路徑反斜線截斷導致所有 hook 失效（`bash: C:Users...blocker-hook.sh: No such file or directory`）；新版以 `python3` 執行，Python 接受正斜線路徑，Windows/macOS/Linux 行為一致；(2) **防繞過**：舊版 AI 看到 hook 失敗後可自行用 Write tool 重建 `.sh` 腳本；新版腳本為靜態部署檔案，AI 沒有理由或模板去重建；(3) **無 bash 依賴**：hook 腳本中的 Windows encoding（cp950）問題一併消除，Python 腳本頭部宣告 UTF-8；SECS 白名單執行路徑完整可用。 |
 | v3.9 | 2026-05-06 | PM Agent | **gendoc-repair Branch B 三層驗證架構（§7.8）**：廢除獨立 Phase C，將 mtime Stale 檢查整合為 Branch B L1（special_skill 步驟限定）。新三層結構：**L1（mtime Stale，special_skill only）**— 輸入集比輸出集新 → STALE → 短路直接補跑，不檢查 L2/L3；輸出不存在 → STALE（L2 補不到的情況）；觸發集空 → 隱式展開為所有 `docs/*.md`；非 special_skill 步驟跳過 L1；**L2（輸出完整性，原 L1）**— 輸出檔案/目錄存在且非空；**L3（量化品質，原 L2）**— `.gendoc-rules/{step_id}-rules.json` 門檻達標（rules.json 不存在 → PASS）。短路語意：L1 STALE → 立即補跑，不跑 L2/L3；L2 FAIL → 補跑，不跑 L3；L3 FAIL → 補跑。Phase C 完全刪除，避免 AI 跳過獨立相位。 |
 | v3.8 | 2026-05-06 | PM Agent | **special_skill 步驟 Stale 自動重建規則（§7.8）**：(1) **兩類步驟語意分離**：AI gen 步驟保持「外科修補」（review→fix loop，最小修改原則），special_skill 步驟改為「Makefile mtime 語意完整重建」（純轉換函式，輸入確定輸出，過期即錯誤）；(2) **演算法設計**：`newest_input = max(mtime(trigger_files))`，`oldest_output = min(mtime(output_files))`，`newest_input > oldest_output` → STALE → 重建；觸發集空陣列時隱式展開為所有 `docs/*.md`；(3) **零硬編碼**：觸發集（`input[]`）、輸出基準（`output`）、啟用旗標（`special_skill` 存在）全部從 `pipeline.json` 動態讀取，新增步驟無需改程式碼；(4) **執行規則**：自動執行無需確認、遵循 pipeline 順序、重建後不回頭觸發 AI gen 步驟、FRESH 步驟直接跳過；(5) **受影響步驟**：HTML、UML、UML-CICD、ALIGN、ALIGN-FIX、ALIGN-VERIFY、CONTRACTS、MOCK、PROTOTYPE（共 9 個 special_skill 步驟）。 |

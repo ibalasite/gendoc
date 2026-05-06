@@ -52,14 +52,14 @@
     <div class="sidebar-resizer" id="sidebarResizer"></div>
     <main class="doc-content"><h1>PRD — Product Requirements Document</h1>
 <p>&lt;!-- 對應學術標準：IEEE 830 (SRS)，對應業界：Google PRD / Amazon PRFAQ --&gt;</p>
-<p>&lt;!-- Version: v4.0 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 --&gt;</p>
+<p>&lt;!-- Version: v4.1 | Status: ACTIVE | DOC-ID: PRD-GENDOC-20260422 --&gt;</p>
 <hr>
 <h2>Document Control</h2>
 <table>
 <tr><th>欄位</th><th>內容</th></tr>
 <tr><td><strong>DOC-ID</strong></td><td>PRD-GENDOC-20260422</td></tr>
 <tr><td><strong>產品名稱</strong></td><td>gendoc — AI-Driven Implementation Blueprint Generator</td></tr>
-<tr><td><strong>文件版本</strong></td><td>v4.0</td></tr>
+<tr><td><strong>文件版本</strong></td><td>v4.1</td></tr>
 <tr><td><strong>狀態</strong></td><td>ACTIVE</td></tr>
 <tr><td><strong>作者（PM）</strong></td><td>AI Product Manager Agent</td></tr>
 <tr><td><strong>日期</strong></td><td>2026-05-06</td></tr>
@@ -71,6 +71,7 @@
 <h2>Change Log</h2>
 <table>
 <tr><th>版本</th><th>日期</th><th>作者</th><th>變更摘要</th></tr>
+<tr><td>v4.1</td><td>2026-05-06</td><td>PM Agent</td><td><strong>gendoc-repair Branch B per-step 重試重設計 + gendoc-guard 架構修正</strong>：(1) <strong>Branch B per-step 獨立重試（§7.8）</strong>：廢除全局 <code>_MAX_ROUNDS=3</code> 輪次制，改為 per-step <code>_fail_count[sid]</code> 獨立計數；核心演算法改為 <code>while _pending</code> 迴圈，每輪依序驗證 <code>_pending</code> 中的 step，失敗立即補跑（Skill call）並加入 <code>_next_pending</code>，通過加入 <code>_done</code>；step 累計失敗達 <code>_MAX_PER_STEP=3</code> 次後移入 <code>_permanently_failed</code>，不再驗證也不再補跑；其他 step 不受影響繼續跑，徹底解決「一個 step 誤判三次耗盡全局配額、連帶阻斷所有其他 step」問題；安全閥：<code>_round &gt; _MAX_PER_STEP</code> 時強制終止防止無限迴圈（R-5）；B-3 最終報告改為直接從 <code>_done</code> / <code>_permanently_failed</code> 讀取，移除額外最終掃描邏輯；(2) <strong>gendoc-guard hook 管理移至 setup（§7.9）</strong>：<code>gendoc-guard</code> 移除原 Step 1（動態 hook 安裝邏輯）；三個 hook（PreToolUse blocker / PostToolUse history / Stop）改由 <code>setup</code> 的 <code>_register_hook()</code> idempotent 安裝，<code>do_uninstall</code> 呼叫 <code>remove-guard</code> 清除；<code>gendoc-settings-hook.py</code> 新增 <code>add-guard</code> / <code>remove-guard</code> 命令；<code>setup upgrade</code> 改用 <code>exec &quot;$RUNTIME_DIR/setup&quot; _post_upgrade</code> re-exec，確保 git pull 後新函式定義正確載入；(3) <strong>R-13：攔截空 commit</strong>：<code>gendoc-guard-blocker.py</code> 新增 R-13，Bash 命令包含 <code>git commit --allow-empty</code> 時 block；防止 touch 觸發空 commit 繞過品質管制；(4) <strong>guard 正常完成刪除控制檔案</strong>：Step 3 改為刪除 <code>.gendoc-guard.json</code> + <code>.gendoc-guard-queue</code> + <code>.gendoc-guard-history.jsonl</code>，不再設 <code>status=complete</code>；確保 Stop hook 不再觸發。</td></tr>
 <tr><td>v4.0</td><td>2026-05-06</td><td>PM Agent</td><td><strong>gendoc-guard hook 層靜態化重構</strong>：廢除 Step 1 動態寫出 <code>.sh</code> bash 字串的做法，改為四個靜態 Python 腳本（<code>tools/bin/gendoc-guard-{stop,session-start,blocker,history}.py</code>），由 <code>setup upgrade</code> 部署至 <code>~/.claude/skills/gendoc/tools/bin/</code>。Step 1 僅負責將 <code>python3 {path}</code> 形式的 hook 命令寫入 <code>~/.claude/settings.json</code>（idempotent，不重複登記）。改動三大效益：(1) <strong>跨平台修復</strong>：舊版在 Windows 上因 bash 不存在 + 路徑反斜線截斷導致所有 hook 失效（<code>bash: C:Users...blocker-hook.sh: No such file or directory</code>）；新版以 <code>python3</code> 執行，Python 接受正斜線路徑，Windows/macOS/Linux 行為一致；(2) <strong>防繞過</strong>：舊版 AI 看到 hook 失敗後可自行用 Write tool 重建 <code>.sh</code> 腳本；新版腳本為靜態部署檔案，AI 沒有理由或模板去重建；(3) <strong>無 bash 依賴</strong>：hook 腳本中的 Windows encoding（cp950）問題一併消除，Python 腳本頭部宣告 UTF-8；SECS 白名單執行路徑完整可用。</td></tr>
 <tr><td>v3.9</td><td>2026-05-06</td><td>PM Agent</td><td><strong>gendoc-repair Branch B 三層驗證架構（§7.8）</strong>：廢除獨立 Phase C，將 mtime Stale 檢查整合為 Branch B L1（special_skill 步驟限定）。新三層結構：<strong>L1（mtime Stale，special_skill only）</strong>— 輸入集比輸出集新 → STALE → 短路直接補跑，不檢查 L2/L3；輸出不存在 → STALE（L2 補不到的情況）；觸發集空 → 隱式展開為所有 <code>docs/*.md</code>；非 special_skill 步驟跳過 L1；<strong>L2（輸出完整性，原 L1）</strong>— 輸出檔案/目錄存在且非空；<strong>L3（量化品質，原 L2）</strong>— <code>.gendoc-rules/{step_id}-rules.json</code> 門檻達標（rules.json 不存在 → PASS）。短路語意：L1 STALE → 立即補跑，不跑 L2/L3；L2 FAIL → 補跑，不跑 L3；L3 FAIL → 補跑。Phase C 完全刪除，避免 AI 跳過獨立相位。</td></tr>
 <tr><td>v3.8</td><td>2026-05-06</td><td>PM Agent</td><td><strong>special_skill 步驟 Stale 自動重建規則（§7.8）</strong>：(1) <strong>兩類步驟語意分離</strong>：AI gen 步驟保持「外科修補」（review→fix loop，最小修改原則），special_skill 步驟改為「Makefile mtime 語意完整重建」（純轉換函式，輸入確定輸出，過期即錯誤）；(2) <strong>演算法設計</strong>：<code>newest_input = max(mtime(trigger_files))</code>，<code>oldest_output = min(mtime(output_files))</code>，<code>newest_input &gt; oldest_output</code> → STALE → 重建；觸發集空陣列時隱式展開為所有 <code>docs/*.md</code>；(3) <strong>零硬編碼</strong>：觸發集（<code>input[]</code>）、輸出基準（<code>output</code>）、啟用旗標（<code>special_skill</code> 存在）全部從 <code>pipeline.json</code> 動態讀取，新增步驟無需改程式碼；(4) <strong>執行規則</strong>：自動執行無需確認、遵循 pipeline 順序、重建後不回頭觸發 AI gen 步驟、FRESH 步驟直接跳過；(5) <strong>受影響步驟</strong>：HTML、UML、UML-CICD、ALIGN、ALIGN-FIX、ALIGN-VERIFY、CONTRACTS、MOCK、PROTOTYPE（共 9 個 special_skill 步驟）。</td></tr>

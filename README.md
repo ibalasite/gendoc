@@ -53,8 +53,9 @@ Key capabilities:
 | `gendoc-gen-prototype` | `/gendoc-gen-prototype` | Interactive HTML prototype — UI flow (web/game) or API Explorer with mock engine (api-only) |
 | `gendoc-gen-diagrams` | `/gendoc-gen-diagrams` | Generate Server 9 UML types + Frontend 16 UML types (UML) + class-inventory.md; 30+ precision validation checks; enforces no `<br/>` in stateDiagram-v2 / sequenceDiagram; bans experimental charts (pie/xychart-beta/bar) |
 | `gendoc-gen-client-bdd` | `/gendoc-gen-client-bdd` | Client-facing BDD feature files (web/game projects) |
-| `gendoc-repair` | `/gendoc-repair` | DRYRUN-aware backfill — brings any incomplete project to the same state as `gendoc-auto` + `gendoc-flow` would produce. Requires `docs/BRD.md` to exist. Binary gate: if `.gendoc-rules/*.json` absent or DRYRUN not in completed_steps → Branch A (complete upstream steps → run DRYRUN); otherwise → Branch B (compare all post-DRYRUN steps against `.gendoc-rules/*.json` quality gates using two-layer FAIL detection: output missing + rules not met → redo, loop until all pass, max 3 retries) |
+| `gendoc-repair` | `/gendoc-repair` | DRYRUN-aware backfill — brings any incomplete project to the same state as `gendoc-auto` + `gendoc-flow` would produce. Requires `docs/BRD.md` to exist. Binary gate: if `.gendoc-rules/*.json` absent or DRYRUN not in completed_steps → Branch A (complete upstream steps → run DRYRUN); otherwise → Branch B (per-step independent retry: each step maintains its own `fail_count`, fails immediately trigger repair + add to next round; step permanently abandoned after 3 consecutive failures; other steps are unaffected) |
 | `gendoc-rebuild-templates` | `/gendoc-rebuild-templates` | Rebuild all document templates from scratch |
+| `gendoc-refresh-docs` | `/gendoc-refresh-docs` | Update project documentation to reflect current state — scans directory, reads memory, diffs against README + PRD, fixes stale descriptions, adds missing items, rebuilds HTML; supports free-form args for targeted updates |
 | `gendoc-guard` | `/gendoc-guard <skill>` | Skill execution compliance monitor — wraps any skill with session resume, PreToolUse whitelist enforcement (SECS), and PostToolUse execution history |
 | `gendoc-upgrade` | `/gendoc-upgrade` | Manual skill upgrade |
 | `reviewtemplate` | `/reviewtemplate <TYPE>` | Review & iteratively fix a template three-file set (TYPE.md + .gen.md + .review.md) |
@@ -170,7 +171,7 @@ References: Martin Fowler "MonolithFirst" (2015) · Sam Newman *Monolith to Micr
 **3. Skill Execution Compliance (SECS) — Physical Enforcement over Advisory**
 `gendoc-guard` wraps any skill with a statically-derived whitelist (tool types, allowed Skill calls, allowed scripts, known function names, inline Python write permission). A PreToolUse hook blocks unauthorized calls in three layers: pure-read passthrough → whitelist enforcement → universal pattern detection (>30-line inline scripts, `sys.stdout.reconfigure`). A PostToolUse hook records every call to `.gendoc-guard-history.jsonl` for accurate resume with breakpoint context. No individual skill needs modification.
 
-Four static Python scripts in `tools/bin/` implement the hook layer — deployed by `setup upgrade`, registered by `gendoc-guard` Step 1 into `~/.claude/settings.json`. No dynamic script writing; no bash dependency; cross-platform (macOS / Linux / Windows).
+Four static Python scripts in `tools/bin/` implement the hook layer — deployed and registered by `setup upgrade` via `_register_hook()` into `~/.claude/settings.json` (idempotent). No dynamic script writing; no bash dependency; cross-platform (macOS / Linux / Windows).
 
 **4. Clean Architecture + SOLID — Dependency Rule Enforced**  
 Every generated backend system follows Robert C. Martin's 4-layer Clean Architecture with explicit dependency direction. EDD §3.1b anchors the SOLID table and Dependency Rule; all downstream documents (ARCH, test-plan, DEVELOPER_GUIDE) are enforced to align.
