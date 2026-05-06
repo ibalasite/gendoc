@@ -1,7 +1,7 @@
 ---
 name: gendoc-repair
 description: 把不完整的目標專案補到與 gendoc-auto + gendoc-flow 從頭執行完全一致的狀態。三部分內容驅動 Gate：① pre-DRYRUN 文件品質（存在 + 章節數 ≥ template）② .gendoc-rules/*.json 存在 ③ post-DRYRUN 輸出存在性 — 三者全 ✅ 才進 Branch B，否則 Branch A 修補後重跑 DRYRUN。State 只作參考，不作 Gate 判斷依據。
-version: 5.0.0
+version: 5.1.0
 allowed-tools:
   - Read
   - Write
@@ -371,11 +371,68 @@ _MAX_ROUNDS = 3
 _round_failures = {}  # {round: [step_id, ...]}
 ```
 
-### B-1：兩層 FAIL 偵測函式
+### B-1：三層 FAIL 偵測函式
 
 ```python
-def _check_step_l1(step):
-    """Layer 1：輸出檔案/目錄是否存在且完整（章節數 >= template）
+import glob as _glob_b1, os as _os_b1
+from datetime import datetime as _dt
+
+def _get_mtime(path_pattern: str):
+    """回傳符合 pattern 的所有檔案中最大 mtime；無檔案時回傳 None。"""
+    matched = _glob.glob(path_pattern, recursive=True)
+    if not matched:
+        return None
+    vals = [os.path.getmtime(p) for p in matched if os.path.isfile(p)]
+    return max(vals) if vals else None
+
+def _get_oldest_output_mtime(output_spec):
+    """回傳輸出集的最小 mtime（最舊輸出檔）；無輸出時回傳 None。"""
+    if isinstance(output_spec, str):
+        output_spec = [output_spec]
+    mtimes = []
+    for pattern in output_spec:
+        for p in _glob.glob(pattern, recursive=True):
+            if os.path.isfile(p):
+                mtimes.append(os.path.getmtime(p))
+    return min(mtimes) if mtimes else None
+
+def _check_step_l1_mtime(step) -> tuple:
+    """Layer 1（special_skill only）：mtime Stale 檢查（Makefile 語意）
+
+    回傳 (is_stale: bool, reason: str)。
+    is_stale=True  → 短路補跑，不檢查 L2/L3
+    is_stale=False → 繼續 L2/L3
+    輸出不存在     → is_stale=True（觸發補跑，L2 不需重複判斷）
+    """
+    trigger_files = step.get('input', [])
+    if not trigger_files:
+        trigger_files = _glob.glob('docs/*.md')
+
+    newest_input = None
+    for pattern in trigger_files:
+        m = _get_mtime(pattern)
+        if m is not None:
+            newest_input = max(newest_input or 0, m)
+
+    if newest_input is None:
+        return False, "觸發集無檔案，略過 L1"
+
+    output_spec = step.get('output', [])
+    oldest_output = _get_oldest_output_mtime(output_spec)
+
+    if oldest_output is None:
+        return True, "輸出不存在（STALE）"
+
+    if newest_input > oldest_output:
+        in_dt  = _dt.fromtimestamp(newest_input).strftime('%H:%M:%S')
+        out_dt = _dt.fromtimestamp(oldest_output).strftime('%H:%M:%S')
+        return True, f"輸入較新（input={in_dt} > output={out_dt}）"
+
+    return False, "FRESH"
+
+
+def _check_step_l2(step):
+    """Layer 2（原 L1）：輸出檔案/目錄是否存在且完整（章節數 >= template）
 
     [R3-C] special_skill step：優先讀取 special_completed state（比 file-existence 更可靠）
     HTML step：額外比對 docs/*.md 數量 vs docs/pages/*.html 數量
@@ -413,11 +470,12 @@ def _check_step_l1(step):
     exists, complete, _ = _output_complete(step)  # 復用 A-1 定義的函式（含 section check）
     return exists and complete
 
-def _check_step_l2(step):
-    """Layer 2：rules.json 品質門檻是否達標
+def _check_step_l3(step):
+    """Layer 3（原 L2）：rules.json 量化品質門檻是否達標
 
     讀取 .gendoc-rules/{step_id.lower()}-rules.json 的 min_* 閾值，
     與實際輸出檔的內容比對。回傳 (passed: bool, details: list[str])
+    rules.json 不存在 → PASS（不阻擋）
     """
     sid = step['id']
     rules_file = f'{_rules_dir}/{sid.lower()}-rules.json'
@@ -636,22 +694,31 @@ for _round in range(1, _MAX_ROUNDS + 1):
             print(f"[B-2] ⏭️  {sid} — 條件不符（{cond}），略過")
             continue
 
-        # 2. L1：輸出存在性檢查
-        if not _check_step_l1(step):
-            print(f"[B-2] ❌ {sid} — L1 FAIL：輸出缺失或空白")
-            _fail_this_round.append((sid, 'L1', ['輸出檔案缺失或空白']))
+        # 2. L1：mtime Stale 檢查（僅 special_skill 步驟）
+        if step.get('special_skill'):
+            l1_stale, l1_reason = _check_step_l1_mtime(step)
+            if l1_stale:
+                print(f"[B-2] ❌ {sid} — L1 STALE：{l1_reason}")
+                _fail_this_round.append((sid, 'L1', [l1_reason]))
+                continue
+            print(f"[B-2]    {sid} — L1 FRESH：{l1_reason}")
+
+        # 3. L2：輸出存在性檢查
+        if not _check_step_l2(step):
+            print(f"[B-2] ❌ {sid} — L2 FAIL：輸出缺失或空白")
+            _fail_this_round.append((sid, 'L2', ['輸出檔案缺失或空白']))
             continue
 
-        # 3. L2：rules.json 品質門檻
-        l2_ok, l2_details = _check_step_l2(step)
-        if not l2_ok:
-            print(f"[B-2] ❌ {sid} — L2 FAIL：")
-            for d in l2_details:
+        # 4. L3：rules.json 量化品質門檻
+        l3_ok, l3_details = _check_step_l3(step)
+        if not l3_ok:
+            print(f"[B-2] ❌ {sid} — L3 FAIL：")
+            for d in l3_details:
                 print(f"          {d}")
-            _fail_this_round.append((sid, 'L2', l2_details))
+            _fail_this_round.append((sid, 'L3', l3_details))
             continue
 
-        print(f"[B-2] ✅ {sid} — L1+L2 通過")
+        print(f"[B-2] ✅ {sid} — L1+L2+L3 通過")
 
     # 所有步驟都通過 → 完成
     if not _fail_this_round:
@@ -708,9 +775,12 @@ else:
         cond = step.get('condition', 'always')
         if not _eval_condition(cond, _CLIENT_TYPE, _HAS_ADMIN):
             continue
-        l1_ok = _check_step_l1(step)
-        l2_ok, _ = _check_step_l2(step) if l1_ok else (False, [])
-        if not (l1_ok and l2_ok):
+        l1_stale = False
+        if step.get('special_skill'):
+            l1_stale, _ = _check_step_l1_mtime(step)
+        l2_ok = _check_step_l2(step) if not l1_stale else False
+        l3_ok, _ = _check_step_l3(step) if l2_ok else (False, [])
+        if l1_stale or not l2_ok or not l3_ok:
             _final_fail.append(sid)
     last_fails = _final_fail
 ```
@@ -721,7 +791,7 @@ print("[gendoc-repair] 最終報告")
 print("="*60)
 
 if not last_fails:
-    print("✅ 所有 step 通過 L1+L2 驗證，專案已完整。")
+    print("✅ 所有 step 通過 L1+L2+L3 驗證，專案已完整。")
 else:
     print(f"⚠️  達到最大重試輪次（{_MAX_ROUNDS}），以下 step 仍未通過：")
     for sid in last_fails:
@@ -735,132 +805,6 @@ else:
     print("  1. 上游文件品質不足，導致該 step 無法生成合格內容")
     print("  2. client_type / has_admin_backend 設定與實際需求不符")
     print("  3. 需要人工檢視並補充上游文件（BRD、PRD、EDD、ARCH）")
-```
-
----
-
-## Phase C：special_skill 步驟 mtime Stale 自動重建
-
-> 此 Phase 在 Branch B 完成後執行。Branch B 負責「輸出缺失或品質不足」的補跑；Phase C 負責「輸出存在且品質通過，但比觸發檔案還舊」的重建。兩者互補，不重疊。
-
-### C-1：掃描所有 special_skill 步驟
-
-```python
-import json, os, glob as _glob
-from datetime import datetime
-
-_pipeline_raw = open(_PIPELINE_FILE, encoding='utf-8').read()
-_pipeline     = json.loads(_pipeline_raw)
-_all_steps    = _pipeline.get('steps', [])
-
-_special_steps = [s for s in _all_steps if s.get('special_skill')]
-
-print(f"\n{'='*60}")
-print(f"[Phase C] special_skill mtime 重建檢查（{len(_special_steps)} 個步驟）")
-print(f"{'='*60}")
-```
-
-### C-2：mtime 比對函式
-
-```python
-def _get_mtime(path_pattern: str) -> float | None:
-    """回傳符合 pattern 的所有檔案中的最大 mtime；無檔案時回傳 None。"""
-    matched = _glob.glob(path_pattern, recursive=True)
-    if not matched:
-        return None
-    return max(os.path.getmtime(p) for p in matched if os.path.isfile(p))
-
-def _get_oldest_output_mtime(output_spec) -> float | None:
-    """回傳輸出集的最小 mtime（最舊的輸出檔）；無輸出時回傳 None。"""
-    if isinstance(output_spec, str):
-        output_spec = [output_spec]
-    mtimes = []
-    for pattern in output_spec:
-        matched = _glob.glob(pattern, recursive=True)
-        for p in matched:
-            if os.path.isfile(p):
-                mtimes.append(os.path.getmtime(p))
-    return min(mtimes) if mtimes else None
-
-def _is_stale(step: dict) -> tuple[bool, str]:
-    """
-    回傳 (is_stale, reason)。
-    is_stale=True → 需要重建；False → 跳過。
-    """
-    trigger_files = step.get('input', [])
-
-    # 空 input[] → 隱式觸發集：所有 docs/*.md
-    if not trigger_files:
-        trigger_files = _glob.glob('docs/*.md')
-
-    # 找最新的觸發檔 mtime
-    newest_input = None
-    for pattern in trigger_files:
-        m = _get_mtime(pattern)
-        if m is not None:
-            newest_input = max(newest_input or 0, m)
-
-    if newest_input is None:
-        return False, "觸發集無檔案，略過"
-
-    # 找最舊的輸出檔 mtime
-    output_spec = step.get('output', [])
-    oldest_output = _get_oldest_output_mtime(output_spec)
-
-    if oldest_output is None:
-        # 輸出根本不存在 → Branch B 應已處理，Phase C 略過
-        return False, "輸出不存在（Branch B 已補跑）"
-
-    if newest_input > oldest_output:
-        input_dt  = datetime.fromtimestamp(newest_input).strftime('%H:%M:%S')
-        output_dt = datetime.fromtimestamp(oldest_output).strftime('%H:%M:%S')
-        return True, f"輸入較新（input={input_dt} > output={output_dt}）"
-
-    return False, "FRESH"
-```
-
-### C-3：執行 Stale 重建
-
-```python
-_stale_steps = []
-
-for step in _special_steps:
-    sid  = step['id']
-    cond = step.get('condition', 'always')
-
-    # 條件過濾（與 Branch B 相同）
-    if not _eval_condition(cond, _CLIENT_TYPE, _HAS_ADMIN):
-        print(f"[C-3] ⏭️  {sid} — 條件不符（{cond}），略過")
-        continue
-
-    stale, reason = _is_stale(step)
-
-    if stale:
-        print(f"[C-3] 🔄 STALE  {sid} — {reason}")
-        _stale_steps.append(sid)
-    else:
-        print(f"[C-3] ✅ FRESH  {sid} — {reason}")
-
-print(f"\n[Phase C] 共 {len(_stale_steps)} 個 STALE 步驟需重建：{_stale_steps}")
-```
-
-**重建執行（自動，無需確認）：**
-
-```python
-# ⚠️ 依 pipeline 順序重建（已由 _special_steps 保證），上游先、下游後
-# ⚠️ 重建完一個立即繼續下一個，不輸出總結、不等待使用者
-
-for _c_idx, sid in enumerate(_stale_steps, 1):
-    print(f"\n[Phase C] ▶ [{_c_idx}/{len(_stale_steps)}] 重建 {sid}")
-    # 用 Skill tool 呼叫 gendoc-flow，args="--only {sid}"
-    # gendoc-flow 偵測 special_skill 欄位，呼叫對應 Skill（如 gendoc-gen-html）
-    # 等待回傳後立即繼續，失敗時印出 [WARN] 並繼續
-    print(f"[C-3] {sid} 重建完成，繼續下一個...")
-
-if _stale_steps:
-    print(f"\n[Phase C] ✅ {len(_stale_steps)} 個 STALE 步驟重建完畢")
-else:
-    print(f"\n[Phase C] ✅ 所有 special_skill 步驟均為 FRESH，無需重建")
 ```
 
 ---
@@ -885,6 +829,7 @@ else:
 4. **不讀** `$_CWD/templates/` — pipeline 只從 `$GENDOC_TEMPLATES` 讀取
 5. **不直接修改** `~/.claude/skills/` — 只修改 `~/projects/gendoc/skills/`
 6. **單 step 失敗不中止** — 記錄失敗，繼續下一個 step
-7. **Phase C 不詢問使用者** — mtime 比對是機械判斷，STALE 立即重建，無需確認
-8. **Phase C 的觸發集從 pipeline.json 讀取** — `input[]` 為空時隱式展開為 `docs/*.md`，零硬編碼
-7. **最多 3 輪重試** — 超過後報告失敗原因，不無限迴圈
+7. **L1 mtime 不詢問使用者** — mtime 比對是機械判斷，STALE 立即短路補跑，無需確認
+8. **L1 觸發集從 pipeline.json 讀取** — `input[]` 為空時隱式展開為 `docs/*.md`，零硬編碼
+9. **沒有獨立 Phase C** — mtime 檢查已整合為 Branch B L1，AI 無法跳過
+10. **最多 3 輪重試** — 超過後報告失敗原因，不無限迴圈
