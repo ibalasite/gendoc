@@ -40,85 +40,53 @@ echo "[GUARD] 工作目錄：$(pwd)"
 
 ---
 
-## Step 2：建立監控 Marker
+## Step 1：建立監控 Marker（含 SECS 白名單）
+
+> **⚠️ 此步驟在 guard 啟動前執行一次性寫入，禁止拆成兩步。**
+> guard 不存在時 blocker exit 0，所以本步驟不受任何 SECS 限制。
+> 白名單分析（原 Step 2.5）已合併於此，確保只有一次 guard 檔寫入。
 
 ```python
-import json, os
+import json, os, re
 from datetime import datetime, timezone
+from pathlib import Path
 
-_target = os.environ.get('_TARGET', '')
+_target    = os.environ.get('_TARGET', '')
 _guard_file = '.gendoc-guard.json'
 
+# ── 1. 計算重試次數（guard 不存在時為 0）──────────────────────
 _existing = {}
 if os.path.exists(_guard_file):
     try:
         _existing = json.load(open(_guard_file, encoding='utf-8'))
     except Exception:
-        _existing = {}
+        pass
+_retry_count = (
+    _existing.get('retry_count', 0)
+    if _existing.get('target_skill') == _target else 0
+)
 
-_retry_count = _existing.get('retry_count', 0) if _existing.get('target_skill') == _target else 0
-
-marker = {
-    "target_skill": _target,
-    "status": "running",
-    "phase": "invoking",
-    "cwd": os.getcwd(),
-    "started_at": datetime.now(timezone.utc).isoformat(),
-    "retry_count": _retry_count,
-    "max_retries": 5,
-    "secs_whitelist": {}
-}
-
-with open(_guard_file, 'w', encoding='utf-8') as f:
-    json.dump(marker, f, indent=2, ensure_ascii=False)
-
-if _retry_count > 0:
-    print(f"[GUARD] ♻️  Resume 模式（第 {_retry_count} 次重試）：寫入 marker")
-else:
-    print(f"[GUARD] ✅ 監控 marker 建立：{_guard_file}")
-print(f"[GUARD] max_retries = {marker['max_retries']}")
-```
-
-## Step 2.5：SECS 白名單靜態分析
-
-分析目標 skill 的 `SKILL.md`，提取允許的工具呼叫清單，寫入 `.gendoc-guard.json`。
-
-```python
-import json, os, re
-from pathlib import Path
-
-_target = os.environ.get('_TARGET', '')
-_guard_file = '.gendoc-guard.json'
-
+# ── 2. SECS 白名單靜態分析（純讀取，不寫任何檔案）────────────
 def _extract_whitelist(path, depth=0, visited=None):
-    """從 SKILL.md 靜態分析提取白名單，遞迴展開 sub-skill。"""
     if visited is None:
         visited = set()
     key = str(path)
     if key in visited or depth > 3:
         return {}
     visited.add(key)
-
     try:
         content = open(path, encoding='utf-8').read()
     except Exception:
         return {}
-
     result = {
-        'tool_types': set(),
-        'skill_calls': set(),
-        'known_functions': set(),
-        'allow_inline_python_write': False,
+        'tool_types': set(), 'skill_calls': set(),
+        'known_functions': set(), 'allow_inline_python_write': False,
     }
-
-    # 從 frontmatter 提取 allowed-tools
     fm = re.search(r'^---\n(.+?)\n---', content, re.DOTALL)
     if fm:
         for t in re.findall(r'- (\S+)', fm.group(1)):
             if t not in ('name', 'description', 'version'):
                 result['tool_types'].add(t)
-
-    # Skill 呼叫：中英文自然語言描述
     for m in re.finditer(
         r'(?:Skill\s+tool[^`\n]{0,40}`([a-zA-Z0-9_-]+)`'
         r'|呼叫\s+`([a-zA-Z0-9_-]+)`'
@@ -129,25 +97,15 @@ def _extract_whitelist(path, depth=0, visited=None):
         name = next((g for g in m.groups() if g), None)
         if name and ('-' in name or name.startswith('gendoc')):
             result['skill_calls'].add(name)
-
-    # 從所有 code block 分析
-    code_blocks = re.findall(r'```(?:python|bash|sh|py)?\n(.*?)```', content, re.DOTALL)
     WRITE_PATS = [
-        r"open\s*\([^)]*['\"][wa]",
-        r"json\.dump\s*\(",
-        r"\.write\s*\(",
-        r"os\.replace\s*\(",
-        r"os\.rename\s*\(",
+        r"open\s*\([^)]*['\"][wa]", r"json\.dump\s*\(",
+        r"\.write\s*\(", r"os\.replace\s*\(", r"os\.rename\s*\(",
     ]
-    for block in code_blocks:
-        # 已知函式定義
+    for block in re.findall(r'```(?:python|bash|sh|py)?\n(.*?)```', content, re.DOTALL):
         for fn in re.findall(r'^\s*def\s+(\w+)\s*\(', block, re.MULTILINE):
             result['known_functions'].add(fn)
-        # inline write 授權偵測
         if any(re.search(p, block) for p in WRITE_PATS):
             result['allow_inline_python_write'] = True
-
-    # 掃描 code block 中引用的 JSON 設定檔，提取 skill 名稱（如 pipeline.json special_skill）
     json_refs = set()
     for block in re.findall(r'```[^\n]*\n(.*?)```', content, re.DOTALL):
         for m in re.finditer(r"""['"]([^'"*\s]+\.json)['"]""", block):
@@ -155,42 +113,29 @@ def _extract_whitelist(path, depth=0, visited=None):
         for m in re.finditer(r'\b([a-zA-Z0-9_-]+\.json)\b', block):
             json_refs.add(m.group(1))
     json_refs = {r for r in json_refs if len(r) > 8}
-
     SKILL_NAME_RE = re.compile(r'\b([a-zA-Z][a-zA-Z0-9]*(?:-[a-zA-Z0-9]+)+)\b')
-
     def _walk_json(obj):
         if isinstance(obj, str):
             for m in SKILL_NAME_RE.finditer(obj):
-                if '-' in m.group(1):
-                    result['skill_calls'].add(m.group(1))
+                if '-' in m.group(1): result['skill_calls'].add(m.group(1))
         elif isinstance(obj, dict):
-            for v in obj.values():
-                _walk_json(v)
+            for v in obj.values(): _walk_json(v)
         elif isinstance(obj, list):
-            for v in obj:
-                _walk_json(v)
-
+            for v in obj: _walk_json(v)
     for ref in json_refs:
         for base in [path.parent.parent / 'templates',
                      Path.home() / '.claude' / 'skills' / 'gendoc' / 'templates']:
             p = base / ref
             if p.exists():
-                try:
-                    _walk_json(json.loads(p.read_text(encoding='utf-8')))
-                except Exception:
-                    pass
+                try: _walk_json(json.loads(p.read_text(encoding='utf-8')))
+                except Exception: pass
                 break
-
-    # 遞迴展開 sub-skill 白名單
     parent_dir = path.parent.parent
     for sub in list(result['skill_calls']):
-        sub_path = parent_dir / sub / 'SKILL.md'
-        sub_wl = _extract_whitelist(sub_path, depth + 1, visited)
+        sub_wl = _extract_whitelist(parent_dir / sub / 'SKILL.md', depth + 1, visited)
         result['skill_calls'].update(sub_wl.get('skill_calls', set()))
         result['known_functions'].update(sub_wl.get('known_functions', set()))
-        if sub_wl.get('allow_inline_python_write'):
-            result['allow_inline_python_write'] = True
-
+        if sub_wl.get('allow_inline_python_write'): result['allow_inline_python_write'] = True
     return {
         'tool_types': sorted(result['tool_types']),
         'skill_calls': sorted(result['skill_calls']),
@@ -198,11 +143,8 @@ def _extract_whitelist(path, depth=0, visited=None):
         'allow_inline_python_write': result['allow_inline_python_write'],
     }
 
-
-if not _target:
-    print('[GUARD] WARNING: _TARGET 未設定，跳過 SECS 白名單分析')
-else:
-    # 搜尋目標 skill 的 SKILL.md
+whitelist = {}
+if _target:
     home = Path.home()
     candidates = [
         home / '.claude' / 'skills' / 'gendoc' / _target / 'SKILL.md',
@@ -210,40 +152,47 @@ else:
         Path(f'skills/{_target}/SKILL.md'),
     ]
     skill_md = next((p for p in candidates if p.exists()), None)
-
     if skill_md:
         whitelist = _extract_whitelist(skill_md)
         print(f'[GUARD] SECS 白名單來源：{skill_md}')
-        print(f'[GUARD] tool_types             : {whitelist["tool_types"]}')
-        print(f'[GUARD] skill_calls             : {whitelist["skill_calls"]}')
-        print(f'[GUARD] known_functions         : {whitelist["known_functions"]}')
+        print(f'[GUARD] skill_calls: {whitelist["skill_calls"]}')
         print(f'[GUARD] allow_inline_python_write: {whitelist["allow_inline_python_write"]}')
-
-        # 寫入 .gendoc-guard.json
-        d = json.load(open(_guard_file, encoding='utf-8'))
-        d['secs_whitelist'] = whitelist
-        tmp = _guard_file + '.tmp'
-        with open(tmp, 'w', encoding='utf-8') as f:
-            json.dump(d, f, indent=2, ensure_ascii=False)
-        os.replace(tmp, _guard_file)
-        print('[GUARD] ✅ SECS 白名單已寫入 marker')
     else:
-        print(f'[GUARD] WARNING: 找不到 /{_target} 的 SKILL.md，SECS 停用（所有工具呼叫放行）')
+        print(f'[GUARD] WARNING: 找不到 /{_target} SKILL.md，SECS 停用')
+
+# ── 3. 一次性寫入完整 guard（guard 尚未啟動，blocker exit 0）──
+marker = {
+    "target_skill": _target,
+    "status": "running",
+    "phase": "invoking",
+    "cwd": os.getcwd(),
+    "started_at": datetime.now(timezone.utc).isoformat(),
+    "retry_count": _retry_count,
+    "max_retries": 5,
+    "secs_whitelist": whitelist,
+}
+with open(_guard_file, 'w', encoding='utf-8') as f:
+    json.dump(marker, f, indent=2, ensure_ascii=False)
+
+if _retry_count > 0:
+    print(f"[GUARD] ♻️  Resume 模式（第 {_retry_count} 次重試）")
+else:
+    print(f"[GUARD] ✅ 監控 marker 建立（含 SECS 白名單）：{_guard_file}")
 ```
 
 ---
 
-## Step 3：呼叫目標 Skill
+## Step 2：呼叫目標 Skill
 
 用 **Skill tool** 呼叫 `_TARGET`，不傳任何 args。
 
-等待 Skill tool 回傳後才繼續 Step 4。
+等待 Skill tool 回傳後才繼續 Step 3。
 
-若目標 skill 回傳錯誤或 exception，記錄原因並繼續 Step 4（不中止）。
+若目標 skill 回傳錯誤或 exception，記錄原因並繼續 Step 3（不中止）。
 
 ---
 
-## Step 4：正常完成，刪除所有 guard 檔案
+## Step 3：正常完成，刪除所有 guard 檔案
 
 ```python
 import os
@@ -278,7 +227,7 @@ print(f"[GUARD] guard 檔案已清除，Stop hook 不再觸發")
 | `cwd` | 目標專案目錄（Stop hook 使用） |
 | `retry_count` | 已重啟次數 |
 | `max_retries` | 最大重啟次數（預設 5） |
-| `secs_whitelist` | SECS 白名單（Step 2.5 寫入） |
+| `secs_whitelist` | SECS 白名單（Step 1 寫入） |
 | `secs_whitelist.tool_types` | 目標 skill 允許使用的工具列表 |
 | `secs_whitelist.skill_calls` | 允許呼叫的 skill 名稱（遞迴展開） |
 | `secs_whitelist.known_functions` | SKILL.md 中定義的已知函式 |
@@ -306,19 +255,16 @@ Step 1：自安裝 4 個 hook（idempotent）
   └── PostToolUse hook   → 記錄每次工具呼叫至 history.jsonl
       │
       ▼
-Step 2：寫 .gendoc-guard.json {status: running}
-      │
-      ▼
-Step 2.5：SECS 白名單靜態分析
-  ├── 讀 ~/.claude/skills/gendoc/{target}/SKILL.md
+Step 1：SECS 白名單靜態分析 + 寫入完整 .gendoc-guard.json
+  ├── 讀 ~/.claude/skills/gendoc/{target}/SKILL.md（純讀取）
   ├── 提取：allowed-tools / skill_calls / known_functions / allow_inline_python_write
   ├── 遞迴展開 sub-skill（最多 3 層）
-  └── 寫入 .gendoc-guard.json secs_whitelist
+  └── 一次性寫入 guard（guard 尚未啟動，blocker exit 0）
       │
       ▼
-Step 3：Skill tool → gendoc-repair（PreToolUse hook 全程監控）
+Step 2：Skill tool → gendoc-repair（PreToolUse hook 全程監控）
       │
-      ├── 正常完成 ──→ Step 4：marker {status: complete} → 結束
+      ├── 正常完成 ──→ Step 3：刪除所有 guard 檔案 → 結束
       │
       └── session 中斷（context limit / crash / 手動結束）
                 │
