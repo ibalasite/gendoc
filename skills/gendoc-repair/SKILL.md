@@ -547,8 +547,13 @@ def _count_metric(text: str, key: str) -> int:
     if 'ac_count' in k or 'acceptance' in k:
         return len(re.findall(r'^\s*[-*]\s*(AC|Given|When|Then|接受|驗收)', text, re.MULTILINE | re.IGNORECASE))
 
-    # Entity / Table / Schema
-    if 'entity' in k or 'table_count' in k or 'schema' in k:
+    # Table count — 計算 SCHEMA.md 中的獨立 table 塊數（每張 table 恰好一條 separator row）
+    # 對應 DRYRUN 語義：min_table_count = max(3, entity_count)
+    if 'table_count' in k:
+        return len(re.findall(r'^\|[\s\-:|]+\|', text, re.MULTILINE))
+
+    # Entity / Schema heading count
+    if 'entity' in k or 'schema' in k:
         return len(re.findall(r'^#{1,3} .*(Entity|Table|Schema|資料表)', text, re.MULTILINE | re.IGNORECASE))
 
     # Test case
