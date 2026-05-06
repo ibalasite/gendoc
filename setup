@@ -77,6 +77,7 @@ do_upgrade() {
 
   _deploy_skills
   _deploy_tools
+  _register_hook
 
   log "[upgrade] 完成。"
 }
