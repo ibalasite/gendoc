@@ -680,95 +680,92 @@ def _check_directory_step(step, rules, special_skill):
     return (len(failed) == 0), failed
 ```
 
-### B-2：執行驗證 + 補跑迴圈
+### B-2：執行驗證 + 補跑迴圈（per-step 獨立重試）
 
 > ⚠️ **強制繼續規則（Claude 執行時必須嚴格遵守，違反即為錯誤）：**
-> 1. 補跑完一個 step 後，**立即繼續下一個**，不得輸出總結也不得停止
-> 2. `_fail_this_round` 中所有 step 全部補跑完畢，才能進入下一輪驗證
+> 1. 一個 step 失敗後**立即補跑**，補跑完後**繼續本輪下一個 step**，不得停止
+> 2. 一個 step 達到 `_MAX_PER_STEP` 次失敗後移入 `_permanently_failed`，不再補跑、不再驗證
 > 3. 即使某個 step（如 PROTOTYPE、HTML）執行時間很長，完成後仍必須繼續
-> 4. Branch B 全部輪次完成前，任何「修復完成」「任務完成」的輸出都是錯誤的
+> 4. Branch B 全部 step 的 `_pending` 清空前，任何「修復完成」「任務完成」的輸出都是錯誤的
 > 5. 每補跑完一個 step，必須立即印出 `[B-2] 繼續下一個 step...` 再執行下一個
 
 ```python
-for _round in range(1, _MAX_ROUNDS + 1):
+_round = 0
+while _pending:
+    _round += 1
+
+    # 安全閥：防止演算法異常無限循環（R-5）
+    if _round > _MAX_PER_STEP:
+        print(f"[Branch B] ⚠️  已達安全閥上限（{_MAX_PER_STEP} 輪），強制終止剩餘 {len(_pending)} 個 step")
+        for step in _pending:
+            _permanently_failed.append((step['id'], 'SAFETY', ['超過安全閥輪次上限']))
+        break
+
     print(f"\n{'='*60}")
-    print(f"[Branch B] Round {_round}/{_MAX_ROUNDS} — 驗證 DRYRUN 後各 Step")
+    print(f"[Branch B] Round {_round} — 驗證 {len(_pending)} 個 pending steps")
     print(f"{'='*60}")
 
-    _fail_this_round = []
+    _next_pending = []
 
-    for step in _post_dryrun:
-        sid  = step['id']
-        cond = step.get('condition', 'always')
+    for step in _pending:
+        sid = step['id']
 
-        # 1. 條件過濾
-        if not _eval_condition(cond, _CLIENT_TYPE, _HAS_ADMIN):
-            print(f"[B-2] ⏭️  {sid} — 條件不符（{cond}），略過")
-            continue
-
-        # 2. L1：mtime Stale 檢查（僅 special_skill 步驟）
+        # L1：mtime Stale 檢查（僅 special_skill 步驟）
         if step.get('special_skill'):
             l1_stale, l1_reason = _check_step_l1_mtime(step)
             if l1_stale:
                 print(f"[B-2] ❌ {sid} — L1 STALE：{l1_reason}")
-                _fail_this_round.append((sid, 'L1', [l1_reason]))
+                _fail_count[sid] = _fail_count.get(sid, 0) + 1
+                if _fail_count[sid] < _MAX_PER_STEP:
+                    print(f"[B-2] ▶ 補跑 {sid}（第 {_fail_count[sid]} 次失敗）→ Skill('gendoc-flow', args='--only {sid}')")
+                    # 用 Skill tool 呼叫 gendoc-flow，args="--only {sid}"；失敗時印 [WARN] 繼續
+                    _next_pending.append(step)
+                else:
+                    print(f"[B-2] ☠️  {sid} — 達到上限（{_MAX_PER_STEP} 次），永久放棄")
+                    _permanently_failed.append((sid, 'L1', [l1_reason]))
+                print(f"[B-2] 繼續下一個 step...")
                 continue
             print(f"[B-2]    {sid} — L1 FRESH：{l1_reason}")
 
-        # 3. L2：輸出存在性檢查
+        # L2：輸出存在性檢查
         if not _check_step_l2(step):
             print(f"[B-2] ❌ {sid} — L2 FAIL：輸出缺失或空白")
-            _fail_this_round.append((sid, 'L2', ['輸出檔案缺失或空白']))
+            _fail_count[sid] = _fail_count.get(sid, 0) + 1
+            if _fail_count[sid] < _MAX_PER_STEP:
+                print(f"[B-2] ▶ 補跑 {sid}（第 {_fail_count[sid]} 次失敗）→ Skill('gendoc-flow', args='--only {sid}')")
+                # 用 Skill tool 呼叫 gendoc-flow，args="--only {sid}"；失敗時印 [WARN] 繼續
+                _next_pending.append(step)
+            else:
+                print(f"[B-2] ☠️  {sid} — 達到上限（{_MAX_PER_STEP} 次），永久放棄")
+                _permanently_failed.append((sid, 'L2', ['輸出檔案缺失或空白']))
+            print(f"[B-2] 繼續下一個 step...")
             continue
 
-        # 4. L3：rules.json 量化品質門檻
+        # L3：rules.json 量化品質門檻
         l3_ok, l3_details = _check_step_l3(step)
         if not l3_ok:
             print(f"[B-2] ❌ {sid} — L3 FAIL：")
             for d in l3_details:
                 print(f"          {d}")
-            _fail_this_round.append((sid, 'L3', l3_details))
+            _fail_count[sid] = _fail_count.get(sid, 0) + 1
+            if _fail_count[sid] < _MAX_PER_STEP:
+                print(f"[B-2] ▶ 補跑 {sid}（第 {_fail_count[sid]} 次失敗）→ Skill('gendoc-flow', args='--only {sid}')")
+                # 用 Skill tool 呼叫 gendoc-flow，args="--only {sid}"；失敗時印 [WARN] 繼續
+                _next_pending.append(step)
+            else:
+                print(f"[B-2] ☠️  {sid} — 達到上限（{_MAX_PER_STEP} 次），永久放棄")
+                _permanently_failed.append((sid, 'L3', l3_details))
+            print(f"[B-2] 繼續下一個 step...")
             continue
 
+        # 通過 L1+L2+L3
         print(f"[B-2] ✅ {sid} — L1+L2+L3 通過")
+        _done.append(sid)
 
-    # 所有步驟都通過 → 完成
-    if not _fail_this_round:
-        print(f"\n[Branch B] ✅ Round {_round} 全部通過，repair 完成！")
-        _round_failures[_round] = []
-        break
+    _pending = _next_pending
 
-    print(f"\n[Branch B] Round {_round} 發現 {len(_fail_this_round)} 個 FAIL：")
-    for sid, layer, details in _fail_this_round:
-        print(f"  [{layer}] {sid}: {'; '.join(details)}")
-
-    _round_failures[_round] = [sid for sid, _, _ in _fail_this_round]
-
-    # 補跑每個 FAIL 的 step
-    # ⚠️ 每補跑完一個 step 後必須立即繼續下一個，不得在此停止
-    print(f"\n[Branch B] 開始補跑 {len(_fail_this_round)} 個 step（共 {len(_fail_this_round)} 個，全部完成才結束此輪）...")
-    for _b2_idx, (sid, layer, _) in enumerate(_fail_this_round, 1):
-        print(f"[Branch B] ▶ [{_b2_idx}/{len(_fail_this_round)}] 補跑 {sid}（{layer} FAIL）")
-        # 用 Skill tool 呼叫 gendoc-flow，args="--only {sid}"
-        # 等待回傳，失敗則記錄繼續
-        # ← 補跑完成後：必須立即印出下一行並繼續，不得停止
-        print(f"[B-2] 繼續下一個 step...（{_b2_idx}/{len(_fail_this_round)} 已完成）")
-```
-
-**每個 step 補跑指令（在上面迴圈的「補跑」位置執行）：**
-
-```python
-# 所有 step（含 special_skill）一律透過 gendoc-flow --only 補跑
-# gendoc-flow 自行依 pipeline.json special_skill 欄位決定呼叫哪個 skill
-# repair 不重複實作 special_skill 偵測邏輯（避免兩套邏輯漂移）
-print(f"[Branch B] ▶ 補跑 {sid} → Skill('gendoc-flow', args='--only {sid}')")
-# 用 Skill tool 呼叫 gendoc-flow，args="--only {sid}"
-# 等待回傳。
-# gendoc-flow 內部會：
-#   special_skill step → 呼叫對應 Skill + 驗證輸出 + 寫入 special_completed
-#   標準 step         → 生成文件 + git commit + 更新 completed_steps
-# 若 Skill tool 回傳失敗 → 印出 [WARN] {sid} 補跑失敗，繼續下一個 step。
-# ⚠️ 補跑完成後立即 print("[B-2] 繼續下一個 step...") 並繼續迴圈，不得停止。
+if not _pending:
+    print(f"\n[Branch B] ✅ 所有 pending steps 已結算（{len(_done)} 通過，{len(_permanently_failed)} 永久失敗）")
 ```
 
 ### B-3：最終驗證 + 報告
