@@ -46,14 +46,10 @@ NAKED_WILDCARD = re.compile(r"(?:^|[\s'\"`=;|&\(\[])\*+\.(py|json|jsonl)\b")
 GLOB_PAT = re.compile(r"""['"]?([^\s'"|;&()]*\*[^\s'"|;&()]*)['"]?""")
 
 INLINE_PY = re.compile(r"\bpython3?\s+-c\s+", re.IGNORECASE)
-PY_DESTRUCTIVE = re.compile(
-    r"open\s*\([^)]*['\"]?[wax][btx+]?['\"]?\s*\)"      # open(...,'w')
-    r"|open\s*\([^)]*,\s*['\"]?[wax]"                    # open(f,'w'
-    r"|os\.(?:remove|unlink|rename|replace|rmdir|utime)\s*\("
-    r"|shutil\.(?:copy|copy2|copyfile|copytree|move|rmtree)\s*\("
-    r"|\.write_(?:text|bytes)\s*\("
-    r"|\.unlink\s*\("
-    r"|sys\.stdout\.reconfigure\s*\("
+# T3-T：anti-evasion ops（與目標無關，本身就是繞過 hook 偵測的工具）
+PY_TAMPER = re.compile(
+    r"os\.utime\s*\("                       # 偽造 mtime 繞過 stale 偵測
+    r"|sys\.stdout\.reconfigure\s*\("       # 改寫輸出通道
 )
 
 
@@ -132,16 +128,18 @@ def evaluate_bash(cmd: str) -> str | None:
                     return f"T2: glob '{pattern}' expands to '{f}'"
         except Exception:
             return f"T2: glob '{pattern}' raised exception"
-    # T3：inline python
+    # T3：inline python（target-driven，不是 op-driven）
     if INLINE_PY.search(cmd):
         m = re.search(r"\bpython3?\s+-c\s+(['\"])(.*)$", cmd, re.DOTALL)
         payload = m.group(2) if m else cmd
-        if PY_DESTRUCTIVE.search(payload):
-            return "T3-A: inline python with write/destructive op"
+        # T3-T：anti-evasion 工具（os.utime / sys.stdout.reconfigure）
+        if PY_TAMPER.search(payload):
+            return "T3-T: inline python anti-evasion tampering"
+        # T3-N：解碼後（chr/\\xNN/implicit/+ concat）payload 含保護檔名
         decoded = decode_py(payload)
         for pf in PROTECTED_FILES:
             if pf in decoded:
-                return f"T3-B: inline python decoded → contains '{pf}'"
+                return f"T3-N: inline python decoded → contains '{pf}'"
     return None
 
 
