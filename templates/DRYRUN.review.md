@@ -101,6 +101,45 @@ reviewer subagent **必須**對每個 metric 執行以下形式的 Track B 計�
 
 **反饋路徑**：使用者讀完 → 貼到 [github.com/ibalasite/gendoc](https://github.com/ibalasite/gendoc) issue → 開發者在 repo fix `dryrun_core.py` 的 regex → release 新版 → 所有使用者 `gendoc-upgrade` 拿到修正。
 
+### 0.5 Phase Boundary 鐵律（Track B source 限制）
+
+DRYRUN 是 Phase A → Phase B gateway。**Track B（reviewer subagent 專家計算）的所有 source 必須限定在 DRYRUN input[] 內 8 份 Phase A 檔案**：
+
+```
+合法 source（Track B 可讀）：
+  ✅ docs/IDEA.md
+  ✅ docs/BRD.md
+  ✅ docs/PRD.md
+  ✅ docs/CONSTANTS.md
+  ✅ docs/PDD.md
+  ✅ docs/VDD.md
+  ✅ docs/EDD.md
+  ✅ docs/ARCH.md
+
+非法 source（Track B 嚴禁讀）：
+  ❌ docs/API.md           （Phase B 產物）
+  ❌ docs/SCHEMA.md        （Phase B 產物）
+  ❌ docs/FRONTEND.md      （Phase B 產物）
+  ❌ docs/test-plan.md / docs/RTM.md / 任何其他 docs/*.md（Phase B / 后段產物）
+  ❌ features/*.feature    （BDD 產物）
+  ❌ docs/blueprint/*      （CONTRACTS / MOCK / PROTOTYPE 產物）
+  ❌ docs/diagrams/*       （UML 產物）
+  ❌ docs/pages/*          （HTML 產物）
+```
+
+**為什麼這是鐵律**：
+1. DRYRUN 的職責是「**根據 Phase A 設定下游 quality gate**」。如果 Track B 跨 phase 讀 Phase B 產物計算 metric，等於拿「實作」當「規格」，**因果倒置**。
+2. core py（Track A）已經被 phase 邊界保護（`_load_upstream` 只從 DRYRUN input[] 拉檔）。Track B 必須遵守同樣邊界，**否則 core 跟 AI 看不同 source，0 findings 變偽共識**。
+3. 重跑 DRYRUN 時 Phase B 檔案可能殘留在 disk 上（如 pet 案例），Track B 看到不該看到 → 違規 → 抓出來的「不一致」是假的。
+
+**違規偵測**：若 fix subagent 在 reasoning 過程中讀了 ❌ 清單內任一檔案，**立即視為偽舉證，重做 Track B 限定 ✅ source**。
+
+**舉例（rest_endpoint_count 條目 R-07）**：
+- ✅ Track B 必須從 EDD.md（API design 章節）抓 `(GET|POST|...)\s+/path` 並 set 去重
+- ❌ Track B 不得從 API.md 抓（即使 API.md 列得更全 — 那是 Phase B 實作）
+- 若 EDD 列 46 個、API.md 列 54 個，**DRYRUN 採 46**（Phase A 真實）
+- 差 8 個是 EDD/API 對齊問題，由 ALIGN check 處理，不是 DRYRUN 的職責
+
 ---
 
 ## Layer 1：產出物存在性與結構（共 4 項）
@@ -217,15 +256,19 @@ dryrun_core.py 應為**每個 active step**（依 client_type / has_admin_backen
 - 來源：`.gendoc-rules/API-rules.json`（`min_endpoint_count = max(5, rest_endpoint_count)`）
 
 **Track B**：
-- 來源：`docs/PRD.md`（dryrun_core.py 對齊 pattern：HTTP method + path 配對）
+- 來源（Phase A 限定，依 §0.5 鐵律）：**`docs/EDD.md`**（API design 章節是 Phase A 內 endpoint 的 SSOT），fallback 才到 `docs/PRD.md`
+- ❌ **嚴禁**讀 `docs/API.md`（Phase B 產物）— 即使 API.md 已存在於 disk
 - 計算指引：
   ```bash
+  # 必須對 EDD.md（不是 API.md！）
+  grep -nE '(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\s+/[a-zA-Z0-9/_{}-]+' docs/EDD.md
+  # EDD 沒列才退到 PRD
   grep -nE '(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\s+/[a-zA-Z0-9/_{}-]+' docs/PRD.md
   ```
 - 逐項判讀：每個候選是否為真實 endpoint（vs 範例 / 文件描述 / deprecated 標記）；同一個 endpoint 多次出現只算 1 次（dryrun_core.py 用 `set()` 去重）
 - count = unique 後的個數
 
-**比對**：依 0.1 從嚴規則。
+**比對**：依 0.1 從嚴規則。EDD vs API 數量差異是 ALIGN check 的職責，不是 DRYRUN 的職責 — DRYRUN 只看 EDD 的 endpoint 數。
 
 ---
 
