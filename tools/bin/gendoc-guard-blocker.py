@@ -24,6 +24,31 @@ PROTECTED_FILES = frozenset({
     'gendoc-guard-session-start.py',
 })
 GUARD_FILE = '.gendoc-guard.json'
+HISTORY_FILE = '.gendoc-guard-history.jsonl'
+
+BLOCK_MSG = """\
+[GENDOC-GUARD PRIMING]
+這是使用者刻意用 /gendoc-guard 包覆的工作，表示對結果準確性
+有特別要求。任何「看似完成但實際造假」的捷徑都會直接傷害使用者
+信任，且錯誤會擴散到後續任何依賴此產出的工作。
+
+執行原則（依優先序）：
+
+1. 準確優先於速度
+   每個 step 必須真實完成；不要用合理化措辭把未完成包裝成完成。
+
+2. 遵守 SKILL.md 內的 Iron Rule / [強制] / 步驟順序
+   這些是硬性約束，不是參考意見。
+
+3. 接受時間成本
+   跑 1 小時、3 小時、5 小時都正常。沒有外部時鐘壓力。
+
+4. 嚴格的事實匯報
+   step 完成的判斷以可驗證的事實為準（commit + diff、檔案存在性、
+   數值通過檢驗等），不以主觀評估為準。
+
+被攔下時，請重新審視當前動作是否屬於「規避真實工作的捷徑」。
+"""
 
 # ── v4-final-2 Bash 規則 ────────────────────────────────────────────
 HOOK_DIR_READ = re.compile(
@@ -167,60 +192,64 @@ def main() -> None:
     tool = call.get('tool_name', '')
     inp = call.get('tool_input', {})
 
-    def block(msg: str) -> None:
-        sys.stderr.write(f'\n[GUARD] {msg}\n')
+    def block() -> None:
+        """AI 看到固定 priming；history 只記 ts / event / tool / target。"""
+        try:
+            with open(HISTORY_FILE, 'a', encoding='utf-8') as hf:
+                hf.write(json.dumps({
+                    'ts':     datetime.now(timezone.utc).isoformat(),
+                    'event':  'block',
+                    'tool':   tool,
+                    'target': inp.get('command') or inp.get('file_path', '')
+                              or inp.get('skill', ''),
+                }, ensure_ascii=False) + '\n')
+        except Exception:
+            pass
+        sys.stderr.write('\n' + BLOCK_MSG)
         sys.exit(2)
 
-    # R-01：stale guard（跨 session 殘留）
+    # R-01：stale guard
     last_hb = guard.get('last_heartbeat', '')
     if last_hb:
         try:
             hb = datetime.fromisoformat(last_hb)
             if (datetime.now(timezone.utc) - hb).total_seconds() > 3600:
-                target = guard.get('target_skill', '')
-                block(
-                    f'前次 guard session 中斷，請執行 /gendoc-guard {target} 繼續。'
-                )
+                block()
         except Exception:
             pass
 
-    # Read：禁止讀保護檔
+    # Read
     if tool == 'Read':
         path = inp.get('file_path', '')
         for pf in PROTECTED_FILES:
             if pf in path:
-                block(f'禁止讀取保護檔 {pf}')
+                block()
 
-    # Write/Edit：禁止寫保護檔 + .py >30 行
+    # Write/Edit
     if tool in ('Write', 'Edit'):
         path = inp.get('file_path', '')
         for pf in PROTECTED_FILES:
             if pf in path:
-                block(f'禁止寫入保護檔 {pf}')
+                block()
         if path.endswith('.py'):
             content = inp.get('content', inp.get('new_string', ''))
             if content.count('\n') + 1 > 30:
-                block('禁止寫入超過 30 行的 .py（R-02）')
+                block()
 
-    # Bash：v4-final-2 + 保留 R-03/R-04/R-13
+    # Bash
     if tool == 'Bash':
         cmd = inp.get('command', '')
-        # R-04：禁止 touch
         if re.search(r'\btouch\b', cmd):
-            block('R-04: 禁止 touch')
-        # R-13：禁止 git --allow-empty commit
+            block()
         if re.search(r'\bgit\b.*\bcommit\b.*--allow-empty', cmd):
-            block('R-13: 禁止 --allow-empty commit')
-        # R-03：禁止執行 session 內寫入的 .py
+            block()
         written = {os.path.basename(f) for f in guard.get('written_files', [])}
         if written:
             for m in re.finditer(r'python3?\s+([^\s;|&<>]+\.py)', cmd):
                 if os.path.basename(m.group(1)) in written:
-                    block('R-03: 禁止執行 session 內寫入的 .py')
-        # v4-final-2 主規則
-        reason = evaluate_bash(cmd)
-        if reason:
-            block(reason)
+                    block()
+        if evaluate_bash(cmd):
+            block()
 
     # SECS whitelist：Skill
     wl = guard.get('secs_whitelist', {})
@@ -230,7 +259,7 @@ def main() -> None:
     if tool == 'Skill':
         name = inp.get('skill', '')
         if name and allowed_skills and name not in allowed_skills:
-            block(f'SECS: skill {name} 不在白名單')
+            block()
 
     sys.exit(0)
 
