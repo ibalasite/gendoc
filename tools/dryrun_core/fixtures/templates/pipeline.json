@@ -1,0 +1,137 @@
+{
+  "version": "test-v1",
+  "description": "Minimal pipeline.json for dryrun_core tests",
+  "steps": [
+    {
+      "id": "IDEA",
+      "type": "IDEA",
+      "handled_by": "gendoc-auto",
+      "output": ["docs/IDEA.md"],
+      "condition": "always"
+    },
+    {
+      "id": "BRD",
+      "type": "BRD",
+      "handled_by": "gendoc-auto",
+      "output": ["docs/BRD.md"],
+      "condition": "always"
+    },
+    {
+      "id": "DRYRUN",
+      "type": "DRYRUN",
+      "handled_by": "gendoc-flow",
+      "output": ["docs/MANIFEST.md", ".gendoc-rules/"],
+      "multi_file": true,
+      "condition": "always",
+      "input": [
+        "docs/IDEA.md",
+        "docs/BRD.md",
+        "docs/PRD.md",
+        "docs/CONSTANTS.md",
+        "docs/PDD.md",
+        "docs/VDD.md",
+        "docs/EDD.md",
+        "docs/ARCH.md"
+      ]
+    },
+    {
+      "id": "API",
+      "type": "API",
+      "output": ["docs/API.md"],
+      "condition": "always",
+      "spec_rules": {
+        "min_endpoint_count": "max(5, {rest_endpoint_count})",
+        "min_h2_sections": "arch_layer_count + 4",
+        "max_placeholder_count": 0
+      }
+    },
+    {
+      "id": "SCHEMA",
+      "type": "SCHEMA",
+      "output": ["docs/SCHEMA.md"],
+      "condition": "always",
+      "spec_rules": {
+        "min_table_count": "max(3, {entity_count})",
+        "min_h2_sections": 5,
+        "max_placeholder_count": 0
+      }
+    },
+    {
+      "id": "BDD-server",
+      "type": "BDD-server",
+      "multi_file": true,
+      "output": ["features/"],
+      "condition": "always",
+      "spec_rules": {
+        "min_scenario_count": "ceil({user_story_count} * 0.8)",
+        "max_placeholder_count": 0
+      }
+    },
+    {
+      "id": "RTM",
+      "type": "RTM",
+      "output": ["docs/RTM.md"],
+      "condition": "always",
+      "spec_rules": {
+        "min_row_count": "max(1, {user_story_count})",
+        "max_placeholder_count": 0
+      }
+    },
+    {
+      "id": "HTML",
+      "type": "HTML",
+      "multi_file": true,
+      "special_skill": "gendoc-gen-html",
+      "output": ["docs/pages/"],
+      "condition": "always",
+      "spec_rules": {
+        "min_h2_sections": 3,
+        "max_placeholder_count": 0
+      }
+    },
+    {
+      "id": "CONTRACTS",
+      "type": "CONTRACTS",
+      "multi_file": true,
+      "special_skill": "gendoc-gen-contracts",
+      "output": ["docs/blueprint/"],
+      "condition": "always",
+      "spec_rules": {
+        "max_placeholder_count": 0
+      }
+    },
+    {
+      "id": "MOCK",
+      "type": "MOCK",
+      "multi_file": true,
+      "special_skill": "gendoc-gen-mock",
+      "output": ["docs/blueprint/mock/"],
+      "condition": "always",
+      "spec_rules": {
+        "max_placeholder_count": 0
+      }
+    },
+    {
+      "id": "PROTOTYPE",
+      "type": "PROTOTYPE",
+      "multi_file": true,
+      "special_skill": "gendoc-gen-prototype",
+      "output": ["docs/pages/prototype/"],
+      "condition": "always",
+      "spec_rules": {
+        "max_placeholder_count": 0
+      }
+    },
+    {
+      "id": "UML",
+      "type": "UML",
+      "multi_file": true,
+      "special_skill": "gendoc-gen-diagrams",
+      "output": ["docs/diagrams/"],
+      "condition": "always",
+      "spec_rules": {
+        "max_placeholder_count": 0
+      }
+    }
+  ]
+}

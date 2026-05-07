@@ -1,0 +1,3 @@
+# IDEA
+
+Sample idea document.

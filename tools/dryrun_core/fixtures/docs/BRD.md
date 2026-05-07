@@ -1,0 +1,3 @@
+# BRD
+
+Sample BRD document.
