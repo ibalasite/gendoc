@@ -186,11 +186,14 @@ try:
         pipe = json.load(open(sys.argv[1], encoding="utf-8"))
 except ImportError:
     pipe = json.load(open(sys.argv[1], encoding="utf-8"))
-# 這些 special_skill 步驟沒有獨立的 review loop
+# 這些 special_skill 步驟沒有獨立的 review loop（PRD §7.10 P-2：獨立攜帶型工具）
+# 注意：gendoc-gen-dryrun 已於 commit ba55564 刪除（DRYRUN 屬 pipeline 內部 step，
+# 必走標準三件套路徑，非 special_skill）。實際分派依 pipeline.json `special_skill`
+# 欄位（line 202: `if not s.get("special_skill")`），SPECIAL 變數目前未實際使用，
+# 保留作為 step picker 顯示時的備查清單。
 SPECIAL = {
     "gendoc-gen-diagrams", "gendoc-align-check", "gendoc-align-fix",
     "gendoc-gen-contracts", "gendoc-gen-mock", "gendoc-gen-prototype", "gendoc-gen-html",
-    "gendoc-gen-dryrun"
 }
 for s in pipe.get("steps", []):
     sid   = s["id"]
