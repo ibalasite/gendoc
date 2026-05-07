@@ -18,7 +18,20 @@ $ClaudeSkillsDir = Join-Path $env:USERPROFILE ".claude\skills"
 $SettingsHook    = Join-Path $RuntimeDir "bin\gendoc-settings-hook.py"
 $HookPy          = Join-Path $RuntimeDir "bin\gendoc-session-update.py"
 
-$py = if (Get-Command python3 -ErrorAction SilentlyContinue) { "python3" } else { "python" }
+# Test actual execution — Get-Command python3 on Windows may return the
+# Microsoft Store stub which opens the Store (exit 49) instead of running Python.
+function Find-Python {
+    foreach ($candidate in @("python3", "python")) {
+        try {
+            $out = & $candidate --version 2>&1
+            if ($LASTEXITCODE -eq 0 -and "$out" -match "Python 3") { return $candidate }
+        } catch {}
+    }
+    return $null
+}
+
+$py = Find-Python
+if (-not $py) { Write-Error "Python 3 not found (tried python3 and python)"; exit 1 }
 $HookCmd = "$py `"$HookPy`""
 
 function Log($msg) { Write-Host $msg }
