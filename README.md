@@ -44,7 +44,6 @@ Key capabilities:
 | `gendoc-auto` | `/gendoc-auto` | Full pipeline entry point: IDEA + BRD generation, then hands off to gendoc-flow |
 | `gendoc-flow` | `/gendoc-flow` | Template-driven orchestrator (PRD→HTML full pipeline) with reliable breakpoint resume, P-14/P-15 |
 | `gendoc-config` | `/gendoc-config` | Interactive two-level menu: configure client_type, has_admin_backend, review strategy, restart step; supports multi-edit loop with mandatory-field check (Step 4c) before save |
-| `gendoc-gen-dryrun` | `/gendoc dryrun` or via `gendoc-flow` | Generate quantitative baseline MANIFEST.md + .gendoc-rules/*.json from EDD/PRD/ARCH — lock numbers that review loops enforce (D-DRYRUN) |
 | `gendoc-align-check` | `/gendoc-align-check` | Cross-document alignment scan (ALIGN) — use `gendoc-align-verify` to confirm fix completeness |
 | `gendoc-align-fix` | `/gendoc-align-fix` | Auto-fix alignment issues |
 | `gendoc-gen-html` | `/gendoc-gen-html` | Generate HTML documentation site v3.0 (HTML) — converts all docs/*.md + docs/diagrams/*.md to HTML pages; 3-section sidebar (文件 / Server UML / Frontend UML) |

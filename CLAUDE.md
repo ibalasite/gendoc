@@ -137,9 +137,10 @@ IDEA BRD PRD CONSTANTS ... ARCH → DRYRUN → API SCHEMA FRONTEND ... HTML
 **只能修改 `skills/gendoc-repair/SKILL.md`。**
 
 嚴格禁止：
-- 修改任何其他 skill 檔案（包括 gendoc-flow、gendoc-gen-dryrun、gendoc-shared）
+- 修改任何其他 skill 檔案（包括 gendoc-flow、gendoc-shared 等）
 - 直接修改 `~/.claude/skills/`（PreToolUse hook 已封鎖）
 - 在 repair 內重新實作其他 skill 的邏輯
+- 直接呼叫已刪除的 `gendoc-gen-dryrun` skill — DRYRUN 已改走標準三件套，repair 透過 `Skill("gendoc-flow", args="--only DRYRUN")` 路由（PRD §7.10）
 
 repair 只能**呼叫**其他 skill，不能**複製**其邏輯。
 

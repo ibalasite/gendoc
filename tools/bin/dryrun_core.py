@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
 """
-gendoc-gen-dryrun core implementation
-將 DRYRUN 前的檔案轉換為 DRYRUN 后的規格，使用單一真相源 (SSOT) 原則
+DRYRUN core implementation (執行體，被 templates/DRYRUN.gen.md Step 0c 呼叫)
+
+將 DRYRUN 前的檔案轉換為 DRYRUN 后的規格，使用單一真相源 (SSOT) 原則。
+PRD §7.10 設計：DRYRUN 走標準三件套路徑，本檔是量化軌（Track A）的執行體；
+配合 templates/DRYRUN.review.md 的專家軌（Track B）做雙軌驗證 + 從嚴收斂。
 
 All metric definitions and spec_rules are read from templates/pipeline.json (SSOT).
 No hardcoded metrics or step specifications — fully dynamic and extensible.
 新增 DRYRUN 前的節點會自動提取指標；新增 DRYRUN 后的節點會自動生成規格。
+
+呼叫方式（CLI）：
+  python3 dryrun_core.py <cwd> <state_file> [--template <pipeline.json path>]
 """
 
 import json
