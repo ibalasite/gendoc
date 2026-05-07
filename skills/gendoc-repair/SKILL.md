@@ -322,9 +322,11 @@ _should_run_dryrun = bool(_pre_fails) or not _rules_ok
 若 `_should_run_dryrun = True`，執行：
 
 ```
-用 Skill tool 呼叫 gendoc-gen-dryrun
+用 Skill tool 呼叫 gendoc-flow，args="--only DRYRUN"
 等待回傳。
 ```
+
+> **設計依據（PRD §7.10）**：DRYRUN 屬 pipeline 內部 step，必走標準三件套路徑（與 EDD/API/SCHEMA 同 code path），由 gendoc-flow Step 1-D 派 gen subagent 讀 DRYRUN.gen.md 內明講的 bash → 呼叫 dryrun_core.py 計算量化值 → Phase D-2 派 review subagent 依 DRYRUN.review.md 做雙軌驗證 + 從嚴收斂。`gendoc-gen-dryrun` skill 已於 commit `ba55564` 刪除（違反三件套 universal architecture），repair 不再直接呼叫該 skill。
 
 若 `_should_run_dryrun = False`（pre-DRYRUN 全部合格 且 .gendoc-rules/ 已存在），跳過 DRYRUN，直接進入 A-4。
 
@@ -802,7 +804,7 @@ else:
 | 情境 | 工具 |
 |------|------|
 | 補跑單一 step | `Skill("gendoc-flow", args="--only {step_id}")` |
-| 執行 DRYRUN | `Skill("gendoc-gen-dryrun")` |
+| 執行 DRYRUN | `Skill("gendoc-flow", args="--only DRYRUN")` — 走標準三件套路徑（PRD §7.10）|
 | 初始化 state file | 由 gendoc-shared 負責（Step -1 後呼叫） |
 | 讀取 pipeline.json | `$GENDOC_TEMPLATES/pipeline.json`（不讀 `$_CWD/templates/`） |
 | 讀取 state file | `.gendoc-state-*.json`（當前目錄） |
@@ -813,7 +815,7 @@ else:
 
 1. **不詢問使用者**是否要執行 repair — 使用者觸發即代表確認
 2. **不依賴 completed_steps** 判斷 Branch B 的哪些 step 需要重做（避免舊格式 state 相容性問題）
-3. **不重新實作** gendoc-flow、gendoc-gen-dryrun 的邏輯 — 只呼叫它們
+3. **不重新實作** gendoc-flow 的邏輯 — 只呼叫它（含 DRYRUN：透過 `--only DRYRUN` 路由到 gendoc-flow 的標準三件套路徑，不直接呼叫已刪除的 `gendoc-gen-dryrun` skill）
 4. **不讀** `$_CWD/templates/` — pipeline 只從 `$GENDOC_TEMPLATES` 讀取
 5. **不直接修改** `~/.claude/skills/` — 只修改 `~/projects/gendoc/skills/`
 6. **單 step 失敗不中止** — 記錄失敗，繼續下一個 step
