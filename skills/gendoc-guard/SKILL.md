@@ -154,6 +154,10 @@ if _target:
     skill_md = next((p for p in candidates if p.exists()), None)
     if skill_md:
         whitelist = _extract_whitelist(skill_md)
+        # 目標 skill 自己必須在白名單裡，否則 Step 2 第一次 dispatch 會被自己擋
+        whitelist['skill_calls'] = sorted(
+            set(whitelist.get('skill_calls', [])) | {_target}
+        )
         print(f'[GUARD] SECS 白名單來源：{skill_md}')
         print(f'[GUARD] skill_calls: {whitelist["skill_calls"]}')
         print(f'[GUARD] allow_inline_python_write: {whitelist["allow_inline_python_write"]}')
