@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dryrun Core Implementation Plan — gendoc</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+</head>
+<body>
+  <header class="top-nav">
+    <a href="index.html" class="nav-brand">gendoc</a>
+    <div class="nav-controls">
+      <div class="search-wrap">
+        <input class="search-input" type="search" placeholder="搜尋文件...">
+        <div class="search-results"></div>
+      </div>
+      <a class="nav-gh-link" href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener">⌥ GitHub</a>
+      <button class="sidebar-toggle" id="sidebarToggle" title="收合/展開側欄">☰</button>
+    </div>
+  </header>
+  <div class="doc-page-banner">
+    <p class="banner-breadcrumb"><a href="index.html">gendoc</a> › Dryrun Core Implementation Plan</p>
+    <h1 class="banner-title">Dryrun Core Implementation Plan</h1>
+  </div>
+  <div class="page-wrapper">
+    <aside class="sidebar" aria-label="文件導覽">
+      <div class="sidebar__section">
+<div class="sidebar__label">文件</div>
+<a class="sidebar__link" href="index.html">🏠 首頁</a>
+<a class="sidebar__link" href="prd.html">📝 產品需求文件 (PRD)</a>
+<a class="sidebar__link" href="client.html">📄 Client</a>
+<a class="sidebar__link" href="dryrun_api_verification.html">📄 Dryrun Api Verification</a>
+<a class="sidebar__link active" href="dryrun_core_implementation_plan.html">📄 Dryrun Core Implementation Plan</a>
+<a class="sidebar__link" href="dryrun_get_upstream_verification.html">📄 Dryrun Get Upstream Verification</a>
+<a class="sidebar__link" href="dryrun_parameter_extraction.html">📄 Dryrun Parameter Extraction</a>
+<a class="sidebar__link" href="dryrun_spec_formulas.html">📄 Dryrun Spec Formulas</a>
+<a class="sidebar__link" href="gendoc_flow_single_step_design.html">📄 Gendoc Flow Single Step Design</a>
+<a class="sidebar__link" href="hardcoded_specs_audit.html">📄 Hardcoded Specs Audit</a>
+<a class="sidebar__link" href="implementation_verification_report.html">📄 Implementation Verification Report</a>
+<a class="sidebar__link" href="pipeline_input_validation_report.html">📄 Pipeline Input Validation Report</a>
+<a class="sidebar__link" href="pipeline_layer_classification_notes.html">📄 Pipeline Layer Classification Notes</a>
+<a class="sidebar__link" href="rules_json_schema.html">📄 Rules Json Schema</a>
+<a class="sidebar__link" href="currentanalysis.html">📄 Currentanalysis</a>
+<a class="sidebar__link" href="gendoc-redesign-decisions.html">📄 Gendoc-Redesign-Decisions</a>
+<a class="sidebar__link" href="ha-spof-modification-plan.html">📄 Ha-Spof-Modification-Plan</a>
+<a class="sidebar__link" href="progress.html">📄 Progress</a>
+</div>
+    </aside>
+    <div class="sidebar-resizer" id="sidebarResizer"></div>
+    <main class="doc-content"><h1>DRYRUN Core 實作計畫</h1>
+<h2>核心設計原則（確認）</h2>
+<h3>雙層獨立驗證架構</h3>
+<pre><code class="">DRYRUN 前的文件
+    ↓
+[DRYRUN 推導層] → 期望規格（計劃）
+    ↓
+.gendoc-rules/*.json（DRYRUN 推導結果）
+    ↓
+DRYRUN 后的 step 各 STEP 實現
+    ↓
+[各 STEP template 實現層] → 實際生成（獨立實現）
+    ↓
+docs/&lt;STEP&gt;.md（實際生成結果）
+    ↓
+[審查工具] → 對比驗證
+    ↓
+期望 vs 實際 → ✅ 通過 / ❌ 失敗</code></pre>
+<p><strong>關鍵原則</strong>：</p>
+<ul><li>pipeline.json：只定義 <code>input[]</code> + <code>output[]</code>（無 metrics、無公式）</li><li>DRYRUN：獨立推導邏輯（在 dryrun_core.py 中實現）</li><li>各 STEP：獨立實現邏輯（在 *.gen.md 中）</li><li>審查：對比兩條獨立路徑的結果</li></ul>
+<hr>
+<h2>DRYRUN 前的 step（上游分析）- DRYRUN 推導</h2>
+<h3>需要提取的參數</h3>
+<table>
+<tr><th>參數</th><th>來源</th><th>含義</th><th>示例</th></tr>
+<tr><td><code>entity_count</code></td><td>EDD.md</td><td>資料庫 entity 數</td><td>有 10 個 class → schema 應有 ≥10 個 table</td></tr>
+<tr><td><code>rest_endpoint_count</code></td><td>PRD.md + EDD.md</td><td>REST API endpoint 數</td><td>有 5 個 endpoint → API.md 應有 ≥5 個 endpoint 章節</td></tr>
+<tr><td><code>user_story_count</code></td><td>PRD.md</td><td>User Story 數</td><td>有 20 個 US → test-plan 應 ≥22 章、BDD 應 ≥16 scenario</td></tr>
+<tr><td><code>arch_layer_count</code></td><td>ARCH.md</td><td>架構層數</td><td>有 4 層 → test-plan 應 ≥6 章（4+2）</td></tr>
+<tr><td><code>admin_feature_count</code></td><td>EDD.md（若 has_admin_backend）</td><td>Admin 相關特性數</td><td>用於評估 ADMIN_IMPL 規模</td></tr>
+</table>
+<h3>DRYRUN 推導的期望規格</h3>
+<p><strong>SCHEMA.md</strong>：</p>
+<ul><li>期望：<code>min_table_count = max(entity_count, 3)</code></li><li>存儲：<code>.gendoc-rules/SCHEMA-rules.json</code> → <code>{&quot;min_table_count&quot;: &lt;數字&gt;}</code></li></ul>
+<p><strong>API.md</strong>：</p>
+<ul><li>期望：<code>min_endpoint_count = max(rest_endpoint_count, 5)</code></li><li>存儲：<code>.gendoc-rules/API-rules.json</code> → <code>{&quot;min_endpoint_count&quot;: &lt;數字&gt;}</code></li></ul>
+<p><strong>test-plan.md</strong>：</p>
+<ul><li>期望：<code>min_h2_sections = arch_layer_count + 2</code></li><li>存儲：<code>.gendoc-rules/test-plan-rules.json</code> → <code>{&quot;min_h2_sections&quot;: &lt;數字&gt;}</code></li></ul>
+<p><strong>BDD-server</strong>：</p>
+<ul><li>期望：<code>min_scenario_count = ceil(user_story_count * 0.8)</code></li><li>存儲：<code>.gendoc-rules/BDD-server-rules.json</code> → <code>{&quot;min_scenario_count&quot;: &lt;數字&gt;}</code></li></ul>
+<p>（其他 DRYRUN 后的 step 類似推導）</p>
+<hr>
+<h2>DRYRUN 后的 step（實現分析）- 各 STEP 獨立實現</h2>
+<h3>SCHEMA.gen.md 的實現邏輯</h3>
+<p><strong>獨立讀取</strong>：EDD.md（entity 定義）、CONSTANTS.md、PDD.md</p>
+<p><strong>獨立推導</strong>：生成 table 定義</p>
+<p><strong>實際結果</strong>：<code>docs/SCHEMA.md</code> 中有 X 個 table</p>
+<h3>API.gen.md 的實現邏輯</h3>
+<p><strong>獨立讀取</strong>：PRD.md（User Story + AC）、EDD.md、CONSTANTS.md</p>
+<p><strong>獨立推導</strong>：生成 endpoint 定義</p>
+<p><strong>實際結果</strong>：<code>docs/API.md</code> 中有 Y 個 endpoint</p>
+<p>（各 STEP 類似獨立實現）</p>
+<hr>
+<h2>審查層 - 機械式驗證</h2>
+<h3>review.sh 邏輯</h3>
+<pre><code class="language-bash"># 對於每個 DRYRUN 后的 step：
+1. 讀取 .gendoc-rules/&lt;step&gt;-rules.json（DRYRUN 期望）
+2. 掃描 docs/&lt;step&gt;.md（實際生成）
+3. 計算實際數量（table、endpoint、scenario 等）
+4. 對比：期望 vs 實際
+5. 輸出：PASS / FAIL + 詳細差異</code></pre>
+<p><strong>機械式檢查項目</strong>（量化）：</p>
+<ul><li><code>min_table_count</code>：期望 10 table → 實際 10 table ✅</li><li><code>min_endpoint_count</code>：期望 5 endpoint → 實際 6 endpoint ✅</li><li><code>min_h2_sections</code>：期望 6 章 → 實際 6 章 ✅</li><li>（不涉及 AI 的主觀判斷）</li></ul>
+<hr>
+<h2>實作 STEP 分解</h2>
+<h3>STEP 1：DRYRUN 參數提取邏輯設計</h3>
+<p><strong>目標</strong>：定義如何從上游文件提取參數</p>
+<ul><li>設計 entity_count、rest_endpoint_count、user_story_count、arch_layer_count 的提取規則</li><li>根據實際 EDD/PRD/ARCH 結構決定 grep 模式或 parse 邏輯</li><li>確認 fallback 值（若參數無法提取）</li></ul>
+<p><strong>輸出</strong>：<code>docs/DRYRUN_PARAMETER_EXTRACTION.md</code>（定義每個參數的提取方法）</p>
+<h3>STEP 2：DRYRUN 規格推導公式設計</h3>
+<p><strong>目標</strong>：定義每個 DRYRUN 后的 step 的期望規格公式</p>
+<ul><li>SCHEMA：<code>min_table_count = max(entity_count, 3)</code></li><li>API：<code>min_endpoint_count = max(rest_endpoint_count, 5)</code></li><li>test-plan：<code>min_h2_sections = arch_layer_count + 2</code></li><li>（類似定義其他 ~20 個 steps）</li></ul>
+<p><strong>輸出</strong>：<code>docs/DRYRUN_SPEC_FORMULAS.md</code>（所有公式清單）</p>
+<h3>STEP 3：實現 dryrun_core.py</h3>
+<p><strong>目標</strong>：完成 DRYRUNEngine 類的實現</p>
+<ol><li><code>_load_upstream()</code>：調用 get-upstream 讀取 DRYRUN step 定義的上游文件</li><li><code>extract_parameters()</code>：根據 STEP 1 的規則提取 4 個核心參數</li><li><code>derive_specifications()</code>：根據 STEP 2 的公式計算每個 step 的期望規格</li><li><code>generate_rules_json()</code>：輸出 <code>.gendoc-rules/&lt;step-id&gt;-rules.json</code></li><li><code>generate_manifest()</code>：輸出 <code>docs/MANIFEST.md</code>（量化基線報告）</li></ol>
+<p><strong>輸出</strong>：更新的 <code>tools/bin/dryrun_core.py</code></p>
+<h3>STEP 4：全專案掃描 - 找出 hardcoded 規格</h3>
+<p><strong>目標</strong>：掃描所有 skill 和 template，找出不依賴 pipeline 的規格定義</p>
+<pre><code class="language-bash"># 搜索 hardcoded 規格
+grep -r &quot;min_.*count\|min_.*section&quot; skills/ templates/ --include=&quot;*.md&quot; --include=&quot;*.py&quot;
+
+# 搜索 hardcoded 公式
+grep -r &quot;= max(\|= min(\|= ceil(&quot; tools/ --include=&quot;*.py&quot;
+
+# 搜索 hardcoded metrics
+grep -r &quot;entity_count\|endpoint_count\|user_story&quot; skills/ templates/ --include=&quot;*.md&quot; --exclude-dir=.git</code></pre>
+<p><strong>輸出</strong>：<code>docs/HARDCODED_SPECS_AUDIT.md</code>（清單 + 改正方案）</p>
+<h3>STEP 5：修正 hardcoded 規格</h3>
+<p><strong>目標</strong>：將所有 hardcoded 規格改為依賴 DRYRUN 輸出</p>
+<ul><li>各 STEP template（SCHEMA.gen.md、API.gen.md 等）：不硬編碼最小值，改由 review.sh 讀 .gendoc-rules/ 驗證</li><li>skills（gendoc-align-check 等）：若涉及量化檢查，改讀 pipeline.json 或 .gendoc-rules/</li></ul>
+<p><strong>輸出</strong>：修正後的各檔案 + commit</p>
+<h3>STEP 6：實現審查工具 review.sh</h3>
+<p><strong>目標</strong>：機械式對比 DRYRUN 期望 vs 實際生成</p>
+<ol><li>讀取 .gendoc-rules/*.json（DRYRUN 期望）</li><li>掃描 docs/*.md（實際生成），計算實際數量</li><li>對比並輸出 PASS / FAIL</li></ol>
+<p><strong>輸出</strong>：<code>tools/bin/review.sh</code>（或 Python 版本）</p>
+<hr>
+<h2>檢查清單</h2>
+<ul><li style="list-style:none"><input type="checkbox" disabled> STEP 1：參數提取規則文件</li><li style="list-style:none"><input type="checkbox" disabled> STEP 2：規格推導公式文件</li><li style="list-style:none"><input type="checkbox" disabled> STEP 3：dryrun_core.py 實現完成</li><li style="list-style:none"><input type="checkbox" disabled> STEP 4：hardcoded 規格掃描報告</li><li style="list-style:none"><input type="checkbox" disabled> STEP 5：所有 hardcoded 規格已修正</li><li style="list-style:none"><input type="checkbox" disabled> STEP 6：審查工具 review.sh 實現完成</li><li style="list-style:none"><input type="checkbox" disabled> 全迴歸測試：用一個實際專案跑完整 DRYRUN → DRYRUN 后的 step → review 流程</li></ul>
+<hr>
+<h2>預期時間表</h2>
+<table>
+<tr><th>STEP</th><th>工作</th><th>預估</th></tr>
+<tr><td>1</td><td>參數提取規則設計</td><td>1 小時</td></tr>
+<tr><td>2</td><td>規格公式設計</td><td>2 小時</td></tr>
+<tr><td>3</td><td>dryrun_core.py 實現</td><td>3 小時</td></tr>
+<tr><td>4</td><td>hardcoded 掃描</td><td>1 小時</td></tr>
+<tr><td>5</td><td>修正所有 hardcoded</td><td>2 小時</td></tr>
+<tr><td>6</td><td>review.sh 實現</td><td>2 小時</td></tr>
+<tr><td>驗證</td><td>實際專案測試</td><td>1 小時</td></tr>
+<tr><td><strong>總計</strong></td><td></td><td><strong>12 小時</strong></td></tr>
+</table></main>
+  </div>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({startOnLoad:true,theme:'default',
+      flowchart:{curve:'basis',nodeSpacing:60,rankSpacing:80},
+      er:{layoutDirection:'TD',minEntityWidth:100,fontSize:12},
+      sequence:{actorMargin:60,messageMargin:30}});
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-go.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

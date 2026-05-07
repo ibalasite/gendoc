@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rules Json Schema — gendoc</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+</head>
+<body>
+  <header class="top-nav">
+    <a href="index.html" class="nav-brand">gendoc</a>
+    <div class="nav-controls">
+      <div class="search-wrap">
+        <input class="search-input" type="search" placeholder="搜尋文件...">
+        <div class="search-results"></div>
+      </div>
+      <a class="nav-gh-link" href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener">⌥ GitHub</a>
+      <button class="sidebar-toggle" id="sidebarToggle" title="收合/展開側欄">☰</button>
+    </div>
+  </header>
+  <div class="doc-page-banner">
+    <p class="banner-breadcrumb"><a href="index.html">gendoc</a> › Rules Json Schema</p>
+    <h1 class="banner-title">Rules Json Schema</h1>
+  </div>
+  <div class="page-wrapper">
+    <aside class="sidebar" aria-label="文件導覽">
+      <div class="sidebar__section">
+<div class="sidebar__label">文件</div>
+<a class="sidebar__link" href="index.html">🏠 首頁</a>
+<a class="sidebar__link" href="prd.html">📝 產品需求文件 (PRD)</a>
+<a class="sidebar__link" href="client.html">📄 Client</a>
+<a class="sidebar__link" href="dryrun_api_verification.html">📄 Dryrun Api Verification</a>
+<a class="sidebar__link" href="dryrun_core_implementation_plan.html">📄 Dryrun Core Implementation Plan</a>
+<a class="sidebar__link" href="dryrun_get_upstream_verification.html">📄 Dryrun Get Upstream Verification</a>
+<a class="sidebar__link" href="dryrun_parameter_extraction.html">📄 Dryrun Parameter Extraction</a>
+<a class="sidebar__link" href="dryrun_spec_formulas.html">📄 Dryrun Spec Formulas</a>
+<a class="sidebar__link" href="gendoc_flow_single_step_design.html">📄 Gendoc Flow Single Step Design</a>
+<a class="sidebar__link" href="hardcoded_specs_audit.html">📄 Hardcoded Specs Audit</a>
+<a class="sidebar__link" href="implementation_verification_report.html">📄 Implementation Verification Report</a>
+<a class="sidebar__link" href="pipeline_input_validation_report.html">📄 Pipeline Input Validation Report</a>
+<a class="sidebar__link" href="pipeline_layer_classification_notes.html">📄 Pipeline Layer Classification Notes</a>
+<a class="sidebar__link active" href="rules_json_schema.html">📄 Rules Json Schema</a>
+<a class="sidebar__link" href="currentanalysis.html">📄 Currentanalysis</a>
+<a class="sidebar__link" href="gendoc-redesign-decisions.html">📄 Gendoc-Redesign-Decisions</a>
+<a class="sidebar__link" href="ha-spof-modification-plan.html">📄 Ha-Spof-Modification-Plan</a>
+<a class="sidebar__link" href="progress.html">📄 Progress</a>
+</div>
+    </aside>
+    <div class="sidebar-resizer" id="sidebarResizer"></div>
+    <main class="doc-content"><h1>.gendoc-rules/*.json 統一格式標準</h1>
+<h2>概述</h2>
+<p>所有 <code>.gendoc-rules/&lt;step-id&gt;-rules.json</code> 檔案遵循此統一格式。該格式由 <code>dryrun_core.py</code> 生成，是所有 review 工具和生成器的單一真相來源（SSOT）。</p>
+<h2>根層結構（必須）</h2>
+<pre><code class="language-json">{
+  &quot;quantitative_specs&quot;: { ... },
+  &quot;content_mapping&quot;: { ... },
+  &quot;cross_file_validation&quot;: { ... }
+}</code></pre>
+<p>所有 step 都包含上述三層，但可以是空物件 <code>{}</code>。</p>
+<hr>
+<h2>第一層：quantitative_specs（量化規格）</h2>
+<p>數字型門檻，用於驗證文件中的具體數量指標。</p>
+<h3>支援的欄位</h3>
+<table>
+<tr><th>欄位名</th><th>類型</th><th>說明</th><th>檢驗邏輯</th></tr>
+<tr><td><code>min_h2_sections</code></td><td>int</td><td>最少 <code>##</code> 級標題數</td><td>`grep &quot;^## &quot; doc.md \</td><td>wc -l &gt;= min_h2_sections`</td></tr>
+<tr><td><code>min_endpoint_count</code></td><td>int</td><td>最少 REST endpoint 數</td><td>`grep &quot;^#### (GET\</td><td>POST\</td><td>...) /&quot; doc.md \</td><td>wc -l &gt;= min_endpoint_count`</td></tr>
+<tr><td><code>min_table_count</code></td><td>int</td><td>最少表格行數</td><td>根據 step 類型</td></tr>
+<tr><td><code>min_scenario_count</code></td><td>int</td><td>最少 Scenario 數（BDD）</td><td>`grep &quot;Scenario:&quot; feature.feature \</td><td>wc -l &gt;= min_scenario_count`</td></tr>
+<tr><td><code>min_paragraph_words</code></td><td>int</td><td>最少段落字數</td><td>每個段落 &gt;= 此值</td></tr>
+</table>
+<h3>範例</h3>
+<pre><code class="language-json">{
+  &quot;quantitative_specs&quot;: {
+    &quot;min_h2_sections&quot;: 5,
+    &quot;min_endpoint_count&quot;: 18,
+    &quot;min_paragraph_words&quot;: 30
+  }
+}</code></pre>
+<hr>
+<h2>第二層：content_mapping（內容映射）</h2>
+<p>字符型內容檢查，驗證文件中是否包含必要的章節、關鍵字等。</p>
+<h3>支援的欄位</h3>
+<table>
+<tr><th>欄位名</th><th>類型</th><th>說明</th></tr>
+<tr><td><code>required_sections</code></td><td>array[string]</td><td>必須出現的章節名稱</td></tr>
+<tr><td><code>required_keywords</code></td><td>array[string]</td><td>必須出現的關鍵字</td></tr>
+<tr><td><code>section_keywords</code></td><td>object</td><td>按章節要求的關鍵字</td></tr>
+</table>
+<h3>範例</h3>
+<pre><code class="language-json">{
+  &quot;content_mapping&quot;: {
+    &quot;required_sections&quot;: [
+      &quot;API Overview&quot;,
+      &quot;Authentication&quot;,
+      &quot;Error Codes&quot;,
+      &quot;Rate Limiting&quot;,
+      &quot;Endpoints&quot;
+    ],
+    &quot;required_keywords&quot;: [
+      &quot;REST&quot;,
+      &quot;GET&quot;,
+      &quot;POST&quot;,
+      &quot;PUT&quot;,
+      &quot;DELETE&quot;,
+      &quot;Authentication&quot;,
+      &quot;Rate Limit&quot;
+    ]
+  }
+}</code></pre>
+<hr>
+<h2>第三層：cross_file_validation（跨文件驗證）</h2>
+<p>定義該文件與上游/下游文件的依賴關係。</p>
+<h3>支援的欄位</h3>
+<table>
+<tr><th>欄位名</th><th>類型</th><th>說明</th></tr>
+<tr><td><code>upstream</code></td><td>array[string]</td><td>上游依賴的 step ID</td></tr>
+<tr><td><code>downstream</code></td><td>array[string]</td><td>下游依賴的 step ID</td></tr>
+</table>
+<h3>範例</h3>
+<pre><code class="language-json">{
+  &quot;cross_file_validation&quot;: {
+    &quot;upstream&quot;: [&quot;EDD&quot;, &quot;ARCH&quot;, &quot;PRD&quot;],
+    &quot;downstream&quot;: [&quot;SCHEMA&quot;, &quot;test-plan&quot;, &quot;CONTRACTS&quot;]
+  }
+}</code></pre>
+<hr>
+<h2>review.sh 查詢規則</h2>
+<p>review.sh 按以下優先序查詢 rules.json：</p>
+<pre><code class="language-bash"># 優先級 1：嵌套結構（推薦）
+.quantitative_specs.min_endpoint_count
+.quantitative_specs.min_h2_sections
+.quantitative_specs.min_table_count
+.quantitative_specs.min_scenario_count
+
+# 優先級 2：content_mapping
+.content_mapping.required_sections
+.content_mapping.required_keywords</code></pre>
+<hr>
+<h2>版本歷史</h2>
+<table>
+<tr><th>版本</th><th>日期</th><th>變更</th></tr>
+<tr><td>1.0.0</td><td>2026-05-04</td><td>初版：定義三層嵌套結構</td></tr>
+</table></main>
+  </div>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({startOnLoad:true,theme:'default',
+      flowchart:{curve:'basis',nodeSpacing:60,rankSpacing:80},
+      er:{layoutDirection:'TD',minEntityWidth:100,fontSize:12},
+      sequence:{actorMargin:60,messageMargin:30}});
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-go.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dryrun Spec Formulas — gendoc</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+</head>
+<body>
+  <header class="top-nav">
+    <a href="index.html" class="nav-brand">gendoc</a>
+    <div class="nav-controls">
+      <div class="search-wrap">
+        <input class="search-input" type="search" placeholder="搜尋文件...">
+        <div class="search-results"></div>
+      </div>
+      <a class="nav-gh-link" href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener">⌥ GitHub</a>
+      <button class="sidebar-toggle" id="sidebarToggle" title="收合/展開側欄">☰</button>
+    </div>
+  </header>
+  <div class="doc-page-banner">
+    <p class="banner-breadcrumb"><a href="index.html">gendoc</a> › Dryrun Spec Formulas</p>
+    <h1 class="banner-title">Dryrun Spec Formulas</h1>
+  </div>
+  <div class="page-wrapper">
+    <aside class="sidebar" aria-label="文件導覽">
+      <div class="sidebar__section">
+<div class="sidebar__label">文件</div>
+<a class="sidebar__link" href="index.html">🏠 首頁</a>
+<a class="sidebar__link" href="prd.html">📝 產品需求文件 (PRD)</a>
+<a class="sidebar__link" href="client.html">📄 Client</a>
+<a class="sidebar__link" href="dryrun_api_verification.html">📄 Dryrun Api Verification</a>
+<a class="sidebar__link" href="dryrun_core_implementation_plan.html">📄 Dryrun Core Implementation Plan</a>
+<a class="sidebar__link" href="dryrun_get_upstream_verification.html">📄 Dryrun Get Upstream Verification</a>
+<a class="sidebar__link" href="dryrun_parameter_extraction.html">📄 Dryrun Parameter Extraction</a>
+<a class="sidebar__link active" href="dryrun_spec_formulas.html">📄 Dryrun Spec Formulas</a>
+<a class="sidebar__link" href="gendoc_flow_single_step_design.html">📄 Gendoc Flow Single Step Design</a>
+<a class="sidebar__link" href="hardcoded_specs_audit.html">📄 Hardcoded Specs Audit</a>
+<a class="sidebar__link" href="implementation_verification_report.html">📄 Implementation Verification Report</a>
+<a class="sidebar__link" href="pipeline_input_validation_report.html">📄 Pipeline Input Validation Report</a>
+<a class="sidebar__link" href="pipeline_layer_classification_notes.html">📄 Pipeline Layer Classification Notes</a>
+<a class="sidebar__link" href="rules_json_schema.html">📄 Rules Json Schema</a>
+<a class="sidebar__link" href="currentanalysis.html">📄 Currentanalysis</a>
+<a class="sidebar__link" href="gendoc-redesign-decisions.html">📄 Gendoc-Redesign-Decisions</a>
+<a class="sidebar__link" href="ha-spof-modification-plan.html">📄 Ha-Spof-Modification-Plan</a>
+<a class="sidebar__link" href="progress.html">📄 Progress</a>
+</div>
+    </aside>
+    <div class="sidebar-resizer" id="sidebarResizer"></div>
+    <main class="doc-content"><h1>DRYRUN 規格推導公式</h1>
+<h2>概述</h2>
+<p>本文檔定義 DRYRUN 后各 step 的期望規格推導公式。每個公式基於 DRYRUN 前提取的四個核心參數，推導該 step 的期望產出規格（如表格數、endpoint 數、section 數等）。</p>
+<p><strong>核心原則</strong>：</p>
+<ul><li>公式在 <code>dryrun_core.py</code> 的 <code>derive_specifications()</code> 方法中實現</li><li>推導結果存儲在 <code>.gendoc-rules/&lt;step-id&gt;-rules.json</code>，供 review.sh 機械式驗證</li><li>每個公式包含 <code>min_count</code> 與 <code>optional_checks</code> 兩部分</li></ul>
+<hr>
+<h2>參數參考</h2>
+<table>
+<tr><th>參數</th><th>定義</th><th>範圍</th></tr>
+<tr><td><code>entity_count</code></td><td>EDD 中 entity/class 總數</td><td>1-200</td></tr>
+<tr><td><code>rest_endpoint_count</code></td><td>PRD/EDD 中 REST endpoint 總數</td><td>1-500</td></tr>
+<tr><td><code>user_story_count</code></td><td>PRD 中 user story 總數</td><td>1-500</td></tr>
+<tr><td><code>arch_layer_count</code></td><td>ARCH 中架構層級數</td><td>2-50</td></tr>
+<tr><td><code>admin_feature_count</code></td><td>EDD 中 Admin 相關功能（可選）</td><td>0-100</td></tr>
+</table>
+<hr>
+<h2>DRYRUN 后的 step 規格公式</h2>
+<h3>Step: API</h3>
+<p><strong>職責</strong>：定義系統的 REST API 端點規格</p>
+<p><strong>期望規格</strong>：</p>
+<pre><code class="language-json">{
+  &quot;min_endpoint_count&quot;: &quot;max(5, rest_endpoint_count)&quot;,
+  &quot;min_h2_sections&quot;: &quot;ceil(rest_endpoint_count / 3) + 3&quot;,
+  &quot;required_sections&quot;: [
+    &quot;API Overview&quot;,
+    &quot;Authentication&quot;,
+    &quot;Rate Limiting&quot;,
+    &quot;Endpoint Reference&quot;,
+    &quot;Error Handling&quot;,
+    &quot;Status Codes&quot;,
+    &quot;Pagination&quot;,
+    &quot;Response Examples&quot;
+  ],
+  &quot;optional_checks&quot;: {
+    &quot;endpoint_coverage&quot;: &quot;All {rest_endpoint_count} endpoints from PRD must be documented&quot;,
+    &quot;entity_reference&quot;: &quot;Request/Response schemas must reference {entity_count} entities&quot;,
+    &quot;sequence_diagrams&quot;: &quot;&gt;= 2 sequence diagrams for complex workflows&quot;
+  }
+}</code></pre>
+<p><strong>說明</strong>：</p>
+<ul><li><code>min_endpoint_count</code>：最少應文檔化的 endpoint 數（至少 5 個）</li><li><code>min_h2_sections</code>：最少二級標題數（endpoint + 3 個固定章節）</li><li><code>required_sections</code>：必須出現的章節清單</li></ul>
+<hr>
+<h3>Step: SCHEMA</h3>
+<p><strong>職責</strong>：定義資料庫 schema 與表結構</p>
+<p><strong>期望規格</strong>：</p>
+<pre><code class="language-json">{
+  &quot;min_table_count&quot;: &quot;max(3, entity_count)&quot;,
+  &quot;min_h2_sections&quot;: &quot;entity_count + 5&quot;,
+  &quot;required_sections&quot;: [
+    &quot;ER Diagram&quot;,
+    &quot;Table Definitions&quot;,
+    &quot;Naming Conventions&quot;,
+    &quot;Normalization Rules&quot;,
+    &quot;Indexing Strategy&quot;,
+    &quot;Foreign Keys&quot;,
+    &quot;Soft Delete Strategy&quot;,
+    &quot;Migration Strategy&quot;
+  ],
+  &quot;optional_checks&quot;: {
+    &quot;entity_coverage&quot;: &quot;All {entity_count} EDD entities must have corresponding tables&quot;,
+    &quot;column_coverage&quot;: &quot;All PDD display columns must exist in schema&quot;,
+    &quot;fk_validation&quot;: &quot;Foreign keys must reference valid tables within same BC&quot;,
+    &quot;index_coverage&quot;: &quot;&gt;= 1 index per table&quot;
+  }
+}</code></pre>
+<p><strong>說明</strong>：</p>
+<ul><li><code>min_table_count</code>：最少表數（至少 3 個）</li><li>每個 entity 應對應至少一個表</li></ul>
+<hr>
+<h3>Step: FRONTEND</h3>
+<p><strong>職責</strong>：定義前端組件與頁面架構（僅 <code>client_type != none</code>）</p>
+<p><strong>期望規格</strong>：</p>
+<pre><code class="language-json">{
+  &quot;condition&quot;: &quot;client_type != none&quot;,
+  &quot;min_component_count&quot;: &quot;max(3, arch_layer_count * 3 + user_story_count / 5)&quot;,
+  &quot;min_h2_sections&quot;: &quot;user_story_count + arch_layer_count + 3&quot;,
+  &quot;required_sections&quot;: [
+    &quot;Component Inventory&quot;,
+    &quot;Page Structure&quot;,
+    &quot;State Management&quot;,
+    &quot;Routing&quot;,
+    &quot;Client-Server Communication&quot;,
+    &quot;Error Handling&quot;,
+    &quot;Performance Optimization&quot;,
+    &quot;Accessibility&quot;
+  ],
+  &quot;optional_checks&quot;: {
+    &quot;story_coverage&quot;: &quot;Components for all {user_story_count} user stories&quot;,
+    &quot;pdd_alignment&quot;: &quot;All PDD screens must have component definitions&quot;,
+    &quot;layer_separation&quot;: &quot;Clear separation of view/controller/service layers&quot;,
+    &quot;lazy_loading&quot;: &quot;Code splitting strategy for large components&quot;
+  }
+}</code></pre>
+<p><strong>說明</strong>：</p>
+<ul><li><code>min_component_count</code>：基於架構層級和 user story 數量推算</li><li>需涵蓋所有 user story 對應的 UI 組件</li></ul>
+<hr>
+<h3>Step: test-plan</h3>
+<p><strong>職責</strong>：定義測試計畫與測試案例</p>
+<p><strong>期望規格</strong>：</p>
+<pre><code class="language-json">{
+  &quot;min_h2_sections&quot;: &quot;arch_layer_count + user_story_count / 4 + 3&quot;,
+  &quot;min_test_cases&quot;: &quot;user_story_count * 3&quot;,
+  &quot;min_scenarios&quot;: &quot;user_story_count * 1.5&quot;,
+  &quot;required_sections&quot;: [
+    &quot;Test Overview&quot;,
+    &quot;Test Scope&quot;,
+    &quot;Test Environment&quot;,
+    &quot;Test Strategy&quot;,
+    &quot;Unit Test Cases&quot;,
+    &quot;Integration Test Cases&quot;,
+    &quot;E2E Test Cases&quot;,
+    &quot;Performance Test Cases&quot;,
+    &quot;Security Test Cases&quot;,
+    &quot;Test Data &amp; Fixtures&quot;,
+    &quot;Test Execution Plan&quot;
+  ],
+  &quot;optional_checks&quot;: {
+    &quot;bva_coverage&quot;: &quot;Boundary value analysis for numeric inputs&quot;,
+    &quot;equivalence_partitioning&quot;: &quot;Equivalence classes for all AC&quot;,
+    &quot;negative_testing&quot;: &quot;At least 1 negative test per AC&quot;,
+    &quot;edge_cases&quot;: &quot;Error path &amp; edge case scenarios&quot;
+  }
+}</code></pre>
+<p><strong>說明</strong>：</p>
+<ul><li><code>min_test_cases</code>：基於 user story 數量（每個故事至少 3 個 test case）</li><li>必須涵蓋 unit / integration / E2E 三層</li></ul>
+<hr>
+<h3>Step: BDD-server</h3>
+<p><strong>職責</strong>：定義伺服器端 BDD 場景（Gherkin）</p>
+<p><strong>期望規格</strong>：</p>
+<pre><code class="language-json">{
+  &quot;min_scenario_count&quot;: &quot;ceil(user_story_count * 0.8)&quot;,
+  &quot;min_step_definitions&quot;: &quot;ceil(rest_endpoint_count * 0.6)&quot;,
+  &quot;required_sections&quot;: [
+    &quot;Feature Definitions&quot;,
+    &quot;Happy Path Scenarios&quot;,
+    &quot;Error Path Scenarios&quot;,
+    &quot;Edge Case Scenarios&quot;,
+    &quot;Step Definitions&quot;,
+    &quot;Test Data Setup&quot;,
+    &quot;Assertion Rules&quot;
+  ],
+  &quot;optional_checks&quot;: {
+    &quot;story_alignment&quot;: &quot;{min_scenario_count} scenarios must map to user stories&quot;,
+    &quot;endpoint_coverage&quot;: &quot;All critical endpoints have at least 1 scenario&quot;,
+    &quot;error_handling&quot;: &quot;Error scenarios for each API error code&quot;,
+    &quot;idempotency&quot;: &quot;Idempotency scenarios where applicable&quot;
+  }
+}</code></pre>
+<p><strong>說明</strong>：</p>
+<ul><li><code>min_scenario_count</code>：基於 user story（約 80% 覆蓋）</li><li>每個重要 endpoint 應有至少 1 個場景</li></ul>
+<hr>
+<h3>Step: BDD-client</h3>
+<p><strong>職責</strong>：定義客戶端 BDD 場景（條件：<code>client_type != none</code>）</p>
+<p><strong>期望規格</strong>：</p>
+<pre><code class="language-json">{
+  &quot;condition&quot;: &quot;client_type != none&quot;,
+  &quot;min_scenario_count&quot;: &quot;ceil(user_story_count * 0.7)&quot;,
+  &quot;min_step_definitions&quot;: &quot;ceil(user_story_count * 0.5)&quot;,
+  &quot;required_sections&quot;: [
+    &quot;Feature Definitions&quot;,
+    &quot;User Journey Scenarios&quot;,
+    &quot;UI Interaction Scenarios&quot;,
+    &quot;Error Handling Scenarios&quot;,
+    &quot;Performance Scenarios&quot;,
+    &quot;Step Definitions&quot;
+  ],
+  &quot;optional_checks&quot;: {
+    &quot;happy_path&quot;: &quot;At least 1 happy path scenario per user story&quot;,
+    &quot;error_recovery&quot;: &quot;Error recovery &amp; retry scenarios&quot;,
+    &quot;offline_mode&quot;: &quot;Offline mode handling (if applicable)&quot;,
+    &quot;performance_assertion&quot;: &quot;Performance thresholds (LCP, FCP, etc.)&quot;
+  }
+}</code></pre>
+<hr>
+<h3>Step: RTM (Requirements Traceability Matrix)</h3>
+<p><strong>職責</strong>：建立需求與測試的追蹤矩陣</p>
+<p><strong>期望規格</strong>：</p>
+<pre><code class="language-json">{
+  &quot;min_h2_sections&quot;: &quot;3&quot;,
+  &quot;min_traceability_entries&quot;: &quot;user_story_count&quot;,
+  &quot;required_sections&quot;: [
+    &quot;RTM Overview&quot;,
+    &quot;User Story to Test Case Mapping&quot;,
+    &quot;Test Coverage Analysis&quot;,
+    &quot;Class to Test Mapping&quot;,
+    &quot;Traceability Matrix&quot;
+  ],
+  &quot;optional_checks&quot;: {
+    &quot;us_coverage&quot;: &quot;All {user_story_count} user stories must be traced to test cases&quot;,
+    &quot;test_coverage&quot;: &quot;&gt;= 80% test coverage ratio&quot;,
+    &quot;class_coverage&quot;: &quot;All {entity_count} classes must have test coverage&quot;,
+    &quot;gap_analysis&quot;: &quot;Coverage gap analysis section&quot;
+  }
+}</code></pre>
+<hr>
+<h3>Step: runbook</h3>
+<p><strong>職責</strong>：定義生產運維手冊</p>
+<p><strong>期望規格</strong>：</p>
+<pre><code class="language-json">{
+  &quot;min_h2_sections&quot;: &quot;arch_layer_count + 5&quot;,
+  &quot;required_sections&quot;: [
+    &quot;Architecture Overview&quot;,
+    &quot;Deployment Procedures&quot;,
+    &quot;Monitoring &amp; Alerting&quot;,
+    &quot;Incident Response&quot;,
+    &quot;Backup &amp; Recovery&quot;,
+    &quot;Scaling Procedures&quot;,
+    &quot;Database Maintenance&quot;,
+    &quot;Log Management&quot;,
+    &quot;Health Checks&quot;,
+    &quot;Troubleshooting Guide&quot;
+  ],
+  &quot;optional_checks&quot;: {
+    &quot;step_by_step_procedures&quot;: &quot;All procedures must have step-by-step commands&quot;,
+    &quot;verification_steps&quot;: &quot;Each procedure must include verification commands&quot;,
+    &quot;namespace_clarity&quot;: &quot;Kubernetes namespace clearly specified&quot;,
+    &quot;service_dependencies&quot;: &quot;Clear service dependency diagram&quot;
+  }
+}</code></pre>
+<hr>
+<h3>Step: LOCAL_DEPLOY</h3>
+<p><strong>職責</strong>：定義本地環境完整建置指南</p>
+<p><strong>期望規格</strong>：</p>
+<pre><code class="language-json">{
+  &quot;min_h2_sections&quot;: &quot;12&quot;,
+  &quot;required_sections&quot;: [
+    &quot;Overview&quot;,
+    &quot;System Requirements&quot;,
+    &quot;Prerequisites&quot;,
+    &quot;Kubernetes Setup (Rancher Desktop / k3s)&quot;,
+    &quot;Database Setup&quot;,
+    &quot;Application Deployment&quot;,
+    &quot;Environment Variables&quot;,
+    &quot;Port Mappings&quot;,
+    &quot;Test Data Loading&quot;,
+    &quot;Verification Checklist&quot;,
+    &quot;Troubleshooting&quot;,
+    &quot;Docker Compose Alternative&quot;
+  ],
+  &quot;optional_checks&quot;: {
+    &quot;step_completeness&quot;: &quot;No TBD or unfinished steps&quot;,
+    &quot;client_in_k8s&quot;: &quot;Client application must be deployable in k8s pod&quot;,
+    &quot;single_port&quot;: &quot;Single entry point on port 80&quot;,
+    &quot;e2e_tests&quot;: &quot;All E2E tests runnable after setup&quot;,
+    &quot;dev_platform&quot;: &quot;Local Developer Platform (Gitea/Jenkins/ArgoCD) included&quot;
+  }
+}</code></pre>
+<hr>
+<h3>Step: DEVELOPER_GUIDE</h3>
+<p><strong>職責</strong>：定義開發者日常操作手冊</p>
+<p><strong>期望規格</strong>：</p>
+<pre><code class="language-json">{
+  &quot;min_h2_sections&quot;: &quot;5&quot;,
+  &quot;required_sections&quot;: [
+    &quot;Daily Development Workflow&quot;,
+    &quot;CI/CD Diagnostics&quot;,
+    &quot;Quick Commands&quot;,
+    &quot;Common Issues &amp; Fixes&quot;,
+    &quot;Environment Maintenance&quot;
+  ],
+  &quot;optional_checks&quot;: {
+    &quot;git_workflow&quot;: &quot;Git push → CI trigger → CD deployment workflow documented&quot;,
+    &quot;quick_commands&quot;: &quot;&gt;= 5 Makefile targets (make dev-status, make dev-logs, etc.)&quot;,
+    &quot;troubleshooting&quot;: &quot;&gt;= 10 common issues with solutions&quot;,
+    &quot;local_vs_prod&quot;: &quot;Clear distinction between local and production environments&quot;
+  }
+}</code></pre>
+<hr>
+<h3>Step: CICD</h3>
+<p><strong>職責</strong>：定義 CI/CD 流水線設計</p>
+<p><strong>期望規格</strong>：</p>
+<pre><code class="language-json">{
+  &quot;min_h2_sections&quot;: &quot;8&quot;,
+  &quot;required_sections&quot;: [
+    &quot;Pipeline Overview&quot;,
+    &quot;Build Stage&quot;,
+    &quot;Test Stage&quot;,
+    &quot;Security Scanning&quot;,
+    &quot;Deployment Stage&quot;,
+    &quot;Monitoring&quot;,
+    &quot;Rollback Procedures&quot;,
+    &quot;Local Developer Platform&quot;
+  ],
+  &quot;optional_checks&quot;: {
+    &quot;stage_clarity&quot;: &quot;Clear CI/CD stages with dependencies&quot;,
+    &quot;test_automation&quot;: &quot;Automated test execution (unit/integration/E2E)&quot;,
+    &quot;dev_tools&quot;: &quot;Local Gitea/Jenkins/ArgoCD setup documented&quot;,
+    &quot;webhook_integration&quot;: &quot;Git webhook integration to Jenkins&quot;
+  }
+}</code></pre>
+<hr>
+<h3>Step: AUDIO（條件：<code>client_type == game</code>）</h3>
+<p><strong>期望規格</strong>：</p>
+<pre><code class="language-json">{
+  &quot;condition&quot;: &quot;client_type == game&quot;,
+  &quot;min_h2_sections&quot;: &quot;6&quot;,
+  &quot;min_audio_items&quot;: &quot;max(5, rest_endpoint_count / 3)&quot;,
+  &quot;required_sections&quot;: [
+    &quot;Audio Strategy&quot;,
+    &quot;BGM List&quot;,
+    &quot;SFX List&quot;,
+    &quot;Voice Over&quot;,
+    &quot;Audio Engine Setup&quot;,
+    &quot;Performance Budget&quot;
+  ],
+  &quot;optional_checks&quot;: {
+    &quot;state_machine&quot;: &quot;Audio trigger state machine for each sound&quot;,
+    &quot;format_specs&quot;: &quot;Audio file format &amp; bitrate specifications&quot;,
+    &quot;memory_budget&quot;: &quot;Memory budget for audio resources&quot;
+  }
+}</code></pre>
+<hr>
+<h3>Step: ANIM（條件：<code>client_type == game</code>）</h3>
+<p><strong>期望規格</strong>：</p>
+<pre><code class="language-json">{
+  &quot;condition&quot;: &quot;client_type == game&quot;,
+  &quot;min_h2_sections&quot;: &quot;6&quot;,
+  &quot;min_animation_items&quot;: &quot;max(8, user_story_count / 2)&quot;,
+  &quot;required_sections&quot;: [
+    &quot;Animation Strategy&quot;,
+    &quot;Skeletal Animations&quot;,
+    &quot;Frame Animations&quot;,
+    &quot;Particle Effects&quot;,
+    &quot;Shader Effects&quot;,
+    &quot;Performance Budget&quot;
+  ],
+  &quot;optional_checks&quot;: {
+    &quot;lod_strategy&quot;: &quot;LOD (Level of Detail) strategy for effects&quot;,
+    &quot;performance_targets&quot;: &quot;Frame rate targets (60fps/30fps)&quot;,
+    &quot;asset_specs&quot;: &quot;Sprite/model resolution specifications&quot;
+  }
+}</code></pre>
+<hr>
+<h3>Step: UML</h3>
+<p><strong>職責</strong>：生成 Server 端 UML 圖表</p>
+<p><strong>期望規格</strong>：</p>
+<pre><code class="language-json">{
+  &quot;min_diagram_count&quot;: &quot;9&quot;,
+  &quot;diagram_types&quot;: [
+    &quot;Class Diagram (3 layers: Entity / Service / Repository)&quot;,
+    &quot;Use Case Diagram&quot;,
+    &quot;Sequence Diagram (API flow)&quot;,
+    &quot;Activity Diagram&quot;,
+    &quot;State Machine Diagram&quot;,
+    &quot;Component Diagram&quot;,
+    &quot;Deployment Diagram&quot;
+  ],
+  &quot;required_content&quot;: {
+    &quot;class_diagram_coverage&quot;: &quot;All {entity_count} entities must appear in class diagrams&quot;,
+    &quot;sequence_flow&quot;: &quot;All {rest_endpoint_count} major API flows must have sequence diagrams&quot;,
+    &quot;class_inventory&quot;: &quot;class-inventory.md with method-level detail&quot;
+  },
+  &quot;optional_checks&quot;: {
+    &quot;class_completeness&quot;: &quot;Methods signatures with types and return values&quot;,
+    &quot;relationship_coverage&quot;: &quot;All 6 relationship types (Inheritance/Realization/Composition/Aggregation/Association/Dependency)&quot;,
+    &quot;diagram_clarity&quot;: &quot;Each diagram has technical + plain-language explanation&quot;
+  }
+}</code></pre>
+<hr>
+<h3>Step: CONTRACTS</h3>
+<p><strong>職責</strong>：生成機器可讀規格（OpenAPI / JSON Schema / Pact）</p>
+<p><strong>期望規格</strong>：</p>
+<pre><code class="language-json">{
+  &quot;min_h2_sections&quot;: &quot;4&quot;,
+  &quot;required_artifacts&quot;: [
+    &quot;OpenAPI 3.1 YAML&quot;,
+    &quot;JSON Schema files&quot;,
+    &quot;Pact (contract testing)&quot;,
+    &quot;Helm values.yaml&quot;
+  ],
+  &quot;optional_checks&quot;: {
+    &quot;openapi_completeness&quot;: &quot;OpenAPI covers all {rest_endpoint_count} endpoints&quot;,
+    &quot;schema_validation&quot;: &quot;All schemas are valid JSON Schema Draft 2020-12&quot;,
+    &quot;example_values&quot;: &quot;Request/response examples for each endpoint&quot;
+  }
+}</code></pre>
+<hr>
+<h3>Step: MOCK</h3>
+<p><strong>職責</strong>：生成 Mock Server（FastAPI）</p>
+<p><strong>期望規格</strong>：</p>
+<pre><code class="language-json">{
+  &quot;min_endpoints&quot;: &quot;rest_endpoint_count&quot;,
+  &quot;required_artifacts&quot;: [
+    &quot;FastAPI application&quot;,
+    &quot;Mock data JSON files&quot;,
+    &quot;Swagger UI&quot;,
+    &quot;Postman collection&quot;
+  ],
+  &quot;optional_checks&quot;: {
+    &quot;endpoint_coverage&quot;: &quot;All {rest_endpoint_count} endpoints implemented&quot;,
+    &quot;cross_platform&quot;: &quot;Windows/macOS launch instructions&quot;,
+    &quot;realistic_data&quot;: &quot;Mock data reflects real entity structures&quot;
+  }
+}</code></pre>
+<hr>
+<h3>Step: ALIGN / ALIGN-FIX / ALIGN-VERIFY（審查層，不推導規格）</h3>
+<p><strong>說明</strong>：這三個 step 屬於「審查層」（見 CLAUDE.md 設計決策 #3），無獨立「內容規格」推導。</p>
+<pre><code class="language-json">{
+  &quot;note&quot;: &quot;Audit layer steps - no spec derivation required&quot;,
+  &quot;purpose&quot;: &quot;Global cross-file alignment verification&quot;,
+  &quot;quantitative_checks&quot;: &quot;Mechanical pattern matching only&quot;
+}</code></pre>
+<hr>
+<h3>Step: HTML（輸出層，條件：always）</h3>
+<p><strong>說明</strong>：HTML 是最終發布步驟，無量化規格要求（內容由所有 DRYRUN 后的 step 決定）。</p>
+<pre><code class="language-json">{
+  &quot;note&quot;: &quot;Publication layer - content determined by DRYRUN 后的 step outputs&quot;,
+  &quot;requirements&quot;: [
+    &quot;All phase B documents must be present and error-free&quot;,
+    &quot;HTML generation must succeed without errors&quot;,
+    &quot;Navigation sidebar must include all available diagrams&quot;
+  ]
+}</code></pre>
+<hr>
+<h2>公式實現規則（dryrun_core.py）</h2>
+<h3><code>derive_specifications()</code> 方法簽名</h3>
+<pre><code class="language-python">def derive_specifications(self, params: dict) -&gt; dict:
+    &quot;&quot;&quot;
+    根據提取的四個核心參數，推導所有 DRYRUN 后的 step 的期望規格。
+    
+    Args:
+        params: {
+            &quot;entity_count&quot;: int,
+            &quot;rest_endpoint_count&quot;: int,
+            &quot;user_story_count&quot;: int,
+            &quot;arch_layer_count&quot;: int,
+            &quot;admin_feature_count&quot;: int or None,
+            &quot;metadata&quot;: {...}
+        }
+    
+    Returns:
+        {
+            &quot;step_specifications&quot;: {
+                &quot;API&quot;: {&quot;min_endpoint_count&quot;: 12, ...},
+                &quot;SCHEMA&quot;: {&quot;min_table_count&quot;: 10, ...},
+                ...
+            },
+            &quot;timestamp&quot;: &quot;2026-05-04T10:30:00Z&quot;,
+            &quot;parameter_source&quot;: params[&quot;metadata&quot;]
+        }
+    &quot;&quot;&quot;
+    
+    specs = {}
+    
+    # API
+    specs[&quot;API&quot;] = {
+        &quot;min_endpoint_count&quot;: max(5, params[&quot;rest_endpoint_count&quot;]),
+        &quot;min_h2_sections&quot;: math.ceil(params[&quot;rest_endpoint_count&quot;] / 3) + 3,
+        &quot;entity_coverage&quot;: params[&quot;entity_count&quot;]
+    }
+    
+    # SCHEMA
+    specs[&quot;SCHEMA&quot;] = {
+        &quot;min_table_count&quot;: max(3, params[&quot;entity_count&quot;]),
+        &quot;min_h2_sections&quot;: params[&quot;entity_count&quot;] + 5
+    }
+    
+    # test-plan
+    specs[&quot;test-plan&quot;] = {
+        &quot;min_h2_sections&quot;: params[&quot;arch_layer_count&quot;] + math.ceil(params[&quot;user_story_count&quot;] / 4) + 3,
+        &quot;min_test_cases&quot;: params[&quot;user_story_count&quot;] * 3
+    }
+    
+    # ... 其他 step
+    
+    return {&quot;step_specifications&quot;: specs, &quot;timestamp&quot;: datetime.now().isoformat()}</code></pre>
+<hr>
+<h2>檢查清單</h2>
+<ul><li style="list-style:none"><input type="checkbox" disabled> 所有 DRYRUN 后的 step 都有規格公式定義</li><li style="list-style:none"><input type="checkbox" disabled> 每個公式包含 min_count 與可選檢查項</li><li style="list-style:none"><input type="checkbox" disabled> 公式使用四個核心參數</li><li style="list-style:none"><input type="checkbox" disabled> Fallback 邏輯清晰</li><li style="list-style:none"><input type="checkbox" disabled> 已明確標記不推導規格的 step（審查層 + 輸出層）</li></ul>
+<hr>
+<h2>相關檔案</h2>
+<table>
+<tr><th>檔案</th><th>用途</th></tr>
+<tr><td><code>docs/DRYRUN_PARAMETER_EXTRACTION.md</code></td><td>參數提取規則（STEP 1）</td></tr>
+<tr><td><code>tools/bin/dryrun_core.py</code></td><td>實作公式計算</td></tr>
+<tr><td><code>.gendoc-rules/&lt;step-id&gt;-rules.json</code></td><td>公式推導結果（輸出）</td></tr>
+<tr><td><code>tools/bin/review.sh</code></td><td>機械式驗證（對比預期 vs 實際）</td></tr>
+</table></main>
+  </div>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({startOnLoad:true,theme:'default',
+      flowchart:{curve:'basis',nodeSpacing:60,rankSpacing:80},
+      er:{layoutDirection:'TD',minEntityWidth:100,fontSize:12},
+      sequence:{actorMargin:60,messageMargin:30}});
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-go.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

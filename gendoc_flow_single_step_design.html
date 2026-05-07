@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gendoc Flow Single Step Design — gendoc</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+</head>
+<body>
+  <header class="top-nav">
+    <a href="index.html" class="nav-brand">gendoc</a>
+    <div class="nav-controls">
+      <div class="search-wrap">
+        <input class="search-input" type="search" placeholder="搜尋文件...">
+        <div class="search-results"></div>
+      </div>
+      <a class="nav-gh-link" href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener">⌥ GitHub</a>
+      <button class="sidebar-toggle" id="sidebarToggle" title="收合/展開側欄">☰</button>
+    </div>
+  </header>
+  <div class="doc-page-banner">
+    <p class="banner-breadcrumb"><a href="index.html">gendoc</a> › Gendoc Flow Single Step Design</p>
+    <h1 class="banner-title">Gendoc Flow Single Step Design</h1>
+  </div>
+  <div class="page-wrapper">
+    <aside class="sidebar" aria-label="文件導覽">
+      <div class="sidebar__section">
+<div class="sidebar__label">文件</div>
+<a class="sidebar__link" href="index.html">🏠 首頁</a>
+<a class="sidebar__link" href="prd.html">📝 產品需求文件 (PRD)</a>
+<a class="sidebar__link" href="client.html">📄 Client</a>
+<a class="sidebar__link" href="dryrun_api_verification.html">📄 Dryrun Api Verification</a>
+<a class="sidebar__link" href="dryrun_core_implementation_plan.html">📄 Dryrun Core Implementation Plan</a>
+<a class="sidebar__link" href="dryrun_get_upstream_verification.html">📄 Dryrun Get Upstream Verification</a>
+<a class="sidebar__link" href="dryrun_parameter_extraction.html">📄 Dryrun Parameter Extraction</a>
+<a class="sidebar__link" href="dryrun_spec_formulas.html">📄 Dryrun Spec Formulas</a>
+<a class="sidebar__link active" href="gendoc_flow_single_step_design.html">📄 Gendoc Flow Single Step Design</a>
+<a class="sidebar__link" href="hardcoded_specs_audit.html">📄 Hardcoded Specs Audit</a>
+<a class="sidebar__link" href="implementation_verification_report.html">📄 Implementation Verification Report</a>
+<a class="sidebar__link" href="pipeline_input_validation_report.html">📄 Pipeline Input Validation Report</a>
+<a class="sidebar__link" href="pipeline_layer_classification_notes.html">📄 Pipeline Layer Classification Notes</a>
+<a class="sidebar__link" href="rules_json_schema.html">📄 Rules Json Schema</a>
+<a class="sidebar__link" href="currentanalysis.html">📄 Currentanalysis</a>
+<a class="sidebar__link" href="gendoc-redesign-decisions.html">📄 Gendoc-Redesign-Decisions</a>
+<a class="sidebar__link" href="ha-spof-modification-plan.html">📄 Ha-Spof-Modification-Plan</a>
+<a class="sidebar__link" href="progress.html">📄 Progress</a>
+</div>
+    </aside>
+    <div class="sidebar-resizer" id="sidebarResizer"></div>
+    <main class="doc-content"><h1>gendoc-flow 單步執行模式設計</h1>
+<h2>背景與需求</h2>
+<p><strong>現狀</strong>：gendoc-flow 支援「從頭開始」或「從指定步驟開始往後執行」，但無法「只執行某一步驟」。</p>
+<p><strong>需求</strong>：</p>
+<pre><code class="language-bash"># 舊行為（目前支援）
+gendoc-flow              # 從頭開始執行全流水線
+gendoc-flow --start EDD  # 從 EDD 開始往後執行
+
+# 新行為（需求）
+gendoc-flow --only EDD   # 只執行 EDD
+gendoc-flow --single EDD # 同上（備選名稱）</code></pre>
+<p><strong>使用場景</strong>：</p>
+<ol><li><strong>補舊資料</strong>：fishgame 等舊專案缺少 DRYRUN 后的 step 檔案，逐個補齊</li><li><strong>修復測試</strong>：D-SSOT-4.3 需要獨立執行某個 step，驗證輸出</li><li><strong>repair skill 整合</strong>：gendoc-repair 指揮補充指定 step</li></ol>
+<hr>
+<h2>設計原則（缺一不可）</h2>
+<h3>1. 單步執行的前置條件</h3>
+<pre><code class="">input[] 必須全部存在且非空
+├─ 必須條件（MUST）：pipeline.json 定義的 input[] 中所有文件都存在
+├─ 文件檢查：file size &gt; 0（非空檔案）
+└─ 違反條件：報錯退出，列出缺失的檔案</code></pre>
+<h3>2. 執行邏輯</h3>
+<pre><code class="">只執行該步驟的完整 Gen → Review → Fix loop
+├─ 不跳過 Gen（即使檔案已存在）
+│  └─ 理由：--only 的語義是「重新執行這一步」，不是「補補看」
+├─ 執行所有 review rounds（遵循 max_rounds 和 terminate condition）
+├─ 最後 commit（同 normal flow）
+└─ 不執行後續步驟（執行完該步即結束）</code></pre>
+<h3>3. 與 state 的交互</h3>
+<pre><code class="">執行前檢查：
+├─ 若該 step 已在 completed_steps，警告但仍執行（user override）
+├─ 清除該 step 的 review_progress 記錄（重新開始）
+└─ 同時檢查 condition，條件不符時拒絕執行
+
+執行後更新：
+├─ 寫入 completed_steps（如未在）
+├─ 寫入 review_progress[step_id]（包含 terminated=true 等）
+└─ 保存 state 檔案</code></pre>
+<h3>4. 與 condition 的交互</h3>
+<pre><code class="">條件檢查優先於 input 檢查：
+
+if condition_not_met(step):
+    print &quot;[Skip] 條件不符&quot;
+    exit 1
+elif any_input_missing(step):
+    print &quot;[Error] 上游檔案缺失&quot;
+    exit 1
+else:
+    execute_step(step)</code></pre>
+<p>示例：</p>
+<pre><code class="">gendoc-flow --only AUDIO
+  client_type = api-only
+  → condition = &quot;client_type == game&quot;
+  → [Skip] AUDIO 條件不符（client_type != game）
+  exit 1
+
+gendoc-flow --only EDD
+  input: [&quot;docs/IDEA.md&quot;, &quot;docs/BRD.md&quot;, &quot;docs/PRD.md&quot;]
+  exists: IDEA ✅ BRD ✅ PRD ✅
+  → [Execute] EDD 上游齊全</code></pre>
+<hr>
+<h2>實現清單</h2>
+<h3>Phase 1：gendoc-flow SKILL.md 修改（中等複雜度）</h3>
+<h4>1.1 參數解析（Step -0.5，在 Step 0 之前）</h4>
+<pre><code class="language-bash"># 新增解析邏輯
+_SINGLE_STEP=&quot;&quot;
+_ONLY_STEP=&quot;&quot;
+
+while [[ $# -gt 0 ]]; do
+  case &quot;$1&quot; in
+    --only)
+      _ONLY_STEP=&quot;$2&quot;
+      shift 2
+      ;;
+    --single)
+      _SINGLE_STEP=&quot;$2&quot;
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
+if [[ -n &quot;$_ONLY_STEP&quot; ]]; then
+  TARGET_STEP=&quot;$_ONLY_STEP&quot;
+  EXEC_MODE=&quot;single-step&quot;
+elif [[ -n &quot;$_SINGLE_STEP&quot; ]]; then
+  TARGET_STEP=&quot;$_SINGLE_STEP&quot;
+  EXEC_MODE=&quot;single-step&quot;
+else
+  EXEC_MODE=&quot;normal&quot;  # 現有行為
+  TARGET_STEP=&quot;&quot;
+fi
+
+echo &quot;[Setup] EXEC_MODE=${EXEC_MODE} | TARGET_STEP=${TARGET_STEP}&quot;</code></pre>
+<h4>1.2 Step 1 主循環修改</h4>
+<pre><code class="language-python"># 在 for step_idx, step in enumerate(pipeline): 前加入判斷
+
+if EXEC_MODE == &quot;single-step&quot;:
+    # 找到目標 step，只執行它
+    target = next((s for s in pipeline if s[&quot;id&quot;] == TARGET_STEP), None)
+    if not target:
+        print(f&quot;[Error] Step &#x27;{TARGET_STEP}&#x27; 未在 pipeline 中找到&quot;)
+        exit(1)
+    step = target
+    pipeline = [target]  # 單步執行列表</code></pre>
+<h4>1.3 Input 驗證（新增，在 execute_step 前）</h4>
+<pre><code class="language-python"># 檢查該 step 的所有 input 檔案
+def validate_step_inputs(step):
+    missing = []
+    for input_file in step.get(&quot;input&quot;, []):
+        if not file_exists_and_nonempty(input_file):
+            missing.append(input_file)
+    
+    if missing:
+        print(f&quot;[Error] {step[&#x27;id&#x27;]} 上游檔案缺失：&quot;)
+        for m in missing:
+            print(f&quot;  ✗ {m}&quot;)
+        exit(1)
+    
+    print(f&quot;[Check] {step[&#x27;id&#x27;]} 上游檔案完整&quot;)
+    return True
+
+# 在 EXEC_MODE == &quot;single-step&quot; 時調用
+if EXEC_MODE == &quot;single-step&quot;:
+    validate_step_inputs(target)</code></pre>
+<h4>1.4 Condition 檢查（強化現有邏輯）</h4>
+<pre><code class="language-python"># 現有 condition 檢查邏輯保留
+# 但在 single-step 模式下，condition 不符時仍要報錯（不是 skip）
+
+if step.get(&quot;condition&quot;) == &quot;client_type == game&quot; and not _is_game:
+    if EXEC_MODE == &quot;single-step&quot;:
+        print(f&quot;[Error] {step[&#x27;id&#x27;]} 執行條件不符：client_type={_CLIENT_TYPE}（需要 game）&quot;)
+        exit(1)
+    else:
+        # 正常 flow 的 skip 邏輯（existing）
+        _archive_and_skip(...)</code></pre>
+<h4>1.5 Review 記錄清除</h4>
+<pre><code class="language-python"># 進入 execute_step 前，清除該 step 的 review_progress
+if EXEC_MODE == &quot;single-step&quot;:
+    state_data = json.load(open(_STATE_FILE))
+    if target[&quot;id&quot;] in state_data.get(&quot;review_progress&quot;, {}):
+        print(f&quot;[Setup] 清除 {target[&#x27;id&#x27;]} 的舊 review 記錄，重新開始&quot;)
+        del state_data[&quot;review_progress&quot;][target[&quot;id&quot;]]
+        # 原子寫入 state
+        save_state(state_data)</code></pre>
+<h4>1.6 執行完成後的行為</h4>
+<pre><code class="language-python"># 執行結束後
+if EXEC_MODE == &quot;single-step&quot;:
+    print(f&quot;[Complete] {TARGET_STEP} 單步執行完成&quot;)
+    print(f&quot;[Next] 下一步手動選擇：&quot;)
+    print(f&quot;  • 下個 step：gendoc-flow --only NEXT_STEP&quot;)
+    print(f&quot;  • 全流程：gendoc-flow --start {TARGET_STEP}&quot;)
+    exit(0)  # 不執行後續步驟</code></pre>
+<hr>
+<h3>Phase 2：gendoc-repair SKILL.md 設計（高複雜度，待後續）</h3>
+<h4>2.1 職責分工</h4>
+<pre><code class="">gendoc-repair 的角色：「發現問題，指揮修復」
+
+不做：
+- 不直接修改文件
+- 不呼叫 gen subagent
+
+做：
+- 檢查 DRYRUN output 有無生成
+- 用 review.sh 判斷缺失的 step
+- 指揮 gendoc-flow --only &lt;step&gt; 補充
+- 遞迴檢查 input，缺失時呼叫上游</code></pre>
+<h4>2.2 核心邏輯流（Pseudo Code）</h4>
+<pre><code class="language-python">def repair(target_project_dir):
+    &quot;&quot;&quot;
+    主修復邏輯
+    &quot;&quot;&quot;
+    chdir(target_project_dir)
+    
+    # [R-1] 檢查 DRYRUN 狀態
+    dryrun_done = check_dryrun_output_exists()
+    
+    if not dryrun_done:
+        # [R-2] DRYRUN 未執行，檢查其 input（DRYRUN 前的 step）
+        missing_dryrun_upstream = check_missing_inputs(&quot;DRYRUN&quot;)
+        
+        if &quot;docs/BRD.md&quot; in missing_dryrun_upstream:
+            print(&quot;[Stop] BRD.md 缺失，無法繼續。需手動建立 BRD.md 或執行 gendoc-auto&quot;)
+            exit(1)
+        
+        if missing_dryrun_upstream:
+            print(f&quot;[Info] DRYRUN 前置缺失 {len(missing_dryrun_upstream)} 個檔案，正在補充...&quot;)
+            for missing_file in missing_dryrun_upstream:
+                # 從檔案名反推 step_id
+                # docs/EDD.md → EDD
+                step_id = extract_step_id(missing_file)
+                
+                # 遞迴補充
+                repair_step(step_id)
+        
+        # [R-3] 執行 DRYRUN
+        print(&quot;[Action] 執行 DRYRUN...&quot;)
+        subprocess.run([&quot;gendoc-flow&quot;, &quot;--only&quot;, &quot;DRYRUN&quot;], check=True)
+    
+    else:
+        print(&quot;[Info] DRYRUN 已執行，檢查 DRYRUN 后的 step 檔案...&quot;)
+    
+    # [R-4] DRYRUN 完成，用 review.sh 檢查 DRYRUN 后的 step
+    review_result = subprocess.run(
+        [&quot;tools/bin/review.sh&quot;, &quot;.&quot;],
+        capture_output=True,
+        text=True
+    )
+    
+    if review_result.returncode == 0:
+        print(&quot;[Complete] ✅ 全部 PASS，修復完成&quot;)
+        return True
+    
+    # [R-5] Review 失敗，解析 report 找缺失的 step
+    missing_steps = parse_review_report(&quot;docs/DRYRUN_REVIEW_REPORT.md&quot;)
+    
+    for step_id in missing_steps:
+        print(f&quot;[Action] 補充 {step_id}...&quot;)
+        subprocess.run([&quot;gendoc-flow&quot;, &quot;--only&quot;, step_id], check=True)
+    
+    # [R-6] 循環驗證
+    print(&quot;[Info] 補充後重新驗證...&quot;)
+    return repair(target_project_dir)  # 遞迴
+
+
+def repair_step(step_id):
+    &quot;&quot;&quot;
+    補充單個 step
+    &quot;&quot;&quot;
+    # 檢查 input 是否齊全
+    step = find_step_in_pipeline(step_id)
+    missing = check_missing_inputs(step_id)
+    
+    if missing:
+        # 上游缺失，先補上游
+        print(f&quot;[Recursive] {step_id} 的上游缺失，正在補充...&quot;)
+        for missing_file in missing:
+            upstream_step = extract_step_id(missing_file)
+            if upstream_step == &quot;BRD&quot;:
+                print(f&quot;[Stop] BRD 缺失，無法補充 {step_id}。&quot;)
+                raise RuntimeError(&quot;BRD.md missing&quot;)
+            repair_step(upstream_step)
+    
+    # 上游齊全，執行該 step
+    print(f&quot;[Execute] 補充 {step_id}...&quot;)
+    subprocess.run([&quot;gendoc-flow&quot;, &quot;--only&quot;, step_id], check=True)
+
+
+def check_dryrun_output_exists():
+    &quot;&quot;&quot;檢查 DRYRUN 是否已執行&quot;&quot;&quot;
+    return (
+        os.path.isfile(&quot;docs/MANIFEST.md&quot;) or
+        os.path.isdir(&quot;.gendoc-rules&quot;) or
+        glob.glob(&quot;.gendoc-rules/*.json&quot;)
+    )
+
+
+def check_missing_inputs(step_id):
+    &quot;&quot;&quot;檢查某 step 的 input[] 有無缺失&quot;&quot;&quot;
+    pipeline = load_pipeline()
+    step = find_step_in_pipeline(step_id)
+    
+    missing = []
+    for input_file in step.get(&quot;input&quot;, []):
+        if not os.path.isfile(input_file) or os.path.getsize(input_file) == 0:
+            missing.append(input_file)
+    
+    return missing
+
+
+def parse_review_report(report_path):
+    &quot;&quot;&quot;
+    解析 review.sh 生成的 DRYRUN_REVIEW_REPORT.md
+    返回 FAIL 的 step ID 列表
+    
+    報告格式：
+    |Step|Expected|Actual|Status|
+    |----|--------|------|------|
+    | API | 10 | 8 | ❌ FAIL |
+    &quot;&quot;&quot;
+    with open(report_path) as f:
+        lines = f.readlines()
+    
+    failed_steps = []
+    for line in lines:
+        if &quot;❌ FAIL&quot; in line:
+            # 解析第一列的 step ID
+            parts = line.split(&quot;|&quot;)
+            if len(parts) &gt;= 2:
+                step_id = parts[1].strip()
+                failed_steps.append(step_id)
+    
+    return failed_steps</code></pre>
+<h4>2.3 調用介面（User facing）</h4>
+<pre><code class="language-bash"># 在目標專案目錄執行
+/gendoc-repair
+
+# 或指定目錄
+/gendoc-repair /path/to/project</code></pre>
+<hr>
+<h2>實現順序（Critical Path）</h2>
+<table>
+<tr><th>Phase</th><th>Task</th><th>複雜度</th><th>優先度</th><th>時間</th></tr>
+<tr><td>1</td><td>參數解析 + 單步邏輯</td><td>中</td><td>🔴 必須</td><td>1h</td></tr>
+<tr><td>1</td><td>Input 驗證 + Condition 檢查</td><td>中</td><td>🔴 必須</td><td>1h</td></tr>
+<tr><td>1</td><td>State 更新邏輯</td><td>低</td><td>🟡 需要</td><td>0.5h</td></tr>
+<tr><td>1</td><td>測試驗證（fishgame）</td><td>中</td><td>🔴 必須</td><td>1h</td></tr>
+<tr><td>2</td><td>gendoc-repair 設計細化</td><td>高</td><td>🟡 後續</td><td>2h</td></tr>
+<tr><td>2</td><td>gendoc-repair 實現</td><td>高</td><td>🟡 後續</td><td>3h</td></tr>
+</table>
+<hr>
+<h2>驗證檢查清單</h2>
+<h3>Phase 1 完成後</h3>
+<ul><li style="list-style:none"><input type="checkbox" disabled> <code>gendoc-flow --only EDD</code> 成功執行 EDD</li><li style="list-style:none"><input type="checkbox" disabled> <code>gendoc-flow --only EDD</code> 檢查 input 是否齐全</li><li style="list-style:none"><input type="checkbox" disabled> 缺失 input 時報錯（含檔案名稱）</li><li style="list-style:none"><input type="checkbox" disabled> Condition 不符時報錯（如 <code>--only AUDIO</code> 在 api-only 專案）</li><li style="list-style:none"><input type="checkbox" disabled> State 正確記錄 completed_steps 和 review_progress</li><li style="list-style:none"><input type="checkbox" disabled> fishgame 補充一個 missing step（如 CONSTANTS）</li></ul>
+<h3>Phase 2 完成後（待後續）</h3>
+<ul><li style="list-style:none"><input type="checkbox" disabled> <code>gendoc-repair</code> 偵測 DRYRUN 未執行</li><li style="list-style:none"><input type="checkbox" disabled> 自動識別缺失的 DRYRUN 前的 step 檔案</li><li style="list-style:none"><input type="checkbox" disabled> 遞迴補充上游（非 BRD）</li><li style="list-style:none"><input type="checkbox" disabled> 執行 DRYRUN，生成 .gendoc-rules/</li><li style="list-style:none"><input type="checkbox" disabled> 用 review.sh 驗證 DRYRUN 后的 step</li><li style="list-style:none"><input type="checkbox" disabled> 補充缺失 step，循環至全 PASS</li></ul>
+<hr>
+<h2>關鍵決策與理由</h2>
+<h3>決策 1：--only 不跳過 Gen</h3>
+<p><strong>決策</strong>：即使檔案已存在，--only 仍執行完整 Gen → Review → Fix。</p>
+<p><strong>理由</strong>：</p>
+<ul><li>語義清晰：--only 表示「重新執行這一步」，不是「如果需要則執行」</li><li>支援修復場景：舊的生成品質差，需要重新生成</li><li>避免隱晦行為：不會讓使用者困惑為何某個 step 沒有執行</li></ul>
+<h3>決策 2：BRD 缺失時停止</h3>
+<p><strong>決策</strong>：BRD 是核心源頭，缺失時 repair 停止，不遞迴補充。</p>
+<p><strong>理由</strong>：</p>
+<ul><li>BRD 是高級別商業文件，只能人工撰寫或由 gendoc-auto 生成</li><li>repair 無法自動生成 BRD（需要業務方輸入）</li><li>明確的停止點，避免無限递迴或錯誤補充</li></ul>
+<h3>決策 3：Condition 檢查優先於 Input 檢查</h3>
+<p><strong>決策</strong>：先檢查條件（client_type 等），條件不符直接拒絕；只有條件符合才檢查 input。</p>
+<p><strong>理由</strong>：</p>
+<ul><li>語義清晰：「這個 step 在你的專案裡不適用」vs「你缺少前置檔案」</li><li>避免誤導：不會說「缺 X 檔案」但實際上該 step 根本不該執行</li><li>効率：減少不必要的檔案檢查</li></ul>
+<hr>
+<h2>已知限制與未來擴展</h2>
+<h3>限制 1：不支援跨 step 的增量補充</h3>
+<pre><code class="">gendoc-flow --only API --only SCHEMA  # 不支援，一次只能一個 step</code></pre>
+<p><strong>理由</strong>：順序有依賴，需要逐個執行，防止並行導致的競態條件。</p>
+<h3>限制 2：repair 的遞迴深度</h3>
+<p>如果某 step 的 input 依賴鏈很深（A→B→C→D），repair 需要逐層補充。</p>
+<p>目前設計無深度限制，但實務上 DRYRUN 前的 step 層級不深（最多 IDEA→BRD→PRD→EDD）。</p>
+<hr>
+<h2>後續任務</h2>
+<p><strong>D-SSOT-5.1</strong>：實現 gendoc-flow --only 參數（Phase 1）</p>
+<ul><li>改 SKILL.md</li><li>本地測試（fishgame 補充 CONSTANTS.md）</li><li>驗證 state 更新</li></ul>
+<p><strong>D-SSOT-5.2</strong>：實現 gendoc-repair（Phase 2，待 D-SSOT-5.1 完成）</p>
+<ul><li>設計 repair SKILL.md</li><li>實現 review report 解析</li><li>整合測試（fishgame 完整補齊）</li></ul></main>
+  </div>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({startOnLoad:true,theme:'default',
+      flowchart:{curve:'basis',nodeSpacing:60,rankSpacing:80},
+      er:{layoutDirection:'TD',minEntityWidth:100,fontSize:12},
+      sequence:{actorMargin:60,messageMargin:30}});
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-go.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
