@@ -94,16 +94,50 @@ def cmd_remove():
 # ── Guard hooks (PreToolUse / PostToolUse / Stop) ─────────────────────────────
 
 def cmd_add_guard(tools_dir):
-    blocker_cmd = f"python3 {tools_dir}/gendoc-guard-blocker.py"
-    history_cmd = f"python3 {tools_dir}/gendoc-guard-history.py"
-    stop_cmd    = f"python3 {tools_dir}/gendoc-guard-stop.py"
+    # Build paths at RUNTIME inside the one-liner using os.path.expanduser so that
+    # Git Bash's /c/Users/... style never gets baked into settings.json — Claude Code
+    # runs hooks with the native Python/OS, which needs the correct path separator.
+    _bin = "os.path.join(os.path.expanduser('~'),'.claude','skills','gendoc','tools','bin')"
+
+    # PreToolUse blocker: resilient wrapper — pass stdin through and exit 0 if the
+    # script doesn't exist yet, preventing accidental blocking during fresh install.
+    blocker_cmd = (
+        "python3 -c \""
+        "import sys,os,subprocess; "
+        f"p=os.path.join({_bin},'gendoc-guard-blocker.py'); "
+        "b=sys.stdin.buffer.read(); "
+        "sys.exit(subprocess.run([sys.executable,p],input=b,stdout=sys.stdout.buffer).returncode) "
+        "if os.path.exists(p) "
+        "else (sys.stdout.buffer.write(b),sys.exit(0))\""
+    )
+
+    history_cmd = (
+        "python3 -c \""
+        "import sys,os,subprocess; "
+        f"p=os.path.join({_bin},'gendoc-guard-history.py'); "
+        "b=sys.stdin.buffer.read(); "
+        "os.path.exists(p) and sys.exit(subprocess.run([sys.executable,p],input=b).returncode)\""
+    )
+
+    stop_cmd = (
+        "python3 -c \""
+        "import sys,os,subprocess; "
+        f"p=os.path.join({_bin},'gendoc-guard-stop.py'); "
+        "os.path.exists(p) and sys.exit(subprocess.run([sys.executable,p]).returncode)\""
+    )
 
     data  = load()
     hooks = data.setdefault("hooks", {})
 
-    pre_list  = hooks.setdefault("PreToolUse", [])
-    post_list = hooks.setdefault("PostToolUse", [])
-    stop_list = hooks.setdefault("Stop", [])
+    # Remove old / stale guard hooks first so format upgrades apply cleanly
+    for event in ("PreToolUse", "PostToolUse", "Stop"):
+        hooks.setdefault(event, [])
+        new_list, _ = _remove_by_marker(hooks[event], GUARD_MARKER)
+        hooks[event] = new_list
+
+    pre_list  = hooks["PreToolUse"]
+    post_list = hooks["PostToolUse"]
+    stop_list = hooks["Stop"]
 
     added = 0
 
