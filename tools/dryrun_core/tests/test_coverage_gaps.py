@@ -144,6 +144,43 @@ class TestEvalStepCondition:
         ) is True
 
 
+# ── arch_layer_count tertiary fallback break (line 314) ──────────────────
+
+class TestArchLayerTableBreakAfterFirst:
+    def test_table_followed_by_non_table_content_breaks_loop(self, engine):
+        # No H2, no layer headings → falls to table fallback.
+        # Table followed by prose triggers the `break  # first table done` line.
+        arch = """| Tech | Vendor |
+|---|---|
+| Frontend | React |
+| Backend | FastAPI |
+| Database | Postgres |
+
+This prose appears after the table to trigger the break.
+| Another | Table |
+|---|---|
+| Should | Be ignored |
+"""
+        # First table has 3 data rows → returns 3 (max(2, 3))
+        assert engine._extract_arch_layer_count({"docs/ARCH.md": arch}) == 3
+
+
+# ── _build_manifest_replacements PLUS_N negative skip (line 833) ─────────
+
+class TestPlusNNegativeBaseSkipped:
+    def test_negative_base_skipped(self, engine):
+        engine._load_pipeline()
+        engine.extract_metrics()
+        # Inject a negative-valued metric that would propagate to repl
+        engine.metrics['negative_anchor'] = -5
+        repl = engine._build_manifest_replacements()
+        # Base placeholder should still be there
+        assert repl.get('{{NEGATIVE_ANCHOR}}') == '-5'
+        # But _PLUS_N variants must NOT be generated for negatives
+        assert '{{NEGATIVE_ANCHOR_PLUS_1}}' not in repl
+        assert '{{NEGATIVE_ANCHOR_PLUS_5}}' not in repl
+
+
 # ── _build_manifest_replacements skipped_count branch (line 743) ─────────
 
 class TestSkippedCountBranch:
