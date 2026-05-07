@@ -649,41 +649,139 @@ class DRYRUNEngine:
 
         return success
 
-    def generate_manifest(self, template_path: str, output_path: str) -> bool:
-        """TASK-D5: Generate MANIFEST.md from template with substituted values"""
+    # Sentinel placeholder that must remain unsubstituted in MANIFEST.md
+    _SENTINEL_PLACEHOLDER = 'PLACEHOLDER'
 
+    def generate_manifest(self, template_path: str, output_path: str) -> bool:
+        """Generate MANIFEST.md from template with comprehensive substitution.
+
+        Iron Law (PRD §7.10): produces full MANIFEST.md or returns False.
+        NEVER writes a half-baked file with bare {{X}} placeholders silently.
+
+        Replaces:
+        - Meta: {{GENERATED_DATE}}, {{PIPELINE_VERSION}}
+        - Quantitative anchors: {{ENTITY_COUNT}} 等（self.metrics 大寫鍵）
+        - State fields: {{CLIENT_TYPE}}, {{HAS_ADMIN_BACKEND}}
+        - Per-step status: {{<TYPE>_STATUS}} (active|skipped) for every pipeline step
+        - Per-step active flag: {{<TYPE>_ACTIVE}} (true|false)
+        - Aggregate counts: {{ACTIVE_STEPS_COUNT}}, {{SKIPPED_STEPS_COUNT}}
+
+        The literal {{PLACEHOLDER}} sentinel is intentionally preserved.
+        """
         try:
             template = Path(template_path).read_text(encoding='utf-8')
+        except Exception as e:
+            print(f"❌ [DRYRUN] Failed to read template: {e}", file=sys.stderr)
+            return False
 
-            # Build replacement dictionary — DYNAMICALLY from metrics (SSOT principle)
-            # No hardcoded metric names; all 20+ metrics come from extract_metrics()
-            # which reads from pipeline.json metrics[].
-            # New metrics added to pipeline.json automatically work here with zero code changes.
-            replacements = {
-                '{{GENERATED_DATE}}': datetime.now(timezone.utc).strftime('%Y-%m-%d'),
-                '{{PIPELINE_VERSION}}': 'v2.0.0',
-            }
+        replacements = self._build_manifest_replacements()
 
-            # Add all extracted metrics dynamically
-            for metric_id, metric_val in self.metrics.items():
-                # Support both snake_case and UPPER_CASE placeholders
-                # entity_count → {{entity_count}} or {{ENTITY_COUNT}}
-                replacements['{{' + metric_id + '}}'] = str(metric_val)
-                replacements['{{' + metric_id.upper() + '}}'] = str(metric_val)
+        content = template
+        for placeholder, value in replacements.items():
+            content = content.replace(placeholder, str(value))
 
-            # Apply replacements
-            content = template
-            for placeholder, value in replacements.items():
-                content = content.replace(placeholder, value)
+        # Fail-fast: any non-sentinel placeholder remaining?
+        bare = re.findall(r'\{\{([A-Z_][A-Z0-9_]*)\}\}', content)
+        bare_non_sentinel = sorted({p for p in bare if p != self._SENTINEL_PLACEHOLDER})
+        if bare_non_sentinel:
+            print(
+                f"❌ [DRYRUN] generate_manifest: {len(bare_non_sentinel)} bare "
+                f"placeholders remain (Iron Law violation): {bare_non_sentinel}",
+                file=sys.stderr,
+            )
+            return False
 
-            # Write MANIFEST.md
+        try:
             Path(output_path).write_text(content, encoding='utf-8')
-            print(f"✅ [DRYRUN] MANIFEST.md generated: {output_path}")
+        except Exception as e:
+            print(f"❌ [DRYRUN] Failed to write MANIFEST.md: {e}", file=sys.stderr)
+            return False
+        print(f"✅ [DRYRUN] MANIFEST.md generated: {output_path}")
+        return True
+
+    def _build_manifest_replacements(self) -> dict:
+        """Build comprehensive {placeholder: value} dict for generate_manifest."""
+        repl = {
+            '{{GENERATED_DATE}}': datetime.now(timezone.utc).strftime('%Y-%m-%d'),
+            '{{PIPELINE_VERSION}}': str(
+                (self.pipeline or {}).get('version', 'v1.0.0')
+            ),
+        }
+
+        # Quantitative anchors from self.metrics (legacy: 4 keys) +
+        # full extracted parameters (7 keys) — all UPPER_CASE in template.
+        anchor_source = dict(self.metrics) if self.metrics else {}
+        # Also surface any params that are not in legacy metrics map
+        # (e.g. arch_layer_count alias from layer_count)
+        if 'layer_count' in anchor_source and 'arch_layer_count' not in anchor_source:
+            anchor_source['arch_layer_count'] = anchor_source['layer_count']
+        for key, val in anchor_source.items():
+            repl['{{' + key.upper() + '}}'] = str(val)
+
+        # State-derived fields
+        state = self._read_state()
+        repl['{{CLIENT_TYPE}}'] = str(state.get('client_type', ''))
+        repl['{{HAS_ADMIN_BACKEND}}'] = str(
+            bool(state.get('has_admin_backend', False))
+        ).lower()
+        repl['{{EDD_VERSION}}'] = str(state.get('edd_version', 'v1.0.0'))
+
+        # Per-step status / active flags + aggregate counts
+        active_count = 0
+        skipped_count = 0
+        for step in (self.pipeline or {}).get('steps', []):
+            sid = step['id']
+            cond = step.get('condition', 'always')
+            is_active = self._eval_step_condition(cond, state)
+            # Token: hyphens → underscores so BDD-server → BDD_SERVER
+            tok = sid.upper().replace('-', '_')
+            repl['{{' + tok + '_STATUS}}'] = 'active' if is_active else 'skipped'
+            repl['{{' + tok + '_ACTIVE}}'] = 'true' if is_active else 'false'
+            if is_active:
+                active_count += 1
+            else:
+                skipped_count += 1
+
+        repl['{{ACTIVE_STEPS_COUNT}}'] = str(active_count)
+        repl['{{SKIPPED_STEPS_COUNT}}'] = str(skipped_count)
+
+        return repl
+
+    def _read_state(self) -> dict:
+        """Read state file; tolerate missing/invalid."""
+        try:
+            return json.loads(self.state_file.read_text(encoding='utf-8'))
+        except Exception:
+            return {}
+
+    @staticmethod
+    def _eval_step_condition(cond: str, state: dict) -> bool:
+        """Evaluate pipeline step condition string against state.
+
+        Supported syntax (mirrors gendoc-flow main loop):
+        - 'always' → True
+        - 'client_type != none' / '!= api-only' / '== game'
+        - 'has_admin_backend' → bool(state['has_admin_backend'])
+        - Unknown / unrecognised → True (conservative: include in counts)
+        """
+        cond = (cond or 'always').strip()
+        if cond == 'always':
             return True
 
-        except Exception as e:
-            print(f"❌ [DRYRUN] Failed to generate MANIFEST.md: {e}", file=sys.stderr)
-            return False
+        client_type = state.get('client_type', '')
+        has_admin = bool(state.get('has_admin_backend', False))
+
+        if cond == 'client_type != none':
+            return client_type not in ('', 'none', 'api-only')
+        if cond == 'client_type != api-only':
+            return client_type != 'api-only'
+        if cond == 'client_type == game':
+            return client_type == 'game'
+        if cond == 'has_admin_backend':
+            return has_admin
+
+        # Unknown condition → conservative: treat as active
+        return True
 
     def print_metrics_summary(self):
         """Print summary of extracted metrics"""
@@ -752,6 +850,8 @@ def main():
     print("\n[DRYRUN] Step 1: Extracting core parameters...")
     try:
         params = engine.extract_parameters()
+        # Populate self.metrics (legacy placeholder substitution map for MANIFEST.md)
+        engine.extract_metrics()
         print(f"✅ [DRYRUN] Parameters extracted:")
         print(f"   - entity_count: {params['entity_count']}")
         print(f"   - rest_endpoint_count: {params['rest_endpoint_count']}")
