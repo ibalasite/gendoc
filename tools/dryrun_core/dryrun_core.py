@@ -141,19 +141,30 @@ class DRYRUNEngine:
         return params
 
     def _extract_entity_count(self, upstream_data: dict) -> int:
-        """entity_count from EDD.md: Mermaid classDiagram definitions (class/interface/enum/struct),
-        fallback to ### ClassName headings"""
+        """entity_count from EDD.md: union of Mermaid classDiagram definitions
+        + EDD §4 H3 sub-section entity headings (`### §4.N <EntityName>` / `### 4.N <EntityName>`).
+
+        Rationale (DRYRUN_DEV_FEEDBACK feedback): Mermaid classDiagram only lists primary
+        domain entities; admin / audit / phase-specific entities live as §4 H3 sub-sections
+        with table+prose, never appearing in the diagram. Union both sources + dedupe.
+        """
         edd_content = upstream_data.get('docs/EDD.md', '')
         if not edd_content:
             return 3
         entity_names: set[str] = set()
 
-        # Primary: Mermaid classDiagram syntax
+        # Source 1: Mermaid classDiagram syntax
         mermaid_pattern = r'^\s*(?:class|interface|enum|struct|abstract\s+class)\s+([A-Za-z][a-zA-Z0-9_]*)'
         for m in re.finditer(mermaid_pattern, edd_content, re.MULTILINE):
             entity_names.add(m.group(1))
 
-        # Fallback: ### ClassName section headings (uppercase start)
+        # Source 2: EDD §4 H3 sub-section entity headings
+        # Matches: "### §4.7 FoodBuff", "### 4.7 FoodBuff", "### §4.10 AdminUser"
+        section4_pattern = r'^###\s+(?:§\s*)?4\.\d+\s+([A-Z][a-zA-Z0-9]*)\b'
+        for m in re.finditer(section4_pattern, edd_content, re.MULTILINE):
+            entity_names.add(m.group(1))
+
+        # Source 3 (fallback if both above empty): ### ClassName headings (uppercase start)
         if not entity_names:
             for m in re.finditer(r'^###\s+([A-Z][a-zA-Z0-9]*)\b', edd_content, re.MULTILINE):
                 entity_names.add(m.group(1))
@@ -189,18 +200,57 @@ class DRYRUNEngine:
         return max(3, min(avg, 20))  # clamp to reasonable range [3, 20]
 
     def _extract_rest_endpoint_count(self, upstream_data: dict) -> int:
-        """rest_endpoint_count from PRD.md: unique HTTP method + path pairs"""
-        prd_content = upstream_data.get('docs/PRD.md', '')
-        endpoint_pattern = r'(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\s+/[a-zA-Z0-9/_\{\}-]+'
-        matches = set(re.findall(endpoint_pattern, prd_content))
-        return max(5, len(matches)) if matches else 5
+        """rest_endpoint_count: unique HTTP method + path pairs.
+
+        SSOT priority (DRYRUN_DEV_FEEDBACK feedback):
+        1. docs/API.md — `#### (METHOD) /path` headings (canonical endpoint catalog)
+        2. docs/EDD.md — fallback if API.md absent
+        3. docs/PRD.md — last-resort fallback (PRD usually describes features, not paths)
+
+        Rationale: PRD is the business-requirement layer and rarely lists HTTP paths.
+        Reading endpoints from PRD severely under-counts and triggers the conservative
+        fallback (5), causing CONTRACTS / MOCK quality gates to under-set by 10x.
+        """
+        method_path = re.compile(
+            r'(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\s+(/[a-zA-Z0-9/_\{\}\-:.]*)',
+        )
+
+        for source in ('docs/API.md', 'docs/EDD.md', 'docs/PRD.md'):
+            content = upstream_data.get(source, '')
+            if not content:
+                continue
+            unique = set(method_path.findall(content))
+            if unique:
+                return max(5, len(unique))
+
+        return 5
 
     def _extract_user_story_count(self, upstream_data: dict) -> int:
-        """user_story_count from PRD.md: headings matching US-N, US_N, User Story N, Story-N"""
+        """user_story_count from PRD.md: unique US identifiers.
+
+        Matches (DRYRUN_DEV_FEEDBACK feedback expanded coverage):
+        - Two-segment: `US-1`, `US_42`, `Story-7`, `User Story 3`
+        - Three-segment: `US-PET-001`, `US-AUTH-002`, `US-ARENA-005`
+        - Four-segment: `US-EPIC-DOMAIN-001` (rare but supported)
+
+        Counts unique IDs across the document (handles repeated cross-references).
+        """
         prd_content = upstream_data.get('docs/PRD.md', '')
-        us_pattern = r'^#{1,4}\s+(?:US[-_]\d+|User\s+Story[-_\s]\d+|Story-\d+)\b'
-        matches = re.findall(us_pattern, prd_content, re.MULTILINE)
-        return max(5, len(matches)) if matches else 5
+        if not prd_content:
+            return 5
+
+        ids: set[str] = set()
+        # Multi-segment: US-<DOMAIN>[-<SUB>]*-<NUMBER>
+        for m in re.finditer(r'\bUS[-_][A-Z][A-Z0-9_-]*?\d+\b', prd_content):
+            ids.add(m.group(0).upper())
+        # Numeric "Story-N" / "Story_N"
+        for m in re.finditer(r'\bStory[-_\s]\d+\b', prd_content):
+            ids.add(m.group(0).upper().replace(' ', '-'))
+        # "User Story N" prose form
+        for m in re.finditer(r'\bUser\s+Story\s+\d+\b', prd_content):
+            ids.add(m.group(0).upper())
+
+        return max(5, len(ids)) if ids else 5
 
     def _extract_acceptance_criteria_count(self, upstream_data: dict) -> int:
         """acceptance_criteria_count from PRD.md: average AC items per US (anti-fake depth indicator)"""
@@ -225,13 +275,36 @@ class DRYRUNEngine:
         return max(2, sum(ac_counts) // len(ac_counts))
 
     def _extract_arch_layer_count(self, upstream_data: dict) -> int:
-        """arch_layer_count from ARCH.md: Markdown table data rows (excluding header/separator),
-        fallback to layer/service heading keywords"""
+        """arch_layer_count from ARCH.md: numeric H2 architecture sections.
+
+        Priority (DRYRUN_DEV_FEEDBACK feedback):
+        1. Numbered H2 headings (`## §1 ...`, `## 1. ...`, `## 1 ...`) — these are
+           ARCH's first-class architectural sections and the true layer unit.
+        2. layer/service heading keywords (`### *Layer|*Service|*層|*服務`)
+        3. First markdown table data rows (last resort — easily false-positive when
+           a Tech Stack sub-table appears before the main one)
+
+        Rationale: ARCH §1–§N H2 sections are the canonical layering unit
+        (what test-plan / cross-doc alignment actually anchor on), not arbitrary
+        sub-tables that happen to appear early in the document.
+        """
         arch_content = upstream_data.get('docs/ARCH.md', '')
         if not arch_content:
             return 4
 
-        # Primary: count data rows in the first Markdown table found
+        # Primary: numeric H2 sections — `## §1 X` / `## 1. X` / `## 1 X`
+        numeric_h2 = re.compile(r'^##\s+(?:§\s*)?\d+\.?\s+\S', re.MULTILINE)
+        h2_count = len(numeric_h2.findall(arch_content))
+        if h2_count >= 2:
+            return max(2, h2_count)
+
+        # Secondary: layer/service heading keywords
+        layer_pattern = r'^###\s+(?:.*Layer|.*Service|.*層|.*服務)'
+        matches = re.findall(layer_pattern, arch_content, re.MULTILINE)
+        if matches:
+            return max(2, len(matches))
+
+        # Tertiary fallback: first markdown table data rows
         in_table = False
         data_rows = 0
         for line in arch_content.splitlines():
@@ -250,10 +323,7 @@ class DRYRUNEngine:
         if data_rows >= 2:
             return max(2, data_rows)
 
-        # Fallback: layer/service heading keywords
-        layer_pattern = r'^###\s+(?:.*Layer|.*Service|.*層|.*服務)'
-        matches = re.findall(layer_pattern, arch_content, re.MULTILINE)
-        return max(2, len(matches)) if matches else 4
+        return 4
 
     def _extract_component_count(self, upstream_data: dict) -> int:
         """component_count from ARCH.md: total component definitions across all layers (anti-fake depth indicator)"""

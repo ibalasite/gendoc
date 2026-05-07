@@ -24,7 +24,18 @@ classDiagram
 | Order | id, user_id, status, total, items, paid_at |
 | Product | id, name, price, stock |
 
-## §4 REST API
+## §4 Additional Entities
+
+### §4.1 AdminUser
+Administrative user entity.
+
+### §4.2 AuditLog
+Compliance audit trail.
+
+### §4.3 NotificationTemplate
+Email/SMS template store.
+
+## §5 REST API
 
 GET /api/users
 POST /api/users

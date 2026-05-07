@@ -10,10 +10,32 @@ import dryrun_core
 # ── _extract_entity_count ─────────────────────────────────────────────────
 
 class TestExtractEntityCount:
-    def test_mermaid_class_diagram(self, engine, upstream_data):
-        # EDD fixture has class/interface/enum/abstract class definitions
+    def test_union_mermaid_and_section4(self, engine, upstream_data):
+        # EDD fixture: 6 mermaid entities (User/Order/Product/Repository/
+        # OrderStatus/BaseEntity — _PrivateImpl filtered out, regex requires
+        # leading letter) + 3 §4.N entities (AdminUser/AuditLog/
+        # NotificationTemplate) = 9 unique
         count = engine._extract_entity_count(upstream_data)
-        assert count >= 5  # User, Order, Product, Repository, OrderStatus, BaseEntity, _PrivateImpl
+        assert count == 9
+
+    def test_section4_only(self, engine):
+        # No Mermaid, only §4 entities
+        edd = """## §4 Entities
+### §4.1 FooEntity
+### §4.2 BarEntity
+### 4.3 BazEntity
+"""
+        assert engine._extract_entity_count({"docs/EDD.md": edd}) == 3
+
+    def test_dedup_across_sources(self, engine):
+        # Same entity name in both Mermaid and §4 → counted once
+        edd = """```mermaid
+classDiagram
+    class FooEntity
+```
+### §4.1 FooEntity
+"""
+        assert engine._extract_entity_count({"docs/EDD.md": edd}) == 3  # 1 unique → max(3, 1)
 
     def test_empty_edd_returns_fallback(self, engine):
         count = engine._extract_entity_count({"docs/EDD.md": ""})
@@ -24,10 +46,10 @@ class TestExtractEntityCount:
         assert count == 3
 
     def test_fallback_to_section_headings(self, engine):
-        # No mermaid; falls back to ### ClassName headings
+        # No mermaid, no §4, falls back to plain ### ClassName headings
         edd = "## Section\n### User\n### Order\n### Product\n"
         count = engine._extract_entity_count({"docs/EDD.md": edd})
-        assert count == 3  # max(3, 3) = 3 (ClassName fallback path)
+        assert count == 3  # max(3, 3) = 3
 
     def test_fallback_returns_default_when_no_match(self, engine):
         edd = "no entities here, just prose"
@@ -64,30 +86,82 @@ class TestExtractAvgEntityFieldCount:
 # ── _extract_rest_endpoint_count ─────────────────────────────────────────
 
 class TestExtractRestEndpointCount:
-    def test_endpoints_extracted(self, engine, upstream_data):
+    def test_priority_api_md_over_prd(self, engine):
+        # API.md is canonical → wins even when PRD has different endpoints
+        data = {
+            "docs/API.md": "GET /v1/a\nPOST /v1/b\nDELETE /v1/c\nPUT /v1/d\nPATCH /v1/e\nGET /v1/f",
+            "docs/PRD.md": "GET /old/legacy\n",
+        }
+        # 6 unique from API.md → max(5, 6) = 6
+        assert engine._extract_rest_endpoint_count(data) == 6
+
+    def test_falls_back_to_edd_when_no_api(self, engine):
+        data = {
+            "docs/EDD.md": "GET /x\nPOST /y\nPUT /z\nDELETE /a\nPATCH /b\nGET /c",
+        }
+        assert engine._extract_rest_endpoint_count(data) == 6
+
+    def test_falls_back_to_prd_last(self, engine):
+        data = {
+            "docs/PRD.md": "GET /api/login\nPOST /api/signup\nPOST /api/reset\nPUT /api/x\nGET /api/y\nDELETE /api/z",
+        }
+        assert engine._extract_rest_endpoint_count(data) == 6
+
+    def test_endpoints_extracted_from_fixture(self, engine, upstream_data):
+        # Fixture API.md has empty endpoint list (just headings) → falls to PRD
+        # PRD has 3 endpoints → max(5, 3) = 5
         count = engine._extract_rest_endpoint_count(upstream_data)
-        assert count >= 5  # at least login/signup/reset/etc
+        assert count == 5
 
     def test_empty_returns_fallback(self, engine):
         assert engine._extract_rest_endpoint_count({"docs/PRD.md": ""}) == 5
 
-    def test_no_prd_returns_fallback(self, engine):
+    def test_no_sources_returns_fallback(self, engine):
         assert engine._extract_rest_endpoint_count({}) == 5
 
     def test_unique_endpoints_only(self, engine):
         # Same endpoint repeated → counted once
-        prd = "GET /api/x\nGET /api/x\nGET /api/x\nPOST /api/y"
-        count = engine._extract_rest_endpoint_count({"docs/PRD.md": prd})
+        data = {"docs/API.md": "GET /api/x\nGET /api/x\nGET /api/x\nPOST /api/y"}
         # 2 unique → max(5, 2) = 5
-        assert count == 5
+        assert engine._extract_rest_endpoint_count(data) == 5
 
 
 # ── _extract_user_story_count ────────────────────────────────────────────
 
 class TestExtractUserStoryCount:
     def test_us_pattern(self, engine, upstream_data):
+        # Fixture PRD has US-001, US-002, US-003
         count = engine._extract_user_story_count(upstream_data)
-        assert count >= 3  # US-001, US-002, US-003
+        assert count == 5  # max(5, 3) = 5
+
+    def test_three_segment_us_id(self, engine):
+        # DRYRUN_DEV_FEEDBACK case: US-PET-001, US-AUTH-002, etc
+        prd = """## §5 User Stories
+
+### US-PET-001
+### US-PET-002
+### US-AUTH-001
+### US-AUTH-002
+### US-ARENA-001
+### US-ARENA-002
+### US-ARENA-003
+"""
+        count = engine._extract_user_story_count({"docs/PRD.md": prd})
+        assert count == 7  # 7 unique three-segment IDs, max(5, 7) = 7
+
+    def test_dedup_repeated_ids(self, engine):
+        # Same US-X-N appearing in multiple places counts once
+        prd = "US-PET-001 mentioned\nlater US-PET-001 again\nUS-AUTH-001 here"
+        assert engine._extract_user_story_count({"docs/PRD.md": prd}) == 5  # 2 unique → max(5,2)
+
+    def test_mixed_formats(self, engine):
+        prd = """### US-1
+### Story-2
+### User Story 3
+### US-PET-001
+"""
+        count = engine._extract_user_story_count({"docs/PRD.md": prd})
+        assert count == 5  # 4 unique (US-1, STORY-2, USER STORY 3, US-PET-001) → max(5,4)=5
 
     def test_empty_returns_fallback(self, engine):
         assert engine._extract_user_story_count({"docs/PRD.md": ""}) == 5
@@ -127,10 +201,29 @@ class TestExtractAcceptanceCriteriaCount:
 # ── _extract_arch_layer_count ────────────────────────────────────────────
 
 class TestExtractArchLayerCount:
-    def test_table_data_rows(self, engine, upstream_data):
-        # ARCH fixture has 5-row tech stack table
+    def test_numeric_h2_sections_primary(self, engine, upstream_data):
+        # ARCH fixture has 7 numbered H2 sections (§1–§7)
         count = engine._extract_arch_layer_count(upstream_data)
-        assert count >= 5
+        assert count == 7
+
+    def test_h2_takes_priority_over_table(self, engine):
+        # Even with a small table early, H2 sections win
+        arch = """## §1 Overview
+| Foo | Bar |
+|---|---|
+| a | b |
+| c | d |
+
+## §2 Components
+## §3 Security
+## §4 Deployment
+"""
+        assert engine._extract_arch_layer_count({"docs/ARCH.md": arch}) == 4
+
+    def test_h2_dotted_form(self, engine):
+        # Supports `## 1. Title` / `## 1 Title` (English-numbered)
+        arch = "## 1. Foo\n## 2. Bar\n## 3. Baz\n"
+        assert engine._extract_arch_layer_count({"docs/ARCH.md": arch}) == 3
 
     def test_empty_returns_fallback(self, engine):
         assert engine._extract_arch_layer_count({"docs/ARCH.md": ""}) == 4
@@ -139,12 +232,23 @@ class TestExtractArchLayerCount:
         assert engine._extract_arch_layer_count({}) == 4
 
     def test_fallback_layer_heading(self, engine):
+        # No numeric H2 → falls back to layer keyword headings
         arch = "### Frontend Layer\n### Backend Service\n"
         count = engine._extract_arch_layer_count({"docs/ARCH.md": arch})
-        assert count == 2  # 2 layer headings, max(2,2)=2
+        assert count == 2
+
+    def test_table_only_last_resort(self, engine):
+        # No H2, no layer headings, but a markdown table → tertiary fallback
+        arch = """| Foo | Bar |
+|---|---|
+| a | 1 |
+| b | 2 |
+| c | 3 |
+"""
+        assert engine._extract_arch_layer_count({"docs/ARCH.md": arch}) == 3
 
     def test_no_table_no_heading_returns_default(self, engine):
-        arch = "Just prose without table or layer headings"
+        arch = "Just prose without table, layer headings, or numeric sections"
         assert engine._extract_arch_layer_count({"docs/ARCH.md": arch}) == 4
 
 
