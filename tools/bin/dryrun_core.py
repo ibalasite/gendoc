@@ -200,22 +200,22 @@ class DRYRUNEngine:
         return max(3, min(avg, 20))  # clamp to reasonable range [3, 20]
 
     def _extract_rest_endpoint_count(self, upstream_data: dict) -> int:
-        """rest_endpoint_count: unique HTTP method + path pairs.
+        """rest_endpoint_count: unique HTTP method + path pairs in Phase A documents.
 
-        SSOT priority (DRYRUN_DEV_FEEDBACK feedback):
-        1. docs/API.md — `#### (METHOD) /path` headings (canonical endpoint catalog)
-        2. docs/EDD.md — fallback if API.md absent
-        3. docs/PRD.md — last-resort fallback (PRD usually describes features, not paths)
+        Phase boundary rule (PRD §7.10): DRYRUN may only read DRYRUN input[] files
+        (Phase A: IDEA/BRD/PRD/CONSTANTS/PDD/VDD/EDD/ARCH). API.md is a Phase B
+        artifact and MUST NOT be read here, even when it exists from a prior pipeline
+        run — that would violate the Phase A→B gateway contract.
 
-        Rationale: PRD is the business-requirement layer and rarely lists HTTP paths.
-        Reading endpoints from PRD severely under-counts and triggers the conservative
-        fallback (5), causing CONTRACTS / MOCK quality gates to under-set by 10x.
+        Source priority within Phase A:
+        1. docs/EDD.md — endpoint SSOT in Phase A (API design lives in EDD §4 / §5)
+        2. docs/PRD.md — fallback if EDD silent (uncommon)
         """
         method_path = re.compile(
             r'(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\s+(/[a-zA-Z0-9/_\{\}\-:.]*)',
         )
 
-        for source in ('docs/API.md', 'docs/EDD.md', 'docs/PRD.md'):
+        for source in ('docs/EDD.md', 'docs/PRD.md'):
             content = upstream_data.get(source, '')
             if not content:
                 continue

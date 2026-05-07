@@ -86,30 +86,38 @@ class TestExtractAvgEntityFieldCount:
 # ── _extract_rest_endpoint_count ─────────────────────────────────────────
 
 class TestExtractRestEndpointCount:
-    def test_priority_api_md_over_prd(self, engine):
-        # API.md is canonical → wins even when PRD has different endpoints
+    """Phase boundary rule: only read EDD.md and PRD.md from DRYRUN input[].
+    API.md is Phase B artifact and MUST NOT be read."""
+
+    def test_priority_edd_over_prd(self, engine):
+        # EDD is endpoint SSOT in Phase A → wins over PRD
         data = {
-            "docs/API.md": "GET /v1/a\nPOST /v1/b\nDELETE /v1/c\nPUT /v1/d\nPATCH /v1/e\nGET /v1/f",
+            "docs/EDD.md": "GET /v1/a\nPOST /v1/b\nDELETE /v1/c\nPUT /v1/d\nPATCH /v1/e\nGET /v1/f",
             "docs/PRD.md": "GET /old/legacy\n",
         }
-        # 6 unique from API.md → max(5, 6) = 6
+        # 6 unique from EDD → max(5, 6) = 6
         assert engine._extract_rest_endpoint_count(data) == 6
 
-    def test_falls_back_to_edd_when_no_api(self, engine):
-        data = {
-            "docs/EDD.md": "GET /x\nPOST /y\nPUT /z\nDELETE /a\nPATCH /b\nGET /c",
-        }
-        assert engine._extract_rest_endpoint_count(data) == 6
-
-    def test_falls_back_to_prd_last(self, engine):
+    def test_falls_back_to_prd_when_no_edd(self, engine):
         data = {
             "docs/PRD.md": "GET /api/login\nPOST /api/signup\nPOST /api/reset\nPUT /api/x\nGET /api/y\nDELETE /api/z",
         }
         assert engine._extract_rest_endpoint_count(data) == 6
 
+    def test_phase_boundary_ignores_api_md(self, engine):
+        """API.md is Phase B artifact — even if present in upstream_data,
+        it must NOT influence the count (phase boundary rule)."""
+        data = {
+            "docs/API.md": "GET /v1/a\nPOST /v1/b\nDELETE /v1/c\nPUT /v1/d\n"
+                            "PATCH /v1/e\nGET /v1/f\nPOST /v1/g\nDELETE /v1/h",  # 8 endpoints
+            "docs/EDD.md": "GET /v1/a\nPOST /v1/b\nDELETE /v1/c",  # 3 unique
+        }
+        # Must use EDD (3) → max(5, 3) = 5, NOT API.md (8)
+        assert engine._extract_rest_endpoint_count(data) == 5
+
     def test_endpoints_extracted_from_fixture(self, engine, upstream_data):
-        # Fixture API.md has empty endpoint list (just headings) → falls to PRD
-        # PRD has 3 endpoints → max(5, 3) = 5
+        # Fixture EDD has 4 unique endpoints (GET/POST/PUT/DELETE /api/users)
+        # → max(5, 4) = 5
         count = engine._extract_rest_endpoint_count(upstream_data)
         assert count == 5
 
@@ -121,7 +129,7 @@ class TestExtractRestEndpointCount:
 
     def test_unique_endpoints_only(self, engine):
         # Same endpoint repeated → counted once
-        data = {"docs/API.md": "GET /api/x\nGET /api/x\nGET /api/x\nPOST /api/y"}
+        data = {"docs/EDD.md": "GET /api/x\nGET /api/x\nGET /api/x\nPOST /api/y"}
         # 2 unique → max(5, 2) = 5
         assert engine._extract_rest_endpoint_count(data) == 5
 
