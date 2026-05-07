@@ -184,6 +184,40 @@ else:
 
 ## Step 2：呼叫目標 Skill
 
+### Step 2-A：呈現 Priming 訊息（每次包覆一定先做）
+
+在呼叫目標 Skill 之前，**必須**先輸出以下 priming 區塊到對話（讓接手執行 target skill 的 main Claude / subagent 看到並內化）。priming 內容是通用版，適用任意被 `/gendoc-guard` 包覆的 skill：
+
+```
+[GENDOC-GUARD PRIMING]
+你接下來要執行 /{_TARGET}。
+
+這是使用者刻意用 /gendoc-guard 包覆的工作，表示對結果準確性
+有特別要求。任何「看似完成但實際造假」的捷徑都會直接傷害使用者
+信任，且錯誤會擴散到後續任何依賴此產出的工作。
+
+執行原則（依優先序）：
+
+1. 準確優先於速度
+   每個 step 必須真實完成；不要用合理化措辭把未完成包裝成完成。
+
+2. 遵守 SKILL.md 內的 Iron Rule / [強制] / 步驟順序
+   這些是硬性約束，不是參考意見。
+
+3. 接受時間成本
+   跑 1 小時、3 小時、5 小時都正常。沒有外部時鐘壓力。
+
+4. 嚴格的事實匯報
+   step 完成的判斷以可驗證的事實為準（commit + diff、檔案存在性、
+   數值通過檢驗等），不以主觀評估為準。
+
+被攔下時，請重新審視當前動作是否屬於「規避真實工作的捷徑」。
+```
+
+把上面的 `{_TARGET}` 替換為 Step 0 解析出的目標 skill 名稱後輸出整段。
+
+### Step 2-B：呼叫目標 Skill
+
 用 **Skill tool** 呼叫 `_TARGET`，不傳任何 args。
 
 等待 Skill tool 回傳後才繼續 Step 3。
