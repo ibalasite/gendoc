@@ -40,7 +40,15 @@ except Exception:
 target = d.get('target_skill', '未知任務')
 sys.stderr.write(f'[GUARD] 任務 /{target} 尚未完成（status=running），強制繼續...\n')
 
+reason = (
+    f"任務 /{target} 尚未完成。請繼續執行。\n\n"
+    f"[priming 短版] 準確優先，沒有外部時鐘壓力。"
+    f"step 完成以可驗證事實為準（commit + diff、檔案存在性、數值通過檢驗），"
+    f"不以主觀評估為準。自我聲明 ≠ 實際遵守。\n\n"
+    f"完成後執行 Step 3 刪除 .gendoc-guard.json 等控制檔。"
+)
+
 print(json.dumps({
     "decision": "block",
-    "reason": f"任務 /{target} 尚未完成。請繼續執行，完成後執行 Step 4 將 status 更新為 complete。"
+    "reason": reason
 }))
