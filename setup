@@ -19,10 +19,25 @@ CMD="${1:-install}"
 
 log() { echo "$@"; }
 
+# Try python3 first, fall back to python — handles Windows Git Bash where
+# python3 may be an MS Store stub (exits non-zero / opens Store).
+_find_python() {
+  for candidate in python3 python; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      if "$candidate" --version 2>&1 | grep -q "^Python 3"; then
+        echo "$candidate"; return 0
+      fi
+    fi
+  done
+  return 1
+}
+
+PY=$(_find_python) || true   # resolved after clone when called early; checked per-command below
+
 # ── install ───────────────────────────────────────────────────────────────────
 do_install() {
-  command -v git    >/dev/null 2>&1 || { echo "❌ 需要 git"; exit 1; }
-  command -v python3 >/dev/null 2>&1 || { echo "❌ 需要 python3"; exit 1; }
+  command -v git >/dev/null 2>&1 || { echo "❌ git required"; exit 1; }
+  PY=$(_find_python) || { echo "❌ Python 3 not found (tried python3 and python)"; exit 1; }
 
   if [[ -d "$RUNTIME_DIR/.git" ]]; then
     log "[install] $RUNTIME_DIR 已存在，執行 upgrade..."
@@ -45,10 +60,11 @@ do_install() {
 
 # ── uninstall ─────────────────────────────────────────────────────────────────
 do_uninstall() {
+  PY=$(_find_python) || { echo "❌ Python 3 not found (tried python3 and python)"; exit 1; }
   log "[uninstall] 移除 hook..."
   if [[ -f "$SETTINGS_HOOK" ]]; then
-    python3 "$SETTINGS_HOOK" remove
-    python3 "$SETTINGS_HOOK" remove-guard
+    "$PY" "$SETTINGS_HOOK" remove
+    "$PY" "$SETTINGS_HOOK" remove-guard
   fi
 
   log "[uninstall] 移除 copied skills..."
@@ -107,10 +123,11 @@ _deploy_tools() {
 }
 
 _register_hook() {
+  PY=$(_find_python) || { echo "❌ Python 3 not found (tried python3 and python)"; exit 1; }
   log "[deploy] 註冊 SessionStart hook..."
-  python3 "$SETTINGS_HOOK" add "$HOOK_CMD"
+  "$PY" "$SETTINGS_HOOK" add "$HOOK_CMD"
   log "[deploy] 註冊 guard hooks (PreToolUse / PostToolUse / Stop)..."
-  python3 "$SETTINGS_HOOK" add-guard "$RUNTIME_DIR/tools/bin"
+  "$PY" "$SETTINGS_HOOK" add-guard "$RUNTIME_DIR/tools/bin"
 }
 
 # ── dispatch ──────────────────────────────────────────────────────────────────
