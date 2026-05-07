@@ -169,7 +169,7 @@
       "condition": "always",
       "handled_by": "gendoc-flow",
       "commit_prefix": "docs(gendoc)[DRYRUN]",
-      "note": "DRYRUN 相位邊界：根據 pipeline.json 動態讀取所有 DRYRUN 前的文件，計算量化指標，推導 DRYRUN 后的 step 規格。生成 docs/MANIFEST.md + .gendoc-rules/*.json。【重要】.gendoc-rules/*.json 是後續所有 gate-check 的量化門檻依據，必須完整生成並在 pipeline output 中宣告。不跑 review→fix loop（special_skill 直接處理）。",
+      "note": "DRYRUN 相位邊界：走標準三件套路徑（與 EDD/API/SCHEMA 同 code path），由 gendoc-flow Step 1-D 派 gen subagent 讀 DRYRUN.gen.md 內明講的 bash → 呼叫 dryrun_core.py 計算量化指標 → 推導 DRYRUN 后的 step 規格。生成 docs/MANIFEST.md + .gendoc-rules/*.json。【重要】.gendoc-rules/*.json 是後續所有 gate-check 的量化門檻依據，必須完整生成。Phase D-2 review subagent 依 DRYRUN.review.md 雙軌驗證（Track A=core 量化 vs Track B=AI+bash 專家）+ 從嚴收斂（預設取高，舉證才能取低），不一致時 fix subagent 在 P-8 邊界內（只寫 target project 檔，不改 runtime/上游 source）：更新 .gendoc-rules/<step>-rules.json 共識值、生成 docs/DRYRUN_DEV_FEEDBACK.md（給開發者的 regex 修正建議）。詳見 docs/PRD.md §7.10。",
       "spec_rules": {
         "max_placeholder_count": 0,
         "min_rules_json_count": 1

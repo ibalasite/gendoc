@@ -24,6 +24,7 @@
 
 | 版本 | 日期 | 作者 | 變更摘要 |
 |------|------|------|---------|
+| v4.2 | 2026-05-07 | PM Agent | **DRYRUN 三件套重構需求書（§7.10，Layer 1，僅需求書、未實作）**：依據三件套 universal architecture 原則重新定位 DRYRUN — (1) **特殊 skill 邊界澄清**：special_skill 僅限獨立攜帶型工具（HTML/MOCK/PROTOTYPE/CONTRACTS/DIAGRAMS/ALIGN — 拿去別人專案給對應 input 就能跑）；DRYRUN 屬 pipeline 內部 step（跨上下游量化傳遞），必走三件套，**不重建 `gendoc-gen-dryrun` skill**；(2) **gendoc-flow 路由**：DRYRUN 在 pipeline.json 不設 `special_skill`，透過主迴圈 L471 自然落入 Step 1-D 標準步驟路徑（與 EDD/API/SCHEMA/FRONTEND 同 code path），gendoc-flow 預設不需修改；(3) **gen 階段執行體**：DRYRUN.gen.md 採 API.gen.md / SCHEMA.gen.md / FRONTEND.gen.md 同款明講風格 — 步驟 0a 呼叫 `get-upstream` 取上游、步驟 0b 呼叫 `dryrun_core.py` 計算量化值、步驟 0c sanity check（含 `**[強制]**`/`**Iron Rule**`/`exit 1`/不留 manual fallback）；(4) **review 階段雙軌獨立驗證 + 從嚴收斂**：Track A（dryrun_core.py 量化）vs Track B（DRYRUN.review.md 引導 AI + bash 配合產出 itemized list）；不一致時**預設取高**（不放鬆下游門檻），較低方須舉具體實例證明對方為 false positive 才能採低；(5) **P-8 Runtime 邊界**：fix subagent 只能寫 target project 檔案（`.gendoc-rules/*.json`、`docs/MANIFEST.md`、`docs/DRYRUN_DEV_FEEDBACK.md`），**不得改 runtime**（`~/.claude/gendoc/` 下所有檔含 dryrun_core.py、DRYRUN.gen.md、DRYRUN.review.md），**不得改上游 source**；(6) **Developer Feedback Report 機制**：雙軌不一致時生成 `docs/DRYRUN_DEV_FEEDBACK.md`（含 metric / Track A / Track B / 共識值 / itemized 證據 / 建議 regex 修正方向），使用者可貼到 gendoc repo issue → 開發者在 repo fix → release → 所有使用者透過 `gendoc-upgrade` 拿到修正；(7) **同步衝突修正**：§5.1 移除 `gendoc-gen-dryrun` skill 條目（19 個→18 個）、§5.2 mermaid + 圖例移除 DRYRUN 的 ★ 標記；本版只加需求章節 + 修衝突表述，**未實作**；驗證計劃：實作完成後於 `~/projects/pet` 跑通 `gendoc-flow` 確認 DRYRUN 符合 §7.10 完成判準。 |
 | v4.1 | 2026-05-06 | PM Agent | **gendoc-repair Branch B per-step 重試重設計 + gendoc-guard 架構修正**：(1) **Branch B per-step 獨立重試（§7.8）**：廢除全局 `_MAX_ROUNDS=3` 輪次制，改為 per-step `_fail_count[sid]` 獨立計數；核心演算法改為 `while _pending` 迴圈，每輪依序驗證 `_pending` 中的 step，失敗立即補跑（Skill call）並加入 `_next_pending`，通過加入 `_done`；step 累計失敗達 `_MAX_PER_STEP=3` 次後移入 `_permanently_failed`，不再驗證也不再補跑；其他 step 不受影響繼續跑，徹底解決「一個 step 誤判三次耗盡全局配額、連帶阻斷所有其他 step」問題；安全閥：`_round > _MAX_PER_STEP` 時強制終止防止無限迴圈（R-5）；B-3 最終報告改為直接從 `_done` / `_permanently_failed` 讀取，移除額外最終掃描邏輯；(2) **gendoc-guard hook 管理移至 setup（§7.9）**：`gendoc-guard` 移除原 Step 1（動態 hook 安裝邏輯）；三個 hook（PreToolUse blocker / PostToolUse history / Stop）改由 `setup` 的 `_register_hook()` idempotent 安裝，`do_uninstall` 呼叫 `remove-guard` 清除；`gendoc-settings-hook.py` 新增 `add-guard` / `remove-guard` 命令；`setup upgrade` 改用 `exec "$RUNTIME_DIR/setup" _post_upgrade` re-exec，確保 git pull 後新函式定義正確載入；(3) **R-13：攔截空 commit**：`gendoc-guard-blocker.py` 新增 R-13，Bash 命令包含 `git commit --allow-empty` 時 block；防止 touch 觸發空 commit 繞過品質管制；(4) **guard 正常完成刪除控制檔案**：Step 3 改為刪除 `.gendoc-guard.json` + `.gendoc-guard-queue` + `.gendoc-guard-history.jsonl`，不再設 `status=complete`；確保 Stop hook 不再觸發。 |
 | v4.0 | 2026-05-06 | PM Agent | **gendoc-guard hook 層靜態化重構**：廢除 Step 1 動態寫出 `.sh` bash 字串的做法，改為四個靜態 Python 腳本（`tools/bin/gendoc-guard-{stop,session-start,blocker,history}.py`），由 `setup upgrade` 部署至 `~/.claude/skills/gendoc/tools/bin/`。Step 1 僅負責將 `python3 {path}` 形式的 hook 命令寫入 `~/.claude/settings.json`（idempotent，不重複登記）。改動三大效益：(1) **跨平台修復**：舊版在 Windows 上因 bash 不存在 + 路徑反斜線截斷導致所有 hook 失效（`bash: C:Users...blocker-hook.sh: No such file or directory`）；新版以 `python3` 執行，Python 接受正斜線路徑，Windows/macOS/Linux 行為一致；(2) **防繞過**：舊版 AI 看到 hook 失敗後可自行用 Write tool 重建 `.sh` 腳本；新版腳本為靜態部署檔案，AI 沒有理由或模板去重建；(3) **無 bash 依賴**：hook 腳本中的 Windows encoding（cp950）問題一併消除，Python 腳本頭部宣告 UTF-8；SECS 白名單執行路徑完整可用。 |
 | v3.9 | 2026-05-06 | PM Agent | **gendoc-repair Branch B 三層驗證架構（§7.8）**：廢除獨立 Phase C，將 mtime Stale 檢查整合為 Branch B L1（special_skill 步驟限定）。新三層結構：**L1（mtime Stale，special_skill only）**— 輸入集比輸出集新 → STALE → 短路直接補跑，不檢查 L2/L3；輸出不存在 → STALE（L2 補不到的情況）；觸發集空 → 隱式展開為所有 `docs/*.md`；非 special_skill 步驟跳過 L1；**L2（輸出完整性，原 L1）**— 輸出檔案/目錄存在且非空；**L3（量化品質，原 L2）**— `.gendoc-rules/{step_id}-rules.json` 門檻達標（rules.json 不存在 → PASS）。短路語意：L1 STALE → 立即補跑，不跑 L2/L3；L2 FAIL → 補跑，不跑 L3；L3 FAIL → 補跑。Phase C 完全刪除，避免 AI 跳過獨立相位。 |
@@ -506,7 +507,7 @@ Feature: 使用者登入
 
 ## 5. Skill 架構與流程
 
-### 5.1 Skill 清單（19 個）
+### 5.1 Skill 清單（18 個）
 
 > 標準文件生成（IDEA/BRD/PRD/EDD/API/SCHEMA…）由 `gendoc-flow` 透過 `templates/*.gen.md` 派送 subagent 執行，不以獨立 skill 存在。
 
@@ -519,7 +520,6 @@ Feature: 使用者登入
 | **共用層** | `gendoc-shared` | 共用邏輯參考（狀態管理、Review 策略、STEP_SEQUENCE） |
 | **更新層** | `gendoc-update` | 版本自動更新（從 GitHub 拉取最新 skill） |
 | **特殊生成層** | `gendoc-gen-diagrams` | 生成 9 大 UML 圖 + class-inventory.md（UML）；以及 5 張 CI/CD UML 圖（UML-CICD） |
-| | `gendoc-gen-dryrun` | 讀取 EDD/PRD/ARCH 生成量化基線 docs/MANIFEST.md + .gendoc-rules/*.json（DRYRUN） |
 | | `gendoc-gen-client-bdd` | 生成客戶端 BDD feature files（BDD-client，client_type≠api-only） |
 | | `gendoc-gen-prototype` | 生成可互動 HTML 原型：UI 原型（web/game）或 API Explorer（api-only） |
 | | `gendoc-gen-contracts` | 提取機器可讀規格至 docs/blueprint/（OpenAPI/Schema/Pact/IaC/Seed Code，CONTRACTS） |
@@ -534,7 +534,7 @@ Feature: 使用者登入
 ### 5.2 完整流程圖（SOP）
 
 每個標準步驟執行**三專家子代理模式**：Gen ⚙ → Review ↻ → Fix ✎ → Commit ↑，直至 finding = 0 或達 max_rounds。  
-`✦` = client_type ≠ none 時執行（有 UI 的產品）　`★` = special_skill（不走三專家，直接呼叫 Skill）
+`✦` = client_type ≠ none 時執行（有 UI 的產品）　`★` = special_skill（不走三專家，直接呼叫 Skill；DRYRUN 不在此列，走標準三件套，見 §7.10）
 
 ```mermaid
 flowchart TD
@@ -551,7 +551,7 @@ flowchart TD
             NP["PRD"] --> NCO["CONSTANTS ★"] --> NPD["PDD ✦"] --> NVD["VDD ✦"]
         end
         subgraph DES["設計層"]
-            NED["EDD"] --> NAR["ARCH"] --> NDR["DRYRUN ★"] --> NAPI["API"] --> NSC["SCHEMA"] --> NFR["FRONTEND ✦"] --> NAU["AUDIO ✧"] --> NAN["ANIM ✧"] --> NCI["CLIENT_IMPL ✦"] --> NAIM["ADMIN_IMPL ◆"] --> NRS["RESOURCE ✦"]
+            NED["EDD"] --> NAR["ARCH"] --> NDR["DRYRUN"] --> NAPI["API"] --> NSC["SCHEMA"] --> NFR["FRONTEND ✦"] --> NAU["AUDIO ✧"] --> NAN["ANIM ✧"] --> NCI["CLIENT_IMPL ✦"] --> NAIM["ADMIN_IMPL ◆"] --> NRS["RESOURCE ✦"]
         end
         subgraph UML_L["知識圖層"]
             NUML["UML ★\n9 Server + 16 Frontend"]
@@ -665,7 +665,7 @@ graph TD
     class REQ,L10 io
 ```
 
-> **✦ 藍色節點**（PDD / VDD / FRONTEND / CLIENT_IMPL / RESOURCE / BDD-client / MOCK / PROTOTYPE）：`client_type ≠ api-only` 時啟用。**✧ 粉紅節點**（AUDIO / ANIM）：`client_type = game` 專屬。**◆ 紫色節點**（ADMIN_IMPL）：`has_admin_backend = true` 才啟用。**★ 黃色節點**：special_skill（不走三專家，直接呼叫 Skill）— 含 DRYRUN、UML、UML-CICD、ALIGN 三步驟、CONTRACTS、MOCK、PROTOTYPE、HTML。
+> **✦ 藍色節點**（PDD / VDD / FRONTEND / CLIENT_IMPL / RESOURCE / BDD-client / MOCK / PROTOTYPE）：`client_type ≠ api-only` 時啟用。**✧ 粉紅節點**（AUDIO / ANIM）：`client_type = game` 專屬。**◆ 紫色節點**（ADMIN_IMPL）：`has_admin_backend = true` 才啟用。**★ 黃色節點**：special_skill（不走三專家，直接呼叫 Skill）— 含 UML、UML-CICD、ALIGN 三步驟、CONTRACTS、MOCK、PROTOTYPE、HTML。**DRYRUN 走標準三件套路徑**（與 EDD/API/SCHEMA 同級），由 gendoc-flow Step 1-D 派 subagent 讀 DRYRUN.gen.md 內明講的 bash 呼叫 `dryrun_core.py`，並由 Phase D-2 review subagent 依雙軌驗證收斂（見 §7.10）。
 
 #### 累積上游依賴表（Cumulative Upstream Table）
 
@@ -1421,6 +1421,216 @@ SECS 掛在 `gendoc-guard` 上，**零改動任何其他 skill**。白名單由�
 
 - 直接呼叫 skill（不透過 `/gendoc-guard`）不受 SECS 保護
 - inline Python 純 read 操作，對所有 skill 一律放行
+
+---
+
+## 7.10 DRYRUN 三件套重構（Layer 1，2026-05-07 需求書）
+
+### 7.10.0 背景與架構前提
+
+DRYRUN 是 gendoc pipeline 的 Phase A → Phase B gateway。它產出的 `.gendoc-rules/*.json` 是下游 22 個 step 的 review 依據（被 `tools/bin/review.sh` 機械式比對）。**若 DRYRUN 產出物錯誤或門檻過低，整條 pipeline 後段所有 quality gate 連動失效**。本節定義 DRYRUN 重構的 Layer 1 範圍，僅為需求書，未實作。
+
+#### Runtime / Target Project 邊界
+
+gendoc 是分發給多個使用者的工具：
+
+| 區域 | 路徑 | 性質 |
+|---|---|---|
+| **Runtime** | `~/.claude/gendoc/`（含 `bin/`、`templates/`） | 由 setup 從 gendoc repo 部署；對 target project 端**唯讀** |
+| **Target Project** | 使用者專案目錄（含 `docs/`、`.gendoc-rules/`、`.gendoc-state.json`） | 使用者可寫；fix subagent 落地處 |
+
+→ 任何 gendoc skill / template / tool 在 target project 跑出的 fix 動作，**只能修改 target project 內的檔**，不能改 runtime。Runtime 修改不會回到 gendoc repo（其他使用者拿不到）、下次 setup update 會被覆蓋、原開發者不知情 → 沒有正向反饋路徑。
+
+### 7.10.1 設計原則（不可違反）
+
+| # | 原則 |
+|---|---|
+| **P-1** | 三件套是 universal architecture |
+| **P-2** | `special_skill` 合法，**僅限獨立攜帶型工具**（拿去別人專案、給對應 input 就能跑：HTML / MOCK / PROTOTYPE / CONTRACTS / DIAGRAMS / ALIGN）；pipeline 內部 step（跨上下游量化傳遞）必走三件套 |
+| **P-3** | DRYRUN 屬 pipeline 內部 → 必走三件套，**不重建 `gendoc-gen-dryrun` skill** |
+| **P-4** | DRYRUN 量化 → 執行體必須是 `dryrun_core.py`，不靠 AI 推論生量化值 |
+| **P-5** | bash 在 `.gen.md` 內明講，採 `API.gen.md` / `SCHEMA.gen.md` / `FRONTEND.gen.md` 的 pattern：步驟 0 + `**[強制]**` + `**Iron Rule**` + `exit 1` + 不留 manual fallback |
+| **P-6** | DRYRUN.gen.md 步驟 0 與 API/SCHEMA/FRONTEND 對齊：先 `get-upstream` 取 input，再 `dryrun_core.py` 算量化值 |
+| **P-7** | DRYRUN review 採**雙軌獨立驗證 + 從嚴收斂**（預設取高，舉證才能取低）；Track B 必須 AI + bash 配合產出 itemized list |
+| **P-8** | **Fix subagent 邊界**：只能寫 target project 檔（`.gendoc-rules/*.json`、`docs/MANIFEST.md`、`docs/DRYRUN_DEV_FEEDBACK.md`）；**不得改 runtime**（含 `dryrun_core.py`、`DRYRUN.gen.md`、`DRYRUN.review.md`）；**不得改上游 source**（EDD.md / PRD.md / ARCH.md） |
+
+### 7.10.2 雙軌驗證機制
+
+#### 兩條獨立計算路徑
+
+```
+上游 source（EDD/PRD/ARCH）— 客觀事實
+    │
+    ├─→ Track A：dryrun_core.py（量化軌）
+    │   執行：grep / regex / awk
+    │   輸出：.gendoc-rules/<step>-rules.json 內 metric 數值
+    │   特性：deterministic、可重複；regex 可能漏抓 / 誤抓
+    │
+    └─→ Track B：DRYRUN.review.md 引導 AI subagent（專家軌）
+        執行：(1) 讀 source 全文；(2) 跑 bash（grep/jq）抓清單作為舉證材料；
+              (3) 逐筆判讀產出 itemized list（每筆名稱與 source 章節）
+        輸出：reviewer 算出值 + 對應清單
+        特性：能處理語意判斷；可能 hallucinate
+```
+
+#### 從嚴收斂規則（核心）
+
+**預設立場：取雙軌中較高的數值（不放鬆下游門檻）**。較低方必須舉證對方為何多算（指出 false positive 的具體實例 + 排除依據）才能採低。
+
+```
+比對 Track A == Track B?
+├─ 一致 → PASS，共識值 = 兩者
+└─ 不一致 → 舉證階段
+
+情境 1：Track B (AI) > Track A (core)
+  AI 必須指出 grep 漏抓的具體項（名稱 + source 位置 + 漏抓原因）
+  舉證成立 → 共識值 = Track B
+  舉證不成立（AI 說不出第 N 項是哪個）→ 共識值 = Track B（從嚴默認，採高）
+
+情境 2：Track A (core) > Track B (AI)
+  AI 必須指出 grep 多算的具體項（哪一筆是 false positive + 排除規則）
+  舉證成立 → 共識值 = Track B
+  舉證不成立 → 共識值 = Track A（從嚴默認，採高）
+```
+
+**舉證標準**：
+- 不接受：「我覺得應該是 N」「依語意判斷是 N」
+- 接受：「core 抓到的清單第 X 個是 `<具體名稱>`，依據 source `<具體章節>/<排除規則>`，該項不應計入」
+
+#### 共識落地（P-8 邊界內）
+
+雙軌得出共識值後，fix subagent 執行：
+
+| 動作 | 檔案 | 邊界 |
+|---|---|---|
+| **(I) 更新共識值** | `.gendoc-rules/<step>-rules.json` 對應 metric | target project 檔，**可寫** |
+| **(II) 生成 dev feedback** | `docs/DRYRUN_DEV_FEEDBACK.md`（僅當有不一致時生成） | target project 檔，**可寫** |
+| **(III) 同步 MANIFEST** | `docs/MANIFEST.md` 對應 metric 行 | target project 檔，**可寫** |
+
+禁止動作（P-8）：
+- ❌ `~/.claude/gendoc/bin/dryrun_core.py`（runtime）
+- ❌ `~/.claude/gendoc/templates/DRYRUN.gen.md` / `DRYRUN.review.md`（runtime）
+- ❌ `docs/EDD.md` / `docs/PRD.md` / `docs/ARCH.md`（上游 source）
+
+### 7.10.3 Developer Feedback Report 結構
+
+`docs/DRYRUN_DEV_FEEDBACK.md` 是給 gendoc 開發者的回饋清單，使用者可貼到 gendoc repo issue / 寄給開發者。每個不一致的 metric 對應一個區塊：
+
+```markdown
+## <metric_name>
+
+- **Track A (core)**: <N1>
+- **Track B (AI)**: <N2>（清單見下）
+- **共識值**: <N3>
+- **不一致原因**: <core regex 漏抓 / 多算 / etc>
+- **AI 舉證清單**:
+  - <item_1>（source: <檔>:§<章節>）
+  - <item_2>（source: <檔>:§<章節>）
+- **建議修正**（給 gendoc 開發者）:
+  - 檔案：`tools/bin/dryrun_core.py`
+  - 函式：`<extract_parameter_method>`
+  - 現行 pattern：`<current regex>`
+  - 建議 pattern：`<suggested regex>`
+  - 理由：<具體解釋>
+```
+
+**反饋路徑**：使用者讀完 → 貼到 gendoc repo issue → 開發者在 repo fix dryrun_core.py 的 regex → release 新版 → 所有使用者透過 `gendoc-upgrade` 拿到修正。
+
+### 7.10.4 Layer 1 範圍與動到的檔
+
+#### 目標
+
+gendoc-flow 跑 DRYRUN 時：
+- 走 Step 1-D 標準步驟路徑（與 API/SCHEMA/FRONTEND 同 code path，不加 special_skill）
+- DRYRUN.gen.md 明講「步驟 0：get-upstream → dryrun_core.py → sanity check」
+- DRYRUN.review.md 對所有量化錨點設雙軌條目，依「從嚴收斂」+ P-8 邊界處理 fix
+
+#### 動到的檔
+
+| 檔案 | 修改內容 |
+|---|---|
+| `templates/DRYRUN.gen.md` | 重寫：步驟 0a/0b/0c 採 API.gen.md 風格；修重複 Step 6（L387）+ 編號失序 bug |
+| `templates/DRYRUN.review.md` | 重寫：每個量化錨點一條 [CRITICAL] 雙軌條目；含 Track A/B + 從嚴規則 + 舉證模板 + P-8 邊界 + Dev Feedback 生成規範 |
+| `templates/pipeline.json` | DRYRUN step `note` 修正；不加 special_skill；output 可選加 `docs/DRYRUN_DEV_FEEDBACK.md` |
+| `gendoc-flow/SKILL.md` | **預設不改**（DRYRUN 透過主迴圈 L471 自然落入 Step 1-D）；**escalation 才改**：若實測 subagent 不執行 .gen.md bash，加「.gen.md bash 必須執行」到 Phase D-1 prompt |
+| `tools/bin/dryrun_core.py` | **不改**（P-8 + 範圍控制） |
+| `skills/gendoc-gen-dryrun/` | **不重建**（P-3） |
+
+### 7.10.5 Layer 1 完成判準
+
+| # | 判準 | 驗證方式 |
+|---|---|---|
+| 1 | gendoc-flow 跑 DRYRUN 走標準步驟路徑 | grep pipeline.json：DRYRUN 無 special_skill |
+| 2 | 不存在 `skills/gendoc-gen-dryrun/` | `ls skills/` |
+| 3 | DRYRUN.gen.md 步驟結構與 API.gen.md 對齊（`**[強制]**` + `**Iron Rule**`） | diff |
+| 4 | DRYRUN.gen.md 步驟 0 順序：(a) get-upstream，(b) dryrun_core.py，(c) sanity check | 看 .gen.md |
+| 5 | DRYRUN.gen.md 內所有 bash 失敗 → `exit 1` | 看 bash block |
+| 6 | sanity check 涵蓋：`.gendoc-rules/*.json` 存在 + `docs/MANIFEST.md` 存在 + 無裸 placeholder | 看 .gen.md |
+| 7 | DRYRUN.gen.md 修正：重複 Step 6 + 編號失序 | diff |
+| 8 | DRYRUN.gen.md 不留 manual grep / AI 推論 fallback | 看內容 |
+| 9 | DRYRUN.review.md 對 dryrun_core.py 每個量化 metric 設對應雙軌條目（覆蓋率 100%） | 對照 dryrun_core.py extract_parameters() |
+| 10 | 每條雙軌條目含 Track A / Track B / 比對 / 從嚴規則 / 舉證模板 | 看 .review.md |
+| 11 | DRYRUN.review.md 明文宣告「預設取高 + 舉證才能取低」原則 | 看 .review.md |
+| 12 | DRYRUN.review.md 明文宣告 Track B 必須 AI + bash 配合產出 itemized list | 看 .review.md |
+| 13 | DRYRUN.review.md 明文宣告 fix subagent 邊界（P-8） | 看 .review.md |
+| 14 | DRYRUN.review.md 含 `DRYRUN_DEV_FEEDBACK.md` 生成規範（結構欄位 + 反饋路徑說明） | 看 .review.md |
+| 15 | gendoc-flow 預設不需修改（escalation 容許）；dryrun_core.py 不改 | grep |
+
+### 7.10.6 不在 Layer 1 範圍
+
+| # | 不做 | 原因 |
+|---|---|---|
+| ND-1 | 修 `gendoc-repair`（仍 call 已不存在的 skill） | Layer 2 |
+| ND-2 | 修 `/gendoc dryrun` | Layer 2 |
+| ND-3 | 三件套統一進 `Skill("gendoc")` 入口 | Layer 2 vision |
+| ND-4 | 解決 subagent 過深問題（主 → flow → /gendoc → review） | Layer 2 設計 |
+| ND-5 | 改 28+ standard step 的 inline 模擬三件套 | Layer 3 |
+| ND-6 | 重評估其他 special_skill 是否符合 P-2 判準 | 與本 Layer 無關 |
+| ND-7 | `dryrun_core.py` 算法/結構/regex 修改 | P-8 + 範圍控制（regex 修正屬於 dev 在 repo 端做） |
+| ND-8 | `gendoc-flow` Phase D-1 prompt 改寫 | 除非 escalation 觸發 |
+
+### 7.10.7 Layer 2 vision（記錄不做）
+
+| Vision | 出處 |
+|---|---|
+| 三件套架構應集中在 `/gendoc <type>` 入口（含 `/gendoc dryrun`） | 「三件套應該會集中在 gendoc dryrun」 |
+| subagent 過深問題（主 → gendoc-flow → /gendoc dryrun → review subagent）需先想架構 | 「subagent call 太深，這個問題是重構要想的」 |
+| repair 改 call gendoc-flow（不再直接 call gendoc-gen-dryrun） | 「正確是應該要 repair call gendoc-flow dryrun」 |
+
+### 7.10.8 反饋閉環
+
+```
+Layer 1 內（runtime 唯讀）：
+  使用者跑 gendoc-flow
+    ↓
+  DRYRUN 雙軌驗證偵測不一致
+    ↓
+  fix subagent 在 target project 內：
+    - 把共識值寫進 .gendoc-rules/<step>-rules.json
+    - 生成 docs/DRYRUN_DEV_FEEDBACK.md（含具體 regex 修正建議）
+  pipeline 用共識值繼續跑下游（不卡）
+
+Layer 2 之後（runtime 改進）：
+  使用者把 DRYRUN_DEV_FEEDBACK.md 內容貼到 gendoc repo issue
+    ↓
+  gendoc 開發者在 repo 修 dryrun_core.py 的 regex
+    ↓
+  release 新版 → 所有使用者 gendoc-upgrade 拿到修正
+```
+
+### 7.10.9 驗證計劃（實作後）
+
+實作完成後在 `~/projects/pet` 執行 `gendoc-flow`，確認：
+
+1. DRYRUN step 觸發時走標準步驟路徑（與 API/SCHEMA 同 code path）
+2. gen subagent 解讀 DRYRUN.gen.md 後**確實執行** `dryrun_core.py`（檢查 stdout 含 `[DRYRUN] Step 0a/0b/0c` 字樣）
+3. 產出物存在：`docs/MANIFEST.md` + `.gendoc-rules/*.json`（≥ 1 檔）
+4. review subagent 讀 DRYRUN.review.md 後對每個 metric 跑雙軌比對
+5. 若有不一致：`docs/DRYRUN_DEV_FEEDBACK.md` 生成且含 itemized 證據 + 建議 regex 修正
+6. 若全一致：finding=0，無 DRYRUN_DEV_FEEDBACK.md
+7. pipeline 後段 step（API/SCHEMA/...）使用 `.gendoc-rules/` 共識值繼續跑
+
+任一項不符 → 回頭調整 .gen.md / .review.md 內容；若需動 gendoc-flow 才能讓 subagent 執行 bash → 觸發 ND-8 escalation（Phase D-1 prompt 改寫）。
 
 ---
 
