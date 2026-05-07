@@ -37,7 +37,10 @@ HOOK_DIR_FIND = re.compile(
 CD_TO_HOOK = re.compile(
     r'\b(?:cd|pushd)\s+\S*(?:tools/bin|\.claude/skills/gendoc)(?:/|\b)'
 )
-RECURSIVE_GLOB = re.compile(r'(?<!\w)\*\*(?!\w)')
+RECURSIVE_GLOB = re.compile(
+    r"(?<![\w/])\*\*"                                  # 裸 ** 無相對路徑前綴
+    r"|(?:^|[\s'\"`=;|&\(\[])/\*\*"                    # /** 從根錨定
+)
 FIND_BROAD = re.compile(r'\bfind\s+(?:\.|/|~|\.\.)(?:\s|$)')
 NAKED_WILDCARD = re.compile(r"(?:^|[\s'\"`=;|&\(\[])\*+\.(py|json|jsonl)\b")
 GLOB_PAT = re.compile(r"""['"]?([^\s'"|;&()]*\*[^\s'"|;&()]*)['"]?""")
