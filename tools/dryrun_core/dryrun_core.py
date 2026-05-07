@@ -770,7 +770,14 @@ class DRYRUNEngine:
         return True
 
     def _build_manifest_replacements(self) -> dict:
-        """Build comprehensive {placeholder: value} dict for generate_manifest."""
+        """Build comprehensive {placeholder: value} dict for generate_manifest.
+
+        Includes _PLUS_N arithmetic extension (DRYRUN_DEV_FEEDBACK feedback):
+        for any base anchor `{{XXX}}` with integer value V, we also expose
+        `{{XXX_PLUS_N}}` → V + N for any non-negative integer N.
+        Used by templates like DRYRUN.md L131: `{{ARCH_LAYER_COUNT_PLUS_2}}`
+        meaning "arch_layer_count + 2" for test-plan §sections.
+        """
         repl = {
             '{{GENERATED_DATE}}': datetime.now(timezone.utc).strftime('%Y-%m-%d'),
             '{{PIPELINE_VERSION}}': str(
@@ -814,6 +821,19 @@ class DRYRUNEngine:
 
         repl['{{ACTIVE_STEPS_COUNT}}'] = str(active_count)
         repl['{{SKIPPED_STEPS_COUNT}}'] = str(skipped_count)
+
+        # _PLUS_N arithmetic extension — derive {{XXX_PLUS_N}} from {{XXX}}
+        # whenever the base value is a non-negative integer.
+        for placeholder, value in list(repl.items()):
+            try:
+                base_int = int(value)
+            except (TypeError, ValueError):
+                continue
+            if base_int < 0:
+                continue
+            base_name = placeholder[2:-2]  # strip {{ and }}
+            for offset in range(1, 11):  # support _PLUS_1 through _PLUS_10
+                repl['{{' + base_name + '_PLUS_' + str(offset) + '}}'] = str(base_int + offset)
 
         return repl
 

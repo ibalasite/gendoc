@@ -145,6 +145,47 @@ class TestGenerateManifest:
         manifest = output_path.read_text()
         assert "{{PLACEHOLDER}}" in manifest
 
+    def test_plus_n_arithmetic_substitution(self, derived_engine, project_dir, tmp_path):
+        """{{XXX_PLUS_N}} should resolve to value(XXX) + N (DRYRUN_DEV_FEEDBACK feedback)."""
+        derived_engine.extract_metrics()
+        # Custom template using _PLUS_N expansion
+        custom = tmp_path / "PLUS.md"
+        custom.write_text(
+            "Layers: {{ARCH_LAYER_COUNT}}\n"
+            "Layers+2: {{ARCH_LAYER_COUNT_PLUS_2}}\n"
+            "Layers+5: {{ARCH_LAYER_COUNT_PLUS_5}}\n"
+            "Entities+1: {{ENTITY_COUNT_PLUS_1}}\n",
+            encoding="utf-8",
+        )
+        output = tmp_path / "OUT.md"
+        success = derived_engine.generate_manifest(str(custom), str(output))
+        assert success is True
+
+        text = output.read_text()
+        # Should have NO bare placeholder
+        import re
+        bare = re.findall(r"\{\{([A-Z_]+)\}\}", text)
+        bare_non_sentinel = [p for p in bare if p != "PLACEHOLDER"]
+        assert bare_non_sentinel == [], f"Bare: {bare_non_sentinel}"
+
+        # Verify arithmetic: parse out values
+        import re as _re
+        m_layers = _re.search(r"Layers: (\d+)", text)
+        m_plus2 = _re.search(r"Layers\+2: (\d+)", text)
+        m_plus5 = _re.search(r"Layers\+5: (\d+)", text)
+        assert int(m_plus2.group(1)) == int(m_layers.group(1)) + 2
+        assert int(m_plus5.group(1)) == int(m_layers.group(1)) + 5
+
+    def test_plus_n_unknown_base_still_fails(self, derived_engine, project_dir, tmp_path):
+        """If base anchor doesn't exist (e.g. UNKNOWN_PLUS_3), still fail-fast."""
+        derived_engine.extract_metrics()
+        bad = tmp_path / "BAD.md"
+        bad.write_text("{{UNKNOWN_TOKEN_PLUS_3}}\n", encoding="utf-8")
+        result = derived_engine.generate_manifest(
+            str(bad), str(project_dir / "docs" / "MANIFEST.md")
+        )
+        assert result is False
+
     def test_returns_false_on_template_missing(self, derived_engine, project_dir):
         result = derived_engine.generate_manifest(
             "/nonexistent/template.md",
