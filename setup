@@ -116,10 +116,15 @@ _deploy_skills() {
 }
 
 _deploy_tools() {
-  log "[deploy] 複製 tools/bin → $RUNTIME_DIR/tools/bin/"
-  # tools/bin already lives inside RUNTIME_DIR after clone; nothing extra to do.
-  # If tools need building, add build steps here per-package.
-  :
+  log "[deploy] 部署 tools/<package>/ 源碼至 $RUNTIME_DIR/tools/bin/"
+  # Source-of-truth packages live in tools/<package>/, runtime executables go to tools/bin/.
+  # 設計：tools/<package>/ 含 dev source + tests + fixtures（由 pytest 跑）；
+  # 部署時把 source 複製到 tools/bin/ 作為 runtime 執行體（dryrun_core.py 等）。
+  # 加新 package 在此追加 cp 行。
+  if [[ -f "$RUNTIME_DIR/tools/dryrun_core/dryrun_core.py" ]]; then
+    cp "$RUNTIME_DIR/tools/dryrun_core/dryrun_core.py" "$RUNTIME_DIR/tools/bin/dryrun_core.py"
+    log "  · dryrun_core/dryrun_core.py → bin/dryrun_core.py"
+  fi
 }
 
 _register_hook() {

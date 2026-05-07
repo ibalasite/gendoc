@@ -47,6 +47,17 @@ function Deploy-Skills {
     }
 }
 
+function Deploy-Tools {
+    # Source-of-truth packages live in tools/<package>/, runtime executables in tools/bin/.
+    Log "[deploy] deploy tools/<package>/ source to $ToolsBin/"
+    $dryrunSrc = Join-Path $RuntimeDir "tools\dryrun_core\dryrun_core.py"
+    $dryrunDst = Join-Path $ToolsBin "dryrun_core.py"
+    if (Test-Path $dryrunSrc) {
+        Copy-Item -Force $dryrunSrc $dryrunDst
+        Log "  - dryrun_core/dryrun_core.py -> bin/dryrun_core.py"
+    }
+}
+
 function Register-Hooks {
     Log "[deploy] register SessionStart hook..."
     & $py $SettingsHook add $HookCmd
@@ -68,6 +79,7 @@ function Do-Install {
     git clone $RepoUrl $RuntimeDir
 
     Deploy-Skills
+    Deploy-Tools
     Register-Hooks
 
     Log ""
@@ -101,6 +113,7 @@ function Do-Upgrade {
     Log "[upgrade] git pull..."
     git -C $RuntimeDir pull --ff-only
     Deploy-Skills
+    Deploy-Tools
     Register-Hooks
     Log "[upgrade] done."
 }
