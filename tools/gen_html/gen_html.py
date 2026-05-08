@@ -834,6 +834,18 @@ def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, curren
         sections.append(link('req', 'req/ 素材清單', '📎'))
         sections.append('</div>')
 
+    # ── Interactive Prototypes ────────────────────────────
+    proto_entries = scan_prototype_entries(PAGES_DIR)
+    if proto_entries:
+        sections.append('<div class="sidebar__section">')
+        sections.append('<div class="sidebar__label">Interactive Prototypes</div>')
+        for entry in proto_entries:
+            sections.append(
+                f'<a class="sidebar__link" href="{entry["href"]}">'
+                f'🎮 {entry["label"]}</a>'
+            )
+        sections.append('</div>')
+
     # ── PlantUML standalone files ──────────────────────────
     if puml_files:
         is_active_puml = any(slug == current for slug, _, _ in puml_files)
@@ -1020,7 +1032,10 @@ def main():
         html = render_page(content, title, banner,
                            doc_pages, server_diagrams, frontend_diagrams,
                            sub_docs, current, is_index, has_req=has_req, puml_files=puml_files)
-        (PAGES_DIR / filename).write_text(html)
+        # Rewrite paths to be valid under server root = PAGES_DIR
+        out_path = PAGES_DIR / filename
+        html = rewrite_pages_paths(html, out_path, PAGES_DIR)
+        out_path.write_text(html)
         exc = re.sub(r'<[^>]+>', '', content)[:150]
         search_data[filename] = {"url": filename, "title": title, "excerpt": exc}
         print(f"✓ {filename}")
