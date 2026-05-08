@@ -441,6 +441,11 @@ def rewrite_pages_paths(html: str, current_html_path, pages_dir) -> str:
         # R3-4 / R3-5: features/、blueprint/、src/ 等 root 路徑
         elif re.match(r'^(features|blueprint|src|tests|infrastructure|scripts)/', target):
             return _strip_anchor(full_match)
+        # R3-6 防護：最終 target 解析後必須在 pages/ 內，否則 strip
+        # （catch AI 寫 ../../../X 跳出 server root 的情況）
+        resolved_check = _resolve(target)
+        if resolved_check is None:
+            return _strip_anchor(full_match)
         # 已重寫，回傳新 attr
         return f'{attr}="{target}"'
 
@@ -1113,6 +1118,25 @@ def main():
     (PAGES_DIR / "search-data.json").write_text(
         json.dumps(search_data, ensure_ascii=False, indent=2))
     print("✓ search-data.json")
+
+    # ── Post-process：對 pages/ 內所有子目錄 HTML 也跑 path rewriter ──
+    # gen_html 主流程只寫 pages/ root 的 .html；prototype/ 子目錄 HTML 由
+    # gendoc-gen-prototype skill 直接寫，可能有 AI 寫錯的相對路徑（譬如
+    # ../../../X 跳出 pages/ root）。在這層補做一次 rewrite。
+    fixed_count = 0
+    for sub_html in PAGES_DIR.rglob('*.html'):
+        if sub_html.parent == PAGES_DIR:
+            continue  # root 已在 write_page() 處理過
+        try:
+            text = sub_html.read_text(encoding='utf-8')
+            new_text = rewrite_pages_paths(text, sub_html, PAGES_DIR)
+            if new_text != text:
+                sub_html.write_text(new_text, encoding='utf-8')
+                fixed_count += 1
+        except Exception:
+            pass
+    if fixed_count:
+        print(f"✓ subdir path rewrite：{fixed_count} 個 HTML 修正")
     total_diag = len(server_diagrams) + len(frontend_diagrams)
     bdd_count = int(has_server_bdd) + int(has_client_bdd)
     req_count = int(has_req)

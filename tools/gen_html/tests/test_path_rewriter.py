@@ -209,6 +209,38 @@ def test_LEGIT_already_correct_code_block_unchanged():
     assert '<code>API_KEY</code>' in out
 
 
+# ─── R3-6: subdir 跳出 pages/（AI 亂寫 ../../../） ────────────────────
+
+def test_R3_6_subdir_too_many_dots_strip():
+    """從 prototype/api-explorer/index.html 寫 ../../../index.html
+    解析跳出 pages/ → strip <a>。"""
+    html = '<a href="../../../index.html">← 文件站</a>'
+    pages = _make_pages_dir({
+        'index.html': '',
+        'prototype/index.html': '',
+        'prototype/api-explorer/index.html': '',
+    })
+    out = gh.rewrite_pages_paths(
+        html, pages / 'prototype' / 'api-explorer' / 'index.html', pages,
+    )
+    assert '<a href' not in out
+    assert '文件站' in out
+
+
+def test_R3_6_subdir_correct_relative_unchanged():
+    """從 prototype/api-explorer/index.html 寫 ../../index.html (docs entry)
+    解析在 pages/ 內 → 不動。"""
+    html = '<a href="../../index.html">docs entry</a>'
+    pages = _make_pages_dir({
+        'index.html': '',
+        'prototype/api-explorer/index.html': '',
+    })
+    out = gh.rewrite_pages_paths(
+        html, pages / 'prototype' / 'api-explorer' / 'index.html', pages,
+    )
+    assert 'href="../../index.html"' in out
+
+
 # ─── R2: Sidebar prototype scan ───────────────────────────────────────
 
 def test_R2_sidebar_scan_prototype_entries():
@@ -260,6 +292,10 @@ def main():
         ('R3_4_features_strip', test_R3_4_features_strip),
         # R3-5
         ('R3_5_blueprint_strip', test_R3_5_blueprint_strip),
+        # R3-6
+        ('R3_6_subdir_too_many_dots_strip', test_R3_6_subdir_too_many_dots_strip),
+        ('R3_6_subdir_correct_relative_unchanged',
+         test_R3_6_subdir_correct_relative_unchanged),
         # R1
         ('R1_code_to_link_when_path_exists', test_R1_code_to_link_when_path_exists),
         ('R1_code_with_docs_pages_prefix_to_link', test_R1_code_with_docs_pages_prefix_to_link),
