@@ -204,13 +204,16 @@ def esc(t):
     return _html.escape(str(t))
 
 def _mermaid_fix_block(lines):
-    """Fix mermaid v11 breaking patterns in flowchart/graph/sequenceDiagram blocks."""
+    """Fix mermaid v11 breaking patterns in flowchart/graph/sequenceDiagram/
+    stateDiagram/classDiagram blocks."""
     if not lines:
         return lines
     first = next((l.strip() for l in lines if l.strip()), '')
     is_flowchart = bool(re.match(r'^(flowchart|graph)\b', first))
     is_sequence  = bool(re.match(r'^sequenceDiagram', first))
-    if not is_flowchart and not is_sequence:
+    is_state     = bool(re.match(r'^stateDiagram(-v2)?\b', first))
+    is_class     = bool(re.match(r'^classDiagram\b', first))
+    if not (is_flowchart or is_sequence or is_state or is_class):
         return lines
 
     def fix_flowchart_line(line):
@@ -237,18 +240,43 @@ def _mermaid_fix_block(lines):
         return line
 
     def fix_sequence_line(line):
-        # Mermaid v11: semicolons in message text are treated as statement separators
+        # Mermaid v11: ; in message text treated as statement separator
         msg = re.match(r'^(\s*\S.*?(?:->>|-->>|->x|-->x|->>|->|-->)\s*\S[^:]*:\s*)(.*)', line, re.DOTALL)
         if msg:
             prefix, message = msg.group(1), msg.group(2)
             message = message.replace(';', ',').replace('\\n', ' ')
             line = prefix + message
+        # Note over X,Y: text — also strip ; in label
+        note = re.match(r'^(\s*Note\s+(?:over|right of|left of)\s+[^:]+:\s*)(.*)', line)
+        if note:
+            prefix, message = note.group(1), note.group(2)
+            message = message.replace(';', ',')
+            line = prefix + message
+        return line
+
+    def fix_state_line(line):
+        # Mermaid v11: ; in transition / state label treated as statement separator
+        # Match either:  X --> Y : label  |  state X : description
+        m = re.match(r'^(.*?(?:-->|state\s+\S+).*?:\s*)(.*)$', line)
+        if m:
+            prefix, label = m.group(1), m.group(2)
+            label = label.replace(';', ',')
+            line = prefix + label
+        return line
+
+    def fix_class_line(line):
+        # Placeholder for class fixes (later steps)
         return line
 
     if is_flowchart:
         return [fix_flowchart_line(l) for l in lines]
-    else:
+    if is_sequence:
         return [fix_sequence_line(l) for l in lines]
+    if is_state:
+        return [fix_state_line(l) for l in lines]
+    if is_class:
+        return [fix_class_line(l) for l in lines]
+    return lines
 
 def strip_frontmatter(text: str) -> str:
     """Strip YAML frontmatter (--- ... ---) from the top of a markdown file."""
