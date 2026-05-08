@@ -213,8 +213,49 @@ def _mermaid_fix_block(lines):
     is_sequence  = bool(re.match(r'^sequenceDiagram', first))
     is_state     = bool(re.match(r'^stateDiagram(-v2)?\b', first))
     is_class     = bool(re.match(r'^classDiagram\b', first))
-    if not (is_flowchart or is_sequence or is_state or is_class):
+    is_er        = bool(re.match(r'^erDiagram\b', first))
+    if not (is_flowchart or is_sequence or is_state or is_class or is_er):
         return lines
+
+    # ── Orientation directive 機械修：讓 wide > tall 圖盡量變 tall ──
+    # R-1/R-2: flowchart/graph LR/RL → TD
+    # R-3:     classDiagram 無 direction → 加 direction TB
+    # R-4:     classDiagram direction LR → 改 TB
+    # R-5:     erDiagram 無 direction → 加 direction TB
+    if is_flowchart:
+        lines = list(lines)
+        for i, ln in enumerate(lines):
+            m = re.match(r'^(\s*)(flowchart|graph)\s+(LR|RL)\b(.*)$', ln)
+            if m:
+                lines[i] = f'{m.group(1)}{m.group(2)} TD{m.group(4)}'
+                break
+    if is_class or is_er:
+        lines = list(lines)
+        # 找第一行非空、非註解的 first content 行（diagram type 那行之後）
+        # 看有沒有 direction directive
+        body_start = None
+        for i, ln in enumerate(lines):
+            if ln.strip() and not ln.lstrip().startswith('%%'):
+                body_start = i
+                break
+        if body_start is not None:
+            has_direction = False
+            for j in range(body_start + 1, min(len(lines), body_start + 6)):
+                m = re.match(r'^(\s*)direction\s+(TB|BT|LR|RL)\b', lines[j])
+                if m:
+                    has_direction = True
+                    if m.group(2) in ('LR', 'RL'):
+                        lines[j] = f'{m.group(1)}direction TB'
+                    break
+            if not has_direction:
+                # 在 body_start 之後插入 direction TB
+                indent = ''
+                # 用 body_start+1 的縮排猜（如果有）
+                if body_start + 1 < len(lines):
+                    nxt = lines[body_start + 1]
+                    indent_m = re.match(r'^(\s*)', nxt)
+                    indent = indent_m.group(1) if indent_m else '    '
+                lines.insert(body_start + 1, f'{indent}direction TB')
 
     def fix_flowchart_line(line):
         # Mermaid v11: unquoted [label] nodes cannot contain (, {, or nested [
