@@ -860,6 +860,73 @@ def _um_r_filter_bar(n):
     return f'<div class="umock__filter-bar">{_um_render_children(n)}</div>'
 
 
+def _um_mermaid_label(text: str) -> str:
+    """Escape a string for use inside mermaid `["..."]` node label.
+    Mermaid treats `"` as quote and `<br/>` as line break."""
+    if text is None:
+        return ''
+    # Strip raw quotes; mermaid doesn't have an escape for them inside `[" "]`.
+    return (str(text)
+            .replace('"', "'")
+            .replace('\n', '<br/>'))
+
+
+def _um_r_layered_arch(n):
+    """Render layered-arch as mermaid `flowchart TB` inside diagram-container.
+
+    Children stream: alternating `layer { ... }` and `flow-down "..."` /
+    `flow-up "..."`. Adjacent layers without an explicit flow get a default
+    plain arrow.
+    """
+    layers = []      # list of (id, label_text)
+    flows = []       # list of (from_idx, to_idx, label, kind) — flow between layers
+    pending_flow = None  # tuple (label, kind) waiting to be attached
+    for child in n.get('children', []):
+        ctype = child.get('type')
+        if ctype == 'layer':
+            label = child.get('value') or ''
+            details = []
+            for sub in child.get('children', []):
+                if sub.get('type') == 'detail':
+                    details.append(str(sub.get('value') or ''))
+            full = label
+            if details:
+                full = label + '<br/>' + '<br/>'.join(details)
+            layers.append(('L' + str(len(layers)), full))
+            if len(layers) >= 2:
+                from_i = len(layers) - 2
+                to_i = len(layers) - 1
+                if pending_flow is not None:
+                    label_, kind_ = pending_flow
+                    pending_flow = None
+                else:
+                    label_, kind_ = '', 'down'
+                flows.append((from_i, to_i, label_, kind_))
+        elif ctype in ('flow-down', 'flow-up'):
+            kind = 'down' if ctype == 'flow-down' else 'up'
+            label = str(child.get('value') or '')
+            pending_flow = (label, kind)
+    # Build mermaid source
+    lines = ['flowchart TB']
+    for nid, lbl in layers:
+        lines.append(f'    {nid}["{_um_mermaid_label(lbl)}"]')
+    for from_i, to_i, label, kind in flows:
+        a = layers[from_i][0]
+        b = layers[to_i][0]
+        # flow-down: top → bottom (a → b). flow-up: bottom → top (b → a).
+        src, dst = (a, b) if kind == 'down' else (b, a)
+        if label:
+            lines.append(f'    {src} -->|{_um_mermaid_label(label)}| {dst}')
+        else:
+            lines.append(f'    {src} --> {dst}')
+    body = '\n'.join(lines)
+    return (
+        '<div class="diagram-container">'
+        f'<pre class="mermaid">\n{body}\n</pre>'
+        '</div>'
+    )
+
+
 # ─── unknown / generic ───────────────────────────────────────────────────
 
 def _um_r_generic(n):
@@ -904,7 +971,9 @@ _UM_DISPATCH = {
     'item': _um_r_item,
     'pagination': _um_r_pagination,
     'filter-bar': _um_r_filter_bar,
-    # layered-arch / pyramid: registered in stages ③–④
+    # edge-case primitives
+    'layered-arch': _um_r_layered_arch,
+    # 'pyramid' registered in stage ④
 }
 
 
