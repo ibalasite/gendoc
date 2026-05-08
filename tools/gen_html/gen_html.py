@@ -642,6 +642,288 @@ def _ui_mock_dsl_parse(text: str) -> dict:
     return root
 
 
+# ─── UI Mock DSL renderer ──────────────────────────────────────────────
+# Stage ② — AST → HTML for the 12 basic primitives + utilities.
+# Layered-arch (→ mermaid) and pyramid (→ SVG) are stages ③–④.
+
+def _um_esc(s) -> str:
+    """HTML-escape a value (str/int/float/bool/None → safe string)."""
+    if s is None:
+        return ''
+    if isinstance(s, bool):
+        return 'true' if s else 'false'
+    return (str(s)
+            .replace('&', '&amp;')
+            .replace('<', '&lt;')
+            .replace('>', '&gt;')
+            .replace('"', '&quot;'))
+
+
+def _um_render_children(node) -> str:
+    return ''.join(_ui_mock_render_node(c) for c in node.get('children', []))
+
+
+def _um_value_text(node) -> str:
+    """Get node value as plain text (escaped). Lists joined by space."""
+    v = node.get('value')
+    if v is None:
+        return ''
+    if isinstance(v, list):
+        return ' '.join(_um_esc(x) for x in v)
+    return _um_esc(v)
+
+
+def _um_attr(node, key, default=''):
+    v = node.get('attrs', {}).get(key, default)
+    return v
+
+
+# ─── primitive renderers ─────────────────────────────────────────────────
+
+def _um_r_page(n):
+    title = _um_esc(_um_attr(n, 'title'))
+    title_html = f'<div class="umock__page-title">{title}</div>' if title else ''
+    return f'<div class="umock umock__page">{title_html}{_um_render_children(n)}</div>'
+
+
+def _um_r_modal(n):
+    title = _um_esc(_um_attr(n, 'title'))
+    closable = _um_attr(n, 'closable', False)
+    close_html = '<span class="umock__modal-close" aria-hidden="true">×</span>' if closable else ''
+    return (
+        '<div class="umock umock__modal">'
+        f'<div class="umock__modal-titlebar"><span class="umock__modal-title">{title}</span>{close_html}</div>'
+        f'<div class="umock__modal-body">{_um_render_children(n)}</div>'
+        '</div>'
+    )
+
+
+def _um_r_navbar(n):
+    return f'<div class="umock__navbar">{_um_render_children(n)}</div>'
+
+
+def _um_r_sidenav(n):
+    return f'<div class="umock__sidenav">{_um_render_children(n)}</div>'
+
+
+def _um_r_section(n):
+    title = _um_esc(_um_attr(n, 'title'))
+    sub = _um_esc(_um_attr(n, 'subtitle'))
+    title_html = f'<h3 class="umock__section-title">{title}</h3>' if title else ''
+    sub_html = f'<div class="umock__section-subtitle">{sub}</div>' if sub else ''
+    return (
+        '<section class="umock__section">'
+        f'{title_html}{sub_html}'
+        f'<div class="umock__section-body">{_um_render_children(n)}</div>'
+        '</section>'
+    )
+
+
+def _um_r_table(n):
+    cols = _um_attr(n, 'columns', []) or []
+    head = '<thead><tr>' + ''.join(f'<th>{_um_esc(c)}</th>' for c in cols) + '</tr></thead>'
+    body_rows = []
+    for child in n.get('children', []):
+        if child.get('type') != 'row':
+            continue
+        cells = child.get('value') or []
+        if not isinstance(cells, list):
+            cells = [cells]
+        body_rows.append('<tr>' + ''.join(f'<td>{_um_esc(c)}</td>' for c in cells) + '</tr>')
+    body = '<tbody>' + ''.join(body_rows) + '</tbody>'
+    return f'<table class="umock__table">{head}{body}</table>'
+
+
+def _um_r_field(n):
+    label = _um_esc(_um_attr(n, 'label'))
+    required = _um_attr(n, 'required', False)
+    req_mark = ' <span class="umock__field-required" aria-label="required">*</span>' if required else ''
+    label_html = f'<label class="umock__field-label">{label}{req_mark}</label>' if label else ''
+    return (
+        '<div class="umock__field">'
+        f'{label_html}'
+        f'<div class="umock__field-body">{_um_render_children(n)}</div>'
+        '</div>'
+    )
+
+
+def _um_r_button(n):
+    variant = _um_esc(_um_attr(n, 'variant', 'default'))
+    label = _um_value_text(n) or 'Button'
+    return f'<button type="button" class="umock__btn umock__btn--{variant}">{label}</button>'
+
+
+def _um_r_badge(n):
+    status = _um_esc(_um_attr(n, 'status', 'default'))
+    label = _um_value_text(n)
+    return f'<span class="umock__badge umock__badge--{status}">{label}</span>'
+
+
+def _um_r_input(n):
+    typ = _um_esc(_um_attr(n, 'type', 'text'))
+    placeholder = _um_esc(_um_attr(n, 'placeholder'))
+    maxlen = _um_attr(n, 'maxlength')
+    maxlen_attr = f' maxlength="{_um_esc(maxlen)}"' if maxlen != '' and maxlen is not None else ''
+    return f'<input class="umock__input" type="{typ}" placeholder="{placeholder}"{maxlen_attr} readonly>'
+
+
+def _um_r_code_block(n):
+    lang = _um_esc(_um_attr(n, 'language', ''))
+    inner = _um_value_text(n) or _um_render_children(n)
+    cls = f'language-{lang}' if lang else ''
+    return f'<pre class="umock__code"><code class="{cls}">{inner}</code></pre>'
+
+
+def _um_r_hint(n):
+    return f'<div class="umock__hint">{_um_value_text(n)}</div>'
+
+
+# ─── utility/container renderers ─────────────────────────────────────────
+
+def _um_r_actions(n):
+    return f'<div class="umock__actions">{_um_render_children(n)}</div>'
+
+
+def _um_r_info(n):
+    return f'<div class="umock__info">{_um_value_text(n)}</div>'
+
+
+def _um_r_spacer(n):
+    return '<div class="umock__spacer" aria-hidden="true"></div>'
+
+
+def _um_r_avatar(n):
+    return '<div class="umock__avatar" aria-hidden="true"></div>'
+
+
+def _um_r_tabs(n):
+    items = n.get('value') or []
+    if not isinstance(items, list):
+        items = [items]
+    parts = ''.join(f'<span class="umock__tab">{_um_esc(t)}</span>' for t in items)
+    return f'<div class="umock__tabs">{parts}</div>'
+
+
+def _um_r_search(n):
+    placeholder = _um_esc(_um_attr(n, 'placeholder'))
+    return f'<input class="umock__search" type="search" placeholder="{placeholder}" readonly>'
+
+
+def _um_r_card(n):
+    return f'<div class="umock__card">{_um_render_children(n)}</div>'
+
+
+def _um_r_divider(n):
+    return '<hr class="umock__divider">'
+
+
+def _um_r_meta_line(n):
+    return f'<div class="umock__meta-line">{_um_value_text(n)}</div>'
+
+
+def _um_r_row(n):
+    # `row` has dual role: inside table = data row (handled in _um_r_table);
+    # standalone (inside card etc.) = horizontal flex container.
+    val = n.get('value')
+    if isinstance(val, list):
+        # Treated as data row when not inside a table
+        cells = ''.join(f'<span class="umock__row-cell">{_um_esc(c)}</span>' for c in val)
+        return f'<div class="umock__row">{cells}</div>'
+    return f'<div class="umock__row">{_um_render_children(n)}</div>'
+
+
+def _um_r_label(n):
+    return f'<span class="umock__label">{_um_value_text(n)}</span>'
+
+
+def _um_r_logo(n):
+    return f'<span class="umock__logo">{_um_value_text(n)}</span>'
+
+
+def _um_r_item(n):
+    return f'<div class="umock__item">{_um_value_text(n) or _um_render_children(n)}</div>'
+
+
+def _um_r_pagination(n):
+    total = _um_attr(n, 'total', '')
+    page = _um_attr(n, 'page', '')
+    of = _um_attr(n, 'of', '')
+    summary = []
+    if page != '' and of != '':
+        summary.append(f'{_um_esc(page)} / {_um_esc(of)}')
+    if total != '':
+        summary.append(f'total {_um_esc(total)}')
+    return f'<div class="umock__pagination">{" · ".join(summary)}</div>'
+
+
+def _um_r_filter_bar(n):
+    return f'<div class="umock__filter-bar">{_um_render_children(n)}</div>'
+
+
+# ─── unknown / generic ───────────────────────────────────────────────────
+
+def _um_r_generic(n):
+    """Silent fallback for unrecognized types (per user spec: no warnings)."""
+    typ = _um_esc(n.get('type', 'unknown'))
+    val = _um_value_text(n)
+    children = _um_render_children(n)
+    if val and not children:
+        return f'<div class="umock__x" data-type="{typ}">{val}</div>'
+    if children and not val:
+        return f'<div class="umock__x" data-type="{typ}">{children}</div>'
+    return f'<div class="umock__x" data-type="{typ}">{val}{children}</div>'
+
+
+_UM_DISPATCH = {
+    # 12 basic primitives
+    'page': _um_r_page,
+    'modal': _um_r_modal,
+    'navbar': _um_r_navbar,
+    'sidenav': _um_r_sidenav,
+    'section': _um_r_section,
+    'table': _um_r_table,
+    'field': _um_r_field,
+    'button': _um_r_button,
+    'badge': _um_r_badge,
+    'input': _um_r_input,
+    'code-block': _um_r_code_block,
+    'hint': _um_r_hint,
+    # utilities
+    'actions': _um_r_actions,
+    'info': _um_r_info,
+    'spacer': _um_r_spacer,
+    'avatar': _um_r_avatar,
+    'tabs': _um_r_tabs,
+    'search': _um_r_search,
+    'card': _um_r_card,
+    'divider': _um_r_divider,
+    'meta-line': _um_r_meta_line,
+    'row': _um_r_row,
+    'label': _um_r_label,
+    'logo': _um_r_logo,
+    'item': _um_r_item,
+    'pagination': _um_r_pagination,
+    'filter-bar': _um_r_filter_bar,
+    # layered-arch / pyramid: registered in stages ③–④
+}
+
+
+def _ui_mock_render_node(node) -> str:
+    """Dispatch render for one AST node."""
+    typ = node.get('type', '')
+    if typ == 'root':
+        return _um_render_children(node)
+    fn = _UM_DISPATCH.get(typ)
+    if fn:
+        return fn(node)
+    return _um_r_generic(node)
+
+
+def _ui_mock_render(ast) -> str:
+    """Render top-level AST root → HTML string."""
+    return _ui_mock_render_node(ast)
+
+
 def rewrite_pages_paths(html: str, current_html_path, pages_dir) -> str:
     """Rewrite href/src in rendered HTML to be valid relative paths under
     server root = pages_dir/. 規則：
