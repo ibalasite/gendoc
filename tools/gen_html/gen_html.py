@@ -403,6 +403,245 @@ def _mermaid_fix_block(lines):
         return [fix_class_line(l) for l in lines]
     return lines
 
+
+# ─── UI Mock DSL ────────────────────────────────────────────────────────
+# Stage ① of 11 — DSL parser → AST
+#
+# Grammar (informal):
+#   block      = ident value? attrs* body?
+#   value      = string | number | list
+#   attrs      = ident ":" (string | number | bool | list)
+#              | ident                         # bare flag → bool true
+#   list       = "[" (item ("," item)*)? "]"
+#   item       = string | number
+#   body       = "{" block* "}"
+#
+# AST node:
+#   {'type': str, 'attrs': dict, 'value': any|None, 'children': list}
+# Top-level wrapped as {'type': 'root', ...}.
+
+_UM_TOK_IDENT = 'ident'
+_UM_TOK_STR = 'str'
+_UM_TOK_NUM = 'num'
+_UM_TOK_BOOL = 'bool'
+_UM_TOK_LBRACE = '{'
+_UM_TOK_RBRACE = '}'
+_UM_TOK_LBRACK = '['
+_UM_TOK_RBRACK = ']'
+_UM_TOK_COLON = ':'
+_UM_TOK_COMMA = ','
+
+
+def _ui_mock_tokenize(text: str) -> list:
+    """Tokenize DSL text. Returns list of (kind, value) tuples."""
+    tokens = []
+    i = 0
+    n = len(text)
+    while i < n:
+        c = text[i]
+        # whitespace
+        if c.isspace():
+            i += 1
+            continue
+        # comment to EOL
+        if c == '#':
+            while i < n and text[i] != '\n':
+                i += 1
+            continue
+        # punctuation
+        if c == '{':
+            tokens.append((_UM_TOK_LBRACE, c)); i += 1; continue
+        if c == '}':
+            tokens.append((_UM_TOK_RBRACE, c)); i += 1; continue
+        if c == '[':
+            tokens.append((_UM_TOK_LBRACK, c)); i += 1; continue
+        if c == ']':
+            tokens.append((_UM_TOK_RBRACK, c)); i += 1; continue
+        if c == ':':
+            tokens.append((_UM_TOK_COLON, c)); i += 1; continue
+        if c == ',':
+            tokens.append((_UM_TOK_COMMA, c)); i += 1; continue
+        # string
+        if c == '"':
+            j = i + 1
+            buf = []
+            while j < n:
+                cj = text[j]
+                if cj == '\\' and j + 1 < n:
+                    nxt = text[j + 1]
+                    if nxt == '"':
+                        buf.append('"'); j += 2; continue
+                    if nxt == '\\':
+                        buf.append('\\'); j += 2; continue
+                    if nxt == 'n':
+                        buf.append('\n'); j += 2; continue
+                    buf.append(nxt); j += 2; continue
+                if cj == '"':
+                    break
+                buf.append(cj)
+                j += 1
+            if j >= n:
+                raise ValueError(f'unterminated string at offset {i}')
+            tokens.append((_UM_TOK_STR, ''.join(buf)))
+            i = j + 1
+            continue
+        # number
+        if c.isdigit() or (c == '-' and i + 1 < n and text[i + 1].isdigit()):
+            j = i + 1
+            while j < n and (text[j].isdigit() or text[j] == '.'):
+                j += 1
+            raw = text[i:j]
+            num = float(raw) if '.' in raw else int(raw)
+            tokens.append((_UM_TOK_NUM, num))
+            i = j
+            continue
+        # identifier (kebab-case allowed)
+        if c.isalpha() or c == '_':
+            j = i + 1
+            while j < n and (text[j].isalnum() or text[j] in '-_'):
+                j += 1
+            ident = text[i:j]
+            if ident == 'true':
+                tokens.append((_UM_TOK_BOOL, True))
+            elif ident == 'false':
+                tokens.append((_UM_TOK_BOOL, False))
+            else:
+                tokens.append((_UM_TOK_IDENT, ident))
+            i = j
+            continue
+        raise ValueError(f'unexpected char {c!r} at offset {i}')
+    return tokens
+
+
+def _ui_mock_parse_list(tokens: list, pos: int) -> tuple:
+    """Parse [a, b, c] list. Returns (list_value, new_pos). pos points at '['."""
+    assert tokens[pos][0] == _UM_TOK_LBRACK
+    pos += 1
+    items = []
+    first = True
+    while pos < len(tokens) and tokens[pos][0] != _UM_TOK_RBRACK:
+        if not first:
+            if tokens[pos][0] != _UM_TOK_COMMA:
+                raise ValueError(f'expected "," in list, got {tokens[pos]}')
+            pos += 1
+        kind, val = tokens[pos]
+        if kind not in (_UM_TOK_STR, _UM_TOK_NUM):
+            raise ValueError(f'list items must be string or number, got {tokens[pos]}')
+        items.append(val)
+        pos += 1
+        first = False
+    if pos >= len(tokens):
+        raise ValueError('unterminated list')
+    return items, pos + 1  # consume ']'
+
+
+def _ui_mock_is_flag_at(tokens: list, pos: int) -> bool:
+    """An ident at `pos` is a bare flag iff its lookahead chain bottoms out at
+    an "anchor" (LBRACE / RBRACE / end / keyed-attr) without hitting a value
+    token (str/num/list) that would mean it actually starts a sibling block.
+    """
+    if pos + 1 >= len(tokens):
+        return True
+    nk, _ = tokens[pos + 1]
+    if nk in (_UM_TOK_LBRACE, _UM_TOK_RBRACE):
+        return True
+    if nk == _UM_TOK_IDENT:
+        # next ident is keyed attr (followed by ':') → current is flag
+        if pos + 2 < len(tokens) and tokens[pos + 2][0] == _UM_TOK_COLON:
+            return True
+        # otherwise: only a flag if the next ident is also a flag (recursive)
+        return _ui_mock_is_flag_at(tokens, pos + 1)
+    # str / num / lbrack / colon / comma → ident starts new sibling
+    return False
+
+
+def _ui_mock_parse_block(tokens: list, pos: int) -> tuple:
+    """Parse one block. Returns (node, new_pos)."""
+    if pos >= len(tokens):
+        raise ValueError('expected block, got EOF')
+    kind, val = tokens[pos]
+    if kind != _UM_TOK_IDENT:
+        raise ValueError(f'expected identifier, got {tokens[pos]}')
+    node = {'type': val, 'attrs': {}, 'value': None, 'children': []}
+    pos += 1
+    # Optional naked value (string | number | list)
+    value_consumed = False
+    if pos < len(tokens):
+        k, v = tokens[pos]
+        if k == _UM_TOK_STR or k == _UM_TOK_NUM:
+            node['value'] = v
+            pos += 1
+            value_consumed = True
+        elif k == _UM_TOK_LBRACK:
+            lst, pos = _ui_mock_parse_list(tokens, pos)
+            node['value'] = lst
+            value_consumed = True
+    # Attrs (zero or more): ident [':' value] OR bare flag.
+    # After a naked value is consumed, only keyed attrs are accepted — a bare
+    # ident at this point starts the next sibling block.
+    while pos < len(tokens):
+        k, v = tokens[pos]
+        if k != _UM_TOK_IDENT:
+            break
+        if pos + 1 < len(tokens) and tokens[pos + 1][0] == _UM_TOK_COLON:
+            # ident ':' value
+            attr_key = v
+            pos += 2  # skip ident, colon
+            if pos >= len(tokens):
+                raise ValueError(f'expected value for attr {attr_key}')
+            vk, vv = tokens[pos]
+            if vk in (_UM_TOK_STR, _UM_TOK_NUM, _UM_TOK_BOOL):
+                node['attrs'][attr_key] = vv
+                pos += 1
+            elif vk == _UM_TOK_LBRACK:
+                lst, pos = _ui_mock_parse_list(tokens, pos)
+                node['attrs'][attr_key] = lst
+            elif vk == _UM_TOK_IDENT:
+                # bare ident as enum value (variant:primary)
+                node['attrs'][attr_key] = vv
+                pos += 1
+            else:
+                raise ValueError(f'unexpected attr value {tokens[pos]}')
+            continue
+        # Bare flag candidate. Two preconditions:
+        #   (1) No naked value has been consumed yet — once a value is set,
+        #       any bare ident is the next sibling block.
+        #   (2) Disambiguation lookahead must "anchor" at LBRACE/RBRACE/EOF/
+        #       keyed-attr, not a str/num/list (which would mean sibling).
+        if value_consumed:
+            break
+        if _ui_mock_is_flag_at(tokens, pos):
+            node['attrs'][v] = True
+            pos += 1
+            continue
+        break  # ident starts next sibling block; let outer loop handle it
+    # Optional body
+    if pos < len(tokens) and tokens[pos][0] == _UM_TOK_LBRACE:
+        pos += 1
+        while pos < len(tokens) and tokens[pos][0] != _UM_TOK_RBRACE:
+            child, pos = _ui_mock_parse_block(tokens, pos)
+            node['children'].append(child)
+        if pos >= len(tokens):
+            raise ValueError('unterminated block (missing "}")')
+        pos += 1  # consume '}'
+    return node, pos
+
+
+def _ui_mock_dsl_parse(text: str) -> dict:
+    """Parse DSL text into AST root.
+
+    Top-level always wraps multiple blocks under {'type': 'root'}.
+    Empty / whitespace / comment-only input → root with no children.
+    """
+    tokens = _ui_mock_tokenize(text)
+    root = {'type': 'root', 'attrs': {}, 'value': None, 'children': []}
+    pos = 0
+    while pos < len(tokens):
+        node, pos = _ui_mock_parse_block(tokens, pos)
+        root['children'].append(node)
+    return root
+
+
 def rewrite_pages_paths(html: str, current_html_path, pages_dir) -> str:
     """Rewrite href/src in rendered HTML to be valid relative paths under
     server root = pages_dir/. 規則：
