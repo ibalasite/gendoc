@@ -291,6 +291,36 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 
 ---
 
+### §5.99 Component 視覺示意（DSL Wireframe）[all]
+
+部分章節需要展示某個元件外觀（例如：徽章、卡片、按鈕變體、表單區塊）。**強烈優先**使用 ` ```ui-mock ` DSL，**不要**用 ASCII 框線。`gen_html.py` 自動將 DSL 渲染為高品質 HTML；既有 ASCII 線稿也會被自動辨識，**舊內容不需強制改寫**，但**新內容優先用 DSL**。
+
+範例（descriptor 卡片）：
+
+````
+```ui-mock
+card {
+    row {
+        label "N8N 銷售報表工作流"
+        badge "Active" status:active
+    }
+    divider
+    meta-line "前綴：tk_a1b2c3d4    建立：2026-04-26 10:00"
+    meta-line "等寬字型 14px        最後使用：2026-04-26 14:30"
+    actions { button "撤銷" variant:secondary }
+}
+```
+````
+
+14 個 primitives：`page modal navbar sidenav section table field button badge input code-block hint layers pyramid`。完整參考見 `skills/gendoc-gen-html/SKILL.md §6.2`。
+
+**規則**：
+- VDD 主要任務是 Design Token / Typography / Color；wireframe 只在需要說明特定 component 視覺時才補
+- UML 圖（class / state / sequence）一律走 Mermaid，**不**用此 DSL
+- 路由樹／檔案樹用 markdown nested list 即可
+
+---
+
 ### §6 Design Token → 工程交付（Design Tokens）[all]
 
 **必填項目**（三層架構，必須全部完整，不得留 placeholder）：

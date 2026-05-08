@@ -289,6 +289,32 @@ export class PetIdleScene extends Phaser.Scene {
 - Cocos：Props / EventTarget / Singleton Manager
 - Unity：UnityEvent / ScriptableObject / EventBus
 
+### §5.4 共用 UI 組件 Wireframe（DSL 表達）
+
+每個共用 UI 組件視需要附**最小化 wireframe**，**強烈優先**使用 ` ```ui-mock ` DSL 而非 ASCII 框線。`gen_html.py` 自動偵測 DSL 與舊 ASCII 並渲染為等品質 HTML。
+
+14 個 primitives：`page modal navbar sidenav section table field button badge input code-block hint layers pyramid`
+
+範例：
+
+````
+```ui-mock
+modal title:"Confirm Delete" closable {
+    info "This action cannot be undone."
+    actions {
+        button "Cancel" variant:secondary
+        button "Delete" variant:danger
+    }
+}
+```
+````
+
+**規則**：
+- UML 圖（sequence / class / ER）一律走 Mermaid，**不**用此 DSL
+- 路由樹／檔案樹用 markdown nested list 或 ASCII tree
+- 既有 ASCII UI mockup（含 `┌─┐ ... └─┘`）會自動辨識，無需強制改寫
+- 新生成優先用 DSL（產出穩定、AI 重生不破格）
+
 ---
 
 ## §6 API Integration Map 生成規則

@@ -1156,6 +1156,114 @@ for md_file in sorted(docs_dir.glob("*.md")):
 
 ---
 
+## Step 6.2：UI Mock DSL／ASCII 雙路徑渲染（自動，無需介入）
+
+`gen_html.py` 內建 UI Mockup 雙路徑解析器，**不需要手動操作**：
+
+| Fenced 區塊形式 | 處理路徑 | 輸出 |
+|---|---|---|
+| ` ```ui-mock ` 後接 DSL | DSL parser | `<div class="umock__*">` |
+| ` ``` ` （無 lang）含 box-drawing 字元 (`┌┐└┘├┤`) | ASCII 偵測器 | `<div class="umock__*">` |
+| ` ```python `／其他語言標籤 | 維持原樣 | `<pre><code>` |
+| 上述 fallback（解析失敗或無法辨識） | 靜默 fallback | `<pre>` 純文字 |
+
+**14 個 DSL primitives**（內建支援）：
+
+```
+page  modal  navbar  sidenav  section  table
+field  button  badge  input  code-block  hint
+layers  pyramid
+```
+
+**容器/輔助關鍵字**：`actions, info, spacer, avatar, tabs, search, card, divider, meta-line, row, label, logo, item, columns, pagination, filter-bar, layer, flow-down, flow-up, detail`
+
+### DSL 語法骨架
+
+```
+keyword [naked-string] [key:value]... [{ children }]
+```
+
+- naked-string：`"..."` 包起的標籤／內容（`escape \"` 保留引號）
+- key:value：屬性，value 可為 `string` / `number` / `bool` / `[list]`
+- bare flag：純 ident（如 `closable`、`required`）→ 等同 `key:true`，**只能在 naked-string 之前**
+- list：`["a", "b", "c"]`
+- `#` 開頭為註解
+
+### 範例：modal
+
+````markdown
+```ui-mock
+modal title:"建立 API Token" closable {
+    field label:"Token 描述" required {
+        input placeholder:"N8N 銷售報表工作流" maxlength:100
+        hint "說明此 Token 的用途，方便日後識別"
+    }
+    info "建議每個工作流獨立 Token"
+    actions {
+        button "取消" variant:secondary
+        button "建立 Token" variant:primary
+    }
+}
+```
+````
+
+### 範例：page + sidenav + table
+
+````markdown
+```ui-mock
+page {
+    navbar { logo "ERP" spacer avatar }
+    sidenav { item "Dashboard" item "Tokens" }
+    section title:"API Token 管理" {
+        actions { button "+ 建立 Token" variant:primary }
+        table columns:["描述","前綴","狀態","操作"] {
+            row ["N8N 銷售", "tk_a3f9...", "Active", "[撤銷]"]
+            row ["庫存監控", "tk_b7c2...", "Active", "[撤銷]"]
+        }
+        pagination total:2 page:1 of:1
+    }
+}
+```
+````
+
+### 範例：edge-case primitives
+
+````markdown
+```ui-mock
+layered-arch {
+    layer "Presentation" { detail "React components" }
+    flow-down "calls"
+    layer "Application" { detail "Custom hooks" }
+}
+
+pyramid {
+    layer "E2E Tests" pct:"5–10%" detail:"Playwright"
+    layer "Integration Tests" pct:"20–30%"
+    layer "Unit Tests" pct:"60–70%"
+}
+```
+````
+
+`layered-arch` 會渲染成 mermaid `flowchart TB`；`pyramid` 會渲染成 inline SVG。兩者都包進 `<div class="diagram-container">` 以套用既有 lightbox 縮放。
+
+### ASCII 後向相容（自動）
+
+舊 `.md` 中以 box-drawing 字元（`┌─┐ ... └─┘`）畫的 UI 線稿**不需要改寫**——`gen_html.py` 會自動偵測並產生**與 DSL 等品質**的 HTML：
+
+- `┌──┐ ... └──┘` 含 `[X]` → modal
+- 不含 `[X]` 但有多段 `├──┤` → card with title
+- `┬` + `│` 對齊 → page with sidenav
+- 內嵌 `┌──┐...└──┘` 含字串 → input；多行含 `{}` → code-block
+- 內嵌 box 上方一行 → field label（`*` 或 `（必填）` → required）
+- `helper：...` → hint；`ⓘ ...` → info；`●text`/`○text` → badge
+- 多段 + `↓ ↑` 箭頭 → layered-arch
+- 連續 `┌─┐`+`└┴──┴┘` 漸寬 → pyramid
+- 解析失敗 → 靜默 `<pre>` fallback（不警告，per 使用者規則）
+
+**已驗證**：pet/PDD、erp/PDD、erp/FRONTEND、erp/VDD 共 10 處 ASCII UI mockup 全部成功渲染（見 `tools/gen_html/tests/fixtures/ui_mock_real/`）。
+
+---
+
 ## Step 6.5：Prototype 生成（條件性）
 
 ```bash

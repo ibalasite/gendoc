@@ -159,6 +159,53 @@ Document Control + Platform Scope Declaration 之後，依序包含：
 - 每個 Screen 名稱 + 路由
 - 每個 Component：名稱、用途、Props 清單、States（Default / Hover / Focus / Disabled / Error）
 
+#### §5.x UI Wireframe 表達規則（重要）
+
+每個 Screen 視需要附一張**UI 線稿**。**強烈優先**使用 ` ```ui-mock ` DSL（`gen_html.py` 渲染為高品質 HTML），**不要**用 ASCII 框線（後者跑版且難維護）。
+
+**14 個 primitives**：`page modal navbar sidenav section table field button badge input code-block hint layers pyramid`
+**容器/輔助**：`actions, info, spacer, avatar, tabs, search, card, divider, meta-line, row, label, logo, item, columns, pagination, filter-bar, layer, flow-down, flow-up, detail`
+
+**Modal 範例**：
+
+````
+```ui-mock
+modal title:"建立 API Token" closable {
+    field label:"Token 描述" required {
+        input placeholder:"N8N 銷售報表工作流" maxlength:100
+        hint "說明此 Token 的用途"
+    }
+    actions {
+        button "取消" variant:secondary
+        button "建立 Token" variant:primary
+    }
+}
+```
+````
+
+**Page + Sidenav + Table 範例**：
+
+````
+```ui-mock
+page {
+    navbar { logo "ERP" spacer avatar }
+    sidenav { item "Dashboard" item "Tokens" }
+    section title:"API Token 管理" {
+        actions { button "+ 建立 Token" variant:primary }
+        table columns:["描述","前綴","狀態","操作"] {
+            row ["N8N 銷售", "tk_a3f9...", "Active", "[撤銷]"]
+        }
+    }
+}
+```
+````
+
+**規則**：
+- 線稿是描述視覺結構，不是佈局實作。沒必要時不要強加 wireframe
+- UML 圖（sequence / class / ER / activity）一律走 Mermaid，不用 DSL
+- 路由樹／檔案樹／選單樹用 markdown nested list 或 ASCII tree 即可，不需要 DSL
+- 既有 ASCII UI mockup（含 `┌─┐ ... └─┘`）`gen_html` 也會自動辨識並渲染為等品質 HTML，**不需強制改寫**；但**新生成優先用 DSL**
+
 ### §9 Design System Reference（Design Tokens）
 
 ```
