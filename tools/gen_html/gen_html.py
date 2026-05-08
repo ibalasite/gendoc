@@ -1096,6 +1096,207 @@ def _ui_mock_render(ast) -> str:
     return _ui_mock_render_node(ast)
 
 
+# ─── UI Mock ASCII parser (stage ⑤) ─────────────────────────────────────
+# Heuristic detection of ASCII box-drawing UI mockups → same AST shape as
+# the DSL parser. Failure is silent (returns None); caller is expected to
+# fall back to <pre> for unrecognized blocks.
+#
+# Stage ⑤: outer frame, modal-vs-card classification, title, sections,
+#          buttons in action rows, badges (●/○).
+# Stages ⑥–⑧ extend with: 2-column split, tables, inner boxes, layered-
+# arch and pyramid detection.
+
+_UM_BOX_CHARS = set('┌┐└┘├┤┬┴┼─│┏┓┗┛┃━')
+
+
+def _um_ascii_strip_pipes(line: str) -> str:
+    """Extract content between first and last │ (or ┃) on a line."""
+    first = -1
+    last = -1
+    for i, c in enumerate(line):
+        if c in '│┃':
+            if first < 0:
+                first = i
+            last = i
+    if first >= 0 and last > first:
+        return line[first + 1:last]
+    return line
+
+
+def _um_ascii_is_divider_line(line: str) -> bool:
+    """True iff line is a section divider like ├────...────┤."""
+    if '├' not in line or '┤' not in line:
+        return False
+    # Between ├ and ┤, only ─ ┬ ┴ ┼ are allowed
+    a = line.index('├')
+    b = line.rindex('┤')
+    middle = line[a + 1:b]
+    return all(c in '─┬┴┼' for c in middle) and bool(middle)
+
+
+def _um_ascii_split_segments(interior_lines: list) -> list:
+    """Split interior (between top and bottom of frame) by ├──┤ dividers.
+    Returns list-of-list-of-content-strings (one list per segment)."""
+    segments = []
+    cur = []
+    for line in interior_lines:
+        if _um_ascii_is_divider_line(line):
+            segments.append(cur)
+            cur = []
+            continue
+        cur.append(_um_ascii_strip_pipes(line))
+    segments.append(cur)
+    return segments
+
+
+_UM_BUTTON_RE = __import__('re').compile(r'\[([^\]\n]+)\]')
+
+
+def _um_ascii_parse_segment_actions(segment_lines: list):
+    """If segment is a single 'actions row' (only [labels] + variant hints),
+    return (True, [(label, variant), ...]).  Else (False, [])."""
+    import re as _re
+    joined = ' '.join(s.strip() for s in segment_lines if s.strip())
+    if not joined:
+        return False, []
+    buttons = _UM_BUTTON_RE.findall(joined)
+    if not buttons:
+        return False, []
+    non_button = _UM_BUTTON_RE.sub('', joined)
+    # Strip variant hints in （...） parens
+    non_button_clean = _re.sub(r'[（(][^）)]*[）)]', '', non_button).strip()
+    if non_button_clean:
+        return False, []
+    # Parse variants per button
+    out = []
+    for m in _UM_BUTTON_RE.finditer(joined):
+        label = m.group(1).strip()
+        after = joined[m.end():]
+        vm = _re.match(r'\s*[（(]([^）)]+)[）)]', after)
+        variant = 'default'
+        if vm:
+            hint = vm.group(1).lower()
+            if 'primary' in hint or '主' in hint:
+                variant = 'primary'
+            elif 'danger' in hint or '危險' in hint:
+                variant = 'danger'
+            elif 'secondary' in hint or '次' in hint:
+                variant = 'secondary'
+        out.append((label, variant))
+    return True, out
+
+
+def _um_ascii_parse_segment_content(segment_lines: list):
+    """Extract badges + remaining text from a non-action segment.
+    Returns list of AST child nodes."""
+    import re as _re
+    children = []
+    text_parts = []
+    badge_re = _re.compile(r'([●○])\s*(\S[\S　]*?)(?=\s|$|[，,。])')
+    for raw in segment_lines:
+        line = raw.strip()
+        if not line:
+            continue
+        # Find ● or ○ followed by a token
+        m = _re.search(r'([●○])\s*(\S+)', line)
+        if m:
+            circle, label = m.group(1), m.group(2)
+            label = label.rstrip('，,。.;；:：')
+            status = 'active' if circle == '●' else 'inactive'
+            children.append({
+                'type': 'badge', 'attrs': {'status': status},
+                'value': label, 'children': [],
+            })
+            line = (line[:m.start()] + line[m.end():]).strip()
+        if line:
+            text_parts.append(line)
+    if text_parts:
+        children.append({
+            'type': 'info', 'attrs': {},
+            'value': ' '.join(text_parts), 'children': [],
+        })
+    return children
+
+
+def _ui_mock_ascii_parse(text: str):
+    """Parse ASCII box-drawing UI mock into AST root, or None if not parseable.
+
+    Stage ⑤ scope — see module-level comment.
+    """
+    import re as _re
+    if not any(any(c in _UM_BOX_CHARS for c in line) for line in text.splitlines()):
+        return None
+    lines = text.splitlines()
+    # Locate top-frame (first line containing ┌) and bottom-frame (last line
+    # containing └).
+    top = -1
+    bot = -1
+    for i, line in enumerate(lines):
+        if '┌' in line and top < 0:
+            top = i
+        if '└' in line:
+            bot = i
+    if top < 0 or bot < 0 or top >= bot:
+        return None
+    frame = lines[top:bot + 1]
+    if len(frame) < 2:
+        return None
+    interior = frame[1:-1]
+    # Sections split by ├──┤
+    segments = _um_ascii_split_segments(interior)
+    # Determine outer type: modal if `[X]` or `[x]` anywhere in frame
+    raw_text = '\n'.join(frame)
+    is_modal = bool(_re.search(r'\[\s*[Xx]\s*\]', raw_text))
+    # Title = first non-empty line of first segment; strip [X] markers
+    title = ''
+    if segments and segments[0]:
+        for line in segments[0]:
+            s = line.strip()
+            if s:
+                title = s
+                break
+    title = _re.sub(r'\s*\[\s*[Xx]\s*\]\s*', ' ', title).strip()
+    # Body segments
+    if is_modal or len(segments) > 1:
+        body_segments = segments[1:]
+    else:
+        body_segments = segments
+    body_children = []
+    for seg in body_segments:
+        if not any(s.strip() for s in seg):
+            continue
+        is_actions, btns = _um_ascii_parse_segment_actions(seg)
+        if is_actions:
+            children = []
+            for label, variant in btns:
+                attrs = {}
+                if variant != 'default':
+                    attrs['variant'] = variant
+                children.append({
+                    'type': 'button', 'attrs': attrs,
+                    'value': label, 'children': [],
+                })
+            body_children.append({
+                'type': 'actions', 'attrs': {}, 'value': None,
+                'children': children,
+            })
+            continue
+        body_children.extend(_um_ascii_parse_segment_content(seg))
+    outer_type = 'modal' if is_modal else 'card'
+    outer_attrs = {}
+    if title:
+        outer_attrs['title'] = title
+    if is_modal:
+        outer_attrs['closable'] = True
+    outer = {
+        'type': outer_type,
+        'attrs': outer_attrs,
+        'value': None,
+        'children': body_children,
+    }
+    return {'type': 'root', 'attrs': {}, 'value': None, 'children': [outer]}
+
+
 def rewrite_pages_paths(html: str, current_html_path, pages_dir) -> str:
     """Rewrite href/src in rendered HTML to be valid relative paths under
     server root = pages_dir/. 規則：
