@@ -10,6 +10,7 @@ import glob as _glob
 import json
 import os
 import re
+import subprocess
 import sys
 from datetime import datetime, timezone
 
@@ -25,6 +26,7 @@ PROTECTED_FILES = frozenset({
 })
 GUARD_FILE = '.gendoc-guard.json'
 HISTORY_FILE = '.gendoc-guard-history.jsonl'
+CHECKPOINT_FILE = '.gendoc-guard-checkpoint'
 
 BLOCK_MSG = """\
 [GENDOC-GUARD PRIMING]
@@ -78,6 +80,44 @@ PY_TAMPER = re.compile(
 )
 
 
+def no_fake_commits() -> bool:
+    """Cleanup checkpoint sanity check：
+    - 0 commit since baseline → True（沒做事也算合理結束）
+    - 全部 commit 都有實質 diff → True
+    - 任一 empty commit → False（假做事）
+    - 取不到 baseline / git 失敗 / 非 git repo → True（信 checkpoint）/ False（保守）
+    """
+    try:
+        guard = json.load(open(GUARD_FILE, encoding='utf-8'))
+    except Exception:
+        return False
+    start = guard.get('start_commit', '') or ''
+    if not start:
+        # 非 git repo 或 baseline 缺：寬鬆放行（純信 checkpoint）
+        return True
+    try:
+        rev_out = subprocess.check_output(
+            ['git', 'rev-list', f'{start}..HEAD'],
+            stderr=subprocess.DEVNULL,
+        ).decode().strip()
+    except Exception:
+        return False  # baseline 不可達 / rebase 過 → 保守拒絕
+    commits = [c for c in rev_out.split('\n') if c.strip()]
+    if not commits:
+        return True  # 0 commit → pass
+    for c in commits:
+        try:
+            stat = subprocess.check_output(
+                ['git', 'show', '--shortstat', '--format=', c],
+                stderr=subprocess.DEVNULL,
+            ).decode().strip()
+        except Exception:
+            return False
+        if not stat:
+            return False  # empty commit = 假做事
+    return True
+
+
 def decode_py(snippet: str) -> str:
     """還原 chr() / \\xNN / implicit / + 字串拼接後的 inline python payload。"""
     s = snippet
@@ -104,6 +144,18 @@ def decode_py(snippet: str) -> str:
 
 def evaluate_bash(cmd: str) -> str | None:
     """Return BLOCK reason (str) or None if PASS. Single source of truth."""
+    # ── Cleanup checkpoint exemption（在所有規則最前面）
+    # Wrapper Step 3a 寫 checkpoint，3b 跑 rm。3b 的 cmd 含保護檔名會
+    # 走到這裡——若 checkpoint 存在且 sanity 通過，放行該 cmd 一次。
+    if any(pf in cmd for pf in PROTECTED_FILES):
+        if os.path.isfile(CHECKPOINT_FILE):
+            try:
+                os.remove(CHECKPOINT_FILE)  # 一次性消耗
+            except Exception:
+                pass
+            if no_fake_commits():
+                return None
+            # sanity fail → 落入下面 T1-A
     # T1-A：保護檔名 substring（最強）
     for pf in PROTECTED_FILES:
         if pf in cmd:

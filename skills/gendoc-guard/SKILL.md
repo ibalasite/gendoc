@@ -165,12 +165,23 @@ if _target:
         print(f'[GUARD] WARNING: 找不到 /{_target} SKILL.md，SECS 停用')
 
 # ── 3. 一次性寫入完整 guard（guard 尚未啟動，blocker exit 0）──
+# 記錄 git baseline，給 Step 3 cleanup 階段做「沒做假事」客觀驗證
+import subprocess as _sp
+try:
+    _start_commit = _sp.check_output(
+        ['git', 'rev-parse', 'HEAD'],
+        stderr=_sp.DEVNULL,
+    ).decode().strip()
+except Exception:
+    _start_commit = ''
+
 marker = {
     "target_skill": _target,
     "status": "running",
     "phase": "invoking",
     "cwd": os.getcwd(),
     "started_at": datetime.now(timezone.utc).isoformat(),
+    "start_commit": _start_commit,
     "retry_count": _retry_count,
     "max_retries": 5,
     "secs_whitelist": whitelist,
@@ -230,26 +241,23 @@ else:
 
 ---
 
-## Step 3：正常完成，刪除所有 guard 檔案
+## Step 3：正常完成，清理 guard 檔（兩階段）
 
-```python
-import os
+兩個 Bash 區塊**必須分開執行**（不可合併成一段 heredoc，否則第二階段 cmd 含保護檔名會在 checkpoint 寫入前就被 blocker 攔下）。
 
-_GUARD_FILES = [
-    '.gendoc-guard.json',
-    '.gendoc-guard-queue',
-    '.gendoc-guard-history.jsonl',
-]
+### Step 3a：寫 checkpoint
 
-for _f in _GUARD_FILES:
-    try:
-        os.remove(_f)
-    except FileNotFoundError:
-        pass
-
-print(f"\n[GUARD] ✅ /{os.environ.get('_TARGET','')} 正常完成，監控結束")
-print(f"[GUARD] guard 檔案已清除，Stop hook 不再觸發")
+```bash
+python3 -c "open('.gendoc-guard-checkpoint','w').write('done')"
 ```
+
+### Step 3b：刪 guard 控制檔
+
+```bash
+rm -f .gendoc-guard.json .gendoc-guard-queue .gendoc-guard-history.jsonl .gendoc-guard-checkpoint
+```
+
+完成後告知使用者：「/{_TARGET} 正常完成，監控結束。」
 
 ---
 
