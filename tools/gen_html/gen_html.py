@@ -237,6 +237,17 @@ def _mermaid_fix_block(lines):
 
         # Match [content] with optional one level of nesting; skip ([...]) stadium shapes
         line = re.sub(r'(?<!\()\[([^\[\]]*(?:\[[^\[\]]*\][^\[\]]*)*)\]', quote_if_needed, line)
+
+        # Edge label |content| with special chars (parens / slash / semicolon / etc.)
+        # → 改成 |"content"|
+        def quote_edge_label(m):
+            content = m.group(1)
+            if content.startswith('"') and content.endswith('"'):
+                return '|' + content + '|'
+            if any(c in content for c in '()/;{}'):
+                return '|"' + content.replace('"', "'") + '"|'
+            return '|' + content + '|'
+        line = re.sub(r'\|([^|]*)\|', quote_edge_label, line)
         return line
 
     def fix_sequence_line(line):
