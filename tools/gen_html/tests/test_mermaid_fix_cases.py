@@ -99,6 +99,74 @@ LEGIT_CASES = [
 ]
 
 
+# ─── Orientation directive cases ─────────────────────────────────────
+# 直接驗 substring（不需 mermaid parser）
+
+ORIENTATION_BROKEN = [
+    # name → (substring expected to be GONE, substring expected to be PRESENT)
+    ('O01_flowchart_lr', 'flowchart LR', 'flowchart TD'),
+    ('O02_graph_lr',     'graph LR',     'graph TD'),
+    ('O03_classDiagram_no_direction', None,
+     'direction TB'),  # 加 direction TB
+    ('O04_classDiagram_lr_direction', 'direction LR', 'direction TB'),
+    ('O05_erDiagram_no_direction', None, 'direction TB'),
+]
+
+ORIENTATION_LEGIT = [
+    # name → (subscript that should remain unchanged)
+    ('OL01_flowchart_td', 'flowchart TD'),
+    ('OL02_classDiagram_tb', 'direction TB'),
+    ('OL03_sequence_no_direction', 'sequenceDiagram'),
+]
+
+
+def fix_orientation_check(name, expect_gone, expect_present):
+    raw = (FIXTURES / f'{name}.mmd').read_text(encoding='utf-8')
+    fixed = fix_block(raw)
+    if expect_gone is not None and expect_gone in fixed:
+        return False, f'expected "{expect_gone}" gone, but still present'
+    if expect_present not in fixed:
+        return False, f'expected "{expect_present}" present, but missing'
+    return True, ''
+
+
+def legit_orientation_check(name, must_keep):
+    raw = (FIXTURES / f'{name}.mmd').read_text(encoding='utf-8')
+    fixed = fix_block(raw)
+    if must_keep not in fixed:
+        return False, f'LEGIT regression: "{must_keep}" disappeared'
+    # Also: shouldn't introduce TB directive into a diagram that didn't have it
+    # for sequenceDiagram (no concept of direction)
+    if name == 'OL03_sequence_no_direction':
+        if 'direction' in fixed:
+            return False, 'should not add direction to sequenceDiagram'
+    return True, ''
+
+
+def _make_test_orient_broken(name, expect_gone, expect_present):
+    def f():
+        ok, msg = fix_orientation_check(name, expect_gone, expect_present)
+        assert ok, f'[{name}] {msg}'
+    f.__name__ = f'test_orient_broken_{name}'
+    return f
+
+
+def _make_test_orient_legit(name, must_keep):
+    def f():
+        ok, msg = legit_orientation_check(name, must_keep)
+        assert ok, f'[{name}] {msg}'
+    f.__name__ = f'test_orient_legit_{name}'
+    return f
+
+
+for _name, _gone, _pres in ORIENTATION_BROKEN:
+    globals()[f'test_orient_broken_{_name}'] = \
+        _make_test_orient_broken(_name, _gone, _pres)
+
+for _name, _keep in ORIENTATION_LEGIT:
+    globals()[f'test_orient_legit_{_name}'] = _make_test_orient_legit(_name, _keep)
+
+
 def _run_case(name: str, expect_pass_after_fix: bool) -> tuple[bool, str]:
     """Returns (test_passed, message)."""
     fixture = FIXTURES / f'{name}.mmd'
@@ -180,6 +248,34 @@ def main() -> int:
         line = f'  {mark} [{name}] {desc}'
         if msg and not ok:
             line += f' → {msg[:140]}'
+        print(line)
+
+    print('\n[ORIENTATION BROKEN — directive 機械修]')
+    for name, gone, pres in ORIENTATION_BROKEN:
+        ok, msg = fix_orientation_check(name, gone, pres)
+        total += 1
+        mark = '✅' if ok else '❌'
+        if ok:
+            passed += 1
+        else:
+            failed += 1
+        line = f'  {mark} [{name}]'
+        if msg and not ok:
+            line += f' → {msg}'
+        print(line)
+
+    print('\n[ORIENTATION LEGIT — 不能改]')
+    for name, keep in ORIENTATION_LEGIT:
+        ok, msg = legit_orientation_check(name, keep)
+        total += 1
+        mark = '✅' if ok else '❌'
+        if ok:
+            passed += 1
+        else:
+            failed += 1
+        line = f'  {mark} [{name}]'
+        if msg and not ok:
+            line += f' → {msg}'
         print(line)
 
     print('\n' + '=' * 78)
