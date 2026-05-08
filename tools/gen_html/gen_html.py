@@ -156,6 +156,90 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     }
     .sidebar__section details[open] > summary::before { transform: rotate(90deg); }
     .sidebar__section details .sidebar__link { padding-left: 1.75rem; font-size: 0.8125rem; }
+
+    /* ─── UI Mock DSL (stage 9) ─── */
+    .umock { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #1e293b; }
+    .umock__page, .umock__modal, .umock__card {
+      border: 1px solid #cbd5e1; border-radius: 8px; background: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin: 1rem 0;
+      overflow: hidden;
+    }
+    .umock__page-title { padding: 0.75rem 1rem; font-weight: 600; font-size: 1.05rem;
+      background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+    .umock__modal { max-width: 540px; }
+    .umock__modal-titlebar { display: flex; justify-content: space-between; align-items: center;
+      padding: 0.75rem 1rem; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; }
+    .umock__modal-title { font-weight: 600; font-size: 1rem; }
+    .umock__modal-close { color: #94a3b8; font-size: 1.1rem; cursor: default; }
+    .umock__modal-body, .umock__page > .umock__section,
+    .umock__card { padding: 0.75rem 1rem; }
+    .umock__navbar { display: flex; gap: 1rem; align-items: center;
+      padding: 0.625rem 1rem; background: #1e293b; color: #f1f5f9;
+      border-radius: 8px 8px 0 0; }
+    .umock__sidenav { float: left; width: 12rem; padding: 0.75rem;
+      background: #f8fafc; border-right: 1px solid #e2e8f0; min-height: 200px; }
+    .umock__sidenav .umock__item { padding: 0.375rem 0.5rem; border-radius: 4px;
+      color: #475569; font-size: 0.875rem; }
+    .umock__sidenav .umock__item:hover { background: #e2e8f0; }
+    .umock__page > *:not(.umock__navbar):not(.umock__sidenav) { margin-left: 12.5rem;
+      padding: 0.75rem 1rem; }
+    .umock__page::after { content: ""; display: block; clear: both; }
+    .umock__section { padding: 0.75rem 0; }
+    .umock__section-title { margin: 0 0 0.5rem 0; font-size: 1rem; font-weight: 600; }
+    .umock__section-subtitle { color: #64748b; font-size: 0.875rem; margin-bottom: 0.5rem; }
+    .umock__field { margin: 0.5rem 0; }
+    .umock__field-label { display: block; font-size: 0.85rem; color: #334155;
+      margin-bottom: 0.25rem; font-weight: 500; }
+    .umock__field-required { color: #dc2626; margin-left: 0.125rem; }
+    .umock__input, .umock__search {
+      display: block; width: 100%; padding: 0.5rem 0.625rem; font-size: 0.9rem;
+      border: 1px solid #cbd5e1; border-radius: 4px; background: #fff;
+      color: #475569; box-sizing: border-box;
+    }
+    .umock__btn { display: inline-block; padding: 0.4rem 0.9rem; margin: 0.125rem;
+      font-size: 0.875rem; font-weight: 500; border: 1px solid transparent;
+      border-radius: 4px; cursor: default; background: #e2e8f0; color: #334155; }
+    .umock__btn--primary { background: #2563eb; color: #fff; }
+    .umock__btn--secondary { background: #fff; color: #475569; border-color: #cbd5e1; }
+    .umock__btn--danger { background: #dc2626; color: #fff; }
+    .umock__actions { padding: 0.5rem 0; text-align: right;
+      border-top: 1px solid #f1f5f9; }
+    .umock__badge { display: inline-block; padding: 0.125rem 0.5rem;
+      border-radius: 999px; font-size: 0.75rem; font-weight: 500;
+      background: #e2e8f0; color: #475569; }
+    .umock__badge--active { background: #dcfce7; color: #166534; }
+    .umock__badge--inactive { background: #fee2e2; color: #991b1b; }
+    .umock__badge--warning { background: #fef3c7; color: #92400e; }
+    .umock__hint { color: #64748b; font-size: 0.8rem; margin: 0.25rem 0 0.5rem 0; }
+    .umock__info { background: #eff6ff; border-left: 3px solid #3b82f6;
+      padding: 0.5rem 0.75rem; margin: 0.5rem 0; color: #1e3a8a; font-size: 0.875rem; }
+    .umock__code { background: #1e293b; color: #f1f5f9; padding: 0.75rem;
+      border-radius: 4px; overflow-x: auto; font-size: 0.8rem;
+      font-family: ui-monospace, "SF Mono", Consolas, monospace; }
+    .umock__code code { background: none; color: inherit; padding: 0; }
+    .umock__table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.875rem; }
+    .umock__table th, .umock__table td { padding: 0.5rem 0.625rem; text-align: left;
+      border-bottom: 1px solid #e2e8f0; }
+    .umock__table th { background: #f8fafc; font-weight: 600; color: #334155; }
+    .umock__pagination { padding: 0.5rem 0; color: #64748b; font-size: 0.8rem; text-align: right; }
+    .umock__tabs { display: flex; gap: 0.5rem; padding: 0.25rem 0; border-bottom: 1px solid #e2e8f0; }
+    .umock__tab { padding: 0.375rem 0.75rem; color: #475569; font-size: 0.875rem;
+      border-bottom: 2px solid transparent; }
+    .umock__tab:first-child { border-bottom-color: #2563eb; color: #1e40af; font-weight: 500; }
+    .umock__filter-bar { display: flex; gap: 0.5rem; align-items: center;
+      padding: 0.5rem 0; }
+    .umock__divider { border: 0; border-top: 1px solid #e2e8f0; margin: 0.5rem 0; }
+    .umock__meta-line { color: #64748b; font-size: 0.8rem; margin: 0.125rem 0; }
+    .umock__row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .umock__row-cell { font-size: 0.875rem; color: #334155; }
+    .umock__avatar { width: 1.75rem; height: 1.75rem; border-radius: 50%;
+      background: #94a3b8; display: inline-block; }
+    .umock__logo { font-weight: 700; letter-spacing: 0.02em; }
+    .umock__spacer { flex: 1; }
+    .umock__pyramid { display: block; max-width: 100%; height: auto; }
+    /* generic fallback for unknown types */
+    .umock__x { padding: 0.5rem; border: 1px dashed #cbd5e1; border-radius: 4px;
+      color: #64748b; font-size: 0.875rem; margin: 0.25rem 0; }
   </style>
 </head>
 <body>
@@ -1972,15 +2056,39 @@ def md_to_html(text, src_dir=None):
                 block.append(lines[i])
                 i += 1
             out.append(_puml_block_to_html(block))
-        elif s.startswith('```'):
-            lang = s[3:].strip()
+        elif re.match(r'^```\s*ui-mock\b', s):
+            # Stage 9: UI Mock DSL fenced block → parse + render. Per user
+            # spec: silent fallback to <pre> on parse error (no warning).
             block = []
             i += 1
             while i < len(lines) and lines[i].strip() != '```':
-                block.append(esc(lines[i]))
+                block.append(lines[i])
                 i += 1
+            try:
+                ast = _ui_mock_dsl_parse('\n'.join(block))
+                out.append(_ui_mock_render(ast))
+            except Exception:
+                escaped = '\n'.join(esc(l) for l in block)
+                out.append(f'<pre><code>{escaped}</code></pre>')
+        elif s.startswith('```'):
+            lang = s[3:].strip()
+            raw_block = []
+            i += 1
+            while i < len(lines) and lines[i].strip() != '```':
+                raw_block.append(lines[i])
+                i += 1
+            # Stage 9: try ASCII UI Mock parse if no language tag and box-
+            # drawing chars present. None → silent fallback to <pre>.
+            if not lang and any(any(c in line for c in '┌┐└┘├┤')
+                                for line in raw_block):
+                ast = _ui_mock_ascii_parse('\n'.join(raw_block))
+                if ast is not None:
+                    out.append(_ui_mock_render(ast))
+                    i += 1  # consume closing ```
+                    continue
             cls = f'language-{lang}' if lang else ''
-            out.append(f'<pre><code class="{cls}">' + '\n'.join(block) + '</code></pre>')
+            escaped = '\n'.join(esc(l) for l in raw_block)
+            out.append(f'<pre><code class="{cls}">' + escaped + '</code></pre>')
         elif s.startswith('#### '):
             out.append(f'<h4>{inline_md(s[5:], src_dir)}</h4>')
         elif s.startswith('### '):
