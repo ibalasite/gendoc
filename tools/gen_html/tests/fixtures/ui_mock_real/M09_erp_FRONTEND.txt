@@ -1,0 +1,10 @@
+              ┌─────────────┐
+              │  E2E Tests  │   Playwright .NET 1.44
+              │   5–10%     │   Critical User Flows（建立 / 撤銷 / 審計）
+         ┌────┴─────────────┴────┐
+         │  Integration Tests    │   xUnit + WebApplicationFactory
+         │     20–30%            │   PageModel ↔ Use Case ↔ DB（Testcontainers PostgreSQL）
+    ┌────┴───────────────────────┴────┐
+    │  Unit Tests                     │   xUnit + FluentAssertions
+    │     60–70%                      │   PageModel 單元 / Domain Service / Validator
+    └─────────────────────────────────┘

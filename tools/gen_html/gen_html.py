@@ -164,6 +164,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin: 1rem 0;
       overflow: hidden;
     }
+    .umock__card-title { padding: 0.625rem 1rem; font-weight: 600; font-size: 0.95rem;
+      background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #1e293b; }
     .umock__page-title { padding: 0.75rem 1rem; font-weight: 600; font-size: 1.05rem;
       background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
     .umock__modal { max-width: 540px; }
@@ -894,7 +896,9 @@ def _um_r_search(n):
 
 
 def _um_r_card(n):
-    return f'<div class="umock__card">{_um_render_children(n)}</div>'
+    title = _um_esc(_um_attr(n, 'title'))
+    title_html = f'<div class="umock__card-title">{title}</div>' if title else ''
+    return f'<div class="umock__card">{title_html}{_um_render_children(n)}</div>'
 
 
 def _um_r_divider(n):
@@ -1402,8 +1406,19 @@ def _um_ascii_extract_inner_boxes(segment_lines: list):
 
 def _um_ascii_parse_segment_content(segment_lines: list):
     """Extract table + nested boxes + form rows + hints + badges + text
-    from a non-action segment. Returns list of AST child nodes."""
+    + trailing action row from a non-action segment.
+    Returns list of AST child nodes."""
     import re as _re
+    # Detect trailing action row (last non-empty line is all-buttons + hints)
+    trailing_actions = None
+    for k in range(len(segment_lines) - 1, -1, -1):
+        if not segment_lines[k].strip():
+            continue
+        is_actions, btns = _um_ascii_parse_segment_actions([segment_lines[k]])
+        if is_actions:
+            trailing_actions = btns
+            segment_lines = segment_lines[:k]
+        break
     table_node, segment_lines = _um_ascii_extract_table(segment_lines)
     children = []
     if table_node:
@@ -1469,6 +1484,16 @@ def _um_ascii_parse_segment_content(segment_lines: list):
             text_parts.append(line)
         i += 1
     flush_text()
+    if trailing_actions:
+        children.append({
+            'type': 'actions', 'attrs': {}, 'value': None,
+            'children': [
+                {'type': 'button',
+                 'attrs': ({'variant': v} if v != 'default' else {}),
+                 'value': l, 'children': []}
+                for l, v in trailing_actions
+            ],
+        })
     return children
 
 
@@ -1504,6 +1529,16 @@ def _um_ascii_extract_two_column(interior: list, divider_idx: int, col_pos: int)
     right_lines = []
     for line in below:
         right_part = line[col_pos + 1:] if len(line) > col_pos + 1 else ''
+        # If the column split position has ├ or ┼ (right column's own inner
+        # divider), prepend ├ so splitter recognizes the divider.
+        if col_pos < len(line) and line[col_pos] in '├┼':
+            right_part = '├' + right_part
+        # Body-line right portion ends with the outer-frame │; strip it.
+        # Don't strip if this is a divider line (├──┤) — splitter needs it.
+        if not _um_ascii_is_divider_line(right_part):
+            right_part = right_part.rstrip()
+            while right_part.endswith('│') or right_part.endswith('┃'):
+                right_part = right_part[:-1].rstrip()
         right_lines.append(right_part)
         left_part = line[:col_pos]
         left_part = _um_ascii_strip_pipes(left_part)

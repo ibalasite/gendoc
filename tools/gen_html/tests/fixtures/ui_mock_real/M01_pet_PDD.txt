@@ -1,0 +1,28 @@
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Presentation Layer                                                     │
+│  React components: PetCanvas, ClaimFlow, ArenaPage,                    │
+│  LeaderboardTable, TrainingActions, StatsPanel, RarityBadge,           │
+│  BattleResultCard, MarketplaceGrid                                     │
+│                      ↓ calls (via props / context)                      │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Application Layer                                                      │
+│  Custom hooks: usePet, useClaim, useArena, useLeaderboard,             │
+│  useTraining, useFood, useMarketplace, useAdmin                        │
+│                      ↓ uses                                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Domain Layer                                                           │
+│  Entities & interfaces:                                                 │
+│    Pet { id, seed, rarity, stats, ownerId }                            │
+│    Battle { id, mode, winnerId, loserId, statDelta }                   │
+│    LeaderboardEntry { rank, petId, score, winRate }                    │
+│    ClaimToken { email, code, expiresAt, petId }                        │
+│    TrainingSession { petId, action, statDelta, completedAt }           │
+│    FoodItem { id, type, buffStat, magnitude, duration }                │
+│                      ↑ implemented by                                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Infrastructure Layer                                                   │
+│  API client: fetchPet(), enterArena(), submitTraining(),               │
+│  fetchLeaderboard(), submitClaim(), validateCode(), fetchMarketplace() │
+│  localStorage: tokenStore (pet URL token), claimSessionStore          │
+│  Phaser.js: PetCanvasEngine (sprite rendering, animation)              │
+└─────────────────────────────────────────────────────────────────────────┘
