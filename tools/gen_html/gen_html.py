@@ -1231,37 +1231,160 @@ def _um_ascii_extract_table(segment_lines: list):
     return table_node, leftover
 
 
+def _um_ascii_extract_inner_boxes(segment_lines: list):
+    """Find nested ┌──┐ ... └──┘ boxes inside a segment. For each, build:
+      - input or code-block node based on content shape
+      - if preceded by a label line (last non-blank line before the box),
+        wrap the box in a `field { label, required?, child=box }` node and
+        consume the label line too
+    Returns list of (anchor_idx, last_idx, node) tuples sorted by anchor.
+    """
+    out = []
+    n = len(segment_lines)
+    consumed = set()
+    i = 0
+    while i < n:
+        line = segment_lines[i]
+        if '┌' in line and '┐' in line and line.index('┌') < line.rindex('┐'):
+            # Find matching └──┘ on a later line
+            box_end = -1
+            for j in range(i + 1, n):
+                if '└' in segment_lines[j] and '┘' in segment_lines[j]:
+                    box_end = j
+                    break
+            if box_end < 0:
+                i += 1
+                continue
+            # Content between box top and bottom; strip inner │ pipes
+            content_lines = [
+                _um_ascii_strip_pipes(segment_lines[k]).rstrip()
+                for k in range(i + 1, box_end)
+            ]
+            non_empty = [l for l in content_lines if l.strip()]
+            # Heuristic: code-block iff multi-line OR has braces/quotes
+            joined = ' '.join(non_empty)
+            is_code = len(non_empty) >= 2 or any(
+                c in joined for c in ('{', '}', '"', '[', ']')
+            )
+            if is_code:
+                box_node = {
+                    'type': 'code-block', 'attrs': {},
+                    'value': '\n'.join(content_lines).strip('\n'),
+                    'children': [],
+                }
+            else:
+                placeholder = ' '.join(non_empty).strip()
+                attrs = {'placeholder': placeholder} if placeholder else {}
+                box_node = {
+                    'type': 'input', 'attrs': attrs,
+                    'value': None, 'children': [],
+                }
+            # Look for a label line (immediate previous non-blank, not consumed)
+            label_idx = -1
+            for k in range(i - 1, -1, -1):
+                if k in consumed:
+                    break
+                if segment_lines[k].strip():
+                    label_idx = k
+                    break
+            anchor = label_idx if label_idx >= 0 else i
+            if label_idx >= 0:
+                label_text = segment_lines[label_idx].strip()
+                required = False
+                if label_text.endswith('*'):
+                    required = True
+                    label_text = label_text.rstrip('*').strip()
+                for marker in ('（必填）', '(必填)'):
+                    if marker in label_text:
+                        required = True
+                        label_text = label_text.replace(marker, '').strip()
+                attrs = {'label': label_text}
+                if required:
+                    attrs['required'] = True
+                node = {
+                    'type': 'field', 'attrs': attrs,
+                    'value': None, 'children': [box_node],
+                }
+            else:
+                node = box_node
+            out.append((anchor, box_end, node))
+            for k in range(min(anchor, i), box_end + 1):
+                consumed.add(k)
+            i = box_end + 1
+            continue
+        i += 1
+    return out, consumed
+
+
 def _um_ascii_parse_segment_content(segment_lines: list):
-    """Extract table + badges + remaining text from a non-action segment.
-    Returns list of AST child nodes."""
+    """Extract table + nested boxes + form rows + hints + badges + text
+    from a non-action segment. Returns list of AST child nodes."""
     import re as _re
-    # First: try to extract a table (largest run wins)
     table_node, segment_lines = _um_ascii_extract_table(segment_lines)
     children = []
     if table_node:
         children.append(table_node)
+    inner_boxes, consumed = _um_ascii_extract_inner_boxes(segment_lines)
+    inner_boxes.sort(key=lambda t: t[0])
+    box_at = {anchor: (last, node) for anchor, last, node in inner_boxes}
     text_parts = []
-    for raw in segment_lines:
-        line = raw.strip()
-        if not line:
+
+    def flush_text():
+        if not text_parts:
+            return
+        text = ' '.join(text_parts).strip()
+        if not text:
+            text_parts.clear()
+            return
+        # `helper：...` → hint
+        m = _re.match(r'^\s*helper\s*[：:]\s*(.+)$', text, _re.IGNORECASE)
+        if m:
+            children.append({'type': 'hint', 'attrs': {},
+                             'value': m.group(1).strip(), 'children': []})
+            text_parts.clear()
+            return
+        # `ⓘ ...` → info
+        m = _re.match(r'^\s*ⓘ\s*(.+)$', text)
+        if m:
+            children.append({'type': 'info', 'attrs': {},
+                             'value': m.group(1).strip(), 'children': []})
+            text_parts.clear()
+            return
+        # default → info
+        children.append({'type': 'info', 'attrs': {},
+                         'value': text, 'children': []})
+        text_parts.clear()
+
+    i = 0
+    n = len(segment_lines)
+    while i < n:
+        if i in box_at:
+            flush_text()
+            last, node = box_at[i]
+            children.append(node)
+            i = last + 1
             continue
+        if i in consumed:
+            i += 1
+            continue
+        line = segment_lines[i].strip()
+        if not line:
+            flush_text()
+            i += 1
+            continue
+        # Badge inline
         m = _re.search(r'([●○])\s*(\S+)', line)
         if m:
             circle, label = m.group(1), m.group(2)
             label = label.rstrip('，,。.;；:：')
             status = 'active' if circle == '●' else 'inactive'
-            children.append({
-                'type': 'badge', 'attrs': {'status': status},
-                'value': label, 'children': [],
-            })
+            children.append({'type': 'badge', 'attrs': {'status': status},
+                             'value': label, 'children': []})
             line = (line[:m.start()] + line[m.end():]).strip()
         if line:
             text_parts.append(line)
-    if text_parts:
-        children.append({
-            'type': 'info', 'attrs': {},
-            'value': ' '.join(text_parts), 'children': [],
-        })
+        i += 1
+    flush_text()
     return children
 
 
