@@ -362,6 +362,159 @@ def _mermaid_fix_block(lines):
         return [fix_class_line(l) for l in lines]
     return lines
 
+def rewrite_pages_paths(html: str, current_html_path, pages_dir) -> str:
+    """Rewrite href/src in rendered HTML to be valid relative paths under
+    server root = pages_dir/. 規則：
+
+    R3-1: href="docs/pages/X" → "X"
+    R3-2: href="docs/X.md" → "X.html" (when pages_dir/X.html exists)
+    R3-3: href="diagrams/X.md" → "diag-X.html" (gendoc flatten convention)
+          href="diagrams/" → strip <a>（無單一 page 對應）
+    R3-4 / R3-5: href="features/X" / "blueprint/X" / "src/X" 等 root 路徑
+                  → 在 pages/ 內無對應檔 → strip <a>，保留 inner text
+    R1: <code>X</code> where X is path-like AND pages/X exists → 包 <a>
+    LEGIT 不動: http(s)://、#anchor、existing relative paths
+
+    `current_html_path` 是當前 HTML 將寫入的路徑（pathlib.Path）。
+    """
+    import os as _os
+    pages_dir = Path(pages_dir)
+    current_html_path = Path(current_html_path)
+    rel_dir = current_html_path.parent.relative_to(pages_dir)
+
+    def _resolve(target: str) -> 'pathlib.Path | None':
+        """從當前 HTML 看 target 解析後對應的 pages/ 內絕對路徑。"""
+        # 砍 #fragment / ?query
+        clean = target.split('#', 1)[0].split('?', 1)[0]
+        if not clean:
+            return None
+        candidate = (pages_dir / rel_dir / clean).resolve()
+        try:
+            candidate.relative_to(pages_dir.resolve())
+        except ValueError:
+            return None  # 跳出 pages/
+        return candidate
+
+    def _href_rewrite(match):
+        full_match = match.group(0)
+        attr = match.group(1)        # href / src
+        target = match.group(2)
+        # 完全跳過外部 / anchor
+        if target.startswith(('http://', 'https://', '#', 'mailto:',
+                              'data:', 'javascript:')):
+            return full_match
+        # R3-1: docs/pages/ prefix → 直接剝
+        if target.startswith('docs/pages/'):
+            target = target[len('docs/pages/'):]
+        # R3-2: docs/X.md → X.html（若存在）
+        if target.startswith('docs/') and ('.md' in target):
+            tail = target[len('docs/'):]
+            md_part, _, frag = tail.partition('#')
+            if md_part.endswith('.md'):
+                base = md_part[:-3].lower()
+                html_name = base + '.html'
+                # docs/diagrams/X.md 走 R3-3 處理
+                if base.startswith('diagrams/'):
+                    flat = 'diag-' + base[len('diagrams/'):] + '.html'
+                    if (pages_dir / flat).is_file():
+                        target = flat + (('#' + frag) if frag else '')
+                    else:
+                        return _strip_anchor(full_match)
+                else:
+                    if (pages_dir / html_name).is_file():
+                        target = html_name + (('#' + frag) if frag else '')
+                    else:
+                        return _strip_anchor(full_match)
+        # R3-3: diagrams/X.md（沒走 docs/ prefix 的版本）
+        elif target.startswith('diagrams/'):
+            tail = target[len('diagrams/'):]
+            md_part, _, frag = tail.partition('#')
+            if md_part.endswith('.md'):
+                flat = 'diag-' + md_part[:-3] + '.html'
+                if (pages_dir / flat).is_file():
+                    target = flat + (('#' + frag) if frag else '')
+                else:
+                    return _strip_anchor(full_match)
+            else:
+                # 純 diagrams/ 目錄 link → 無單一 page 對應
+                return _strip_anchor(full_match)
+        # R3-4 / R3-5: features/、blueprint/、src/ 等 root 路徑
+        elif re.match(r'^(features|blueprint|src|tests|infrastructure|scripts)/', target):
+            return _strip_anchor(full_match)
+        # 已重寫，回傳新 attr
+        return f'{attr}="{target}"'
+
+    def _strip_anchor(full_a_match: str) -> str:
+        """把整個 <a href="..."> ... </a> 拆成純 inner text。
+        full_a_match 是只匹配到 attr 的一段，需要找到包圍的 <a>。
+        實作：因 _href_rewrite 只看 attr，這裡先回 sentinel，
+        post-process 階段再轉成 strip。"""
+        return '__STRIP_A_TAG__' + full_a_match
+
+    # Step 1: 走訪 href / src，找需要改寫 / strip 的
+    rewritten = re.sub(r'\b(href|src)="([^"]+)"', _href_rewrite, html)
+
+    # Step 2: 對標記 strip 的 <a>，把整個 <a ...>inner</a> 換成 inner text
+    def _strip_a(match):
+        return match.group(1)
+    rewritten = re.sub(
+        r'<a [^>]*__STRIP_A_TAG__[^>]*>([^<]*)</a>',
+        _strip_a, rewritten,
+    )
+    # 殘留的 sentinel 也清掉（防 self-closing 等）
+    rewritten = rewritten.replace('__STRIP_A_TAG__', '')
+
+    # Step 3: R1 — <code>X</code> auto-link when pages/X exists
+    def _code_to_link(match):
+        content = match.group(1)
+        # 只考慮看似路徑的：含 / 或結尾是 .html / .md / .json / .yaml
+        if not (('/' in content) or content.endswith(
+                ('.html', '.md', '.json', '.yaml', '.yml'))):
+            return match.group(0)
+        # 嘗試原樣 + 剝 docs/pages/ prefix
+        try_targets = [content]
+        if content.startswith('docs/pages/'):
+            try_targets.append(content[len('docs/pages/'):])
+        for t in try_targets:
+            resolved = _resolve(t)
+            if resolved is not None and resolved.is_file():
+                # t 已是從 current_html_path 視角寫的相對路徑，直接當 href
+                return f'<a href="{t}">{content}</a>'
+        return match.group(0)
+    rewritten = re.sub(r'<code>([^<]+)</code>', _code_to_link, rewritten)
+
+    return rewritten
+
+
+def scan_prototype_entries(pages_dir):
+    """掃 pages_dir/prototype/{,*/}index.html，回傳 list of {label, href}。
+
+    用於 sidebar 自動生成 Interactive Prototypes 區塊。
+    """
+    pages_dir = Path(pages_dir)
+    proto_dir = pages_dir / 'prototype'
+    if not proto_dir.is_dir():
+        return []
+    entries = []
+    # 主 prototype/index.html
+    if (proto_dir / 'index.html').is_file():
+        entries.append({'label': 'UI Prototype',
+                        'href': 'prototype/index.html'})
+    # 每個子目錄 prototype/<sub>/index.html
+    for sub in sorted(proto_dir.iterdir()):
+        if not sub.is_dir():
+            continue
+        if (sub / 'index.html').is_file():
+            label_map = {
+                'api-explorer': 'API Explorer',
+                'admin': 'Admin Prototype',
+            }
+            label = label_map.get(sub.name, sub.name.replace('-', ' ').title())
+            entries.append({'label': label,
+                            'href': f'prototype/{sub.name}/index.html'})
+    return entries
+
+
 def strip_frontmatter(text: str) -> str:
     """Strip YAML frontmatter (--- ... ---) from the top of a markdown file."""
     if not (text.startswith('---\n') or text.startswith('---\r\n')):
