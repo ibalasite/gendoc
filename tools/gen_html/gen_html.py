@@ -254,13 +254,33 @@ def _mermaid_fix_block(lines):
             line = prefix + message
         return line
 
+    # Mermaid v11 stateDiagram-v2 內當 state 名會撞 grammar 的字（case-sensitive）
+    # 只列實證會壞的——不要過度擴張，避免改到合法 keyword 位置
+    _STATE_NAME_RESERVED = {'Default', 'default'}
+
     def fix_state_line(line):
+        # Strip `entry:` / `exit:` keywords (UML concept, mermaid v11 不支援)
+        if re.match(r'^\s*(entry|exit)\s*:', line):
+            return ''
+        # Rename 撞 grammar 的 state 名 → 加 _st 後綴
+        # 只動 state-name position：state X / X --> / --> X / X :
+        for bad in _STATE_NAME_RESERVED:
+            esc = re.escape(bad)
+            # state X
+            line = re.sub(rf'(\bstate\s+){esc}\b', rf'\1{bad}_st', line)
+            # X --> 或 --> X（state 轉換）
+            line = re.sub(rf'\b{esc}(\s*-->)', rf'{bad}_st\1', line)
+            line = re.sub(rf'(-->\s*){esc}\b', rf'\1{bad}_st', line)
+            # X : (state description 行首)
+            line = re.sub(rf'^(\s*){esc}(\s*:)', rf'\1{bad}_st\2', line)
         # Mermaid v11: ; in transition / state label treated as statement separator
-        # Match either:  X --> Y : label  |  state X : description
+        # 也把 [...] / {...} 在 label 內換成 (...)（mermaid 把 [X] 當 state ref）
         m = re.match(r'^(.*?(?:-->|state\s+\S+).*?:\s*)(.*)$', line)
         if m:
             prefix, label = m.group(1), m.group(2)
             label = label.replace(';', ',')
+            label = re.sub(r'\[([^\[\]]*)\]', r'(\1)', label)
+            label = re.sub(r'\{([^\{\}]*)\}', r'(\1)', label)
             line = prefix + label
         return line
 
