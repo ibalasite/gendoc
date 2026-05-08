@@ -1,0 +1,66 @@
+stateDiagram-v2
+    [*] --> Generated : GET /api/v1/pets/random\ncreates pet row with\nreserved_until = NOW()+24h\n(pet_reservation_ttl_hours = 24)
+
+    Generated --> GuestPreview : Pet row created,\nowner_token_hash IS NULL,\nreserved_until IS NOT NULL
+
+    GuestPreview --> ClaimInitiated : POST /api/v1/claim\n(email + petId + ageConfirmed)
+
+    GuestPreview --> Expired : reserved_until < NOW()\nAND owner_token_hash IS NULL\n(cleanup job runs every 6h)
+
+    Expired --> [*] : Pet row hard-deleted
+
+    ClaimInitiated --> ClaimPending : claim_codes row inserted\nOTP email sent via SendGrid\nexpires_at = NOW()+15min\n(claim_code_expiry_minutes = 15)
+
+    ClaimPending --> ClaimExpired : expires_at < NOW()\nAND used_at IS NULL
+
+    ClaimExpired --> GuestPreview : Player must re-initiate claim\n(pet row still unclaimed)
+
+    ClaimPending --> Claimed : POST /api/v1/claim/verify\nOTP valid\nowner_token_hash set\nclaimed_at set\nreserved_until = NULL\nclaim_identity_id set
+
+    Claimed --> Active : Initial state after claim\nlevel = 1, all stats = 10\n(pet_level_default = 1,\npet_stat_default = 10)
+
+    Active --> ActiveNeglected : NOW() - last_trained_at > 3 days\nOR last_trained_at IS NULL\n(training_neglect_threshold_days = 3)
+
+    ActiveNeglected --> Active : POST /api/v1/pets/:petId/train\n(any training action clears neglect)
+
+    Active --> TrainingLimitReached : 3 actions used today\n(training_actions_per_day = 3)
+
+    TrainingLimitReached --> Active : UTC 00:00 daily reset
+
+    Active --> Buffed : POST /api/v1/pets/:petId/feed\nfood_buffs row inserted
+
+    Buffed --> Active : Buff expires (expires_at < NOW())\nOR permanent buff consumed
+
+    Active --> InArena : POST /api/v1/arena/enter\n(enqueued in matchmaking:\nqueue:{mode})
+
+    InArena --> Active : Battle completed\narena_matches row inserted\nleaderboard score updated
+
+    Active --> Banned : POST /admin/api/pets/:petId/ban\nis_banned = TRUE\nbanned_at set\nleaderboard:global ZREM\n(within 5 min — leaderboard_ban_reflection_time_minutes = 5)
+
+    Banned --> Active : POST /admin/api/pets/:petId/unban\nis_banned = FALSE\nbanned_at remains (immutable)
+
+    Active --> Listed : POST /api/v1/marketplace/listings\n(FF_MARKETPLACE only)\nstatus = active
+
+    Listed --> Active : DELETE /api/v1/marketplace/listings/:listingId\nstatus = cancelled\nOR expires_at reached
+
+    Listed --> Sold : POST /api/v1/marketplace/listings/:listingId/buy\nstatus = sold\nowner_token_hash updated\nmarketplace_transactions row inserted\nAnti-flip: re-listing blocked\nfor 7 days (marketplace_trade_antiflip_protection_days = 7)
+
+    Sold --> Active : New owner holds token\nPet returns to Active state
+
+    note right of GuestPreview
+        Sprite rendered in Phaser.js
+        32×32 px (sprite_resolution_px = 32)
+        ClaimCTA shown
+    end note
+
+    note right of Claimed
+        petToken transmitted once
+        only SHA-256 hash stored
+        (pet_access_token_min_bytes = 32)
+    end note
+
+    note right of Banned
+        Banned pets cannot enter arena
+        POST /api/v1/arena/enter returns
+        HTTP 403 PET_BANNED
+    end note

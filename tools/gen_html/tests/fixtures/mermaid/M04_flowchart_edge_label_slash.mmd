@@ -1,0 +1,87 @@
+graph TB
+    subgraph Actors["External Actors"]
+        Guest["Guest Player\n(no token)"]
+        Owner["Pet Owner\n(URL token)"]
+        Competitor["Competitive Player\n(token + arena)"]
+        Admin["Admin Operator\n(TOTP session)"]
+    end
+
+    subgraph CDN["CDN / Edge — Vercel"]
+        PlayerApp["Player App\nReact 18 + Phaser.js 3\nVite 5 / TypeScript 5\nJS ≤ 300 KB gzipped (total_js_bundle_gzipped_kb = 300)"]
+        AdminPortal["Admin Portal\nVue 3 + Element Plus\nVite 5 / TypeScript 5"]
+    end
+
+    subgraph Gateway["API Gateway / Load Balancer"]
+        LB["Nginx / Vercel Edge\nTLS termination\nRate-limit header forward\nX-Real-IP passthrough"]
+    end
+
+    subgraph APILayer["API Layer — Railway (autoscale HPA at 70% CPU)"]
+        GameAPI["Game API Server\nNode.js 20 LTS / Fastify 4\n≥ 2 replicas\n/api/v1/* routes\nPlugins: pets, claim, arena,\nleaderboard, marketplace, gdpr"]
+        AdminAPI["Admin API Server\nNode.js 20 LTS / Fastify 4\n1 replica\n/admin/api/* routes\nPlugins: auth, roles, pets,\nbattles, leaderboard, config,\ngdpr, audit, dashboard"]
+    end
+
+    subgraph DataLayer["Data Layer"]
+        subgraph PostgreSQL["PostgreSQL 15+ — Supabase"]
+            PGPrimary["Primary Writer\nAll mutations"]
+            PGReplica["Read Replica\nLeaderboard reads\nPublic pet pages\nAdmin list views"]
+        end
+        subgraph RedisStore["Redis 7+ — Upstash (serverless)"]
+            RLCounters["Rate-limit counters\nrl:claim:{email_hash}\nrl:arena:{pet_id}\nrl:code_entry:{session_id}\nrl:admin:{admin_id}"]
+            Leaderboard["Leaderboard sorted set\nleaderboard:global\n(ZADD / ZRANGE REV LIMIT)"]
+            Matchmaking["Matchmaking queue\nmatchmaking:queue:RACE\nmatchmaking:queue:SUMO"]
+            Sessions["Admin sessions\nsession:admin:{session_id}\nTTL 14400 s (4 h — admin_session_inactivity_expiry_hours = 4)"]
+            TokenBL["Token blacklist\ntoken:blacklist:{token_hash}\nTTL 259200 s (72 h — claim_token_cleanup_ttl_hours = 72)"]
+            ConfigCache["Config cache\nconfig:runtime\nTTL 300 s (5 min — config_cache_refresh_time_minutes = 5)"]
+        end
+    end
+
+    subgraph External["External Services"]
+        SendGrid["SendGrid v3 API\nPrimary email\nSPF + DKIM\nDelivery target ≥ 98%"]
+        Nodemailer["Nodemailer SMTP\nFailover after 3\nconsecutive SendGrid\nfailures"]
+        GitHubActions["GitHub Actions\nCI/CD pipeline\nTest → Build → Deploy"]
+        S3["S3-compatible Storage\nPostgreSQL daily backups\nSupabase automated"]
+    end
+
+    %% Actor → Frontend
+    Guest -->|HTTPS| PlayerApp
+    Owner -->|HTTPS| PlayerApp
+    Competitor -->|HTTPS| PlayerApp
+    Admin -->|HTTPS| AdminPortal
+
+    %% Frontend → Gateway
+    PlayerApp -->|HTTPS REST /api/v1/*| LB
+    AdminPortal -->|HTTPS REST /admin/api/*| LB
+
+    %% Gateway → API Servers
+    LB -->|REST /api/v1/*| GameAPI
+    LB -->|REST /admin/api/*| AdminAPI
+
+    %% API Servers → Data Layer
+    GameAPI -->|reads + writes| PGPrimary
+    GameAPI -->|reads| PGReplica
+    GameAPI -->|rate limits| RLCounters
+    GameAPI -->|ZADD / ZRANGE REV LIMIT| Leaderboard
+    GameAPI -->|ZADD / ZPOPMIN| Matchmaking
+    GameAPI -->|token blacklist check| TokenBL
+    GameAPI -->|GET config| ConfigCache
+
+    AdminAPI -->|reads + writes| PGPrimary
+    AdminAPI -->|reads| PGReplica
+    AdminAPI -->|admin sessions| Sessions
+    AdminAPI -->|rate limits| RLCounters
+    AdminAPI -->|ZRANGE top 500 (leaderboard_admin_view = 500) / ZREM banned pets| Leaderboard
+    AdminAPI -->|PUT config (invalidate)| ConfigCache
+
+    %% API → External
+    GameAPI -->|send OTP emails| SendGrid
+    GameAPI -.->|failover| Nodemailer
+    AdminAPI -->|send admin emails| SendGrid
+
+    %% Data layer internals
+    PGPrimary -->|streaming replication| PGReplica
+    PGPrimary -->|daily backup| S3
+
+    %% CI/CD
+    GitHubActions -->|deploy containers| GameAPI
+    GitHubActions -->|deploy containers| AdminAPI
+    GitHubActions -->|deploy static| CDN

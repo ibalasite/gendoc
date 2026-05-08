@@ -1,0 +1,52 @@
+flowchart TD
+    subgraph Client ["Client（PetOwner / Competitor 角色）"]
+        A(("開始")) --> B["ArenaEntry 元件\n選擇 RACE / SUMO 模式"]
+        B --> C["POST /api/v1/arena/enter\n{petId, accessToken, mode}"]
+    end
+
+    subgraph API ["API Server（ArenaController + EnterArenaUseCase）"]
+        C --> D{"驗證 accessToken\ntoken_hash 匹配 pet.owner_token_hash？"}
+        D -->|"不匹配"| E["回傳 401 Unauthorized\n{error: INVALID_ACCESS_TOKEN}"]
+        E --> Z(("結束"))
+
+        D -->|"匹配"| F{"rate limit 檢查\narena battles/hour ≤ 10 default"}
+        F -->|"超過"| G["回傳 429 Too Many Requests\n{error: ARENA_RATE_LIMIT, retryAfter: Integer}"]
+        G --> Z
+
+        F -->|"通過"| H["INSERT arena_match {status: FINDING_OPPONENT}\n回傳 202 {matchId, status: FINDING}"]
+    end
+
+    subgraph MatchQueue ["Redis Matchmaking（RedisMatchQueueAdapter）"]
+        H --> I["LPUSH matchmaking_queue_{mode}\n{petId, matchId, timestamp}"]
+        I --> J{" BLPOP timeout 30s\n找到對手？"}
+        J -->|"逾時（30s 無對手）"| K["AI fallback opponent\n選 leaderboard 中位 pet"]
+        K --> L["UPDATE arena_match.pet_b_id = AI_pet_id\nstatus → READY"]
+        J -->|"找到真實對手"| M["UPDATE arena_match.pet_b_id\nstatus → READY"]
+        L --> N
+        M --> N
+    end
+
+    subgraph BattleCalc ["Battle Calculation（ResolveMatchUseCase）"]
+        N["讀取雙方寵物屬性\nRACE: speed_a vs speed_b\nSUMO: strength_a + stamina_a vs b"] --> O
+
+        par 並行計算
+            O["生成 seeded random modifier\n±15% 套用到 speed/strength"] --> P
+        and 並行記錄
+            O --> Q["記錄 battle_log JSONB\n{speed_a, speed_b, modifier_a, modifier_b}"]
+        end
+
+        P["比較最終分數\nfinalScore_a = stat × (1 + modifier)\nwinner = max(finalScore_a, finalScore_b)"] --> R["UPDATE arena_match\nwinner_pet_id, status → RESOLVED\ncompleted_at = NOW()"]
+        R --> S["ZADD leaderboard_sorted_set\n{petId: score++}"]
+        S --> T["回傳 200 {winner, battleLog, duration}"]
+    end
+
+    subgraph DB ["Database（PostgreSQL）"]
+        R -->|"INSERT arena_match\nTCP:5432"| DB1[("PostgreSQL\narena_matches table")]
+        S -->|"ZADD + INSERT leaderboard_snapshots\nTCP:5432"| DB1
+    end
+
+    T --> U["前端接收結果\n播放 5-15s 對戰動畫"]
+    U --> V{"玩家分享對戰記錄？"}
+    V -->|"是"| W["GET /api/v1/arena/history/:petId\n生成公開分享 URL"]
+    W --> Z
+    V -->|"否"| Z(("結束"))

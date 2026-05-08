@@ -1,0 +1,21 @@
+graph TB
+    Dev["Developer<br/>(localhost)"]
+    Ingress["Ingress (traefik)<br/>erp-token.local"]
+
+    subgraph K8s["K8s Namespace: erp-token-local"]
+        API["erp-api-token-manager<br/>Deployment (replicas=2)<br/>:8080"]
+        DB[("postgres<br/>StatefulSet<br/>:5432")]
+        PGA["pgadmin<br/>Deployment<br/>:80"]
+        Jaeger["jaeger-aio (optional)<br/>Deployment<br/>UI :16686 / OTLP :4317"]
+    end
+
+    Dev -->|HTTP via Ingress / port-forward| Ingress
+    Ingress -->|/| API
+    Ingress -->|/api/| API
+    Ingress -->|/health/*| API
+    Ingress -->|/pgadmin| PGA
+    Ingress -->|/jaeger| Jaeger
+    Dev -->|kubectl port-forward 5432| DB
+    Dev -->|kubectl port-forward 5050| PGA
+    API -->|ClusterIP TCP 5432| DB
+    API -.->|OTLP :4317 (optional)| Jaeger

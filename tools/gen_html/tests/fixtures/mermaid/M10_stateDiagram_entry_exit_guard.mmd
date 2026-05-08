@@ -1,0 +1,67 @@
+stateDiagram-v2
+    [*] --> Default : mount() [enabled] / renderInitialUI()
+
+    Default --> Hover : pointerEnter() [not disabled] / applyHoverClass()
+    Hover --> Default : pointerLeave() [always] / removeHoverClass()
+    Default --> Focus : keyboardTabFocus() [always] / showFocusRing()
+    Focus --> Default : blur() [always] / hideFocusRing()
+    Hover --> Active : pointerDown() [not disabled] / applyActivePress()
+    Focus --> Active : keyEnter() [not disabled] / applyActivePress()
+    Active --> Loading : pointerUpOrEnterRelease() [validation passed] / triggerOnClick()
+    Active --> Default : pointerUpOrCancel() [validation failed] / showInlineError()
+
+    Loading --> Default : onSuccessOrError() [response received] / cleanup()
+    Loading --> Disabled : disable() [parentSetDisabled] / disableInteractions()
+
+    Default --> Disabled : disable() [externalCondition] / disableInteractions()
+    Disabled --> Default : enable() [externalCondition cleared] / enableInteractions()
+
+    state Default {
+      entry: tabIndex = 0, ariaDisabled = false
+      exit: noop
+    }
+    state Default : 預設狀態 — 可互動
+
+    state Hover {
+      entry: cursor = pointer, bg = primary-600
+      exit: bg = primary-500
+    }
+    state Hover : 滑鼠懸停（pointer 設備）
+
+    state Focus {
+      entry: outline = 2px solid focus-ring
+      exit: outline = none
+    }
+    state Focus : 鍵盤焦點（A11y AA）
+
+    state Active {
+      entry: transform scale(0.98)
+      exit: transform scale(1)
+    }
+    state Active : 按下中（pointer / keyboard）
+
+    state Loading {
+      entry: showSpinner(), text = 建立中..., ariaBusy = true
+      exit: hideSpinner(), text = 建立, ariaBusy = false
+    }
+    state Loading : 等待 server 回應；其他互動 disabled
+
+    state Disabled {
+      entry: ariaDisabled = true, opacity = 0.5
+      exit: ariaDisabled = false, opacity = 1
+    }
+    state Disabled : 不可互動（外部 prop / loading）
+
+    note right of Loading
+      Loading 期間：
+      - 鎖按鈕（防雙擊重複建立）
+      - X / Esc / 遮罩無效避免中斷（PDD §6.4）
+      - 顯示 spinner + 改 text 為「建立中...」
+    end note
+
+    note right of Disabled
+      Disabled 觸發來源：
+      - 表單 validation 未通過
+      - 達 50 Token 上限
+      - 父元件設定 disabled prop
+    end note

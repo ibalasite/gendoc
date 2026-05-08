@@ -1,0 +1,66 @@
+flowchart TD
+    Start(["開始：picking up a story from Linear"]) --> Branch["git checkout -b feature/PET-123-add-x<br/>(name format: feature/{ticket}-{slug})"]
+    Branch --> Code["實作功能<br/>(small commits, conventional commit messages)"]
+
+    Code --> LocalLint{"pnpm lint<br/>本地 ESLint + Prettier 通過？"}
+    LocalLint -->|FAIL| FixLint(["修復 lint 錯誤<br/>(pnpm lint --fix)"]) --> LocalLint
+    LocalLint -->|PASS| LocalType
+
+    LocalType{"pnpm typecheck<br/>tsc --noEmit 通過？"}
+    LocalType -->|FAIL| FixType(["修復 type 錯誤"]) --> LocalType
+    LocalType -->|PASS| LocalUnit
+
+    LocalUnit{"pnpm test:unit<br/>本地 Jest 單元測試通過？"}
+    LocalUnit -->|FAIL| FixUnit(["修復實作或更新測試<br/>(若邏輯變更)"]) --> LocalUnit
+    LocalUnit -->|PASS| LocalIntegration
+
+    LocalIntegration{"pnpm test:integration<br/>(需 docker-compose up -d pg redis)<br/>整合測試通過？"}
+    LocalIntegration -->|FAIL| FixInteg(["修復整合層 bug<br/>(check DB schema / Redis key)"]) --> LocalIntegration
+    LocalIntegration -->|PASS| Coverage
+
+    Coverage{"pnpm test:coverage<br/>statements ≥ 80%?"}
+    Coverage -->|NO| AddTests(["補測試案例<br/>(uncovered lines)"]) --> LocalUnit
+    Coverage -->|YES| LocalE2E
+
+    LocalE2E{"pnpm test:e2e:smoke<br/>(本地 Playwright)<br/>關鍵流程 OK？"}
+    LocalE2E -->|FAIL| FixE2E(["修復端到端問題<br/>(check page route / API mock)"]) --> LocalE2E
+    LocalE2E -->|PASS| Commit
+
+    Commit["git commit<br/>(lefthook 觸發 detect-secrets pre-commit)"] --> SecretCheck{"detect-secrets<br/>找到新 secret？"}
+    SecretCheck -->|YES| RotateSecret(["移除 secret 並使用<br/>k8s Secret 注入"]) --> Code
+    SecretCheck -->|NO| Push
+
+    Push["git push origin feature/PET-123-...<br/>(ssh / HTTPS PAT)"] --> CreatePR["GitHub: Open Pull Request to main<br/>(use PR template)"]
+    CreatePR --> CIRun
+
+    rect rgba(220, 240, 255, 0.4)
+    CIRun{"GitHub Actions ci.yml<br/>所有 9 個 stages 通過？"}
+    CIRun -->|FAIL| FixCI(["檢查 Actions log<br/>修復 CI-only failure<br/>(matrix env diff)"]) --> Push
+    CIRun -->|PASS| Review
+    end
+
+    Review{"Code Review<br/>(CODEOWNERS approval + 1 peer)"}
+    Review -->|changes_requested| AddressComments(["回應 reviewer 評論<br/>push 修正"]) --> CIRun
+    Review -->|approved| BranchUpToDate
+
+    BranchUpToDate{"branch up-to-date<br/>with main?"}
+    BranchUpToDate -->|NO| Rebase(["git fetch origin main<br/>git rebase origin/main<br/>(handle conflicts if any)"]) --> CIRun
+    BranchUpToDate -->|YES| Merge
+
+    Merge["Squash & Merge to main"] --> StagingDeploy
+
+    rect rgba(220, 255, 220, 0.4)
+    StagingDeploy["deploy-staging.yml triggered<br/>(自動 build + push image)"]
+    StagingDeploy --> ArgoSync["ArgoCD detects overlay change<br/>(within 3 min poll cycle)"]
+    ArgoSync --> Verify{"staging health check<br/>https://staging.pet.local/health/ready"}
+    Verify -->|FAIL| AutoRollback(["ArgoCD rollback<br/>+ Slack alert<br/>(developer 重新檢查)"]) --> Code
+    Verify -->|PASS| Verify2["手動 QA 驗證<br/>(Linear ticket: state→In Review)"]
+    Verify2 --> Done(["✓ Story Done<br/>(Linear ticket: state→Done)"])
+    end
+
+    Done --> NextStory(["pick next story"])
+
+    classDef failClass fill:#ffe0e0,stroke:#d33,color:#900
+    classDef passClass fill:#e0ffe0,stroke:#393,color:#060
+    class Done,Verify2,Merge passClass
+    class FixLint,FixType,FixUnit,FixInteg,FixE2E,FixCI,RotateSecret,AutoRollback,AddressComments failClass

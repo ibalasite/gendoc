@@ -1,0 +1,326 @@
+classDiagram
+    direction TB
+
+    %% ============================================================
+    %% Aggregate Roots & Entities
+    %% ============================================================
+    class Pet {
+        <<AggregateRoot>>
+        +id : UUID
+        +seed : Long
+        +rarity : Rarity
+        +petName : String
+        +stats : PetStats
+        +level : Integer
+        +totalTrainingActions : Integer
+        +lastTrainedAt : DateTime
+        +ownerTokenHash : String
+        +claimIdentityId : UUID
+        +reservedUntil : DateTime
+        +isBanned : Boolean
+        +bannedReason : String
+        +createdAt : DateTime
+        +updatedAt : DateTime
+        +deriveLevel() Integer
+        +train(type: TrainingType, seed: Long) TrainingLog
+        +feed(food: FoodType) FoodBuff
+        +banByAdmin(reason: String, adminId: UUID) void
+        +unban(adminId: UUID) void
+        +canEnterArena() Boolean
+        +applyMatchResult(result: BattleResult) void
+    }
+
+    class ClaimIdentity {
+        <<Entity>>
+        +id : UUID
+        +emailHash : String
+        +emailEncrypted : Bytes
+        +deletionRequestedAt : DateTime
+        +createdAt : DateTime
+        +updatedAt : DateTime
+        +requestErasure() GdprRequest
+        +isPendingDeletion() Boolean
+    }
+
+    class ClaimCode {
+        <<Entity>>
+        +id : UUID
+        +petId : UUID
+        +emailHash : String
+        +codeHash : String
+        +expiresAt : DateTime
+        +usedAt : DateTime
+        +attempts : Integer
+        +createdAt : DateTime
+        +verify(plainCode: String) Boolean
+        +incrementAttempts() void
+        +isExpired() Boolean
+    }
+
+    class ArenaMatch {
+        <<AggregateRoot>>
+        +id : UUID
+        +petAId : UUID
+        +petBId : UUID
+        +isAiOpponent : Boolean
+        +mode : ArenaMode
+        +winnerPetId : UUID
+        +randomSeed : Long
+        +statDeltaA : Integer
+        +statDeltaB : Integer
+        +durationSeconds : Integer
+        +battleLog : BattleLog
+        +isFlagged : Boolean
+        +completedAt : DateTime
+        +resolveOutcome(petA: Pet, petB: Pet, seed: Long) UUID
+        +flagByAdmin(reason: String) void
+        +unflag() void
+        +isImmutable() Boolean
+    }
+
+    class TrainingLog {
+        <<Entity>>
+        +id : UUID
+        +petId : UUID
+        +trainingType : TrainingType
+        +statDelta : Integer
+        +statAfter : Integer
+        +completedAt : DateTime
+    }
+
+    class LeaderboardSnapshot {
+        <<Entity>>
+        +id : UUID
+        +snapshotTime : DateTime
+        +entries : List~LeaderboardEntry~
+        +createdAt : DateTime
+        +findRankByPetId(petId: UUID) Integer
+    }
+
+    class FoodBuff {
+        <<Entity>>
+        +id : UUID
+        +petId : UUID
+        +foodType : String
+        +buffStat : BuffStat
+        +magnitude : Integer
+        +isPermanent : Boolean
+        +expiresAt : DateTime
+        +consumedAt : DateTime
+        +isActive(now: DateTime) Boolean
+    }
+
+    class GdprRequest {
+        <<Entity>>
+        +id : UUID
+        +claimIdentityId : UUID
+        +initiatingPetId : UUID
+        +requestType : GdprRequestType
+        +status : GdprRequestStatus
+        +submittedAt : DateTime
+        +completedAt : DateTime
+        +adminNotes : String
+        +approve(adminId: UUID) void
+        +reject(adminId: UUID, reason: String) void
+    }
+
+    %% ============================================================
+    %% Value Objects
+    %% ============================================================
+    class PetStats {
+        <<ValueObject>>
+        +speed : Integer
+        +strength : Integer
+        +stamina : Integer
+        +effective(buff: FoodBuff) PetStats
+        +sumWithCap(delta: Integer) PetStats
+    }
+
+    class BattleLog {
+        <<ValueObject>>
+        +modeApplied : ArenaMode
+        +effectiveStatA : Integer
+        +effectiveStatB : Integer
+        +randomModifierPercent : Integer
+        +tieBreakerRule : String
+        +toJson() String
+    }
+
+    class LeaderboardEntry {
+        <<ValueObject>>
+        +petId : UUID
+        +rank : Integer
+        +score : Integer
+        +rarity : Rarity
+        +petName : String
+    }
+
+    class TokenHash {
+        <<ValueObject>>
+        +value : String
+        +algorithm : String
+        +equals(other: TokenHash) Boolean
+        +matches(plainToken: String) Boolean
+    }
+
+    %% ============================================================
+    %% Enumerations
+    %% ============================================================
+    class Rarity {
+        <<enumeration>>
+        COMMON
+        RARE
+        EPIC
+        LEGENDARY
+    }
+
+    class ArenaMode {
+        <<enumeration>>
+        RACE
+        SUMO
+    }
+
+    class TrainingType {
+        <<enumeration>>
+        SPEED
+        STRENGTH
+        STAMINA
+    }
+
+    class BuffStat {
+        <<enumeration>>
+        SPEED
+        STRENGTH
+        STAMINA
+        ALL
+    }
+
+    class GdprRequestType {
+        <<enumeration>>
+        ERASURE
+        DATA_ACCESS
+        RESTRICT_PROCESSING
+        OBJECT_LEADERBOARD
+        RECTIFICATION
+    }
+
+    class GdprRequestStatus {
+        <<enumeration>>
+        PENDING
+        APPROVED
+        REJECTED
+        COMPLETED
+    }
+
+    %% ============================================================
+    %% Domain Events
+    %% ============================================================
+    class PetClaimedEvent {
+        <<DomainEvent>>
+        +petId : UUID
+        +claimIdentityId : UUID
+        +occurredAt : DateTime
+    }
+
+    class PetTrainedEvent {
+        <<DomainEvent>>
+        +petId : UUID
+        +trainingType : TrainingType
+        +statDelta : Integer
+        +occurredAt : DateTime
+    }
+
+    class ArenaMatchResolvedEvent {
+        <<DomainEvent>>
+        +matchId : UUID
+        +winnerPetId : UUID
+        +loserPetId : UUID
+        +mode : ArenaMode
+        +occurredAt : DateTime
+    }
+
+    class GdprErasureRequestedEvent {
+        <<DomainEvent>>
+        +requestId : UUID
+        +claimIdentityId : UUID
+        +occurredAt : DateTime
+    }
+
+    %% ============================================================
+    %% Repository Interfaces (DIP — Domain owns the abstraction)
+    %% ============================================================
+    class IPetRepository {
+        <<interface>>
+        +findById(petId: UUID) Optional~Pet~
+        +findByOwnerHash(tokenHash: String) List~Pet~
+        +save(pet: Pet) Pet
+        +delete(petId: UUID) void
+        +findReservedExpired(now: DateTime) List~Pet~
+    }
+
+    class IClaimCodeRepository {
+        <<interface>>
+        +findById(claimId: UUID) Optional~ClaimCode~
+        +save(code: ClaimCode) ClaimCode
+        +deleteExpired(now: DateTime) Integer
+    }
+
+    class IArenaMatchRepository {
+        <<interface>>
+        +findById(matchId: UUID) Optional~ArenaMatch~
+        +save(match: ArenaMatch) ArenaMatch
+        +findHistoryByPetId(petId: UUID, limit: Integer) List~ArenaMatch~
+    }
+
+    class ILeaderboardRepository {
+        <<interface>>
+        +addOrUpdate(entry: LeaderboardEntry) void
+        +getTop(limit: Integer) List~LeaderboardEntry~
+        +getRank(petId: UUID) Integer
+        +remove(petId: UUID) void
+    }
+
+    %% ============================================================
+    %% Relationships
+    %% ============================================================
+
+    %% Inheritance（<|--）— Domain Event 抽象基類
+    PetClaimedEvent --|> DomainEventBase
+    PetTrainedEvent --|> DomainEventBase
+    ArenaMatchResolvedEvent --|> DomainEventBase
+    GdprErasureRequestedEvent --|> DomainEventBase
+
+    class DomainEventBase {
+        <<abstract>>
+        +eventId : UUID
+        +occurredAt : DateTime
+        +toJson() String
+    }
+
+    %% Realization（<|..）— Aggregate 實作 Repository 抽象（這裡 placeholder，由 Infra 層具體實作）
+    IPetRepository <|.. PetRepositoryAdapter : realized by Infra
+    class PetRepositoryAdapter {
+        <<placeholder>>
+        +note : See class-infra-presentation.md
+    }
+
+    %% Composition（*--）— Pet 聚合根擁有 PetStats（生命週期一致）
+    Pet "1" *-- "1" PetStats : owns
+
+    %% Aggregation（o--）— Pet 聚合 TrainingLog / FoodBuff（生命週期可獨立）
+    Pet "1" o-- "0..*" TrainingLog : aggregates
+    Pet "1" o-- "0..*" FoodBuff : aggregates
+
+    %% Association（-->）— ClaimIdentity 關聯多個 Pet（claim 關係）
+    ClaimIdentity "1" --> "0..*" Pet : claims
+    ClaimIdentity "1" --> "0..*" GdprRequest : initiates
+    ArenaMatch "1" --> "2" Pet : participants
+    LeaderboardSnapshot "1" --> "0..500" LeaderboardEntry : ranks
+
+    %% Dependency（..>）— ArenaMatch 解析時依賴 PetStats（read-only）
+    ArenaMatch ..> PetStats : reads for resolveOutcome
+    Pet ..> PetClaimedEvent : emits
+    Pet ..> PetTrainedEvent : emits
+    ArenaMatch ..> ArenaMatchResolvedEvent : emits
+    GdprRequest ..> GdprErasureRequestedEvent : emits
+    ClaimCode ..> Pet : unlocks

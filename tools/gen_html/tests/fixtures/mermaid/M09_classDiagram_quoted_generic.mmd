@@ -1,0 +1,151 @@
+classDiagram
+    class IApiClient {
+        <<interface>>
+        +get(url: String, queryParams: Object) Promise~Response~
+        +post(url: String, body: Object, csrfToken: String) Promise~Response~
+        +patch(url: String, body: Object, csrfToken: String) Promise~Response~
+        +delete(url: String, csrfToken: String) Promise~Response~
+    }
+
+    class FetchApiClient {
+        <<Service>>
+        -_csrfToken : String
+        -_baseUrl : String
+        +get(url: String, queryParams: Object) Promise~Response~
+        +post(url: String, body: Object, csrfToken: String) Promise~Response~
+        +patch(url: String, body: Object, csrfToken: String) Promise~Response~
+        +delete(url: String, csrfToken: String) Promise~Response~
+        -_handleResponse(response: Response) Promise~Response~
+        -_handle401(response: Response) void
+        -_buildIdempotencyKey() String
+    }
+
+    class TokenApiService {
+        <<Service>>
+        -_apiClient : IApiClient
+        +listMyTokens(status: String, page: Integer) Promise~PagedResult~TokenSummaryDto~~
+        +createToken(req: CreateTokenRequest) Promise~CreatedTokenResponse~
+        +revokeToken(tokenId: Guid) Promise~void~
+        +updateDescription(tokenId: Guid, desc: String) Promise~TokenSummaryDto~
+    }
+
+    class AuditApiService {
+        <<Service>>
+        -_apiClient : IApiClient
+        +listAuditEntries(filters: AuditFilters, page: Integer) Promise~PagedResult~AuditLogEntry~~
+        +exportCsv(filters: AuditFilters) Promise~Blob~
+    }
+
+    class PocApiService {
+        <<Service>>
+        +callSales(bearerToken: String) Promise~SalesResponse~
+        +callInventory(bearerToken: String, sku: String) Promise~InventoryResponse~
+        +callOrderStatus(bearerToken: String, orderId: String) Promise~OrderStatusResponse~
+    }
+
+    class AlpineToastStore {
+        <<AlpineStore>>
+        +queue : List~ToastEntry~
+        +show(kind: ToastKind, message: String, durationMs: Integer) void
+        +dismiss(id: String) void
+    }
+
+    class CsrfTokenProvider {
+        <<Service>>
+        +getToken() String
+        -_readFromInput() String
+    }
+
+    class CreateTokenRequest {
+        <<DTO>>
+        +description : String
+        +idempotencyKey : Guid
+    }
+
+    class CreatedTokenResponse {
+        <<DTO>>
+        +tokenId : Guid
+        +tokenPrefix : String
+        +rawToken : String
+        +createdAt : DateTimeOffset
+    }
+
+    class TokenSummaryDto {
+        <<DTO>>
+        +tokenId : Guid
+        +tokenPrefix : String
+        +description : String
+        +status : TokenStatus
+        +createdAt : DateTimeOffset
+        +lastUsedAt : DateTimeOffset?
+        +revokedAt : DateTimeOffset?
+    }
+
+    class AuditLogEntry {
+        <<DTO>>
+        +id : Guid
+        +action : AuditAction
+        +targetTokenId : Guid
+        +targetTokenPrefix : String
+        +actorUserId : String
+        +actorUsername : String
+        +ipAddress : String?
+        +createdAt : DateTimeOffset
+    }
+
+    class AuditFilters {
+        <<DTO>>
+        +from : DateTimeOffset
+        +to : DateTimeOffset
+        +action : String?
+        +actorUserId : String?
+    }
+
+    class PagedResult~T~ {
+        <<DTO>>
+        +items : List~T~
+        +totalCount : Integer
+        +page : Integer
+        +pageSize : Integer
+        +nextCursor : String?
+    }
+
+    class TokenStatus {
+        <<enumeration>>
+        Active
+        Revoked
+    }
+
+    class AuditAction {
+        <<enumeration>>
+        Created
+        Revoked
+        DescribeUpdated
+        AdminRevoked
+    }
+
+    class ToastKind {
+        <<enumeration>>
+        Success
+        Error
+        Warning
+        Info
+    }
+
+    IApiClient <|.. FetchApiClient
+    TokenApiService "1" *-- "1" IApiClient : uses
+    AuditApiService "1" *-- "1" IApiClient : uses
+    PocApiService ..> IApiClient : uses (without csrf for Bearer)
+    FetchApiClient --> CsrfTokenProvider : reads
+    FetchApiClient ..> AlpineToastStore : on 401 dispatches Toast
+
+    TokenApiService ..> CreateTokenRequest : consumes
+    TokenApiService ..> CreatedTokenResponse : returns
+    TokenApiService ..> TokenSummaryDto : returns
+    AuditApiService ..> AuditLogEntry : returns
+    AuditApiService ..> AuditFilters : consumes
+    TokenApiService ..> "PagedResult~TokenSummaryDto~" : returns
+
+    TokenSummaryDto --> TokenStatus : has
+    AuditLogEntry --> AuditAction : has
+    AlpineToastStore --> ToastKind : uses

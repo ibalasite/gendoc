@@ -1,0 +1,56 @@
+sequenceDiagram
+    actor Admin
+    participant Page as Razor Page /ApiTokens/Create
+    participant UC as CreateApiTokenUseCase
+    participant TG as TokenGenerationService
+    participant TR as ApiTokenRepository
+    participant AR as AuditLogRepository
+    participant DB as PostgreSQL
+
+    Admin->>+Page: POST /ApiTokens/Create {description}
+    Page->>Page: Validate AntiForgeryToken
+
+    alt [invalid AntiForgery token]
+        Page-->>Admin: 400 Bad Request
+    else [unauthenticated user]
+        Page-->>Admin: 401 Unauthorized
+    else [valid request]
+        Page->>Page: Extract UserId from HttpContext.User
+        Page->>+UC: ExecuteAsync(CreateTokenCommand)
+        UC->>UC: Validate input (description required, max 255 chars)
+
+        alt [invalid input — empty or too long description]
+            UC-->>Page: Result.Fail 422 Validation Error
+            Page-->>Admin: 422 Unprocessable Entity
+        else [valid input]
+            UC->>+TG: Generate()
+            TG->>TG: RandomNumberGenerator.GetBytes(32)
+            TG->>TG: Compute displayPrefix = tk_ + rawToken[0..8]
+            TG->>TG: Compute hash = SHA256(rawToken)
+            TG-->>-UC: (rawToken, displayPrefix, hash)
+            UC->>UC: ApiToken.Create(userId, displayPrefix, hash, description)
+            UC->>+DB: BEGIN TRANSACTION
+            UC->>+TR: AddAsync(token)
+            TR->>DB: INSERT INTO api_tokens ...
+
+            alt [DB error — constraint violation or connection failure]
+                DB-->>TR: ERROR
+                TR-->>-UC: DbException
+                UC->>DB: ROLLBACK
+                UC-->>-Page: Result.Fail 500 Internal Server Error
+                Page-->>-Admin: 500 Internal Server Error
+            else [INSERT success]
+                DB-->>TR: OK
+                TR-->>UC: void
+                UC->>+AR: AddAsync(TokenAuditLog.Record(Create, ...))
+                AR->>DB: INSERT INTO token_audit_logs ...
+                DB-->>AR: OK
+                AR-->>-UC: void
+                UC->>DB: COMMIT
+                deactivate DB
+                UC-->>-Page: CreateTokenResult { rawToken, displayPrefix, token }
+                Page-->>-Admin: Redirect to /ApiTokens/Created?prefix=tk_a1b2c3d4
+                Note over Admin,Page: Raw token displayed ONCE in modal. Never stored, never logged.
+            end
+        end
+    end

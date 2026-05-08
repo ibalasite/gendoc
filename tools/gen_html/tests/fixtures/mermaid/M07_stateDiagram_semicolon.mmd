@@ -1,0 +1,10 @@
+stateDiagram-v2
+    [*] --> Generated : Guest clicks "Claim This Pet"; 6-digit code created + expiry set (T+15min)
+    Generated --> EmailSent : SendGrid/SMTP delivers claim email to guest
+    Generated --> EmailFailed : Email delivery fails (bounce or API error); token remains valid for retry
+    EmailFailed --> EmailSent : Guest retries after 60s cooldown; new delivery attempt succeeds
+    EmailSent --> Used : Guest enters correct 6-digit code within 15 minutes; pet ownership bound
+    EmailSent --> Expired : 15 minutes elapse without code entry; token invalidated
+    Generated --> Expired : 15 minutes elapse before email sent (rare edge case: generation without delivery)
+    Used --> Deleted : 72 hours after creation (scheduled cleanup job)
+    Expired --> Deleted : 72 hours after creation (scheduled cleanup job)

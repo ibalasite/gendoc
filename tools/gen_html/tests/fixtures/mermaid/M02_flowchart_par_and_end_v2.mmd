@@ -1,0 +1,51 @@
+flowchart TD
+    subgraph Client ["Client（PetOwner 角色）"]
+        A(("開始")) --> B["玩家點擊「刪除我的資料」\nGDPR Self-Service 頁面"]
+        B --> C["POST /api/v1/gdpr/delete\n{petId, accessToken, email}"]
+    end
+
+    subgraph API ["API Server（AdminController + ProcessGdprErasureUseCase）"]
+        C --> D{"驗證 accessToken\npet.owner_token_hash 匹配？"}
+        D -->|"不匹配"| E["回傳 401 Unauthorized\n{error: INVALID_ACCESS_TOKEN}"]
+        E --> Z(("結束"))
+
+        D -->|"匹配"| F{"gdpr_requests 中已有\n待處理請求？"}
+        F -->|"是（重複請求）"| G["回傳 409 Conflict\n{error: GDPR_REQUEST_ALREADY_PENDING\nexistingRequestId: UUID}"]
+        G --> Z
+
+        F -->|"否"| H["INSERT gdpr_requests\n{petId, status: PENDING, requestedAt: NOW()}"]
+        H --> I["回傳 202 Accepted\n{requestId, processingWindowDays: 7}"]
+    end
+
+    subgraph GdprJob ["GDPR Erasure Job（定時任務 UTC 02:00）"]
+        I --> J["ProcessGdprErasureUseCase.execute()\n查詢 deletion_requested_at ≤ NOW()-7d"]
+        J --> K{"找到待處理的 GDPR 請求？"}
+        K -->|"否"| L["記錄 gdpr_job_noop\n等待下次排程"]
+        L --> Z
+
+        K -->|"是"| M
+
+        par 並行執行清除操作
+            M["UPDATE claim_identities\nemail_encrypted = null\ndeletion_requested_at = NOW()"] --> N
+        and
+            M --> O["SHA-256 hash email\n寫入 email_hash\n刪除原始加密 email"]
+        and
+            M --> P["UPDATE pets\nowner_token_hash = null（解除擁有權）"]
+        end
+
+        N --> Q["更新 gdpr_requests.status = PROCESSING"]
+        O --> Q
+        P --> Q
+
+        Q --> R{"所有操作成功？"}
+        R -->|"否（部分失敗）"| S["ROLLBACK 事務\n記錄 gdpr_erasure_partial_failure 警報\n重新排程 24h 後重試"]
+        S --> Z
+
+        R -->|"是"| T["COMMIT 事務\nUPDATE gdpr_requests.status = COMPLETED\ncompletedAt = NOW()"]
+        T --> U["記錄 gdpr_deletion_processed 分析事件\n{anonymized_pet_count: 1}"]
+        U --> V["內部 SLA 驗證\n完成時間 - 請求時間 ≤ 7 天"]
+        V --> W{"超過 7 天 SLA？"}
+        W -->|"是"| X["觸發 SLA_BREACH 警報\n通知 ops team\n記錄 audit_log"]
+        X --> Z
+        W -->|"否"| Z(("結束"))
+    end

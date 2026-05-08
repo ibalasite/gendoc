@@ -1,0 +1,42 @@
+sequenceDiagram
+    participant Dev as Developer
+    participant GH as GitHub.com
+    participant Runner as GitHub Runner (ubuntu-latest)
+    participant GHCR as ghcr.io Registry
+    participant Argo as ArgoCD
+    participant K8s as Staging K8s
+    participant Slack as Slack
+
+    Dev->>GH: git push / open PR
+    GH->>Runner: Trigger workflow (push / pull_request)
+    Runner->>Runner: Stage 1: Checkout (actions/checkout@v4)
+    Runner->>Runner: Stage 2: Build (make ci-build — dotnet build)
+    Runner->>Runner: Stage 3: Unit Test (make ci-test-unit — xUnit + coverage)
+    Runner->>Runner: Stage 4: Integration Test (make ci-test-integration — Testcontainers PG)
+
+    alt PR to main
+        Runner-->>GH: Status check: build / unit-test / integration-test (PASS)
+        Note over GH,Runner: PR Gate gating; merge blocked if any FAIL
+    else push to main
+        Runner->>Runner: Stage 5: Image Build (Kaniko / docker buildx)
+        Runner->>GHCR: docker push ghcr.io/erp-org/erp-api-token-manager:${SHA}
+        GHCR-->>Runner: 201 Created (image digest)
+        Runner->>GH: Stage 5b: Update helm values (commit-back) image.tag = SHA
+        GH->>Argo: Webhook / poll detects helm chart change
+        Argo->>K8s: Stage 6: ArgoCD sync (kubectl apply / helm upgrade)
+        K8s-->>Argo: Pods Ready (3/3 replicas Healthy)
+        Argo-->>Runner: Sync status: Synced + Healthy
+        Runner->>K8s: Stage 7: Smoke Test (make ci-smoke — curl /health, /metrics, POST /api/v1/me/tokens)
+
+        alt Smoke PASS
+            K8s-->>Runner: 200 OK (all 3 endpoints respond)
+            Runner->>GH: Status check: smoke-test PASS
+            Runner->>Slack: notify success ${SHA} ${actor}
+        else Smoke FAIL
+            K8s-->>Runner: 5xx / timeout
+            Runner->>K8s: Rollback: make ci-rollback (helm rollback / argocd rollback)
+            K8s-->>Runner: Previous revision restored
+            Runner->>GH: Status check: smoke-test FAIL
+            Runner->>Slack: notify FAIL + rollback ${SHA}
+        end
+    end

@@ -1,0 +1,464 @@
+classDiagram
+    direction TB
+
+    %% ============================================================
+    %% Repository Implementations（實作 Domain 層 IXxxRepository）
+    %% ============================================================
+    class PetRepositoryImpl {
+        <<RepositoryImpl>>
+        -pgPool : Pool
+        -redis : Redis
+        +findById(petId: UUID) Optional~Pet~
+        +findByOwnerHash(tokenHash: String) List~Pet~
+        +save(pet: Pet) Pet
+        +delete(petId: UUID) void
+        +findReservedExpired(now: DateTime) List~Pet~
+    }
+
+    class ClaimCodeRepositoryImpl {
+        <<RepositoryImpl>>
+        -pgPool : Pool
+        +findById(claimId: UUID) Optional~ClaimCode~
+        +save(code: ClaimCode) ClaimCode
+        +deleteExpired(now: DateTime) Integer
+    }
+
+    class ArenaMatchRepositoryImpl {
+        <<RepositoryImpl>>
+        -pgPool : Pool
+        +findById(matchId: UUID) Optional~ArenaMatch~
+        +save(match: ArenaMatch) ArenaMatch
+        +findHistoryByPetId(petId: UUID, limit: Integer) List~ArenaMatch~
+    }
+
+    class LeaderboardRepositoryImpl {
+        <<RepositoryImpl>>
+        -redis : Redis
+        -pgPool : Pool
+        +addOrUpdate(entry: LeaderboardEntry) void
+        +getTop(limit: Integer) List~LeaderboardEntry~
+        +getRank(petId: UUID) Integer
+        +remove(petId: UUID) void
+        +rebuildSnapshot() Integer
+    }
+
+    class TrainingLogRepositoryImpl {
+        <<RepositoryImpl>>
+        -pgPool : Pool
+        +save(log: TrainingLog) TrainingLog
+        +countByPetId(petId: UUID) Integer
+    }
+
+    class FoodBuffRepositoryImpl {
+        <<RepositoryImpl>>
+        -pgPool : Pool
+        +findActiveByPetId(petId: UUID) List~FoodBuff~
+        +save(buff: FoodBuff) FoodBuff
+        +consumeAndDelete(buffId: UUID) void
+    }
+
+    class ClaimIdentityRepositoryImpl {
+        <<RepositoryImpl>>
+        -pgPool : Pool
+        -encryptionKey : SecretBytes
+        +findByEmailHash(emailHash: String) Optional~ClaimIdentity~
+        +save(identity: ClaimIdentity) ClaimIdentity
+        +findById(identityId: UUID) Optional~ClaimIdentity~
+    }
+
+    class GdprRequestRepositoryImpl {
+        <<RepositoryImpl>>
+        -pgPool : Pool
+        +save(req: GdprRequest) GdprRequest
+        +findById(requestId: UUID) Optional~GdprRequest~
+        +findByStatus(status: GdprRequestStatus) List~GdprRequest~
+    }
+
+    class AdminRepositoryImpl {
+        <<RepositoryImpl>>
+        -pgPool : Pool
+        +findByUsername(username: String) Optional~AdminAccount~
+        +save(admin: AdminAccount) AdminAccount
+    }
+
+    %% ============================================================
+    %% Adapters（實作 Application 層 IXxxPort）
+    %% ============================================================
+    class SendGridEmailAdapter {
+        <<Adapter>>
+        -client : SendGridClient
+        -fromAddress : String
+        -templateIds : Map~String_String~
+        +sendOtpEmail(toEmail: String, otpCode: String, expiresInMin: Integer) void
+        +sendErasureConfirmation(toEmail: String) void
+    }
+
+    class RedisRateLimiterAdapter {
+        <<Adapter>>
+        -redis : Redis
+        +increment(key: String, windowSeconds: Integer) Integer
+        +get(key: String) Integer
+        +reset(key: String) void
+    }
+
+    class RedisMatchmakingAdapter {
+        <<Adapter>>
+        -redis : Redis
+        +enqueue(petId: UUID, mode: ArenaMode) void
+        +findOpponent(petId: UUID, mode: ArenaMode, timeoutMs: Integer) Optional~UUID~
+        +dequeue(petId: UUID, mode: ArenaMode) void
+    }
+
+    class OtpauthTotpAdapter {
+        <<Adapter>>
+        -hashAlgorithm : String
+        -digits : Integer
+        -periodSeconds : Integer
+        +verify(secret: String, code: String) Boolean
+        +generateSecret(username: String) String
+    }
+
+    class RedisSessionStoreAdapter {
+        <<Adapter>>
+        -redis : Redis
+        -keyPrefix : String
+        +create(adminId: UUID, ttlSeconds: Integer) String
+        +get(sessionToken: String) Optional~AdminSession~
+        +revoke(sessionToken: String) void
+    }
+
+    class PostgresAuditAdapter {
+        <<Adapter>>
+        -pgPool : Pool
+        +record(adminId: UUID, action: String, targetType: String, targetId: String, detail: Map) void
+    }
+
+    class RedisConfigStoreAdapter {
+        <<Adapter>>
+        -redis : Redis
+        -pgPool : Pool
+        +get(key: String) Optional~String~
+        +put(key: String, value: String, adminId: UUID) void
+        +listAll() Map~String_String~
+    }
+
+    class CryptoTokenIssuer {
+        <<Adapter>>
+        +issuePetAccessToken() String
+        +hashToken(plainToken: String) String
+    }
+
+    class FastifyEventBusAdapter {
+        <<Adapter>>
+        -listeners : Map~String_List~
+        +publish(event: DomainEvent) void
+        +subscribe(eventName: String, handler: Function) void
+    }
+
+    %% ============================================================
+    %% Controllers (Presentation Layer — Fastify Routes)
+    %% ============================================================
+    class ClaimController {
+        <<Controller>>
+        -startClaimUC : StartClaimUseCase
+        -verifyClaimUC : VerifyClaimUseCase
+        -recoverClaimUC : RecoverClaimUseCase
+        +postClaim(req: ClaimStartRequestDTO) Promise~ClaimStartResponseDTO~
+        +postClaimVerify(req: ClaimVerifyRequestDTO) Promise~ClaimVerifyResponseDTO~
+        +postClaimRecover(req: ClaimRecoverRequestDTO) Promise~ClaimRecoverResponseDTO~
+    }
+
+    class PetController {
+        <<Controller>>
+        -trainPetUC : TrainPetUseCase
+        -feedPetUC : FeedPetUseCase
+        -petQueryService : PetQueryService
+        +getPetRandom() Promise~PetResponseDTO~
+        +getPetById(petId: UUID) Promise~PetResponseDTO~
+        +postTrain(petId: UUID, req: TrainRequestDTO) Promise~TrainResponseDTO~
+        +postFeed(petId: UUID, req: FeedRequestDTO) Promise~FeedResponseDTO~
+    }
+
+    class ArenaController {
+        <<Controller>>
+        -enterArenaUC : EnterArenaUseCase
+        -getMatchUC : GetArenaMatchUseCase
+        +postArenaEnter(req: ArenaEnterRequestDTO) Promise~ArenaEnterResponseDTO~
+        +getArenaMatch(matchId: UUID) Promise~ArenaMatchResponseDTO~
+        +getArenaHistory(petId: UUID) Promise~List~ArenaMatchResponseDTO~~
+    }
+
+    class LeaderboardController {
+        <<Controller>>
+        -getLeaderboardUC : GetLeaderboardUseCase
+        +getLeaderboard(query: LeaderboardQueryDTO) Promise~LeaderboardResponseDTO~
+        +getRank(petId: UUID) Promise~RankResponseDTO~
+    }
+
+    class GdprController {
+        <<Controller>>
+        -requestErasureUC : RequestGdprErasureUseCase
+        +postGdprErasure(req: GdprErasureRequestDTO) Promise~GdprErasureResponseDTO~
+        +getGdprStatus(requestId: UUID) Promise~GdprStatusResponseDTO~
+    }
+
+    class AdminAuthController {
+        <<Controller>>
+        -adminLoginUC : AdminLoginUseCase
+        +postLogin(req: AdminLoginRequestDTO) Promise~AdminLoginResponseDTO~
+        +postTotpSetup(req: TotpSetupRequestDTO) Promise~TotpSetupResponseDTO~
+        +postLogout() Promise~void~
+    }
+
+    class AdminPetController {
+        <<Controller>>
+        -banPetUC : BanPetUseCase
+        -unbanPetUC : UnbanPetUseCase
+        +getPets(query: AdminPetQueryDTO) Promise~AdminPetListResponseDTO~
+        +postBan(petId: UUID, req: BanPetRequestDTO) Promise~PetResponseDTO~
+        +postUnban(petId: UUID) Promise~PetResponseDTO~
+    }
+
+    class AdminConfigController {
+        <<Controller>>
+        -updateConfigUC : UpdateRuntimeConfigUseCase
+        +getRuntimeConfig() Promise~RuntimeConfigResponseDTO~
+        +putRuntimeConfig(req: RuntimeConfigUpdateRequestDTO) Promise~RuntimeConfigResponseDTO~
+    }
+
+    %% ============================================================
+    %% Request DTOs（Validation Schema 標注）
+    %% ============================================================
+    class ClaimStartRequestDTO {
+        <<RequestDTO>>
+        +email : String
+        +petId : UUID
+        +note : Validation: email RFC 5322, petId v4 UUID
+    }
+
+    class ClaimVerifyRequestDTO {
+        <<RequestDTO>>
+        +claimId : UUID
+        +otpCode : String
+        +petId : UUID
+        +note : Validation: otpCode regex /^[0-9]{6}$/
+    }
+
+    class TrainRequestDTO {
+        <<RequestDTO>>
+        +trainingType : TrainingType
+        +note : Validation: enum(SPEED|STRENGTH|STAMINA), Header X-Pet-Token required
+    }
+
+    class FeedRequestDTO {
+        <<RequestDTO>>
+        +foodType : String
+        +note : Validation: foodType in CONSTANTS.food_catalog
+    }
+
+    class ArenaEnterRequestDTO {
+        <<RequestDTO>>
+        +petId : UUID
+        +mode : ArenaMode
+        +acceptAi : Boolean
+        +note : Validation: mode enum(RACE|SUMO)
+    }
+
+    class BanPetRequestDTO {
+        <<RequestDTO>>
+        +reason : String
+        +note : Validation: reason length 1..500
+    }
+
+    class AdminLoginRequestDTO {
+        <<RequestDTO>>
+        +username : String
+        +password : String
+        +totpCode : String
+        +note : Validation: TOTP regex /^[0-9]{6}$/
+    }
+
+    class RuntimeConfigUpdateRequestDTO {
+        <<RequestDTO>>
+        +keyValuePairs : Map~String_String~
+        +note : Validation: keys whitelist + range checks
+    }
+
+    %% ============================================================
+    %% Response DTOs
+    %% ============================================================
+    class ClaimStartResponseDTO {
+        <<ResponseDTO>>
+        +claimId : UUID
+        +expiresAt : DateTime
+    }
+
+    class ClaimVerifyResponseDTO {
+        <<ResponseDTO>>
+        +accessToken : String
+        +pet : PetView
+    }
+
+    class PetResponseDTO {
+        <<ResponseDTO>>
+        +id : UUID
+        +rarity : Rarity
+        +stats : PetStats
+        +level : Integer
+        +isBanned : Boolean
+    }
+
+    class TrainResponseDTO {
+        <<ResponseDTO>>
+        +pet : PetResponseDTO
+        +trainingLog : TrainingLogView
+    }
+
+    class ArenaMatchResponseDTO {
+        <<ResponseDTO>>
+        +matchId : UUID
+        +mode : ArenaMode
+        +winnerPetId : UUID
+        +durationSeconds : Integer
+        +battleLog : BattleLog
+    }
+
+    class LeaderboardResponseDTO {
+        <<ResponseDTO>>
+        +entries : List~LeaderboardEntryView~
+        +snapshotTime : DateTime
+        +total : Integer
+    }
+
+    class AdminLoginResponseDTO {
+        <<ResponseDTO>>
+        +sessionToken : String
+        +adminProfile : AdminProfileView
+        +permissions : List~String~
+    }
+
+    class ApiErrorResponseDTO {
+        <<ResponseDTO>>
+        +error : ErrorEnvelope
+        +traceId : String
+    }
+
+    %% ============================================================
+    %% Relationships
+    %% ============================================================
+
+    %% Inheritance（<|--）— Controllers 繼承 Fastify base
+    ClaimController --|> FastifyControllerBase
+    PetController --|> FastifyControllerBase
+    ArenaController --|> FastifyControllerBase
+    LeaderboardController --|> FastifyControllerBase
+    AdminAuthController --|> FastifyControllerBase
+
+    class FastifyControllerBase {
+        <<abstract>>
+        #request : FastifyRequest
+        #reply : FastifyReply
+        #handleError(err: Error) ApiErrorResponseDTO
+    }
+
+    %% Realization（<|..）— RepositoryImpl 實作 Domain 層 Repository interface
+    IPetRepository <|.. PetRepositoryImpl
+    IClaimCodeRepository <|.. ClaimCodeRepositoryImpl
+    IArenaMatchRepository <|.. ArenaMatchRepositoryImpl
+    ILeaderboardRepository <|.. LeaderboardRepositoryImpl
+
+    %% Realization（<|..）— Adapter 實作 Application 層 Port interface
+    IEmailPort <|.. SendGridEmailAdapter
+    IRateLimiterPort <|.. RedisRateLimiterAdapter
+    IMatchmakingPort <|.. RedisMatchmakingAdapter
+    ITotpPort <|.. OtpauthTotpAdapter
+    ISessionStorePort <|.. RedisSessionStoreAdapter
+    IAuditPort <|.. PostgresAuditAdapter
+    IConfigStorePort <|.. RedisConfigStoreAdapter
+    ITokenIssuer <|.. CryptoTokenIssuer
+    IEventBusPort <|.. FastifyEventBusAdapter
+
+    %% External Domain interface placeholders
+    class IPetRepository {
+        <<interface>>
+    }
+    class IClaimCodeRepository {
+        <<interface>>
+    }
+    class IArenaMatchRepository {
+        <<interface>>
+    }
+    class ILeaderboardRepository {
+        <<interface>>
+    }
+    class IEmailPort {
+        <<interface>>
+    }
+    class IRateLimiterPort {
+        <<interface>>
+    }
+    class IMatchmakingPort {
+        <<interface>>
+    }
+    class ITotpPort {
+        <<interface>>
+    }
+    class ISessionStorePort {
+        <<interface>>
+    }
+    class IAuditPort {
+        <<interface>>
+    }
+    class IConfigStorePort {
+        <<interface>>
+    }
+    class ITokenIssuer {
+        <<interface>>
+    }
+    class IEventBusPort {
+        <<interface>>
+    }
+
+    %% Composition（*--）— Controller 強組合 Request/Response 結構（每次請求一份新的）
+    ClaimController "1" *-- "*" ClaimStartRequestDTO : creates per request
+    PetController "1" *-- "*" TrainRequestDTO : creates per request
+    AdminAuthController "1" *-- "*" AdminLoginRequestDTO : creates per request
+
+    %% Aggregation（o--）— Controller 聚合 UseCase 引用（注入但不擁有）
+    ClaimController "1" o-- "1" StartClaimUseCase : injects
+    ClaimController "1" o-- "1" VerifyClaimUseCase : injects
+    PetController "1" o-- "1" TrainPetUseCase : injects
+    PetController "1" o-- "1" FeedPetUseCase : injects
+    ArenaController "1" o-- "1" EnterArenaUseCase : injects
+    AdminPetController "1" o-- "1" BanPetUseCase : injects
+
+    %% Association（-->）— RepositoryImpl 與 PG/Redis Driver
+    PetRepositoryImpl "1" --> "1" PgPool : queries
+    LeaderboardRepositoryImpl "1" --> "1" Redis : sortedSet
+    SendGridEmailAdapter "1" --> "1" SendGridClient : invokes
+    RedisMatchmakingAdapter "1" --> "1" Redis : ZADD/BLPOP
+
+    class PgPool {
+        +query(sql: String, params: List) QueryResult
+        +transaction(fn: Function) Any
+    }
+    class Redis {
+        +zadd(key: String, score: Double, member: String) void
+        +zrevrange(key: String, start: Integer, end: Integer) List~String~
+        +incr(key: String) Integer
+        +expire(key: String, seconds: Integer) Boolean
+    }
+    class SendGridClient {
+        +send(payload: SendGridPayload) ApiResponse
+    }
+
+    %% Dependency（..>）— Controller 依賴 Validation Schema
+    ClaimController ..> AjvValidator : validates with
+    PetController ..> AjvValidator : validates with
+    ArenaController ..> AjvValidator : validates with
+    AdminAuthController ..> AjvValidator : validates with
+
+    class AjvValidator {
+        <<utility>>
+        +validate(schema: JsonSchema, payload: Any) ValidationResult
+    }
