@@ -299,8 +299,38 @@ def _mermaid_fix_block(lines):
         # Placeholder for class fixes (later steps)
         return line
 
+    def strip_flowchart_sequence_misuse(lines_in):
+        """Stack-based strip of sequence-only blocks 誤用在 flowchart：
+        - `par X` / `rect rgba(...)`：opener，整行剝
+        - `and X`：sequence par 的分隔，剝
+        - `end`：若對應到剝過的 opener 才剝；對應 subgraph 則保留
+        """
+        out = []
+        stack = []   # 每個元素：'subgraph' (保留) 或 'strip' (要連同 end 一起剝)
+        for ln in lines_in:
+            s = ln.strip()
+            if re.match(r'^par\b', s) or re.match(r'^rect\s+rgba\b', s):
+                stack.append('strip')
+                continue
+            if re.match(r'^and\b', s) and stack and stack[-1] == 'strip':
+                continue
+            if re.match(r'^subgraph\b', s):
+                stack.append('subgraph')
+                out.append(ln)
+                continue
+            if s == 'end' or re.match(r'^end\s', s):
+                if stack:
+                    top = stack.pop()
+                    if top == 'strip':
+                        continue
+                out.append(ln)
+                continue
+            out.append(ln)
+        return out
+
     if is_flowchart:
-        return [fix_flowchart_line(l) for l in lines]
+        cleaned = strip_flowchart_sequence_misuse(lines)
+        return [fix_flowchart_line(l) for l in cleaned]
     if is_sequence:
         return [fix_sequence_line(l) for l in lines]
     if is_state:
