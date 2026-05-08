@@ -1491,14 +1491,158 @@ def _um_ascii_build_two_column(interior: list, divider_idx: int, col_pos: int):
     return {'type': 'root', 'attrs': {}, 'value': None, 'children': [page]}
 
 
+def _um_ascii_detect_pyramid(text: str):
+    """Detect stacked-box pyramid pattern (progressively wider boxes joined
+    by `┴` characters). Returns AST root or None.
+    """
+    import re as _re
+    lines = text.splitlines()
+    # Find header lines: pattern is whitespace + ┌[─┴]+┐ (with optional ┴
+    # joiners from a smaller box above) at start of a line.
+    headers = []
+    for i, line in enumerate(lines):
+        stripped = line.rstrip()
+        m = _re.match(r'^(\s*)(┌[─┴]+┐)\s*$', stripped)
+        if m:
+            indent = len(m.group(1))
+            box = m.group(2)
+            headers.append({'idx': i, 'left': indent, 'right': indent + len(box) - 1})
+    # Need >=2 headers, each progressively wider (left earlier, right later)
+    if len(headers) < 2:
+        return None
+    for i in range(1, len(headers)):
+        if headers[i]['right'] - headers[i]['left'] <= \
+           headers[i - 1]['right'] - headers[i - 1]['left']:
+            return None
+    # Find footer (the final └─...─┘ line after the last header)
+    footer_idx = -1
+    for j in range(headers[-1]['idx'] + 1, len(lines)):
+        if _re.match(r'^\s*└[─┴]*┘\s*$', lines[j].rstrip()):
+            footer_idx = j
+            break
+    if footer_idx < 0:
+        return None
+    # Build layers: content between header[i] and either header[i+1] or footer
+    layers_ast = []
+    for i, h in enumerate(headers):
+        next_idx = headers[i + 1]['idx'] if i + 1 < len(headers) else footer_idx
+        body_lines = lines[h['idx'] + 1:next_idx]
+        # Strip outer │ pipes and use content within [h['left']+1 : h['right']]
+        text_lines = []
+        for bl in body_lines:
+            # Limit to box bounds; characters outside (right of) right edge
+            # belong to annotations beside the pyramid
+            inside = bl[h['left'] + 1:h['right']] if len(bl) > h['left'] + 1 else ''
+            inside = inside.strip().rstrip('│┃').strip()
+            if inside:
+                text_lines.append(inside)
+        # Heuristic: first non-pct line = label; line containing % = pct;
+        # lines outside the box (annotations) become detail
+        label = ''
+        pct = ''
+        for tl in text_lines:
+            if '%' in tl:
+                pct = tl
+            elif not label:
+                label = tl
+        # Detail = annotations to the right of the box on each row
+        detail_parts = []
+        for bl in body_lines:
+            if len(bl) > h['right'] + 1:
+                annot = bl[h['right'] + 1:].strip()
+                if annot:
+                    detail_parts.append(annot)
+        layer_attrs = {}
+        if pct:
+            layer_attrs['pct'] = pct
+        if detail_parts:
+            layer_attrs['detail'] = ' '.join(detail_parts)
+        layers_ast.append({
+            'type': 'layer', 'attrs': layer_attrs,
+            'value': label, 'children': [],
+        })
+    pyramid_node = {
+        'type': 'pyramid', 'attrs': {}, 'value': None,
+        'children': layers_ast,
+    }
+    return {'type': 'root', 'attrs': {}, 'value': None, 'children': [pyramid_node]}
+
+
+def _um_ascii_segments_to_layered_arch(segments: list):
+    """Convert list-of-segments (each = list of stripped content lines) into
+    a `layered-arch` AST: each segment becomes a `layer` node; arrows (↓/↑)
+    become `flow-down/flow-up` nodes interleaved between layers.
+
+    Heuristic: first non-blank, non-arrow line of a segment = layer label;
+    remaining non-arrow lines = `detail`. Arrow lines containing `↓` or `↑`
+    are attached to the segment as flow indicators.
+    """
+    children = []
+    pending_flow = None  # (kind, label)
+    for seg_idx, seg in enumerate(segments):
+        label = ''
+        details = []
+        flow_label = ''
+        flow_kind = None
+        for raw in seg:
+            line = raw.strip()
+            if not line:
+                continue
+            if '↓' in line or '↑' in line:
+                kind = 'down' if '↓' in line else 'up'
+                # Strip the arrow itself
+                fl = line.replace('↓', '').replace('↑', '').strip()
+                flow_label = fl
+                flow_kind = kind
+                continue
+            if not label:
+                label = line
+            else:
+                details.append(line)
+        layer_attrs = {}
+        layer_children = []
+        if details:
+            layer_children.append({
+                'type': 'detail', 'attrs': {},
+                'value': ' '.join(details), 'children': [],
+            })
+        # Add pending flow BEFORE this layer (from previous segment)
+        if pending_flow is not None:
+            kind, txt = pending_flow
+            children.append({
+                'type': f'flow-{kind}', 'attrs': {},
+                'value': txt, 'children': [],
+            })
+            pending_flow = None
+        children.append({
+            'type': 'layer', 'attrs': layer_attrs,
+            'value': label, 'children': layer_children,
+        })
+        # If this segment also contained a flow arrow → goes BEFORE next layer
+        if flow_kind is not None:
+            pending_flow = (flow_kind, flow_label)
+    arch = {
+        'type': 'layered-arch', 'attrs': {}, 'value': None,
+        'children': children,
+    }
+    return {'type': 'root', 'attrs': {}, 'value': None, 'children': [arch]}
+
+
 def _ui_mock_ascii_parse(text: str):
     """Parse ASCII box-drawing UI mock into AST root, or None if not parseable.
 
-    Stage ⑤ scope — see module-level comment.
+    Stage ⑤ scope — see module-level comment. Stages ⑥–⑧ extend with
+    column-split (page+sidenav), tables, inner boxes (input/code/field),
+    layered-arch (↓/↑ arrows between sections), and pyramid (stacked
+    progressively wider boxes joined by ┴).
     """
     import re as _re
     if not any(any(c in _UM_BOX_CHARS for c in line) for line in text.splitlines()):
         return None
+    # Try pyramid first (it has multiple separate boxes, no single outer frame)
+    pyr = _um_ascii_detect_pyramid(text)
+    if pyr is not None:
+        return pyr
     lines = text.splitlines()
     # Locate top-frame (first line containing ┌) and bottom-frame (last line
     # containing └).
@@ -1521,6 +1665,15 @@ def _ui_mock_ascii_parse(text: str):
         return _um_ascii_build_two_column(interior, *col_split)
     # Sections split by ├──┤
     segments = _um_ascii_split_segments(interior)
+    # If body has flow arrows (↓ ↑) and >=2 segments → layered-arch
+    body_text = '\n'.join('\n'.join(_um_ascii_strip_pipes(l) for l in seg)
+                          for seg in segments)
+    if (len(segments) >= 2 and ('↓' in body_text or '↑' in body_text)):
+        # Strip outer │ pipes from each segment line for cleaner content
+        clean_segments = [
+            [_um_ascii_strip_pipes(l) for l in seg] for seg in segments
+        ]
+        return _um_ascii_segments_to_layered_arch(clean_segments)
     # Determine outer type: modal if `[X]` or `[x]` anywhere in frame
     raw_text = '\n'.join(frame)
     is_modal = bool(_re.search(r'\[\s*[Xx]\s*\]', raw_text))
