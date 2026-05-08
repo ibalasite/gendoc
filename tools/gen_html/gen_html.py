@@ -1186,18 +1186,65 @@ def _um_ascii_parse_segment_actions(segment_lines: list):
     return True, out
 
 
+def _um_ascii_extract_table(segment_lines: list):
+    """Look for a contiguous run of >=2 lines with same number of `|` ASCII
+    pipes (not the box `│`). If found, return (table_node, leftover_lines).
+    Otherwise (None, segment_lines)."""
+    # Find runs
+    pipe_counts = []
+    for line in segment_lines:
+        # Count `|` not inside box drawing chars; but since we already stripped
+        # outer `│`, any `|` in this content is an ASCII pipe.
+        pipe_counts.append(line.count('|'))
+    # Find first run of >=2 consecutive lines with same count >=1
+    n = len(segment_lines)
+    best_start = -1
+    best_end = -1
+    best_count = 0
+    for i in range(n):
+        if pipe_counts[i] < 1:
+            continue
+        j = i + 1
+        while j < n and pipe_counts[j] == pipe_counts[i] and pipe_counts[j] >= 1:
+            j += 1
+        # require at least 2 lines (1 header + 1 data)
+        if j - i >= 2 and (j - i) > (best_end - best_start):
+            best_start, best_end, best_count = i, j, pipe_counts[i]
+    if best_start < 0:
+        return None, segment_lines
+    rows_text = segment_lines[best_start:best_end]
+    # Header is first row; data are subsequent
+    header_cells = [c.strip() for c in rows_text[0].split('|')]
+    data_rows = []
+    for r in rows_text[1:]:
+        data_rows.append([c.strip() for c in r.split('|')])
+    table_node = {
+        'type': 'table',
+        'attrs': {'columns': header_cells},
+        'value': None,
+        'children': [
+            {'type': 'row', 'attrs': {}, 'value': cells, 'children': []}
+            for cells in data_rows
+        ],
+    }
+    leftover = segment_lines[:best_start] + segment_lines[best_end:]
+    return table_node, leftover
+
+
 def _um_ascii_parse_segment_content(segment_lines: list):
-    """Extract badges + remaining text from a non-action segment.
+    """Extract table + badges + remaining text from a non-action segment.
     Returns list of AST child nodes."""
     import re as _re
+    # First: try to extract a table (largest run wins)
+    table_node, segment_lines = _um_ascii_extract_table(segment_lines)
     children = []
+    if table_node:
+        children.append(table_node)
     text_parts = []
-    badge_re = _re.compile(r'([●○])\s*(\S[\S　]*?)(?=\s|$|[，,。])')
     for raw in segment_lines:
         line = raw.strip()
         if not line:
             continue
-        # Find ● or ○ followed by a token
         m = _re.search(r'([●○])\s*(\S+)', line)
         if m:
             circle, label = m.group(1), m.group(2)
@@ -1216,6 +1263,109 @@ def _um_ascii_parse_segment_content(segment_lines: list):
             'value': ' '.join(text_parts), 'children': [],
         })
     return children
+
+
+def _um_ascii_find_column_split(interior: list):
+    """Find a section-divider line containing ┬ (column split start).
+    Verify subsequent body lines have │ at that column position.
+    Returns (divider_idx, col_pos) or None.
+    """
+    for i, line in enumerate(interior):
+        if not _um_ascii_is_divider_line(line):
+            continue
+        if '┬' not in line:
+            continue
+        pos = line.index('┬')
+        # Verify at least one subsequent body line has │ at col `pos`
+        for body in interior[i + 1:]:
+            if _um_ascii_is_divider_line(body):
+                continue
+            if pos < len(body) and body[pos] in '│┃':
+                return (i, pos)
+        # No verification possible — treat as no column split
+        return None
+    return None
+
+
+def _um_ascii_extract_two_column(interior: list, divider_idx: int, col_pos: int):
+    """Split below-divider lines into (left_lines, right_lines) at col_pos.
+    Returns (top_lines_before_divider, left_lines, right_lines).
+    """
+    top = interior[:divider_idx]
+    below = interior[divider_idx + 1:]
+    left_lines = []
+    right_lines = []
+    for line in below:
+        right_part = line[col_pos + 1:] if len(line) > col_pos + 1 else ''
+        right_lines.append(right_part)
+        left_part = line[:col_pos]
+        left_part = _um_ascii_strip_pipes(left_part)
+        left_lines.append(left_part)
+    return top, left_lines, right_lines
+
+
+def _um_ascii_build_two_column(interior: list, divider_idx: int, col_pos: int):
+    """Build a `page` AST with navbar (top) + sidenav (left) + main body
+    sections (right column processed recursively)."""
+    top, left_lines, right_lines = _um_ascii_extract_two_column(
+        interior, divider_idx, col_pos,
+    )
+    # Build navbar from top section: aggregate non-empty stripped lines
+    navbar_text = ' '.join(
+        _um_ascii_strip_pipes(l).strip() for l in top
+        if _um_ascii_strip_pipes(l).strip()
+    )
+    navbar_node = {
+        'type': 'navbar', 'attrs': {}, 'value': None,
+        'children': [
+            {'type': 'logo', 'attrs': {}, 'value': navbar_text, 'children': []}
+        ] if navbar_text else [],
+    }
+    # Build sidenav: each non-empty distinct stripped line becomes an item
+    seen = set()
+    sidenav_items = []
+    for l in left_lines:
+        s = l.strip()
+        if not s or s in seen:
+            continue
+        seen.add(s)
+        sidenav_items.append({
+            'type': 'item', 'attrs': {}, 'value': s, 'children': [],
+        })
+    sidenav_node = {
+        'type': 'sidenav', 'attrs': {}, 'value': None,
+        'children': sidenav_items,
+    }
+    # Right column: split into segments using its own ├──┤ dividers
+    right_segments = _um_ascii_split_segments(right_lines)
+    main_children = []
+    for seg in right_segments:
+        if not any(s.strip() for s in seg):
+            continue
+        is_actions, btns = _um_ascii_parse_segment_actions(seg)
+        if is_actions:
+            children = []
+            for label, variant in btns:
+                attrs = {}
+                if variant != 'default':
+                    attrs['variant'] = variant
+                children.append({
+                    'type': 'button', 'attrs': attrs,
+                    'value': label, 'children': [],
+                })
+            main_children.append({
+                'type': 'actions', 'attrs': {}, 'value': None,
+                'children': children,
+            })
+            continue
+        main_children.extend(_um_ascii_parse_segment_content(seg))
+    page = {
+        'type': 'page',
+        'attrs': {},
+        'value': None,
+        'children': [navbar_node, sidenav_node] + main_children,
+    }
+    return {'type': 'root', 'attrs': {}, 'value': None, 'children': [page]}
 
 
 def _ui_mock_ascii_parse(text: str):
@@ -1242,6 +1392,10 @@ def _ui_mock_ascii_parse(text: str):
     if len(frame) < 2:
         return None
     interior = frame[1:-1]
+    # Detect 2-column split (┬ in a divider line, verified by │ alignment)
+    col_split = _um_ascii_find_column_split(interior)
+    if col_split is not None:
+        return _um_ascii_build_two_column(interior, *col_split)
     # Sections split by ├──┤
     segments = _um_ascii_split_segments(interior)
     # Determine outer type: modal if `[X]` or `[x]` anywhere in frame
