@@ -927,6 +927,109 @@ def _um_r_layered_arch(n):
     )
 
 
+def _um_r_pyramid(n):
+    """Render pyramid (e.g., testing pyramid) as inline SVG.
+
+    Top layer is narrowest; bottom is widest. Each layer is a trapezoid
+    polygon with three lines of text inside (label / pct / detail).
+    """
+    layers = []
+    for child in n.get('children', []):
+        if child.get('type') != 'layer':
+            continue
+        layers.append({
+            'label': str(child.get('value') or ''),
+            'pct': str(child.get('attrs', {}).get('pct', '') or ''),
+            'detail': str(child.get('attrs', {}).get('detail', '') or ''),
+        })
+    n_layers = len(layers)
+    if n_layers == 0:
+        return (
+            '<div class="diagram-container">'
+            '<svg class="umock__pyramid" viewBox="0 0 600 80" '
+            'xmlns="http://www.w3.org/2000/svg" role="img" aria-label="empty pyramid">'
+            '</svg></div>'
+        )
+    # Geometry
+    svg_w = 600
+    layer_h = 80
+    svg_h = layer_h * n_layers + 20
+    cx = svg_w / 2
+    top_w = 220        # top layer base width
+    bottom_w = 540     # bottom layer base width
+    if n_layers == 1:
+        widths = [(top_w + bottom_w) / 2]
+    else:
+        widths = [
+            top_w + (bottom_w - top_w) * (i / (n_layers - 1))
+            for i in range(n_layers)
+        ]
+    # Per-layer fill (light → dark cool palette)
+    palette = [
+        '#dbeafe', '#bfdbfe', '#93c5fd', '#60a5fa', '#3b82f6', '#2563eb',
+    ]
+    elements = []
+    for i, layer in enumerate(layers):
+        top_y = 10 + i * layer_h
+        bot_y = top_y + layer_h - 4
+        # The polygon: trapezoid with this layer's width at bottom and the
+        # previous layer's width at top — produces continuous pyramid sides.
+        if i == 0:
+            top_left_x = cx - widths[i] / 2 + 30  # narrow apex top
+            top_right_x = cx + widths[i] / 2 - 30
+        else:
+            top_left_x = cx - widths[i - 1] / 2
+            top_right_x = cx + widths[i - 1] / 2
+        bot_left_x = cx - widths[i] / 2
+        bot_right_x = cx + widths[i] / 2
+        pts = (
+            f'{top_left_x:.1f},{top_y:.1f} '
+            f'{top_right_x:.1f},{top_y:.1f} '
+            f'{bot_right_x:.1f},{bot_y:.1f} '
+            f'{bot_left_x:.1f},{bot_y:.1f}'
+        )
+        fill = palette[min(i, len(palette) - 1)]
+        elements.append(
+            f'<polygon points="{pts}" fill="{fill}" stroke="#1e40af" stroke-width="1.5"/>'
+        )
+        # Text inside trapezoid
+        text_y = (top_y + bot_y) / 2
+        label = _um_esc(layer['label'])
+        pct = _um_esc(layer['pct'])
+        detail = _um_esc(layer['detail'])
+        # Label (bold, slightly above center)
+        if label:
+            elements.append(
+                f'<text x="{cx:.1f}" y="{text_y - 14:.1f}" '
+                'text-anchor="middle" font-family="system-ui,sans-serif" '
+                'font-size="14" font-weight="600" fill="#0f172a">'
+                f'{label}</text>'
+            )
+        # Pct (smaller)
+        if pct:
+            elements.append(
+                f'<text x="{cx:.1f}" y="{text_y + 4:.1f}" '
+                'text-anchor="middle" font-family="system-ui,sans-serif" '
+                'font-size="12" fill="#1e3a8a">'
+                f'{pct}</text>'
+            )
+        # Detail (bottom line, gray)
+        if detail:
+            elements.append(
+                f'<text x="{cx:.1f}" y="{text_y + 22:.1f}" '
+                'text-anchor="middle" font-family="system-ui,sans-serif" '
+                'font-size="11" fill="#475569">'
+                f'{detail}</text>'
+            )
+    svg = (
+        f'<svg class="umock__pyramid" viewBox="0 0 {svg_w} {svg_h}" '
+        f'xmlns="http://www.w3.org/2000/svg" role="img" aria-label="pyramid">'
+        + ''.join(elements) +
+        '</svg>'
+    )
+    return f'<div class="diagram-container">{svg}</div>'
+
+
 # ─── unknown / generic ───────────────────────────────────────────────────
 
 def _um_r_generic(n):
@@ -973,7 +1076,7 @@ _UM_DISPATCH = {
     'filter-bar': _um_r_filter_bar,
     # edge-case primitives
     'layered-arch': _um_r_layered_arch,
-    # 'pyramid' registered in stage ④
+    'pyramid': _um_r_pyramid,
 }
 
 
