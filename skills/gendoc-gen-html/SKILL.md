@@ -495,6 +495,13 @@ body {
   border-color: var(--accent);
   box-shadow: 0 2px 8px rgba(45,158,245,0.15);
 }
+/* PUML SVG: 不被 inline width/height 鎖死，讓容器控制寬度避免左右空白 */
+.diagram-container--puml svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+}
 
 /* Lightbox */
 .lightbox {

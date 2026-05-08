@@ -56,6 +56,12 @@ function Deploy-Tools {
         Copy-Item -Force $dryrunSrc $dryrunDst
         Log "  - dryrun_core/dryrun_core.py -> bin/dryrun_core.py"
     }
+    $genhtmlSrc = Join-Path $RuntimeDir "tools\gen_html\gen_html.py"
+    $genhtmlDst = Join-Path $ToolsBin "gen_html.py"
+    if (Test-Path $genhtmlSrc) {
+        Copy-Item -Force $genhtmlSrc $genhtmlDst
+        Log "  - gen_html/gen_html.py -> bin/gen_html.py"
+    }
 }
 
 function Register-Hooks {

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# tools/bin/gen_html.py
-# VERSION: 3.7.0
+# tools/gen_html/gen_html.py  (deployed to tools/bin/gen_html.py by setup)
+# VERSION: 3.8.0
 # Maintained by gendoc — DO NOT EDIT IN TARGET PROJECTS
 # Install: ~/.claude/skills/gendoc/setup  →  ~/.claude/skills/gendoc/tools/bin/gen_html.py
 # Usage:   python3 ~/.claude/skills/gendoc/tools/bin/gen_html.py   (run from project root)
@@ -61,8 +61,35 @@ def _plantuml_to_svg(text: str) -> Optional[str]:
     if svg:
         # Strip XML declaration so SVG can be embedded inline
         svg = re.sub(r'<\?xml[^>]+\?>\s*', '', svg).strip()
+        # 拿掉 inline 固定 px 寬高，讓 CSS .diagram-container--puml svg 統一控制
+        svg = _strip_svg_dimensions(svg)
         _puml_cache[text] = svg
     return svg
+
+
+def _strip_svg_dimensions(svg: str) -> str:
+    """Remove fixed pixel width/height from outer <svg> tag so CSS controls sizing.
+
+    Targets: width="Npx", height="Npx" attributes, plus 'width:Npx;height:Npx' in
+    inline style. Other style props (background, etc.) are preserved.
+    """
+    # Match the first <svg ...> opening tag
+    def _clean(match: 're.Match[str]') -> str:
+        tag = match.group(0)
+        # remove width="Npx" / height="Npx"
+        tag = re.sub(r'\s+(?:width|height)="[\d.]+px"', '', tag)
+        # remove width:Npx; / height:Npx; from inline style="..."
+        def _strip_style(sm):
+            style = sm.group(1)
+            style = re.sub(r'(?:^|;)\s*(?:width|height)\s*:\s*[\d.]+px\s*(?=;|$)',
+                           '', style)
+            style = re.sub(r';;+', ';', style).strip(';').strip()
+            return f'style="{style}"' if style else ''
+        tag = re.sub(r'style="([^"]*)"', _strip_style, tag, count=1)
+        # tidy whitespace
+        tag = re.sub(r'\s+', ' ', tag).replace(' >', '>')
+        return tag
+    return re.sub(r'<svg\b[^>]*>', _clean, svg, count=1)
 
 def _puml_block_to_html(raw_lines: list[str]) -> str:
     """Convert a list of plantuml block lines to HTML (inline SVG or code fallback)."""

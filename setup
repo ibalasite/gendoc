@@ -125,6 +125,10 @@ _deploy_tools() {
     cp "$RUNTIME_DIR/tools/dryrun_core/dryrun_core.py" "$RUNTIME_DIR/tools/bin/dryrun_core.py"
     log "  · dryrun_core/dryrun_core.py → bin/dryrun_core.py"
   fi
+  if [[ -f "$RUNTIME_DIR/tools/gen_html/gen_html.py" ]]; then
+    cp "$RUNTIME_DIR/tools/gen_html/gen_html.py" "$RUNTIME_DIR/tools/bin/gen_html.py"
+    log "  · gen_html/gen_html.py → bin/gen_html.py"
+  fi
 }
 
 _register_hook() {
