@@ -163,7 +163,7 @@ def main() -> None:
     block_count = int(d.get('stop_block_count', 0)) + 1
     if block_count > MAX_BLOCKS:
         sys.stderr.write(
-            f'[GUARD] ⚠️  已攔截 {MAX_BLOCKS} 次，放行本次 stop（請手動確認任務狀態）\n'
+            '[GUARD] 已達攔截上限，放行本次 stop（請手動確認任務狀態）\n'
         )
         sys.exit(0)
 
@@ -184,8 +184,7 @@ def main() -> None:
         f"任務 /{target or '未知任務'} 尚未完成。請繼續執行。\n\n"
         f"[priming 短版] 準確優先，沒有外部時鐘壓力。"
         f"step 完成以可驗證事實為準（commit + diff、檔案存在性、數值通過檢驗），"
-        f"不以主觀評估為準。自我聲明 ≠ 實際遵守。\n\n"
-        f"完成後執行 Step 3 刪除 .gendoc-guard.json 等控制檔。"
+        f"不以主觀評估為準。自我聲明 ≠ 實際遵守。"
     )
 
     print(json.dumps({
