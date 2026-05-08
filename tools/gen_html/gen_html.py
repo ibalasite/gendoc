@@ -304,7 +304,22 @@ def _mermaid_fix_block(lines):
         return line
 
     def fix_class_line(line):
-        # Placeholder for class fixes (later steps)
+        # Skip 開頭聲明、空行、註解
+        s = line.strip()
+        if not s or s.startswith('%%'):
+            return line
+        # M03: classDiagram member 內 {} 被當 STRUCT_STOP/OPEN_IN_STRUCT
+        # 把不在配對 class { 開頭/結尾 的 { } 換成 ( )
+        if not re.match(r'^\s*class\s+\S+\s*\{?\s*$', line) \
+           and not re.match(r'^\s*\}\s*$', line):
+            line = line.replace('{', '(').replace('}', ')')
+        # M09: relationship target 包引號 + 泛型 "X~T~" → 純 X
+        # X ..> "Y~T~" : label  →  X ..> Y : label
+        line = re.sub(
+            r'(\.\.>|-->|--\|>|\.\.\|>|\*--|\.\.|--)\s*"([^"~]+)~[^"]*~"',
+            r'\1 \2',
+            line,
+        )
         return line
 
     def strip_flowchart_sequence_misuse(lines_in):
