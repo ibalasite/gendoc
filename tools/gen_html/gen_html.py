@@ -251,6 +251,14 @@ def _mermaid_fix_block(lines):
         return line
 
     def fix_sequence_line(line):
+        # Mermaid v11: alt/else 分支內若 +/- 不平衡會 inactivate inactive 報錯。
+        # 完全剝除 activation tracking：
+        # - 箭頭後的 +/- 修飾（->>+X / -->>-X 等）
+        # - 獨立 activate/deactivate 行
+        # （犧牲 activation bar 視覺，換取整圖能 parse）
+        line = re.sub(r'(--?>>?x?)([+-])(\w+)', r'\1\3', line)
+        if re.match(r'^\s*(activate|deactivate)\s+\w+\s*$', line):
+            return ''
         # Mermaid v11: ; in message text treated as statement separator
         msg = re.match(r'^(\s*\S.*?(?:->>|-->>|->x|-->x|->>|->|-->)\s*\S[^:]*:\s*)(.*)', line, re.DOTALL)
         if msg:
