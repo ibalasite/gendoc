@@ -269,6 +269,38 @@ def test_GQ4_anchor_after_md_preserved():
     assert 'href="prd.html#features"' in out, f'anchor not preserved; got: {out}'
 
 
+# ─── G-Q5: main.doc-content min-width:0 防止 PUML/mermaid 撐爆頁面 ───
+
+def test_GQ5_inline_style_has_main_min_width_0():
+    """gen_html inline <style> must set main.doc-content { min-width: 0 } so
+    flex children can shrink instead of growing to content's intrinsic size."""
+    src = GEN_HTML.read_text(encoding='utf-8')
+    styles = '\n'.join(re.findall(r'<style>(.*?)</style>', src, re.DOTALL))
+    has_rule = re.search(
+        r'(?:main\.doc-content|\.doc-content)\s*\{[^}]*?min-width\s*:\s*0',
+        styles, re.DOTALL,
+    ) is not None or re.search(
+        r'(?:main\.doc-content|\.doc-content)[^{]*\{[^}]*?min-width\s*:\s*0',
+        styles, re.DOTALL,
+    ) is not None
+    assert has_rule, (
+        'inline <style> must set min-width:0 on main.doc-content / .doc-content '
+        f'(otherwise huge SVG/pre push it to content width); styles head: {styles[:300]}'
+    )
+
+
+def test_GQ5_inline_style_has_pre_max_width_100():
+    """`<pre>` blocks (esp pre.mermaid) need max-width:100% so they don't
+    expand parent when content is wide."""
+    src = GEN_HTML.read_text(encoding='utf-8')
+    styles = '\n'.join(re.findall(r'<style>(.*?)</style>', src, re.DOTALL))
+    has_rule = re.search(
+        r'(?:\.doc-content\s+pre|main\s+pre|^\s*pre)\s*\{[^}]*?max-width\s*:\s*100%',
+        styles, re.MULTILINE | re.DOTALL,
+    ) is not None
+    assert has_rule, 'pre blocks need max-width:100% in inline <style>'
+
+
 # ─── Standalone runner ─────────────────────────────────────────────────
 
 def main() -> int:
@@ -295,6 +327,8 @@ def main() -> int:
         ('GQ4_md_target_missing_strips_anchor', test_GQ4_md_target_missing_strips_anchor),
         ('GQ4_subdir_relative_md_rewrites', test_GQ4_subdir_relative_md_rewrites),
         ('GQ4_anchor_after_md_preserved', test_GQ4_anchor_after_md_preserved),
+        ('GQ5_inline_style_has_main_min_width_0', test_GQ5_inline_style_has_main_min_width_0),
+        ('GQ5_inline_style_has_pre_max_width_100', test_GQ5_inline_style_has_pre_max_width_100),
     ]
     passed = failed = 0
     for name, fn in tests:
