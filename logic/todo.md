@@ -235,7 +235,7 @@ Status: `review` | `todo` | `running` | `done`
 | **Test case** | 1. `test_B4_prototype_existing_html_preserved`：fixture 預存 `pages/prototype/index.html` 內容 = `MARKER-INTERACTIVE`，跑 gen_html 後內容**不變**<br>2. `test_B4_prototype_md_mirror_writes_when_target_absent`：fixture `docs/prototype/sample.md`，預先**沒有** `pages/prototype/sample.html` → 跑後**寫入**<br>3. `test_B4_prototype_md_skip_when_target_present`：fixture `docs/prototype/sample.md`，預存 `pages/prototype/sample.html` = `INTERACTIVE-VERSION` → 跑後內容**不變**<br>4. `test_B4_non_prototype_subdir_overwrites_normally`：fixture `docs/blueprint/mock/X.md` 已有 `pages/blueprint/mock/x.html`（前次 gen_html 寫的）→ 跑後**覆寫**（非 prototype，正常 regenerate） |
 | **不影響其他 case** | 非 prototype/ 子目錄 writer 行為不變（每次 gen_html 重生覆寫）|
 | **驗收對應** | D |
-| **Status** | **todo** |
+| **Status** | **done** ✅（5 test 全綠，231/231 全綠）|
 
 ---
 

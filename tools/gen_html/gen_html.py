@@ -2592,11 +2592,22 @@ def main():
     search_data = {}
 
     def write_page(filename, content, title, banner, current, is_index=False):
+        out_path = PAGES_DIR / filename
+        # B4: protect existing files under pages/prototype/ — gendoc-gen-prototype
+        # writes interactive HTML there; gen_html mirroring docs/prototype/*.md
+        # must not overwrite gen-prototype's output.
+        if out_path.exists():
+            try:
+                rel_parts = out_path.relative_to(PAGES_DIR).parts
+            except ValueError:
+                rel_parts = ()
+            if 'prototype' in rel_parts:
+                print(f"↪ skip {filename} (prototype/ preserved)")
+                return
         html = render_page(content, title, banner,
                            doc_pages, server_diagrams, frontend_diagrams,
                            sub_docs, current, is_index, has_req=has_req, puml_files=puml_files)
         # Rewrite paths to be valid under server root = PAGES_DIR
-        out_path = PAGES_DIR / filename
         html = rewrite_pages_paths(html, out_path, PAGES_DIR)
         # B2: ensure parent dir exists for nested filenames (e.g. "req/x.html")
         out_path.parent.mkdir(parents=True, exist_ok=True)

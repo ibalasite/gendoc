@@ -253,6 +253,83 @@ def test_B3_req_writer_subdir():
         assert not flat_residue, f'flat residue: {flat_residue}'
 
 
+# ─── B4: pages/prototype/ 既有檔保護 ───────────────────────────────────
+
+def test_B4_prototype_existing_html_preserved():
+    """pages/prototype/index.html 預先存在 → gen_html 不覆寫."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/prototype/sample.md': '# Sample',
+        'docs/pages/prototype/index.html': '<!-- MARKER-INTERACTIVE -->',
+    }
+    with _temp_project(layout):
+        gh.main()
+        kept = (gh.PAGES_DIR / 'prototype/index.html').read_text()
+        assert 'MARKER-INTERACTIVE' in kept, \
+            f'pages/prototype/index.html overwritten: {kept[:200]}'
+
+
+def test_B4_prototype_md_mirror_writes_when_target_absent():
+    """docs/prototype/sample.md 而 pages/prototype/sample.html 不存在 → 鏡射寫入."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/prototype/sample.md': '# Sample\n\nspec body',
+    }
+    with _temp_project(layout):
+        gh.main()
+        out = gh.PAGES_DIR / 'prototype/sample.html'
+        assert out.is_file(), 'expected pages/prototype/sample.html'
+
+
+def test_B4_prototype_md_skip_when_target_present():
+    """docs/prototype/sample.md 而 pages/prototype/sample.html 已存在
+    (gen-prototype 寫的 interactive 版) → gen_html 不覆寫."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/prototype/sample.md': '# Sample (spec)',
+        'docs/pages/prototype/sample.html': '<!-- INTERACTIVE-VERSION -->',
+    }
+    with _temp_project(layout):
+        gh.main()
+        kept = (gh.PAGES_DIR / 'prototype/sample.html').read_text()
+        assert 'INTERACTIVE-VERSION' in kept, \
+            f'pages/prototype/sample.html overwritten: {kept[:200]}'
+
+
+def test_B4_non_prototype_subdir_overwrites_normally():
+    """blueprint/mock/X.md 對應 pages/blueprint/mock/x.html 已存在 (前次 gen) →
+    本次 gen_html 正常覆寫 (regenerate)."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/blueprint/mock/X.md': '# X NEW',
+        'docs/pages/blueprint/mock/x.html': '<!-- STALE OLD -->',
+    }
+    with _temp_project(layout):
+        gh.main()
+        new = (gh.PAGES_DIR / 'blueprint/mock/x.html').read_text()
+        assert 'STALE OLD' not in new, \
+            'blueprint/mock/x.html should be regenerated, not preserved'
+        assert 'X NEW' in new, f'expected new content, got: {new[:200]}'
+
+
+def test_B4_prototype_nested_existing_html_preserved():
+    """pages/prototype/api-explorer/index.html (nested) 也保護."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/pages/prototype/api-explorer/index.html': '<!-- API-EXPLORER-INT -->',
+    }
+    with _temp_project(layout):
+        gh.main()
+        kept = (gh.PAGES_DIR / 'prototype/api-explorer/index.html').read_text()
+        assert 'API-EXPLORER-INT' in kept, \
+            'nested pages/prototype/api-explorer/index.html overwritten'
+
+
 # ─── Standalone runner ───────────────────────────────────────────────────
 
 def main() -> int:
@@ -272,6 +349,11 @@ def main() -> int:
         ('B3_blueprint_mock_writer_subdir', test_B3_blueprint_mock_writer_subdir),
         ('B3_contracts_writer_subdir', test_B3_contracts_writer_subdir),
         ('B3_req_writer_subdir', test_B3_req_writer_subdir),
+        ('B4_prototype_existing_html_preserved', test_B4_prototype_existing_html_preserved),
+        ('B4_prototype_md_mirror_writes_when_target_absent', test_B4_prototype_md_mirror_writes_when_target_absent),
+        ('B4_prototype_md_skip_when_target_present', test_B4_prototype_md_skip_when_target_present),
+        ('B4_non_prototype_subdir_overwrites_normally', test_B4_non_prototype_subdir_overwrites_normally),
+        ('B4_prototype_nested_existing_html_preserved', test_B4_prototype_nested_existing_html_preserved),
     ]
     passed = failed = 0
     for name, fn in tests:
