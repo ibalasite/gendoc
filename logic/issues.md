@@ -173,25 +173,25 @@
 
 ---
 
-## E. 重複命名（8 對 stale 殘留）
+## E. 重複命名（8 對 stale 殘留）  ✅ **實查澄清：無 gen_html bug**
 
-### E1–E8. 雙版檔
+> **2026-05-09 sandbox-pet 重生實機驗證**：current gen_html 對每個 source `.md`
+> **只產出一個** `.html`。「同一份 source 產出兩個 HTML」的描述不正確。
 
-| # | 雙版檔（pet/pages/）|
-|---|---|
-| E1 | `align_report.html` ↔ `align-report.html` |
-| E2 | `align_fix_summary.html` ↔ `align-fix-summary.html` |
-| E3 | `align_fix_complete.html` ↔ `align-fix-complete.html` |
-| E4 | `admin_impl.html` ↔ `admin-impl.html` |
-| E5 | `client_impl.html` ↔ `client-impl.html` |
-| E6 | `local_deploy.html` ↔ `local-deploy.html` |
-| E7 | `implementation_readiness.html` ↔ `implementation-readiness.html` |
-| E8 | `developer_guide.html` ↔ `developer-guide.html` |
+| # | 雙版檔 | 真實 source 狀況 | 結論 |
+|---|---|---|---|
+| ~~E1~~ | `align_report.html` ↔ `align-report.html` | **兩份 source 真的存在** (`ALIGN_REPORT.md` + `ALIGN-REPORT.md`) | ✅ 不是 bug — pet 真的有兩份不同文件 |
+| ~~E2~~ | `align_fix_summary.html` ↔ `align-fix-summary.html` | 1 個 source（`ALIGN_FIX_SUMMARY.md`），dash 版 stale | ✅ stale，「舊的不砍」rule |
+| ~~E3~~ | `align_fix_complete.html` ↔ `align-fix-complete.html` | 1 個 source，dash stale | ✅ 同上 |
+| ~~E4~~ | `admin_impl.html` ↔ `admin-impl.html` | 1 個（`ADMIN_IMPL.md`），dash stale | ✅ 同上 |
+| ~~E5~~ | `client_impl.html` ↔ `client-impl.html` | 1 個，dash stale | ✅ 同上 |
+| ~~E6~~ | `local_deploy.html` ↔ `local-deploy.html` | 1 個，dash stale | ✅ 同上 |
+| ~~E7~~ | `implementation_readiness.html` ↔ `implementation-readiness.html` | 1 個，dash stale | ✅ 同上 |
+| ~~E8~~ | `developer_guide.html` ↔ `developer-guide.html` | 1 個，dash stale | ✅ 同上 |
 
-- **事實**：來源 `ADMIN_IMPL.md`（一個檔）產生兩個 HTML。
-- **根因 `[部分未實查]`**：
-  - 推測：gen_html.py 的 slug 規則改過（`UPPER_CASE.md → upper-case.html` vs `upper_case.html`），改後沒清舊檔。
-  - 哪個是現行版、哪個是 stale，**未查 git log of slugify code**。
+**E 群結論**：
+- **E1**：pet 內容問題（兩份真實 source），不是 gen_html bug；若要清需 pet 端決定刪哪份
+- **E2–E8**：dash 版是過去 slug 規則殘留；current gen_html 不再產，**符合「舊的不砍」rule**，屬 H1 cleanup 範疇
 
 ---
 

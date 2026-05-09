@@ -394,6 +394,38 @@ Status: `review` | `todo` | `running` | `done`
 
 ---
 
+# ════════════════════════════════════════════════
+# E 群（重複命名 / 雙版 slug）
+# ════════════════════════════════════════════════
+
+## 實查結論：E 群實際上沒有 gen_html bug
+
+> **2026-05-09 sandbox-pet 重生後實機驗證**：current gen_html 對每個 source `.md` **只產出一個** `.html`，沒有「同一份 source 產出兩個 HTML」的 bug。
+
+| E# | 表面現象 | 真實 source 數 | 是否 gen_html bug |
+|---|---|---|---|
+| **E1** | `align_report.html` ↔ `align-report.html` | **2 個**：`ALIGN_REPORT.md` + `ALIGN-REPORT.md` 兩份不同文件 | ❌ 不是 bug — pet docs 真的有兩份 source |
+| **E2** | `align_fix_summary.html` ↔ `align-fix-summary.html` | 1 個 | dash 版是舊 slug 規則 stale 殘留 |
+| **E3** | `align_fix_complete.html` ↔ `align-fix-complete.html` | 1 個 | 同上 |
+| **E4** | `admin_impl.html` ↔ `admin-impl.html` | 1 個（`ADMIN_IMPL.md`） | 同上 |
+| **E5** | `client_impl.html` ↔ `client-impl.html` | 1 個 | 同上 |
+| **E6** | `local_deploy.html` ↔ `local-deploy.html` | 1 個 | 同上 |
+| **E7** | `implementation_readiness.html` ↔ `implementation-readiness.html` | 1 個 | 同上 |
+| **E8** | `developer_guide.html` ↔ `developer-guide.html` | 1 個 | 同上 |
+
+## 結論
+
+| 子題 | 對 gen_html 動作 |
+|---|---|
+| **E1** | 兩份 source 各自合法存在 → gen_html 各產一個 .html，**正確行為**，無 fix |
+| **E2–E8** | dash 版是 stale，符合「舊的不砍」(user 在 B 群已明確) → **無 fix**，屬 H1 cleanup 範疇 |
+
+**E 群無新 fix 要做**。如同 C 群被 B 群吸收，E 群被「實查」澄清。
+
+只需要在 issues.md 加註標記讓清單一致。
+
+---
+
 ## B 群決策點（彙總，等 user 拍板）
 
 | # | 議題 | 我的建議 |
