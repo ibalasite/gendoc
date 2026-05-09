@@ -339,6 +339,46 @@ Status: `review` | `todo` | `running` | `done`
 
 ---
 
+# ════════════════════════════════════════════════
+# D 群（Prototype 曝光）
+# ════════════════════════════════════════════════
+
+## 主問題（user 視角）
+
+> **使用者原話**：
+> - 「prototype 之前提的需求，是在 pages/index.html 原來有地方露出，我請你加 link, 你現在直接整個不見了」
+> - 「現在沒有 UI prototype, API explorer 的內容」
+
+**主問題**：`pages/index.html` body 應該在明顯位置有 prototype 連結卡片（UI Prototype / Admin Prototype / API Explorer），讓 user 一眼看到並點得進去；且**重跑 gen_html 不會消失**。
+
+**對齊核心目標**：
+- **3. 表達**：index 頁是「文件中心」，prototype 是核心交付物之一，body 不應該完全沒露出
+- **4. 不誤會**：sidebar 有 `📁 prototype/`，但 body 沒對應 card → user 可能誤以為「沒有互動 prototype」直到看到 sidebar
+
+**驗收標準**：
+- A. 跑 gen_html 後 `pages/index.html` body 含 `<a class="index-card" href="prototype/...">` 形式的卡片
+- B. 每個 `scan_prototype_entries` 回傳的 entry 都有對應 card（UI Prototype / Admin Prototype / API Explorer）
+- C. 連結點得進去（實際 HTML 存在）
+- D. **重跑 gen_html N 次** card 仍存在（gen_html 本身產生它，不依賴 gen-prototype 後續注入）
+- E. `pages/prototype/` 不存在時，**不**產生 prototype card（不要寫死 card；要根據 scan 結果動態產生）
+
+---
+
+## # D. doc_cards_section 加 prototype 卡片（採 D5-P1）
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | gen_html 寫 index.html 時 body 只列文件 + UML 卡片，**不知道下游 gendoc-gen-prototype 寫過 pages/prototype/**。重跑 gen_html 會洗掉先前手動或 gen-prototype 注入的 prototype cards。|
+| **證據** | gen_html.py L2620-2649 `doc_cards_section`：cards 只含 doc_pages（root .md）+ UML 一張，**無 prototype 卡片邏輯**。歷史 commit `8517c6b` 有 prototype index-cards，`548bc9c` 跑過一次 gen_html 後消失。|
+| **對齊核心目標** | 3. 表達 + 4. 不誤會 |
+| **預期解（D5-P1，user 已先選）** | `doc_cards_section` 主動呼叫 `scan_prototype_entries(PAGES_DIR)`，對每個 entry 輸出 index-card（icon=🎮，title=label，href=entry.href）。<br>實作位置：在現有 doc_pages 卡片與 UML 卡片之間插入。沒掃到 entry 時不出 card（不要硬寫死）。|
+| **Test case** | 1. `test_D_index_has_prototype_cards_when_pages_prototype_exists`：fixture 含 `pages/prototype/index.html` → index.html 含 `<a class="index-card" href="prototype/index.html">...UI Prototype...</a>`<br>2. `test_D_no_proto_card_when_no_prototype_dir`：`pages/prototype/` 不存在 → index.html 不含任何 `prototype/*/index.html` 連結卡片<br>3. `test_D_multiple_prototype_entries_each_get_card`：fixture 含 `pages/prototype/index.html` + `pages/prototype/api-explorer/index.html` + `pages/prototype/admin/index.html` → index.html 有 3 張 prototype card<br>4. `test_D_proto_cards_survive_regen`：跑 gen_html 兩次 → 第二次 index.html 仍有 prototype cards（不消失）<br>5. `test_D_proto_cards_no_nested_a`：產出的 prototype card 不含 nested `<a><a>`（A1 regression guard）|
+| **不影響其他 case** | doc_pages / UML cards 不變；index.html 其他 sections 不動 |
+| **驗收對應** | A、B、C、D、E |
+| **Status** | **done** ✅（5 test 全綠，265/265 全綠；視覺驗證 pet body 出現 🎮 UI Prototype / 🎮 Admin Prototype / 🎮 API Explorer 三張卡片）|
+
+---
+
 ## B 群決策點（彙總，等 user 拍板）
 
 | # | 議題 | 我的建議 |

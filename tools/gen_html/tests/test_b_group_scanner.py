@@ -776,6 +776,110 @@ def test_B9_prototype_only_md_no_interactive_label():
         'Interactive Prototypes label should not appear when no interactive entries'
 
 
+# ─── D group: Prototype 曝光 (D5-P1: doc_cards_section 加 prototype 卡片) ──
+
+def test_D_index_has_prototype_cards_when_pages_prototype_exists():
+    """fixture 含 pages/prototype/index.html → index.html body 有
+    <a class="index-card" href="prototype/index.html">...UI Prototype...</a>."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/pages/prototype/index.html': '<h1>Interactive UI</h1>',
+    }
+    with _temp_project(layout):
+        gh.main()
+        idx = (gh.PAGES_DIR / 'index.html').read_text()
+        # Must be a body index-card (NOT sidebar__link). Look for the exact pattern.
+        import re as _re
+        m = _re.search(
+            r'<a class="index-card"[^>]*href="prototype/index\.html"[^>]*>'
+            r'(?:(?!</a>).)*UI Prototype(?:(?!</a>).)*</a>',
+            idx, _re.DOTALL,
+        )
+        assert m is not None, \
+            'no <a class="index-card" href="prototype/index.html">...UI Prototype...</a> found in body'
+
+
+def test_D_no_proto_card_when_no_prototype_dir():
+    """pages/prototype/ 不存在 → index.html body 不含 index-card 連結到 prototype/."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+    }
+    with _temp_project(layout):
+        gh.main()
+        idx = (gh.PAGES_DIR / 'index.html').read_text()
+        import re as _re
+        m = _re.search(
+            r'<a class="index-card"[^>]*href="prototype/[^"]*"',
+            idx,
+        )
+        assert m is None, \
+            'should not emit index-card prototype link when pages/prototype/ missing'
+
+
+def test_D_multiple_prototype_entries_each_get_card():
+    """3 個 prototype entries (root + api-explorer + admin) 各在 body 得一張 index-card."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/pages/prototype/index.html': '<h1>UI</h1>',
+        'docs/pages/prototype/api-explorer/index.html': '<h1>API</h1>',
+        'docs/pages/prototype/admin/index.html': '<h1>Admin</h1>',
+    }
+    with _temp_project(layout):
+        gh.main()
+        idx = (gh.PAGES_DIR / 'index.html').read_text()
+        import re as _re
+        for href, label in [
+            ('prototype/index.html', 'UI Prototype'),
+            ('prototype/api-explorer/index.html', 'API Explorer'),
+            ('prototype/admin/index.html', 'Admin Prototype'),
+        ]:
+            pattern = (
+                rf'<a class="index-card"[^>]*href="{_re.escape(href)}"[^>]*>'
+                rf'(?:(?!</a>).)*{_re.escape(label)}(?:(?!</a>).)*</a>'
+            )
+            assert _re.search(pattern, idx, _re.DOTALL), \
+                f'missing index-card for {href} ({label})'
+
+
+def test_D_proto_cards_survive_regen():
+    """跑 gen_html 兩次, 第二次 index.html body 仍有 prototype index-card."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/pages/prototype/index.html': '<h1>UI</h1>',
+    }
+    with _temp_project(layout):
+        gh.main()
+        idx1 = (gh.PAGES_DIR / 'index.html').read_text()
+        gh.main()
+        idx2 = (gh.PAGES_DIR / 'index.html').read_text()
+        import re as _re
+        pattern = r'<a class="index-card"[^>]*href="prototype/index\.html"'
+        assert _re.search(pattern, idx1), 'first run missing prototype index-card'
+        assert _re.search(pattern, idx2), \
+            'prototype index-card disappeared on second run (D5 regression!)'
+
+
+def test_D_proto_cards_no_nested_a():
+    """產出的 prototype card 不含 nested <a><a> (A1 regression guard)."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/pages/prototype/index.html': '<h1>x</h1>',
+    }
+    with _temp_project(layout):
+        gh.main()
+        idx = (gh.PAGES_DIR / 'index.html').read_text()
+        assert '<a' in idx
+        # No <a ...><a ...> sequence
+        import re as _re
+        nested = _re.search(r'<a\b[^>]*>\s*<a\b', idx)
+        assert nested is None, f'nested <a><a> found: {nested.group(0)}'
+
+
 # ─── Standalone runner ───────────────────────────────────────────────────
 
 def main() -> int:
@@ -827,6 +931,11 @@ def main() -> int:
         ('B9_prototype_md_under_specs_label', test_B9_prototype_md_under_specs_label),
         ('B9_prototype_only_interactive_no_specs_label', test_B9_prototype_only_interactive_no_specs_label),
         ('B9_prototype_only_md_no_interactive_label', test_B9_prototype_only_md_no_interactive_label),
+        ('D_index_has_prototype_cards_when_pages_prototype_exists', test_D_index_has_prototype_cards_when_pages_prototype_exists),
+        ('D_no_proto_card_when_no_prototype_dir', test_D_no_proto_card_when_no_prototype_dir),
+        ('D_multiple_prototype_entries_each_get_card', test_D_multiple_prototype_entries_each_get_card),
+        ('D_proto_cards_survive_regen', test_D_proto_cards_survive_regen),
+        ('D_proto_cards_no_nested_a', test_D_proto_cards_no_nested_a),
     ]
     passed = failed = 0
     for name, fn in tests:

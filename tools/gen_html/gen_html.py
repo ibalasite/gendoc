@@ -2629,6 +2629,17 @@ def doc_cards_section(doc_pages, server_diagrams, frontend_diagrams):
             f'<span class="index-card__title">{esc(label)}</span>'
             f'</a>'
         )
+    # D group (D5-P1): emit one index-card per interactive prototype entry so
+    # they're prominent on index.html body. Driven by scan_prototype_entries
+    # so they survive every gen_html re-run (no dependency on gen-prototype
+    # post-injection).
+    for entry in scan_prototype_entries(PAGES_DIR):
+        cards.append(
+            f'<a class="index-card" href="{entry["href"]}">'
+            f'<span class="index-card__icon">🎮</span>'
+            f'<span class="index-card__title">{esc(entry["label"])}</span>'
+            f'</a>'
+        )
     diag_total = len(server_diagrams) + len(frontend_diagrams)
     if diag_total:
         cards.append(
