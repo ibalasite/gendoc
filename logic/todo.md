@@ -265,7 +265,7 @@ Status: `review` | `todo` | `running` | `done`
 | **Test case** | 1. `test_B6_link_root_to_root`：current=`index`，target=`edd` → href=`edd.html`<br>2. `test_B6_link_root_to_subdir`：current=`index`，target=`blueprint/mock/x` → href=`blueprint/mock/x.html`<br>3. `test_B6_link_subdir_to_root`：current=`blueprint/mock/x`，target=`edd` → href=`../../edd.html`<br>4. `test_B6_link_subdir_to_sibling_subdir`：current=`blueprint/mock/x`，target=`diagrams/y` → href=`../../diagrams/y.html`<br>5. `test_B6_active_class_still_works`：current=`blueprint/mock/x`，link 對應 slug 也是 `blueprint/mock/x` → 含 `class="...active"` |
 | **不影響其他 case** | 既有 root page 的 sidebar href 結果不變（relpath 在同層就是檔名）|
 | **驗收對應** | E |
-| **Status** | **todo** |
+| **Status** | **done** ✅（5 test 全綠，249/249 全綠）|
 
 ---
 

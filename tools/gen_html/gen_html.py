@@ -1960,7 +1960,10 @@ def rewrite_pages_paths(html: str, current_html_path, pages_dir) -> str:
                 # 純 diagrams/ 目錄 link → 無單一 page 對應
                 return _strip_anchor(full_match)
         # R3-4 / R3-5: features/、blueprint/、src/ 等 root 路徑
-        elif re.match(r'^(features|blueprint|src|tests|infrastructure|scripts)/', target):
+        # B5/B7: subdir-mirrored .md → .html 在 pages/ 內合法（如 blueprint/mock/x.html）
+        # 因此只 strip 非 .html 的 target（feature / yaml / py 等原始碼）。
+        elif (re.match(r'^(features|blueprint|src|tests|infrastructure|scripts)/', target)
+              and not target.split('#', 1)[0].split('?', 1)[0].endswith('.html')):
             return _strip_anchor(full_match)
         # R3-6 防護：最終 target 解析後必須在 pages/ 內，否則 strip
         # （catch AI 寫 ../../../X 跳出 server root 的情況）
@@ -2421,10 +2424,21 @@ _DIAG_PREFIX_ORDER = ['Activity', 'Class', 'Sequence', 'State', 'CI/CD', '其他
 
 
 def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, current, has_req=False, puml_files=None):
+    # B6: compute href relative to current page's location.
+    # current is a slug like 'index', 'edd', 'blueprint/mock/x', or 'diagrams/foo'.
+    # Pages are at pages/{current}.html. For a target slug, href must be the
+    # relative path from current's parent dir to the target file.
+    current_parts = current.split('/') if current else ['']
+    current_depth = len(current_parts) - 1  # 'blueprint/mock/x' → depth 2
+
     def link(slug, label, icon=''):
         cls = ' active' if slug == current else ''
         prefix = f'{icon} ' if icon else ''
-        return f'<a class="sidebar__link{cls}" href="{slug}.html">{prefix}{label}</a>'
+        if current_depth == 0:
+            href = f'{slug}.html'
+        else:
+            href = ('../' * current_depth) + f'{slug}.html'
+        return f'<a class="sidebar__link{cls}" href="{href}">{prefix}{label}</a>'
 
     def render_subdir_tree(name, tree):
         """Recursive <details> render for a subdir tree node."""
@@ -2488,9 +2502,11 @@ def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, curren
     if proto_entries:
         sections.append('<div class="sidebar__section">')
         sections.append('<div class="sidebar__label">Interactive Prototypes</div>')
+        depth_prefix = ('../' * current_depth) if current_depth else ''
         for entry in proto_entries:
+            href = depth_prefix + entry['href']
             sections.append(
-                f'<a class="sidebar__link" href="{entry["href"]}">'
+                f'<a class="sidebar__link" href="{href}">'
                 f'🎮 {entry["label"]}</a>'
             )
         sections.append('</div>')

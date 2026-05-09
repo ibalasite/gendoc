@@ -521,6 +521,82 @@ def test_B5_sidebar_interactive_prototype_section_kept():
         f'Interactive Prototypes section missing; html: {html[:600]}'
 
 
+# ─── B6: cross-link relpath ────────────────────────────────────────────
+
+def test_B6_link_root_to_root():
+    """current=index → target=edd.md → href=edd.html (same dir)."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+    }
+    with _temp_project(layout):
+        gh.main()
+        idx = (gh.PAGES_DIR / 'index.html').read_text()
+        assert 'href="edd.html"' in idx, \
+            f'expected href="edd.html" on index page; got: {idx[:600]}'
+
+
+def test_B6_link_root_to_subdir():
+    """current=index → target=blueprint/mock/x → href=blueprint/mock/x.html."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/blueprint/mock/X.md': '# X',
+    }
+    with _temp_project(layout):
+        gh.main()
+        idx = (gh.PAGES_DIR / 'index.html').read_text()
+        assert 'href="blueprint/mock/x.html"' in idx, \
+            f'expected href="blueprint/mock/x.html" on index; got: {idx[:600]}'
+
+
+def test_B6_link_subdir_to_root():
+    """current=blueprint/mock/x → sidebar 連 EDD → href=../../edd.html."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/blueprint/mock/X.md': '# X',
+    }
+    with _temp_project(layout):
+        gh.main()
+        page = (gh.PAGES_DIR / 'blueprint/mock/x.html').read_text()
+        assert 'href="../../edd.html"' in page, \
+            f'expected href="../../edd.html" on subdir page; got first 1000: {page[:1000]}'
+
+
+def test_B6_link_subdir_to_sibling_subdir():
+    """current=blueprint/mock/x → sidebar 連 contracts/y → href=../../contracts/y.html."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/blueprint/mock/X.md': '# X',
+        'docs/contracts/Y.md': '# Y',
+    }
+    with _temp_project(layout):
+        gh.main()
+        page = (gh.PAGES_DIR / 'blueprint/mock/x.html').read_text()
+        assert 'href="../../contracts/y.html"' in page, \
+            f'expected href="../../contracts/y.html"; got: {page[:1000]}'
+
+
+def test_B6_active_class_still_works():
+    """current=blueprint/mock/x → sidebar 對應 link 有 active class."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/blueprint/mock/X.md': '# X',
+    }
+    with _temp_project(layout):
+        gh.main()
+        page = (gh.PAGES_DIR / 'blueprint/mock/x.html').read_text()
+        # Find the sidebar link to blueprint/mock/x — should have ' active'
+        # The href will be self-referential ('x.html' since same dir)
+        import re as _re
+        # The link text X should appear; class may include 'active'
+        m = _re.search(r'<a class="sidebar__link[^"]*active[^"]*"[^>]*>[^<]*X', page)
+        assert m, f'no active class on self link in subdir page; sidebar slice unavailable'
+
+
 # ─── Standalone runner ───────────────────────────────────────────────────
 
 def main() -> int:
@@ -558,6 +634,11 @@ def main() -> int:
         ('B5_diagrams_other_group_catches_misc', test_B5_diagrams_other_group_catches_misc),
         ('B5_sidebar_prototype_md_inside_folder', test_B5_sidebar_prototype_md_inside_folder),
         ('B5_sidebar_interactive_prototype_section_kept', test_B5_sidebar_interactive_prototype_section_kept),
+        ('B6_link_root_to_root', test_B6_link_root_to_root),
+        ('B6_link_root_to_subdir', test_B6_link_root_to_subdir),
+        ('B6_link_subdir_to_root', test_B6_link_subdir_to_root),
+        ('B6_link_subdir_to_sibling_subdir', test_B6_link_subdir_to_sibling_subdir),
+        ('B6_active_class_still_works', test_B6_active_class_still_works),
     ]
     passed = failed = 0
     for name, fn in tests:
