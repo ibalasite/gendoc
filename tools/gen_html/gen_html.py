@@ -2598,6 +2598,8 @@ def main():
         # Rewrite paths to be valid under server root = PAGES_DIR
         out_path = PAGES_DIR / filename
         html = rewrite_pages_paths(html, out_path, PAGES_DIR)
+        # B2: ensure parent dir exists for nested filenames (e.g. "req/x.html")
+        out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(html)
         exc = re.sub(r'<[^>]+>', '', content)[:150]
         search_data[filename] = {"url": filename, "title": title, "excerpt": exc}

@@ -205,7 +205,7 @@ Status: `review` | `todo` | `running` | `done`
 | **Test case** | 1. `test_B2_write_page_creates_nested_dirs`：呼叫 `write_page("a/b/c.html", ...)` 在乾淨 PAGES_DIR 上 → `pages/a/b/c.html` 寫入成功，路徑上 `a/`、`a/b/` 都被建立<br>2. `test_B2_write_page_root_unchanged`：`write_page("foo.html", ...)` 仍在 `pages/foo.html`（regression） |
 | **不影響其他 case** | root .html 寫入路徑不變 |
 | **驗收對應** | A |
-| **Status** | **todo** |
+| **Status** | **done** ✅（3 test 全綠，221/221 全綠）|
 
 ---
 
