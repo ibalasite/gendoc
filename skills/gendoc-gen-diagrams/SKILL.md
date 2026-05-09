@@ -1636,3 +1636,72 @@ git commit -m "docs(gendoc)[UML]: 生成 UML 架構圖（共 ${_TOTAL_DIAGRAMS} 
 | 8 | Component Diagram | §10.8 → §4.5.8 + ARCH.md | `component.md` | `graph TD` | 1 |
 | 9 | Deployment Diagram | §10.9 → §4.5.9 + ARCH.md | `deployment.md` | `graph TD` | 1 |
 | — | ER Diagram（額外）| SCHEMA.md | `er-diagram.md` | `erDiagram` | 1（可選）|
+
+---
+
+## 附錄：PlantUML 語法禁區（G-Q1a Layer 1 預防）
+
+> **背景**：本 skill 預設輸出 Mermaid。但專案內若有 Mermaid 表達不了的圖
+> （如 `linetype ortho`、特殊符號），可改寫 PlantUML（`.puml` 檔或 markdown
+> ` ``` puml` 區塊）。**已知 plantuml.com 公開 server 對下列語法回 HTTP 400**，
+> 生成 PUML 時務必避開：
+
+### 禁區 1：`par/and/end`（sequence diagram 平行分支）
+
+❌ 錯誤：
+```
+par Branch A
+  player -> server: hi
+and
+  server -> player: ack
+end
+```
+
+✅ 正確（用 `else` 取代 `and`）：
+```
+par Branch A
+  player -> server: hi
+else
+  server -> player: ack
+end
+```
+
+### 禁區 2：arrow `|label|` 標籤（use case / dataflow）
+
+❌ 錯誤：
+```
+[Player] -->|email + OTP| (Claim Flow)
+[Sendgrid] -.->|fallback| [Backup]
+```
+
+✅ 正確（用 `: label` 接在箭頭後）：
+```
+[Player] --> (Claim Flow) : email + OTP
+[Sendgrid] ..> [Backup] : fallback
+```
+
+### 禁區 3：`!define NAME #HEX` macro 在 package/component color attr
+
+❌ 錯誤（server 不展開 !define 給 package color）：
+```
+!define FRONTEND #E8F4F8
+package "Client Layer" #FRONTEND {
+  component [App] as a
+}
+```
+
+✅ 正確（直接用 hex 字串）：
+```
+package "Client Layer" #E8F4F8 {
+  component [App] as a
+}
+```
+
+### 二層防護機制
+
+- **Layer 1（本附錄）**：skill 生成 PUML 時遵守上列禁區 → 生出來就是合法 PUML
+- **Layer 2（`tools/gen_html/gen_html.py` `_puml_autofix`）**：plantuml.com
+  server 回 HTTP 400 時，gen-html 自動套上 3 條 fix 規則重試 → 即使 source
+  寫壞，圖仍能渲染
+
+兩層彼此獨立：source 乾淨時 Layer 2 不會觸發；source 寫壞時 Layer 2 補救。
