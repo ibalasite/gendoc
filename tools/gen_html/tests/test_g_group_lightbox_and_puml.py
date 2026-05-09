@@ -129,6 +129,93 @@ def test_GQ2_pyramid_html_structure_unchanged():
     assert 'E2E Tests' in html
 
 
+# ─── G-Q1b: PUML auto-fix (gen-html 自動修壞 PUML 讓圖能出來) ────────────
+
+# Real fixtures from pet failing PUMLs
+
+# par/and (sequence diagram parallel branch — official PUML uses else, not and)
+PUML_PAR_AND = '''@startuml
+participant "Player" as p
+participant "Server" as s
+par Branch A
+  p -> s: hi
+and
+  s -> p: ack
+end
+@enduml'''
+
+# arrow with |label| (use case / dataflow style — not accepted by official server)
+PUML_ARROW_LABEL = '''@startuml
+[Player] -->|email + OTP| (Claim Flow)
+[Sendgrid] -.->|fallback| [Backup]
+@enduml'''
+
+# !define color macro referenced in package color
+PUML_DEFINE_COLOR = '''@startuml
+!define FRONTEND #E8F4F8
+package "Client Layer" #FRONTEND {
+  component [Player App] as p
+}
+@enduml'''
+
+
+def test_GQ1b_autofix_par_and_to_else():
+    fixed = gh._puml_autofix(PUML_PAR_AND)
+    # `and` between par and end becomes `else`
+    assert re.search(r'\belse\b', fixed), f'par/and not converted to else: {fixed}'
+    assert not re.search(r'^\s*and\b', fixed, re.MULTILINE), f'`and` still present: {fixed}'
+
+
+def test_GQ1b_autofix_arrow_label_stripped():
+    fixed = gh._puml_autofix(PUML_ARROW_LABEL)
+    # |label| pattern between arrow head and target is removed
+    assert '|email + OTP|' not in fixed
+    assert '|fallback|' not in fixed
+    # The arrow itself (and target) remains
+    assert '(Claim Flow)' in fixed
+    assert '[Backup]' in fixed
+
+
+def test_GQ1b_autofix_define_color_expanded():
+    fixed = gh._puml_autofix(PUML_DEFINE_COLOR)
+    # #FRONTEND inline reference replaced with actual hex
+    assert '#FRONTEND' not in fixed.replace('!define FRONTEND', '')
+    assert '#E8F4F8' in fixed
+
+
+def test_GQ1b_autofix_idempotent():
+    """Applying autofix twice should give the same result."""
+    once = gh._puml_autofix(PUML_PAR_AND)
+    twice = gh._puml_autofix(once)
+    assert once == twice
+
+
+def test_GQ1b_autofix_does_not_break_clean_puml():
+    """Clean PUML without any of the bad patterns should pass through unchanged."""
+    clean = '''@startuml
+participant A
+participant B
+A -> B: hi
+B -> A: ok
+@enduml'''
+    assert gh._puml_autofix(clean) == clean
+
+
+def test_GQ1b_plantuml_to_svg_retries_with_autofix():
+    """When the original PUML fails (HTTP 400), _plantuml_to_svg should
+    auto-fix common errors and retry. We verify the offline fix path by
+    ensuring _puml_autofix is called (we can't easily mock the network
+    here, so this is a structural test)."""
+    # Ensure the bridge function exists in the module
+    assert hasattr(gh, '_puml_autofix'), '_puml_autofix function must exist'
+    # And that _plantuml_to_svg references it (best-effort: source grep)
+    src = GEN_HTML.read_text(encoding='utf-8')
+    plantuml_fn = re.search(r'def _plantuml_to_svg.*?(?=\ndef |\Z)', src, re.DOTALL)
+    assert plantuml_fn is not None
+    assert '_puml_autofix' in plantuml_fn.group(0), \
+        '_plantuml_to_svg must call _puml_autofix on failure'
+
+
 # ─── Standalone runner ─────────────────────────────────────────────────
 
 def main() -> int:
@@ -144,6 +231,12 @@ def main() -> int:
          test_GQ2_lightbox_svg_has_height_auto),
         ('GQ2_pyramid_html_structure_unchanged',
          test_GQ2_pyramid_html_structure_unchanged),
+        ('GQ1b_autofix_par_and_to_else', test_GQ1b_autofix_par_and_to_else),
+        ('GQ1b_autofix_arrow_label_stripped', test_GQ1b_autofix_arrow_label_stripped),
+        ('GQ1b_autofix_define_color_expanded', test_GQ1b_autofix_define_color_expanded),
+        ('GQ1b_autofix_idempotent', test_GQ1b_autofix_idempotent),
+        ('GQ1b_autofix_does_not_break_clean_puml', test_GQ1b_autofix_does_not_break_clean_puml),
+        ('GQ1b_plantuml_to_svg_retries_with_autofix', test_GQ1b_plantuml_to_svg_retries_with_autofix),
     ]
     passed = failed = 0
     for name, fn in tests:

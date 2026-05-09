@@ -27,9 +27,75 @@ def _plantuml_encode(text: str) -> str:
                    chars[b[2] & 63]]
     return ''.join(result)
 
+def _puml_autofix(text: str) -> str:
+    """G-Q1b — auto-fix common PUML syntax errors that the public plantuml.com
+    server rejects (HTTP 400) so the diagram can render even when source has
+    issues. Applied as second-attempt repair in _plantuml_to_svg.
+
+    Three rules verified against pet's 6 failing PUML files:
+      1. par/and/end → par/else/end (sequence-diagram parallel branch).
+         Tracks block nesting so `and` inside nested alt/loop/opt is left alone.
+      2. arrow `|label|` token → stripped (use case / dataflow arrow labels
+         that the official server doesn't accept). Lossy (label is dropped)
+         but the connection itself renders.
+      3. !define NAME #HEX macros → expanded inline. Server doesn't apply
+         !define to package/component color attributes (#NAME).
+
+    Idempotent: applying twice gives the same result.
+    """
+    import re as _re
+    # Rule 1: par/and → par/else (block-aware)
+    out = []
+    stack = []
+    for line in text.split('\n'):
+        s = line.strip()
+        if _re.match(r'^par\b', s):
+            stack.append('par')
+            out.append(line)
+            continue
+        if _re.match(r'^(alt|opt|loop|group|critical|break)\b', s):
+            stack.append('other')
+            out.append(line)
+            continue
+        if _re.match(r'^end\b', s):
+            if stack:
+                stack.pop()
+            out.append(line)
+            continue
+        if _re.match(r'^and\b', s) and stack and stack[-1] == 'par':
+            out.append(_re.sub(r'\band\b', 'else', line, count=1))
+            continue
+        out.append(line)
+    text = '\n'.join(out)
+    # Rule 2: strip |label| tokens after arrow heads
+    text = _re.sub(r'(\s*-+\.?-?>)\s*\|[^|]+\|\s*', r'\1 ', text)
+    text = _re.sub(r'(\s*<-?\.?-+)\s*\|[^|]+\|\s*', r'\1 ', text)
+    # Rule 3: expand !define NAME #HEX inline
+    macros = {}
+    for m in _re.finditer(
+        r'^\s*!define\s+(\w+)\s+(#[0-9A-Fa-f]{3,8})\b', text, _re.MULTILINE,
+    ):
+        macros[m.group(1)] = m.group(2)
+    if macros:
+        new_lines = []
+        for line in text.split('\n'):
+            if any(_re.match(rf'^\s*!define\s+{name}\b', line) for name in macros):
+                new_lines.append(line)
+                continue
+            for name, hex_val in macros.items():
+                line = _re.sub(rf'#{name}\b', hex_val, line)
+            new_lines.append(line)
+        text = '\n'.join(new_lines)
+    return text
+
+
 def _plantuml_to_svg(text: str) -> Optional[str]:
     """Convert PlantUML text → inline SVG string. Returns None on failure.
-    Priority: 1) local plantuml CLI  2) plantuml.com server  3) None"""
+    Priority: 1) local plantuml CLI  2) plantuml.com server (raw + autofix)
+              3) None
+    G-Q1b: when the first server attempt fails, retry with auto-fixed source
+    so common syntax errors don't kill the diagram.
+    """
     if text in _puml_cache:
         return _puml_cache[text]
 
@@ -46,7 +112,7 @@ def _plantuml_to_svg(text: str) -> Optional[str]:
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
 
-    # 2) Fallback: plantuml.com server
+    # 2) Fallback: plantuml.com server (raw input)
     if svg is None:
         try:
             url = f'{PLANTUML_SERVER}/svg/{_plantuml_encode(text)}'
@@ -57,6 +123,20 @@ def _plantuml_to_svg(text: str) -> Optional[str]:
                     svg = data
         except Exception:
             pass
+
+    # 2b) G-Q1b: retry server with auto-fixed PUML if first attempt failed.
+    if svg is None:
+        fixed = _puml_autofix(text)
+        if fixed != text:
+            try:
+                url = f'{PLANTUML_SERVER}/svg/{_plantuml_encode(fixed)}'
+                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req, timeout=12) as r:
+                    data = r.read().decode('utf-8')
+                    if '<svg' in data:
+                        svg = data
+            except Exception:
+                pass
 
     if svg:
         # Strip XML declaration so SVG can be embedded inline
