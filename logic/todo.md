@@ -280,7 +280,7 @@ Status: `review` | `todo` | `running` | `done`
 | **Test case** | 1. **升級** `test_R3_3_diagrams_md_to_diag_html`（既有）：expected 從 `diag-X.html` 改 `diagrams/X.html`<br>2. **新增** `test_B7_R3_2_subdir_md_to_subdir_html`：input `<a href="docs/blueprint/mock/y.md">` 且 `pages/blueprint/mock/y.html` 存在 → href=`blueprint/mock/y.html`<br>3. **新增** `test_B7_R3_2_subdir_md_target_absent_strips`：target 不存在 → strip `<a>` 留 inner text<br>4. **新增** `test_B7_R3_3_diagrams_md_target_must_exist`：rewrite 用 `is_file()` 確認，不存在則 strip |
 | **不影響其他 case** | R3-1 / R3-4 / R3-5 / R3-6 不動；R1（A1 已改）不動 |
 | **驗收對應** | E |
-| **Status** | **todo** |
+| **Status** | **done** ✅（2 新 test 全綠；R3-3 已在 B5 順帶解；R3-2 既有 docs/X/Y/Z.md 邏輯已支援巢狀 subdir，無需改 code，251/251 全綠）|
 
 ---
 

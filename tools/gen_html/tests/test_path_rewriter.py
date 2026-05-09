@@ -166,6 +166,30 @@ def test_R1_code_path_not_existing_stays_code():
     assert '<a href' not in out
 
 
+# ─── B7: R3-2 subdir .md → subdir .html ────────────────────────────────
+
+def test_B7_R3_2_subdir_md_to_subdir_html():
+    """href="docs/blueprint/mock/y.md" → "blueprint/mock/y.html" 當 target 存在。"""
+    html = '<a href="docs/blueprint/mock/y.md">y</a>'
+    pages = _make_pages_dir({
+        'blueprint/mock/y.html': '',
+        'index.html': '',
+    })
+    out = gh.rewrite_pages_paths(html, pages / 'index.html', pages)
+    assert 'href="blueprint/mock/y.html"' in out, \
+        f'expected blueprint/mock/y.html href; got: {out}'
+
+
+def test_B7_R3_2_subdir_md_target_absent_strips():
+    """href="docs/blueprint/mock/missing.md" 且 pages/blueprint/mock/missing.html
+    不存在 → strip <a>，留 inner text."""
+    html = '<a href="docs/blueprint/mock/missing.md">missing</a>'
+    pages = _make_pages_dir({'index.html': ''})
+    out = gh.rewrite_pages_paths(html, pages / 'index.html', pages)
+    assert '<a href' not in out, f'should strip <a>; got: {out}'
+    assert 'missing' in out, 'inner text should remain'
+
+
 # ─── A1: Avoid nested <a><a> ──────────────────────────────────────────
 # When <code> is already inside an <a>, R1 must NOT wrap it again.
 
@@ -382,6 +406,9 @@ def main():
         ('R3_6_subdir_too_many_dots_strip', test_R3_6_subdir_too_many_dots_strip),
         ('R3_6_subdir_correct_relative_unchanged',
          test_R3_6_subdir_correct_relative_unchanged),
+        # B7
+        ('B7_R3_2_subdir_md_to_subdir_html', test_B7_R3_2_subdir_md_to_subdir_html),
+        ('B7_R3_2_subdir_md_target_absent_strips', test_B7_R3_2_subdir_md_target_absent_strips),
         # R1
         ('R1_code_to_link_when_path_exists', test_R1_code_to_link_when_path_exists),
         ('R1_code_with_docs_pages_prefix_to_link', test_R1_code_with_docs_pages_prefix_to_link),
