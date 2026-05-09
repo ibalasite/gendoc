@@ -604,3 +604,205 @@ H 群無新 fix 工作。
 - RED → GREEN → run all tests → commit（不 push）
 - 每項 commit 後 user 確認 → 才進下一項
 
+---
+
+# K 群 — workflow / 目錄樹被誤判 + lightbox 失效
+
+> 範圍：`logic/issues.md` K 群 + 拍板後的處理規則。
+> 形態 1（多欄並排）+ 形態 3（單欄垂直流）+ UML state → 改 mermaid。
+> 形態 2/4/5（檔案樹/元件樹/sitemap/IA/水平分支樹）→ 留 ASCII。
+> UI mock case → 改 umock HTML。
+> 所有圖類（mermaid / umock / svg / puml）→ 包 `.diagram-container` 能放大。
+
+---
+
+## 拍板後的最終處理對照（pet 36 個 unwrapped block + 11 個既有 umock card）
+
+| 處理 | 數量 | 涵蓋 |
+|---|---:|---|
+| **改 mermaid** | 14 | 純單欄流 11、cicd L347 多行框 linear、cicd L1348 1-to-2 fork、proto/arena L415 UML state |
+| **變 umock UI 線圖** | 2 | proto/arena L403、proto/pet-display L344 |
+| **留 ASCII** | 20 | 純樹狀（檔案樹/元件樹/sitemap/IA/水平分支樹） |
+| **既有 umock card 包 wrapper** | 11 | 5 個 spec doc 內既有 UI mock，已渲為 `<div class="umock__card">` 但未包 |
+
+---
+
+## 處理順序（依「最快見效 + 依賴關係」）
+
+1. **K1**（emit wrapper）— 一行 code，36 個 block 立即可放大（即使內容仍爛）
+2. **K2**（F1 樹狀偵測）— 20 個樹狀回到乾淨 ASCII
+3. **K3**（F2 單欄流修對）— 11 個 block 轉出正確 mermaid
+4. **K4**（F2 多欄並排 fan-in）— arch L379
+5. **K5**（F2 多行框 linear flow + fork）— cicd L347 + L1348
+6. **K6**（F2 UML state diagram）— proto/arena L415
+7. **K7**（ASCII → umock 轉換）— proto/arena L403 + proto/pet-display L344
+8. **K8**（umock card 包 wrapper）— 11 個既有 UI mock 加放大能力
+
+---
+
+## # K1. F2 emit 加 `.diagram-container` wrapper
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | F2 emit `<pre class="mermaid">` 沒包 wrapper，lightbox click handler `document.querySelectorAll('.diagram-container')` 抓不到，36 個 F2-mermaid block 全部不能放大 |
+| **證據** | gen_html.py L2566-2576 直接 emit 裸 `<pre>`；arch.html `<div class="diagram-container">` 數=0、`<pre class="mermaid">` 數=3；對照組 edd.html 27/27 全包 |
+| **對齊核心目標** | **1. 清楚**（複雜圖看不清）+ **3. 表達**（內容無法放大檢視） |
+| **預期解** | F2 emit 改成 `<div class="diagram-container"><pre class="mermaid">{src}</pre></div>` |
+| **Test case** | 1. `test_K1_f2_emit_wraps_in_diagram_container`：F2 轉換的輸出含 `<div class="diagram-container">`<br>2. `test_K1_existing_native_mermaid_unchanged`：原生 mermaid path 仍正確 |
+| **不影響其他 case** | 既有 311+ test 全綠；原生 mermaid / PUML 路徑不動 |
+| **驗收對應** | pet 重跑 gen-html，36 個 unwrapped → 0；隨機抽 cicd.html L347 點擊能開 lightbox |
+| **Status** | **done** ✅（4 test 全綠，315/315 全綠） |
+
+---
+
+## # K2. F1 加嚴 — 樹狀全留 ASCII
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | F1 把「任何含 `├──`/`└──` 後接文字」一律判 'system'，檔案樹/元件樹/sitemap/IA 全被誤轉 mermaid |
+| **證據** | gen_html.py L1966-1972 in-content tree-branches rule 過寬；20 個樹狀 block 全被誤轉（admin_impl L422 directory、frontend L387 directory、frontend L679 React Component Tree、pdd L484 Sitemap 等） |
+| **對齊核心目標** | **3. 表達**（樹狀階層被打平失去語義）+ **4. 不誤會**（讀者預期看到階層樹，看到散點 mermaid） |
+| **預期解** | F1 在「tree branches → 'system'」前先檢查是否為樹狀內容：偵測「節點含檔名副檔名 `.ts/.tsx/.yaml/.html/...`」「節點以 `/` 結尾（目錄）」「節點是 `<Component>` JSX」「URL path 起頭如 `/admin/login`」→ 回傳 `'tree'`（新類別，由 dispatcher 直接 emit `<pre>`，不進 F2） |
+| **Test case** | 1. `test_K2_file_tree_classified_as_tree`（assets/sprites/ + .png 檔名 → tree）<br>2. `test_K2_react_component_tree_as_tree`（含 `<App>` `<Layout>` → tree）<br>3. `test_K2_sitemap_classified_as_tree`（URL paths `/admin/login` → tree）<br>4. `test_K2_pure_flow_still_system`（單欄 `▼` 流不誤判為 tree）<br>5. `test_K2_multi_column_still_system`（同行 ≥3 個 ┌ 不誤判為 tree） |
+| **不影響其他 case** | 11 個純單欄流仍判 'system'；arch L379 多欄並排仍判 'system' |
+| **驗收對應** | pet 重跑 gen-html，20 個樹狀 block 渲染成 `<pre>` ASCII（保留原視覺）；admin_impl/anim/audio/cicd k8s/clinet_impl/frontend directory 等檔案樹回到乾淨等寬字體 |
+| **Status** | review |
+
+---
+
+## # K3. F2 單欄流 mermaid 轉換修對
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | F2 把 ▼ 當獨立 node、把 ▼ 上下的註解文字當 node、edge label 從未抽取，導致 11 個純單欄流 block 結構錯亂 |
+| **證據** | cicd.html L351 `N2["▼"]`；developer_guide.html L575（11 nodes / 3 edges、預期應 11 nodes / 10 edges）；frontend L1363 Pet Claim Flow N0~N18 全變散點+▼ 散落其中 |
+| **對齊核心目標** | **3. 表達**（流程方向遺失）+ **1. 清楚**（▼ 變 box 看不出箭頭） |
+| **預期解** | F2 對「單欄流」型態：<br>1. ▼ / ↓ 行**不**建 node，只建 edge<br>2. ▼ 上下若有「無框」說明文字（如 `git push origin feature`），抽成 edge label `A -->\|"git push"\| B`<br>3. 每個帶內容的非 ▼/註解行才建 node |
+| **Test case** | 1. `test_K3_triangle_arrow_becomes_edge_not_node`（▼ 不出現在 N0~Nn label）<br>2. `test_K3_inline_arrow_text_becomes_edge_label`（`A` `▼` `git push` `▼` `B` → `A -->\|"git push"\| B`）<br>3. `test_K3_pure_flow_no_text`（A `▼` B → 純 edge 無 label）<br>4. `test_K3_chain_three_nodes`（A `▼` B `▼` C → A→B→C） |
+| **不影響其他 case** | K2 樹狀繼續走 'tree' path；K1 wrapper 不變；多欄/UML 留待 K4/K6 |
+| **驗收對應** | pet 重跑 gen-html，11 個單欄流 block 結構正確、▼ 不再變獨立 node；developer_guide L575/L592 兩個 Request Lifecycle 圖完整 |
+| **Status** | review |
+
+---
+
+## # K4. F2 多欄並排 fan-in（arch L379 形）
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | 多欄 ASCII 架構圖（4 個 actor box 並排 → 共同匯流到 CDN/API/DB）F2 把整列當 1 個 node、`│` 留進 label |
+| **證據** | arch.html L381 `N1["Guest Player│  │ Pet Owner...│  │Competitive Player...│  │Admin Operator"]`；arch.html 內 206 個殘留 `│` 字元 |
+| **對齊核心目標** | **3. 表達**（並排語義消失）+ **4. 不誤會**（讀者預期 4 個 actor，看到 1 個 long-string） |
+| **預期解** | F2 偵測「同一行 ≥ 2 個 ┌」→ 多欄解析器：<br>1. 用 `│` 邊界把每一行 split 為「欄位 cells」<br>2. 同一欄跨 row 的 cell（如 "Guest Player" + "(no token)"）合成一個 label（用 `<br/>` 分行）<br>3. 偵測 `▼` 行所在欄 → 從該欄 box 連到下方匯流 box<br>4. 下方單一 box → 單一 node，多上游 → 多條 edge fan-in |
+| **Test case** | 1. `test_K4_split_columns_by_pipe_boundary`（`│ A │  │ B │` → 2 nodes A, B）<br>2. `test_K4_merge_multi_row_cell`（`│Guest│\n│(no token)│` → 1 node "Guest<br/>(no token)"）<br>3. `test_K4_fanin_to_downstream`（4 並排 + 4 ▼ + 1 共同下方 box → 4→1 fan-in edges）<br>4. `test_K4_pipe_not_in_node_label`（轉出 mermaid 內 N\d+\["...│..."\] 不應出現） |
+| **不影響其他 case** | K2 樹狀 / K3 單欄流不受影響；多欄判定條件嚴：必須同行 ≥ 2 個 ┌ |
+| **驗收對應** | pet 重跑 gen-html，arch.html L379 §1.2 System Context 渲染成 4 個 actor → CDN → API → DB 的清楚 fan-in mermaid；殘留 `│` = 0 |
+| **Status** | review |
+
+---
+
+## # K5. F2 多行框 linear flow + 1-to-2 fork（cicd L347 + L1348）
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | 「大框 → ▼ → 大框」型 linear flow（cicd L347 Pipeline）跟「上半 linear + 下半 fork」型（cicd L1348 GitOps）F2 把每個 box 內每行當獨立 node，box 結構消失 |
+| **證據** | cicd.html L347 28 nodes（原本是 3 個大框）；cicd.html L1348 13 nodes / 0 edges（原本是 GitHub→ArgoCD→2 Application） |
+| **對齊核心目標** | **3. 表達**（box 整體語義被拆散）+ **1. 清楚**（28 個小 node 看不出 3 階段流程） |
+| **預期解** | F2 偵測「┌─┐...└─┘」block boundary：<br>1. 整個 box 內所有 lines 抽成 1 個 multi-line label，用 `<br/>` 連接<br>2. box 之間的 ▼ 連 edge<br>3. 偵測 box 結尾的 `└─┴─┘` 或縮排型 fork → 連到多個下游 box（fan-out）<br>4. 不在 box 內的單行 text node 仍照 K3 處理 |
+| **Test case** | 1. `test_K5_box_content_joined_with_br`（`┌──┐\n│ A │\n│ B │\n│ C │\n└──┘` → 1 node "A<br/>B<br/>C"）<br>2. `test_K5_linear_chain_of_boxes`（box1 ▼ box2 ▼ box3 → 3 nodes linear chain）<br>3. `test_K5_fork_at_end`（box → 2 子 box → 2 條 edges from parent）<br>4. `test_K5_inline_tree_chars_preserved`（box 內 `├── ESLint` 字元保留進 multi-line label） |
+| **不影響其他 case** | K2 純檔案樹（無 ┌─┐ 框）不受影響；K3 單欄流（無 ┌─┐ 框）不受影響 |
+| **驗收對應** | pet 重跑 gen-html，cicd L347 渲染成 3 大 box linear chain（每 box 含子 list 在 label 內）；cicd L1348 上半 GitHub→ArgoCD linear、下半 ArgoCD→staging+production 1-to-2 fork |
+| **Status** | review |
+
+---
+
+## # K6. F2 UML state diagram 識別（proto/arena L415）
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | proto/arena L415 「State Machine」是 UML 狀態機，但 F2 用 graph TD 轉，狀態之間 transition 不像狀態機箭頭 |
+| **證據** | proto/arena-battle-prototype.html L415 13 nodes / 1 edge，含 `IDLE  │─────opponent────▶│` 等 ASCII state machine 標準寫法 |
+| **對齊核心目標** | **3. 表達**（state machine 用錯 mermaid 形態） |
+| **預期解** | F2 加 state machine 偵測：「狀態名（ALL_CAPS / TitleCase）+ `─label─▶` 或 `→ event →`」→ 用 mermaid `stateDiagram-v2` 而非 `graph TD`，每條 transition 寫成 `STATE1 --> STATE2: event` |
+| **Test case** | 1. `test_K6_state_machine_uses_stateDiagram_v2`（含 `IDLE → ANIM` → 輸出 `stateDiagram-v2`）<br>2. `test_K6_transition_label_extracted`（`IDLE ─opponent─▶ LIST` → `IDLE --> LIST: opponent`）<br>3. `test_K6_initial_state_arrow`（`──▶ IDLE` → `[*] --> IDLE`） |
+| **不影響其他 case** | 非狀態機 ASCII 流不誤判（無 ALL_CAPS state 名 + 無 transition label 不觸發） |
+| **驗收對應** | proto/arena L415 渲染成 mermaid stateDiagram，狀態箭頭與標籤正確 |
+| **Status** | review |
+
+---
+
+## # K7. ASCII → umock UI 線圖轉換（proto/arena L403、proto/pet-display L344）
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | proto/arena L403 「Screen 3 Post-Battle」+ proto/pet-display L344 「Screen Layout」是 UI mock（含 [Button]、🏆、`____` input、Phaser canvas 區域），被 F2 誤抓進 mermaid |
+| **證據** | proto/arena-battle-prototype.html L403 7 nodes / 0 edges，labels 含 `🏆 BLAZEKIN WINS!`、`(confetti + sparkles)`、`XP Gained: +120`；pet-display L344 含 `[Play...]`、`Phaser 3 Canvas`、`160 × 160 px` |
+| **對齊核心目標** | **3. 表達**（UI mock 該用 umock 渲染，當 mermaid 散點看不出畫面）+ **4. 不誤會**（讀者期待看到 UI 畫面，看到方框雲） |
+| **預期解** | F1 加偵測：含「emoji（🏆 ⚡ 等）+ 數值單位（`+120`、`160 × 160 px`）+ 圓括號註解（`(confetti)`）」+ 無框/有 [Button] → 'umock'。dispatcher 對 'umock' kind 走 umock render path（既有 `_um_*` render 函式） |
+| **Test case** | 1. `test_K7_ui_mock_with_emoji_classified_umock`（含 🏆、+120 → 'umock'）<br>2. `test_K7_ui_mock_with_canvas_area_classified_umock`（含 `Phaser Canvas` + 像素尺寸 → 'umock'）<br>3. `test_K7_pure_workflow_not_umock`（單欄流 + ▼ 不誤判為 umock）<br>4. `test_K7_emit_umock_html`（轉出 `<pre class="umock">` 而非 `<pre class="mermaid">`） |
+| **不影響其他 case** | K3 單欄流（無 emoji 無 [Button]）不誤判；K4 多欄架構（系統元件名 + ▼）不誤判 |
+| **驗收對應** | proto/arena L403、proto/pet-display L344 渲染成 umock UI 線圖（與既有 spec doc 內 UI mock 視覺一致） |
+| **Status** | review |
+
+---
+
+## # K8. umock card 包 wrapper（既有 11 個 UI 線圖加放大）
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | 5 個 spec doc 內既有 11 個 `<div class="umock__card">` 沒包 `.diagram-container`，無法 lightbox 放大 |
+| **證據** | prototype/admin-moderation-prototype.html 0/2、prototype/arena-battle-prototype.html 0/2、pet-display 0/1、prototype__admin-moderation 0/2、prototype__arena 0/4 |
+| **對齊核心目標** | **1. 清楚**（複雜 UI mock 看不清細節） |
+| **預期解** | umock render 函式（`_um_*`）emit 時，最外層 wrap `<div class="diagram-container diagram-container--umock">`；K7 新增的 ASCII→umock 路徑也共用此 wrapper |
+| **Test case** | 1. `test_K8_umock_card_wrapped`（umock render 輸出含 `diagram-container`）<br>2. `test_K8_lightbox_selector_matches_umock`（CSS selector `.diagram-container--umock` 不破現有 lightbox） |
+| **不影響其他 case** | mermaid / PUML wrapper 仍走原 path；既有 umock render 函式內部 markup 不變 |
+| **驗收對應** | pet 重跑 gen-html，5 個 spec doc 內 11 個 umock card 全部能 lightbox 放大；K7 新轉出的 2 個 umock 也能放大 |
+| **Status** | review |
+
+---
+
+## K 群決策點（彙總，等 user 拍板）
+
+| # | 議題 | 我的建議 |
+|---|---|---|
+| 1 | **K1 wrapper 加上後 36 個 block 雖能放大但內容仍爛** — 是否同意先合 K1 commit、後續 K2~K8 漸進改善？ | ✅（K1 是最安全、最快見效，不依賴其他 step） |
+| 2 | **K2 新增 'tree' kind 還是直接 'unknown'？** | 用 'tree' 明確（dispatcher 顯式判斷，未來想加 tree-specific 渲染（如行號）有 hook） |
+| 3 | **K5 多行框 box 內 `├──` 視覺裝飾** 保留進 mermaid label 還是清乾淨？ | 保留（讀者已習慣這個視覺，user 也說「裡面有文字」可保留樹狀字元） |
+| 4 | **K7 umock 偵測** 邊界（emoji + 像素尺寸 vs 純流程）— 邊界判錯會把 system 圖誤分為 UI | 偵測門檻設高（至少 2 個 UI 訊號才觸發；單一訊號不夠） |
+| 5 | **K6 stateDiagram 觸發條件** | 嚴格只在偵測到「ALL_CAPS 狀態名 + transition arrow + label」三條件齊備才觸發 |
+
+---
+
+## K 群實作順序與依賴
+
+```
+K1 (wrapper) ─────────────┐
+                          │
+K2 (F1 樹狀偵測) ─┐       │
+                  ↓       ↓
+K3 (F2 單欄流) ─→ 進 K4   │
+                  │       │
+K4 (F2 多欄) ──── ┤       │  最後驗收：
+                  │       │  pet 重跑 gen-html，
+K5 (F2 多行框) ── ┤       ├→ 36 個 block 全部能放大
+                  │       │  + 內容對 14 個 mermaid
+K6 (F2 UML state) ┤       │  + 留 ASCII 20 個
+                  │       │  + 變 umock 2 個
+K7 (ASCII→umock) ─┘       │  + 11 個既有 umock card 能放大
+                          │
+K8 (umock wrapper) ───────┘
+```
+
+依賴：
+- K1 獨立、優先做（最安全、最快見效）
+- K2 獨立（不影響 K3+ 純流的判斷）
+- K3, K4, K5, K6, K7 五個解析器互不依賴，可平行討論但循序 commit
+- K8 獨立（純 wrapper 補加，跟 K1 同性質但對 umock）
+
+---
+
+## K 群與 A/B 群一致的行為承諾
+
+- 一個 step commit 完才談下一個
+- RED → GREEN → run all tests → commit（不 push）
+- 每項 commit 後 user 確認 → 才進下一項
+- 每個 step 的 commit 訊息：`fix(gen-html): K<N> ...`

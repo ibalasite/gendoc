@@ -351,6 +351,301 @@ EDD 文件中若引用 schema-style 內容（如 §3.4 BC Schema Ownership table
 
 ---
 
+## K. workflow / 目錄樹被誤判為「系統圖」+ F2 mermaid 缺 lightbox
+
+> **2026-05-10 user 在 pet 真實專案發現**：跑完 gen-html 後，arch.html / frontend.html / admin-impl.html / client-impl.html 多處原本可讀的 ASCII workflow、容器拓撲、目錄樹，全部被 F2 ascii→mermaid 轉成無 edge 或 label 含 `│` 的破壞版，且不能點開放大。
+
+### K1. 多欄並排 ASCII 架構圖被擠成「整列 1 個 node、內部 `│` 留在 label」
+
+- **事實**：`docs/ARCH.md` §1.2 System Context Diagram、§1.3 Container Diagram、§2.x Component Hierarchy 等 4 欄並排（Guest Player / Pet Owner / Competitive Player / Admin Operator）的 ASCII 系統圖被 F2 轉成 mermaid graph TD，每行（含原本的欄位分隔 `│`）變成**一個** node label。
+- **證據**（`pet/docs/pages/arch.html` 渲染後）：
+  ```
+  L381: N1["Guest Player│  │ Pet Owner        │  │Competitive Player │  │Admin Operator"]
+  L382: N2["(no token)  │  │ (URL token)      │  │(token + arena)    │  │(TOTP session)"]
+  L383: N3["HTTPS            │  HTTPS                  │  HTTPS            │  HTTPS"]
+  L386: N6["Player App                   │    │  Admin Portal"]
+  L389: N9["HTTPS                                       │ HTTPS"]
+  ```
+  pipe 字元在 pet/arch.html 共 **206 個**，全部來自 F2 轉換（其他正常 mermaid 區塊不含 `│`）。
+- **根因**（gen_html.py L2024-2025 of `_ascii_to_mermaid_td`）：
+  ```python
+  s = re.sub(r'^[\s│┃]+', '', s)   # 只剝行首
+  s = re.sub(r'[\s│┃]+$', '', s)   # 只剝行尾
+  ```
+  **內部欄位分隔的 `│` 完全沒處理**。pass 1 把整行（含內部 pipes）整段塞給 `_add_node`，`_add_node` 內 `label.strip().rstrip('│')` 也只處理尾端，所以 4 欄並排的 actor box 就變 1 個塞滿 pipe 的長字串 node。
+- **影響檔**（pipe 字元數排序）：`arch.html` 206、`client-impl.html` 154、`admin-impl.html` 91、`frontend.html` 54、`admin_impl.html` 12、`developer-guide.html` 9、`brd.html` 8、`prototype__pet-display-prototype.html` 6、`prototype__arena-battle-prototype.html` 6、`audio.html` 6、`prototype__admin-moderation-prototype.html` 2。
+
+### K2. 檔案目錄樹被當成「系統元件樹」並平鋪成 mermaid 散點
+
+- **事實**：`docs/FRONTEND.md` §2.1 Directory Structure、`docs/CLIENT_IMPL.md` §2.1 Directory Structure 等**檔案系統階層樹**（語意：內容階層）被 F1 分類成 'system'、F2 轉成 mermaid graph TD。
+- **證據**（`pet/docs/pages/frontend.html` L387-419）：
+  ```
+  graph TD
+    N0["apps/player/"]
+    N1["index.html"]
+    N2["vite.config.ts"]
+    N4["src/"]
+    N5["main.tsx                    # Entry point; React root"]
+    N17["ClaimPage.tsx"]
+    ...（共 382 nodes，11 個 mermaid block 跨整個 frontend.html）
+  ```
+  原本 markdown 是 `<pre>` 內的：
+  ```
+  apps/player/
+  ├── index.html
+  ├── vite.config.ts
+  └── src/
+      ├── main.tsx
+  ```
+- **根因**（gen_html.py `_classify_ascii_block` L1966-1972）：
+  ```python
+  for line in text.split('\n'):
+      m = re.search(
+          r'│[^│┤]*?(?:├──|└──)[^│┤A-Za-z一-鿿_]*[A-Za-z一-鿿_]',
+          line,
+      )
+      if m and '┤' not in line[m.end():]:
+          return 'system'
+  ```
+  這條「In-content tree branches」rule 對任何含 `├──` / `└──` 的行都判 'system'。**檔案目錄樹的視覺符號跟系統元件樹一樣**，分類器無法區分「檔案階層」vs「架構元件流向」，全部走 F2 路徑。
+- **副作用**：F2 對純樹狀結構雖然會生 edges（從第一個非 `├──` 行當 parent），但 frontend.html 的 directory tree 結構深、嵌套多層，pass 3 只能配對「直接子節點」，巢狀層被打平。結果：382 nodes / 509 edges 但語意完全錯位。
+
+### K3. F2 產生的 mermaid 沒包 `.diagram-container` → lightbox 完全失效
+
+- **事實**：`assets/app.js` L146 把 lightbox click handler 綁在 `.diagram-container` class 上：
+  ```js
+  document.querySelectorAll('.diagram-container').forEach(el => { ... });
+  ```
+  edd.html / 其他原生 mermaid 區塊都包在 `<div class="diagram-container"><pre class="mermaid">...</pre></div>`，所以 lightbox bind 成功；F2 emit 的 mermaid 是裸 `<pre class="mermaid">...</pre>`，**沒包 wrapper**。
+- **證據**：
+  | 檔 | `.diagram-container` 數 | `<pre class="mermaid">` 數 | 比例 |
+  |---|---|---|---|
+  | `edd.html` (原生 mermaid 路徑) | 27 | 27 | 1:1（每個 mermaid 都有 wrapper）|
+  | `arch.html` (F2 路徑) | 0 (5 是 CSS selector，不是真 element) | 3 | 0:3（**全部 F2 mermaid 無 wrapper**）|
+- **根因**：F2 在 `gen_html.py` L2566-2576 的 dispatch 直接把 mermaid src 包成 `<pre class="mermaid">{src}</pre>` 寫出，沒套用原生 mermaid 路徑的 `<div class="diagram-container">` wrapper。**兩條 mermaid 輸出 path 沒共用同一個 emit 函式**。
+- **使用者觀察對應**：「延伸他沒法點成大圖，所以當是橫向 workflow 根本看不清」— 雙重打擊：先被 K1/K2 破壞 label，又因 K3 不能放大檢視。
+
+### K4. F1 + F2 沒分辨「應留 `<pre>` 不轉」的 case
+
+- **事實**：「Request Lifecycle」這類**單欄垂直流**（player browser → Vite dev server → Fastify API），在 `developer-guide.html` 留為 `<pre class="doc-code"><code class="lang-text">`，**沒被轉換**。
+- **證據**（`pet/docs/pages/developer-guide.html` L410-423）：
+  ```html
+  <pre class="doc-code"><code class="lang-text">Player browser
+    │  HTTPS
+    ▼
+  Vite dev server (localhost:5173)  ← HMR websocket for .tsx/.ts/.css changes
+    │  fetch() to localhost:3000
+    ▼
+  Fastify API (localhost:3000)
+  ...
+  </code></pre>
+  ```
+  這個正確（單欄垂直流，內容已可讀）。
+- **對比**：同樣是「資訊流」結構，arch.html §1.2（多欄）被 F2 破壞，developer-guide.html §2.1（單欄）保留。**分類器邊界不明，user 看不出何時會被轉、何時不會**。
+- **根因**：分類器與轉換器之間缺一個「品質閘」— F1 給出 'system' 後，F2 沒驗證「轉出的 mermaid 是否優於原 `<pre>`」就直接 emit。對多欄表格 + 純檔案樹，轉出的 mermaid 比原 `<pre>` 還差。
+
+---
+
+## L. subdir HTML 的 CSS / nav-brand / breadcrumb 路徑全壞 → style 盡失
+
+> **2026-05-10 user 在 pet 真實專案發現**：所有 subdir 下的 `.html`（diagrams/、contracts/、prototype/、blueprint/mock/、req/）打開**完全沒有 CSS 樣式**，看起來像純文字頁。
+
+### L1. `<head><link rel="stylesheet" href="assets/style.css">` 沒 depth-aware
+
+- **事實**：subdir 下每個 `.html` 的 `<head>` 仍寫死 `href="assets/style.css"`（相對於 pages/ 根的路徑），但檔案實際在 `pages/<subdir>/`，瀏覽器解析後找的是 `pages/<subdir>/assets/style.css` ← **不存在**。
+- **證據**：
+  ```
+  pages/diagrams/class-domain.html        L7: <link rel="stylesheet" href="assets/style.css">
+  pages/contracts/api-admin-contract.html L7: <link rel="stylesheet" href="assets/style.css">
+  pages/blueprint/mock/mock_server_guide.html L7: <link rel="stylesheet" href="assets/style.css">
+  pages/req/idea-input.html               L7: <link rel="stylesheet" href="assets/style.css">
+  pages/prototype/admin-moderation-prototype.html L7: <link rel="stylesheet" href="assets/style.css">
+  ```
+  正確路徑：1 層深要 `../assets/style.css`，2 層深（`blueprint/mock/`）要 `../../assets/style.css`。
+- **損壞範圍實測**：
+
+  | Subdir | 壞檔 / 該層 .html 總數 |
+  |---|---|
+  | `diagrams/` | 42 / 42 |
+  | `contracts/` | 3 / 3 |
+  | `prototype/`（spec docs，gen-html 渲的） | 3 / 4（gen-prototype 自產的 index.html 用 `assets/prototype.css` 自家 CSS，不破）|
+  | `blueprint/mock/` | 1 / 1 |
+  | `req/` | 1 / 1 |
+  | **合計** | **50 / 51** |
+
+### L2. nav-brand 連結 `<a href="index.html">` 同樣沒 prefix
+
+- **事實**：subdir 下每個 .html 的 header `<a class="nav-brand">pet</a>` 寫死 `href="index.html"`，點下去解析為 `pages/<subdir>/index.html`，不是 `pages/index.html`。
+- **證據**：
+  ```
+  pages/diagrams/class-domain.html         L177: <a href="index.html" class="nav-brand">pet</a>
+  pages/contracts/api-admin-contract.html  L177: <a href="index.html" class="nav-brand">pet</a>
+  ```
+- **後果**：在 `diagrams/` 與 `contracts/` 點 nav-brand → 404（兩 subdir 內無 index.html）；在 `prototype/` 點 → 落到 prototype shell（誤導）。
+
+### L3. banner-breadcrumb 連結 `<a href="index.html">pet</a>` 同樣沒 prefix
+
+- **事實**：subdir 下每個 .html 的 banner `<p class="banner-breadcrumb"><a href="index.html">pet</a> › ...</p>` 寫死 `href="index.html"`，行為同 L2。
+- **證據**：
+  ```
+  pages/diagrams/class-domain.html         L188: <a href="index.html">pet</a> › 類別圖：領域模型
+  pages/contracts/api-admin-contract.html  L188: <a href="index.html">pet</a> › contracts/ › Api Admin Contract
+  pages/prototype/arena-battle-prototype.html L188: <a href="index.html">pet</a> › prototype/ › Arena Battle Prototype
+  ```
+
+### L4. sidebar `__link href` 反而**正確**帶 `../` 前綴（單一被處理的部分）
+
+- **事實**：sidebar 內的 `<a class="sidebar__link" href="../idea.html">` 全部正確帶 `../`（1 層）或 `../../`（2 層）prefix。
+- **證據**（`pages/diagrams/class-domain.html`）：
+  ```
+  L195: sidebar__link" href="../index.html
+  L196: sidebar__link" href="../idea.html
+  ```
+  （`pages/blueprint/mock/mock_server_guide.html`）：
+  ```
+  sidebar__link" href="../../index.html
+  ```
+- **意涵**：path rewriter（`rewrite_pages_paths`，B7 R3-2/R3-3）**只處理 sidebar 區塊內的 `__link`**，沒擴及到 `<head><link>`、`nav-brand`、`banner-breadcrumb` 三類連結。
+- **根因**：B7 path rewriter 設計時把「跨層 path 修正」聚焦在 sidebar list（因為當時主訴是「subdir 頁的 sidebar 連回主文件失效」），但 head/nav-brand/breadcrumb 的 path **是同樣跨層問題的不同位置**，沒一起納入 rewrite scope。
+
+### L5. 為何 prototype 內的 spec docs 也壞但 prototype shell index 不壞
+
+- **事實**：
+  - `prototype/index.html`（gen-prototype 自產）：`<link rel="stylesheet" href="assets/prototype.css">` ← **檔案實際存在 `pages/prototype/assets/prototype.css`** → 不破
+  - `prototype/admin-moderation-prototype.html`（gen-html 從 `docs/prototype/admin-moderation-prototype.md` 渲染）：`<link rel="stylesheet" href="assets/style.css">` → 找 `pages/prototype/assets/style.css` ← 不存在 → 破
+- **意涵**：兩個 skill 的 asset 部署假設不同，gen-html 沒對 subdir 做 depth-aware，gen-prototype 自帶 assets 子樹所以剛好沒事。
+
+---
+
+## M. prototype 回 docs 的 link 全部失效
+
+> **2026-05-10 user 反映**：prototype 目錄底下的 HTML 已有，但「原本可以回文件的 link 都失效了」。需 gen-prototype 寫對、gen-html 驗錯修正。
+
+### M1. spec docs（admin-moderation / arena-battle / pet-display-prototype.html）的 breadcrumb 落到錯地方
+
+- **事實**：`pages/prototype/<spec>.html` 的 banner breadcrumb `<a href="index.html">pet</a>`，相對於 `pages/prototype/`，解析為 `pages/prototype/index.html`（**prototype shell**），**不是 `pages/index.html`（docs hub）**。
+- **證據**（`pages/prototype/admin-moderation-prototype.html` L188）：
+  ```html
+  <p class="banner-breadcrumb"><a href="index.html">pet</a> › prototype/ › Admin Moderation Prototype</p>
+  ```
+- **後果**：使用者預期 "pet" → 回文件中心，實際被導到 prototype shell。
+- **根因**：同 L3（path rewriter 沒處理 banner）。
+
+### M2. prototype shell（gen-prototype 自產的 `prototype/index.html`）完全沒回 docs 連結
+
+- **事實**：grep `pages/prototype/index.html` 對 keyword `docs / 文件 / 首頁 / home / 主頁 / DOCS / RETURN / BACK_TO_DOCS` → **0 命中**。
+- **證據**：整檔內所有 anchor：
+  ```
+  L144: <button id="btn-back" onclick="protoBack()">← BACK</button>   ← JS history.back，外部直開時不能用
+  L146: <a href="api-explorer/index.html" target="_blank">API EXPLORER ↗</a>
+  L147: <a href="admin/index.html" target="_blank">ADMIN ↗</a>
+  L249: {name:'Dashboard', href:'admin/index.html', ...}
+  ```
+  全部是 prototype 內部，**沒有任何 anchor 指向 `../index.html` 或同等的 docs hub**。
+- **根因**：`skills/gendoc-gen-prototype/SKILL.md` 的 shell 模板沒寫 docs back-link。
+
+### M3. admin prototype（`prototype/admin/*.html`）整層 nav 沒出口
+
+- **事實**：`pages/prototype/admin/index.html` nav 列：
+  ```
+  L21: <a href="index.html"       class="nav-link active">▦ Dashboard</a>
+  L22: <a href="pets.html"        class="nav-link">🐾 Pets</a>
+  L23: <a href="leaderboard.html" class="nav-link">🏆 Leaderboard</a>
+  L25: <a href="config.html"      class="nav-link">⚙ Config</a>
+  L26: <a href="analytics.html"   class="nav-link">📊 Analytics</a>
+  ```
+  + 多個內部跳轉 `pets.html?status=flagged`、`config.html`、`analytics.html`。
+- **證據**：grep `href="\.\.|HOME|BACK|DOCS|prototype/index|首頁` → **0 命中**。**整個 admin 子樹沒有任何路徑回 prototype shell 或 docs**。
+- **根因**：gen-prototype 把 admin 子模組視為獨立 SPA，未加全域 back-link。
+
+### M4. api-explorer（`prototype/api-explorer/index.html`）只回到 prototype shell，不回 docs
+
+- **事實**：`pages/prototype/api-explorer/index.html` L540：
+  ```html
+  <a href="../index.html" class="nav-link">← Prototype</a>
+  ```
+- **意涵**：唯一一處有「回上層」link 的是 api-explorer，但只回 prototype shell，**不直連 docs hub**。
+- **根因**：同 M2，模板層沒留 docs 出口。
+
+### M5. gen-html 對 prototype/ 的處理是 byte-copy，無法修正 M1/M2/M3/M4
+
+- **事實**：`gen_html.py` `write_page` 對 `pages/prototype/` 已有保護邏輯（B4）— 不覆寫 gen-prototype 寫進去的檔。但這個保護**也阻止了 gen-html 修正壞掉的 link**。
+- **證據**：B4 保護實作（gen_html.py 對應段落）跳過 prototype/ 下 user 既有檔，不做任何 path-rewrite。
+- **意涵**：M1（spec docs，這些是 gen-html 自己渲染，**不在保護內**）→ gen-html 應該能處理但因為 path-rewriter scope 太窄而沒處理；M2/M3/M4（gen-prototype 自產的檔，**在保護內**）→ gen-html 完全不碰，只能由 gen-prototype 修。
+
+### M6. user 新需求：gen-prototype 與 gen-html 雙重保險
+
+- **user 原話**：「有必要 gen-prototype 也要寫對，gen-html 要去檢查，若錯要修正」
+- **拆解**：
+  - gen-prototype 端：shell 模板必須含 `<a href="../index.html">回文件</a>`（或同等 anchor）；admin 子樹也須有路徑回 prototype shell + docs
+  - gen-html 端：對 prototype/ 內所有 .html（不論是自己渲的 spec docs 或 gen-prototype 寫的 shell）做 link 完整性掃描；發現指向不存在或路徑錯誤的 docs/shell 連結 → 修正
+
+---
+
+## N. TOC（Table of Contents）— 新需求：每個 HTML 都要標配
+
+> **2026-05-10 user 新增需求**：「不是每一個 HTML，有 table of contents，對於這個我想 gen-html 要把每一個 html 都有這個標配」。
+
+### N1. 現況：絕大多數 HTML 沒 TOC
+
+- **事實**：pet/docs/pages 110 個 top-level `.html` 中，**只 7 個** body 內含字串 "Table of Contents"：
+  ```
+  api.html
+  cicd.html
+  developer-guide.html
+  developer_guide.html
+  index.html
+  runbook.html
+  test-plan.html
+  ```
+- **這 7 個的來源**：source markdown 自己手寫了 `## Table of Contents` + 一串 `[X](#anchor)` list；gen_html 只是被動 render 出來，沒主動產生。
+
+### N2. 主要文件全部沒 TOC
+
+- **事實**：grep `Table of Contents|class="toc"|nav.*toc` 對以下檔 → 全部 0 命中：
+  ```
+  edd.html       (107940 bytes，21 個 H2)
+  schema.html    (129810 bytes，18 個 H2)
+  arch.html      (101685 bytes，多個 H2)
+  prd.html       (111781 bytes)
+  brd.html       (61586 bytes)
+  pdd.html       (141259 bytes)
+  vdd.html       (105188 bytes)
+  ```
+- **意涵**：最大、最常被讀的核心文件**都沒目錄**，使用者無法快速跳轉到指定 section。
+
+### N3. gen_html 沒任何 TOC 自動生成邏輯
+
+- **事實**：grep `gen_html.py` 對 `toc / table.of.contents / TOC / build_toc / make_toc` → **0 個函式**做這件事。
+- **證據**：`gen_html.py` 沒有「掃描所有 H1~H4 → 生成 anchor list → 注入到頁首」這條 pipeline。
+- **根因**：gen_html 一直定位為 "passive renderer"（被動把 markdown 轉 HTML），沒主動加值。
+
+### N4. TOC 標配化的技術前提：哪些有、哪些沒
+
+- **✅ 有**：J 群已加 `_heading_slug(text)`，h1~h4 都帶 `id="..."`（驗證：edd.html 154/155 個 heading 帶 id），所以 anchor 跳得到目標。
+- **✅ 有**：J 群已修 `inline_md`，in-page `#anchor` 不再被加 `target="_blank"`，跳轉行為正確（同分頁滾動）。
+- **❌ 沒**：build-time TOC 抽取邏輯（掃 H2/H3 list）
+- **❌ 沒**：TOC 渲染版位設計（main 頂部 sticky? sidebar 浮動? floating right rail?）
+- **❌ 沒**：「TOC 展開深度」規格（只展 H2? 還是 H2+H3? 還是全展?）
+- **❌ 沒**：「短文件不需 TOC」門檻（如 < 3 個 H2 不顯示）
+- **❌ 沒**：CSS（高亮 current section、scroll-spy 行為）
+
+### N5. 含 TOC 的 7 個檔的 TOC 形式（觀察）
+
+- **事實**：抽 `index.html` 的 TOC（L363）：
+  ```html
+  <ul>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#core-features">Core Features</a></li>
+    <li><a href="#system-architecture">System Architecture</a></li>
+    ...（共 17 條）
+  </ul>
+  ```
+  純 markdown list（每行一個 H2/H3），無 sticky、無 scroll-spy、無 indent 區分階層。
+- **意涵**：這個 baseline 就算 gen-html 自動生成、其他文件也只能達到這個樣子。**user 的標配要求暗示需要更好的 UX**（至少 sticky / 高亮 current）— 還未跟 user 對齊。
+
+---
+
 # 待補實查（未列入主清單的不確定項）
 
 | 項 | 待查內容 |

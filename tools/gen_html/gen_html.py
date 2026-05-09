@@ -2574,7 +2574,9 @@ def md_to_html(text, src_dir=None):
                     mermaid_src = _ascii_to_mermaid_td(block_text)
                     if mermaid_src:
                         out.append(
+                            '<div class="diagram-container">'
                             f'<pre class="mermaid">{esc(mermaid_src)}</pre>'
+                            '</div>'
                         )
                         i += 1
                         continue
