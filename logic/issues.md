@@ -320,6 +320,37 @@ EDD 文件中若引用 schema-style 內容（如 §3.4 BC Schema Ownership table
 
 ---
 
+## J. TOC / heading anchor 失效（所有 HTML 通病）  ✅ DONE
+
+### J1. in-page anchor 連結被加 `target="_blank"` 開新分頁
+
+**現況**：所有 `[X](#section)` markdown link 都被 inline_md L2447 加上
+`target="_blank"`，導致點 TOC 連結時瀏覽器**開新分頁**而非定位滾動。
+
+實查影響：pet 8 頁 + erp 5 頁含 `href="#X" target="_blank"`。
+
+### J2. heading（h1~h4）沒 id 屬性
+
+**現況**：`<h2>§9 — Data Access Layer</h2>` 沒 `id` 屬性，TOC 用
+`<a href="#9--data-access-layer">` 找不到目標。
+
+### J3. 修法（已 done）
+
+- `_link()` callback 偵測 `#` 開頭 → 不加 `target="_blank"`
+- 新增 `_heading_slug(text)` GitHub-style 算 slug，h1~h4 都帶 `id`
+- slug 規則：lowercase → 每 `\s` 變 `-`（不 collapse） → drop 非
+  alphanumeric/CJK/- → 修剪首尾 `-`
+- 範例：`§9 — Data Access Layer` → `9--data-access-layer`
+
+實機驗證（sandbox-erp/edd.html）：
+- `href="#X" target=_blank` 數：1 → 0 ✅
+- heading 全部帶 id ✅
+- Playwright 點 §9 TOC → 同分頁 + URL hash 正確 + 滾到 §9.1（截圖 `j_toc_anchor_works.png`）
+
+11 個 J group test 全綠（311/311 全綠）。
+
+---
+
 # 待補實查（未列入主清單的不確定項）
 
 | 項 | 待查內容 |
