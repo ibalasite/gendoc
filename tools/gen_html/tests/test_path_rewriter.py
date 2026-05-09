@@ -86,14 +86,18 @@ def test_R3_2_md_with_anchor():
 # ─── R3-3: diagrams/X.md → diag-X.html ────────────────────────────────
 
 def test_R3_3_diagrams_md_to_diag_html():
-    """href="diagrams/class-application.md" → "diag-class-application.html"。"""
+    """B5 升級：href="diagrams/class-application.md" → "diagrams/class-application.html"。
+
+    舊行為：rewrite 成 flat `diag-class-application.html`。
+    新行為（B5/B3 統一鏡射）：rewrite 成 `diagrams/class-application.html` (subdir)。
+    """
     html = '<a href="diagrams/class-application.md">class</a>'
     pages = _make_pages_dir({
-        'diag-class-application.html': '',
+        'diagrams/class-application.html': '',
         'index.html': '',
     })
     out = gh.rewrite_pages_paths(html, pages / 'index.html', pages)
-    assert 'href="diag-class-application.html"' in out
+    assert 'href="diagrams/class-application.html"' in out
 
 
 def test_R3_3_diagrams_dir_link_strips():

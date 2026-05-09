@@ -330,6 +330,197 @@ def test_B4_prototype_nested_existing_html_preserved():
             'nested pages/prototype/api-explorer/index.html overwritten'
 
 
+# ─── B5: Sidebar tree + diagrams 內部分區 ──────────────────────────────
+
+def _sidebar_for(layout, current='index'):
+    """Build a layout, run gh.main(), return (sidebar_html_of_index, all_html)."""
+    with _temp_project(layout):
+        gh.main()
+        # Pick a representative page to inspect sidebar from
+        idx = (gh.PAGES_DIR / 'index.html')
+        return idx.read_text() if idx.exists() else ''
+
+
+def test_B5_sidebar_one_level_collapsible():
+    html = _sidebar_for({
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/req/idea.md': '# Idea',
+    })
+    assert '<details' in html
+    assert '📁 req/' in html or '📎 req/' in html or 'req/' in html
+    # The link target should be req/idea.html (subdir path)
+    assert 'href="req/idea.html"' in html or 'href="./req/idea.html"' in html, \
+        f'expected req/idea.html link in sidebar; html sample: {html[:400]}'
+
+
+def test_B5_sidebar_nested_collapsible():
+    html = _sidebar_for({
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/blueprint/mock/X.md': '# X',
+    })
+    # Two nested <details>: outer for blueprint, inner for mock
+    # Look for the indicative structure
+    blueprint_idx = html.find('blueprint/')
+    mock_idx = html.find('mock/')
+    assert blueprint_idx >= 0 and mock_idx > blueprint_idx, \
+        f'expected blueprint/ then mock/ nested; got blueprint@{blueprint_idx} mock@{mock_idx}'
+    # Count <details> tags between blueprint/ start and the link
+    snippet = html[blueprint_idx:mock_idx + 200]
+    assert snippet.count('<details') >= 1, \
+        f'expected at least one nested <details> between blueprint and link; got {snippet}'
+
+
+def test_B5_sidebar_collapsed_unless_active():
+    html = _sidebar_for({
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/req/x.md': '# X',
+    })
+    # On index page (current=index), <details> for req/ should NOT have open attr
+    # Find the req/ summary and check the corresponding <details>
+    import re as _re
+    # All <details> tags before req/ summary
+    m = _re.search(r'<details(\s+open)?\s*>\s*<summary>[^<]*req/', html)
+    assert m, f'no req/ details found: {html[:500]}'
+    assert m.group(1) is None, f'req/ details unexpectedly open on index page'
+
+
+def test_B5_sidebar_open_chain_when_active():
+    """current=blueprint/mock/x → both blueprint/ and mock/ <details> have open."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/blueprint/mock/X.md': '# X',
+    }
+    with _temp_project(layout):
+        gh.main()
+        # The page for blueprint/mock/X is at pages/blueprint/mock/x.html
+        page = (gh.PAGES_DIR / 'blueprint/mock/x.html').read_text()
+        # On this page, sidebar must have blueprint/ and mock/ both open
+        import re as _re
+        # Find blueprint/ details
+        bm = _re.search(r'<details(\s+open)?\s*>\s*<summary>[^<]*blueprint/', page)
+        assert bm and bm.group(1), 'blueprint/ details not open on its descendant page'
+        mm = _re.search(r'<details(\s+open)?\s*>\s*<summary>[^<]*mock/', page)
+        assert mm and mm.group(1), 'mock/ details not open on its descendant page'
+
+
+def _diagrams_layout():
+    """Fixture with a representative mix of diagram filenames."""
+    return {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/diagrams/use-case.md': '# Use Case',
+        'docs/diagrams/activity-foo.md': '# Activity Foo',
+        'docs/diagrams/activity-bar.md': '# Activity Bar',
+        'docs/diagrams/class-application.md': '# Class App',
+        'docs/diagrams/sequence-create-token.md': '# Seq',
+        'docs/diagrams/state-machine-pet.md': '# State',
+        'docs/diagrams/cicd-pipeline-sequence.md': '# CICD',
+        'docs/diagrams/er-diagram.md': '# ER',
+        'docs/diagrams/frontend-activity-init.md': '# Frontend Activity',
+        'docs/diagrams/frontend-class-component.md': '# Frontend Class',
+    }
+
+
+def test_B5_sidebar_diagrams_collapsible():
+    html = _sidebar_for(_diagrams_layout())
+    assert '📁 diagrams/' in html, \
+        f'expected 📁 diagrams/ collapsible group; got: {html[:600]}'
+    # The old root-level 'Server UML' / 'Frontend UML' sections should be
+    # gone from sidebar root — they're now INSIDE 📁 diagrams/.
+    # We test inclusion by structural position later.
+
+
+def test_B5_diagrams_inner_has_server_label():
+    html = _sidebar_for(_diagrams_layout())
+    # Server UML label must appear inside diagrams details
+    diag_idx = html.find('📁 diagrams/')
+    assert diag_idx >= 0
+    # Find the closing </details> for the diagrams summary
+    end_idx = html.find('</details>', diag_idx)
+    while end_idx >= 0 and html[diag_idx:end_idx].count('<details') > html[diag_idx:end_idx].count('</details>'):
+        end_idx = html.find('</details>', end_idx + 1)
+    chunk = html[diag_idx:end_idx]
+    assert 'Server UML' in chunk, f'Server UML not inside 📁 diagrams/ block; chunk: {chunk[:600]}'
+
+
+def test_B5_diagrams_inner_has_frontend_label():
+    html = _sidebar_for(_diagrams_layout())
+    diag_idx = html.find('📁 diagrams/')
+    end_idx = html.find('</details>', diag_idx)
+    while end_idx >= 0 and html[diag_idx:end_idx].count('<details') > html[diag_idx:end_idx].count('</details>'):
+        end_idx = html.find('</details>', end_idx + 1)
+    chunk = html[diag_idx:end_idx]
+    assert 'Frontend UML' in chunk, 'Frontend UML not inside 📁 diagrams/'
+
+
+def test_B5_diagrams_inner_has_activity_sub_label():
+    html = _sidebar_for(_diagrams_layout())
+    # Sub-label CSS class
+    assert 'sidebar__label--sub' in html, \
+        f'expected sidebar__label--sub class for sub-grouping; got: {html[:600]}'
+    # Activity sub-label exists
+    assert '>Activity<' in html, 'Activity sub-label missing'
+
+
+def test_B5_diagrams_inner_class_group():
+    html = _sidebar_for(_diagrams_layout())
+    assert '>Class<' in html, 'Class sub-label missing'
+
+
+def test_B5_diagrams_frontend_strips_prefix_for_grouping():
+    """frontend-activity-init.md → 在 Frontend UML 區的 Activity 下，不在 Server 區."""
+    html = _sidebar_for(_diagrams_layout())
+    # Find Frontend UML position
+    fe_idx = html.find('Frontend UML')
+    assert fe_idx >= 0
+    # The frontend-activity-init link must appear AFTER Frontend UML label
+    link_idx = html.find('frontend-activity-init')
+    assert link_idx > fe_idx, \
+        f'frontend-activity-init should appear after Frontend UML label (server@{html.find("Server UML")} fe@{fe_idx} link@{link_idx})'
+
+
+def test_B5_diagrams_other_group_catches_misc():
+    """er-diagram.md (沒 prefix) → 進入 '其他' sub-label."""
+    html = _sidebar_for(_diagrams_layout())
+    assert '>其他<' in html or 'Other' in html, \
+        f'其他 sub-label missing for misc diagrams; html: {html[:600]}'
+    # er-diagram link must appear after 其他 sub-label
+    other_idx = html.find('>其他<')
+    if other_idx < 0:
+        other_idx = html.find('Other')
+    er_idx = html.find('er-diagram')
+    assert er_idx > other_idx, \
+        f'er-diagram should be under 其他 (er@{er_idx} other@{other_idx})'
+
+
+def test_B5_sidebar_prototype_md_inside_folder():
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/prototype/sample.md': '# Sample',
+    }
+    html = _sidebar_for(layout)
+    # 📁 prototype/ collapsible must exist (mirroring the docs/prototype/ subdir)
+    assert '📁 prototype/' in html or '🎮 prototype/' in html or 'prototype/' in html, \
+        f'expected prototype/ subdir group; html: {html[:600]}'
+
+
+def test_B5_sidebar_interactive_prototype_section_kept():
+    """Interactive Prototypes section 仍存在 (由 scan_prototype_entries 提供)."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/pages/prototype/index.html': '<h1>Interactive</h1>',
+    }
+    html = _sidebar_for(layout)
+    assert 'Interactive Prototypes' in html, \
+        f'Interactive Prototypes section missing; html: {html[:600]}'
+
+
 # ─── Standalone runner ───────────────────────────────────────────────────
 
 def main() -> int:
@@ -354,6 +545,19 @@ def main() -> int:
         ('B4_prototype_md_skip_when_target_present', test_B4_prototype_md_skip_when_target_present),
         ('B4_non_prototype_subdir_overwrites_normally', test_B4_non_prototype_subdir_overwrites_normally),
         ('B4_prototype_nested_existing_html_preserved', test_B4_prototype_nested_existing_html_preserved),
+        ('B5_sidebar_one_level_collapsible', test_B5_sidebar_one_level_collapsible),
+        ('B5_sidebar_nested_collapsible', test_B5_sidebar_nested_collapsible),
+        ('B5_sidebar_collapsed_unless_active', test_B5_sidebar_collapsed_unless_active),
+        ('B5_sidebar_open_chain_when_active', test_B5_sidebar_open_chain_when_active),
+        ('B5_sidebar_diagrams_collapsible', test_B5_sidebar_diagrams_collapsible),
+        ('B5_diagrams_inner_has_server_label', test_B5_diagrams_inner_has_server_label),
+        ('B5_diagrams_inner_has_frontend_label', test_B5_diagrams_inner_has_frontend_label),
+        ('B5_diagrams_inner_has_activity_sub_label', test_B5_diagrams_inner_has_activity_sub_label),
+        ('B5_diagrams_inner_class_group', test_B5_diagrams_inner_class_group),
+        ('B5_diagrams_frontend_strips_prefix_for_grouping', test_B5_diagrams_frontend_strips_prefix_for_grouping),
+        ('B5_diagrams_other_group_catches_misc', test_B5_diagrams_other_group_catches_misc),
+        ('B5_sidebar_prototype_md_inside_folder', test_B5_sidebar_prototype_md_inside_folder),
+        ('B5_sidebar_interactive_prototype_section_kept', test_B5_sidebar_interactive_prototype_section_kept),
     ]
     passed = failed = 0
     for name, fn in tests:

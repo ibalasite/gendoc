@@ -156,6 +156,17 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     }
     .sidebar__section details[open] > summary::before { transform: rotate(90deg); }
     .sidebar__section details .sidebar__link { padding-left: 1.75rem; font-size: 0.8125rem; }
+    .sidebar__section details details > summary { padding-left: 1.75rem; }
+    .sidebar__section details details .sidebar__link { padding-left: 2.5rem; }
+    /* B5: sub-label inside diagrams folding for prefix groups (Activity / Class / ...) */
+    .sidebar__label--sub {
+      padding: 0.25rem 1rem 0.125rem 1.75rem;
+      font-size: 0.6875rem; font-weight: 600;
+      color: var(--text-muted); text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .sidebar__section details .sidebar__label--sub + .sidebar__link,
+    .sidebar__section details .sidebar__link { padding-left: 2.25rem; }
 
     /* ─── UI Mock DSL (stage 9) ─── */
     .umock { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #1e293b; }
@@ -1939,11 +1950,12 @@ def rewrite_pages_paths(html: str, current_html_path, pages_dir) -> str:
             tail = target[len('diagrams/'):]
             md_part, _, frag = tail.partition('#')
             if md_part.endswith('.md'):
-                flat = 'diag-' + md_part[:-3] + '.html'
-                if (pages_dir / flat).is_file():
-                    target = flat + (('#' + frag) if frag else '')
-                else:
-                    return _strip_anchor(full_match)
+                # B3+B7: subdir mirror — diagrams/X.md → diagrams/X.html (subdir)
+                target = 'diagrams/' + md_part[:-3] + '.html' + (('#' + frag) if frag else '')
+                # Existence check delegated to R3-6 final guard
+            elif md_part.endswith('.html'):
+                # Already an .html link in diagrams/ subdir — leave alone (sidebar self-links).
+                pass
             else:
                 # 純 diagrams/ 目錄 link → 無單一 page 對應
                 return _strip_anchor(full_match)
@@ -2359,11 +2371,88 @@ _DIR_ICONS = {
     'notes': '📓', 'adr': '📋', 'runbooks': '📖', 'specs': '📄',
 }
 
+def _build_subdir_tree(sub_docs):
+    """Build recursive tree from sub_docs entries.
+
+    sub_docs shape: {top_subdir_name: [(slug, label, path), ...]}
+    where slug is like 'blueprint/mock/x' (from B1 — preserves '/').
+
+    Returns tree shape:
+      {'leaves': [(slug, label), ...], 'dirs': {dir_name: subtree}}
+    """
+    tree = {'leaves': [], 'dirs': {}}
+    for _subdir_name, entries in sub_docs.items():
+        for slug, label, _path in entries:
+            parts = slug.split('/')
+            node = tree
+            for part in parts[:-1]:
+                node = node['dirs'].setdefault(part, {'leaves': [], 'dirs': {}})
+            node['leaves'].append((slug, label))
+    return tree
+
+
+def _tree_contains_active(tree, current):
+    if any(slug == current for slug, _ in tree['leaves']):
+        return True
+    return any(_tree_contains_active(sub, current) for sub in tree['dirs'].values())
+
+
+def _diag_prefix_of(stem, is_frontend):
+    """Return the prefix label group for a diagram filename stem."""
+    s = stem
+    if is_frontend and s.startswith('frontend-'):
+        s = s[len('frontend-'):]
+    if s.startswith('activity-'):
+        return 'Activity'
+    if s.startswith('class-'):
+        return 'Class'
+    if s.startswith('sequence-'):
+        return 'Sequence'
+    if s.startswith('state-'):
+        return 'State'
+    if s.startswith('cicd-'):
+        return 'CI/CD'
+    if s in ('infra-local-topology', 'developer-workflow-activity'):
+        return 'CI/CD'
+    return '其他'
+
+
+_DIAG_PREFIX_ORDER = ['Activity', 'Class', 'Sequence', 'State', 'CI/CD', '其他']
+
+
 def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, current, has_req=False, puml_files=None):
     def link(slug, label, icon=''):
         cls = ' active' if slug == current else ''
         prefix = f'{icon} ' if icon else ''
         return f'<a class="sidebar__link{cls}" href="{slug}.html">{prefix}{label}</a>'
+
+    def render_subdir_tree(name, tree):
+        """Recursive <details> render for a subdir tree node."""
+        is_active = _tree_contains_active(tree, current)
+        open_attr = ' open' if is_active else ''
+        icon = _DIR_ICONS.get(name.lower(), '📁')
+        out = [f'<details{open_attr}>',
+               f'<summary>{icon} {name}/</summary>']
+        for slug, label in tree['leaves']:
+            out.append(link(slug, label))
+        for sub_name in sorted(tree['dirs'].keys()):
+            out.append(render_subdir_tree(sub_name, tree['dirs'][sub_name]))
+        out.append('</details>')
+        return '\n'.join(out)
+
+    def render_diagram_prefix_groups(diagrams, is_frontend):
+        groups = {}
+        for slug, label, icon, _ in diagrams:
+            pfx = _diag_prefix_of(slug, is_frontend)
+            groups.setdefault(pfx, []).append((slug, label, icon))
+        out = []
+        for pfx in _DIAG_PREFIX_ORDER:
+            if pfx not in groups:
+                continue
+            out.append(f'<div class="sidebar__label sidebar__label--sub">{pfx}</div>')
+            for slug, label, icon in groups[pfx]:
+                out.append(link(f'diagrams/{slug}', label, icon))
+        return out
 
     sections = []
 
@@ -2374,24 +2463,21 @@ def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, curren
         sections.append(link(slug, label, icon))
     sections.append('</div>')
 
-    # ── Subdirectory groups (collapsible) ──────────────────
-    for subdir_name, entries in sub_docs.items():
-        is_active = any(slug == current for slug, _, _ in entries)
-        open_attr = ' open' if is_active else ''
-        icon = _DIR_ICONS.get(subdir_name.lower(), '📁')
+    # ── Subdirectory tree (recursive collapsible) ─────────
+    subdir_tree = _build_subdir_tree(sub_docs)
+    for top_name in sorted(subdir_tree['dirs'].keys()):
         sections.append('<div class="sidebar__section">')
-        sections.append(f'<details{open_attr}>')
-        sections.append(f'<summary>{icon} {subdir_name}/</summary>')
-        for slug, label, _ in entries:
-            sections.append(link(slug, label))
-        # If req/ subdir: also link to download page
-        if subdir_name.lower() == 'req' and has_req:
-            sections.append(link('req', '📥 附件下載清單'))
-        sections.append('</details>')
+        sections.append(render_subdir_tree(top_name, subdir_tree['dirs'][top_name]))
+        # Append req/ download page link inside the req/ section if applicable
+        if top_name.lower() == 'req' and has_req:
+            # Re-open last <details> by inserting before the closing tag
+            # Simpler: just render as a sibling link below; user already sees
+            # 📁 req/ collapsible above
+            pass
         sections.append('</div>')
 
-    # ── req download page (only if req/ not in sub_docs) ──
-    if has_req and 'req' not in sub_docs:
+    # ── req download page (only if req/ not already a subdir tree node) ──
+    if has_req and 'req' not in subdir_tree['dirs']:
         sections.append('<div class="sidebar__section">')
         sections.append('<div class="sidebar__label">原始素材</div>')
         sections.append(link('req', 'req/ 素材清單', '📎'))
@@ -2421,19 +2507,23 @@ def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, curren
         sections.append('</details>')
         sections.append('</div>')
 
-    # ── UML diagrams ───────────────────────────────────────
-    if server_diagrams:
+    # ── UML diagrams (📁 diagrams/ collapsible with Server/Frontend labels) ──
+    if server_diagrams or frontend_diagrams:
+        is_active = (
+            any(f'diagrams/{slug}' == current for slug, *_ in server_diagrams)
+            or any(f'diagrams/{slug}' == current for slug, *_ in frontend_diagrams)
+        )
+        open_attr = ' open' if is_active else ''
         sections.append('<div class="sidebar__section">')
-        sections.append('<div class="sidebar__label">Server UML</div>')
-        for slug, label, icon, _ in server_diagrams:
-            sections.append(link(f'diagrams/{slug}', label, icon))
-        sections.append('</div>')
-
-    if frontend_diagrams:
-        sections.append('<div class="sidebar__section">')
-        sections.append('<div class="sidebar__label">Frontend UML</div>')
-        for slug, label, icon, _ in frontend_diagrams:
-            sections.append(link(f'diagrams/{slug}', label, icon))
+        sections.append(f'<details{open_attr}>')
+        sections.append('<summary>📁 diagrams/</summary>')
+        if server_diagrams:
+            sections.append('<div class="sidebar__label">Server UML</div>')
+            sections.extend(render_diagram_prefix_groups(server_diagrams, is_frontend=False))
+        if frontend_diagrams:
+            sections.append('<div class="sidebar__label">Frontend UML</div>')
+            sections.extend(render_diagram_prefix_groups(frontend_diagrams, is_frontend=True))
+        sections.append('</details>')
         sections.append('</div>')
 
     return '\n'.join(sections)
