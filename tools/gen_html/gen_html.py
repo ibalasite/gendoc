@@ -2426,14 +2426,14 @@ def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, curren
         sections.append('<div class="sidebar__section">')
         sections.append('<div class="sidebar__label">Server UML</div>')
         for slug, label, icon, _ in server_diagrams:
-            sections.append(link(f'diag-{slug}', label, icon))
+            sections.append(link(f'diagrams/{slug}', label, icon))
         sections.append('</div>')
 
     if frontend_diagrams:
         sections.append('<div class="sidebar__section">')
         sections.append('<div class="sidebar__label">Frontend UML</div>')
         for slug, label, icon, _ in frontend_diagrams:
-            sections.append(link(f'diag-{slug}', label, icon))
+            sections.append(link(f'diagrams/{slug}', label, icon))
         sections.append('</div>')
 
     return '\n'.join(sections)
@@ -2489,7 +2489,7 @@ def doc_cards_section(doc_pages, server_diagrams, frontend_diagrams):
     diag_total = len(server_diagrams) + len(frontend_diagrams)
     if diag_total:
         cards.append(
-            f'<a class="index-card" href="diag-{server_diagrams[0][0] if server_diagrams else frontend_diagrams[0][0]}.html">'
+            f'<a class="index-card" href="diagrams/{server_diagrams[0][0] if server_diagrams else frontend_diagrams[0][0]}.html">'
             f'<span class="index-card__icon">📐</span>'
             f'<span class="index-card__title">UML 圖表 ({diag_total} 張)</span>'
             f'<span class="index-card__desc">Server {len(server_diagrams)} / Frontend {len(frontend_diagrams)}</span>'
@@ -2645,11 +2645,11 @@ def main():
 
     for stem, label, icon, p in server_diagrams:
         c = md_to_html(p.read_text(), src_dir=p.parent)
-        write_page(f"diag-{stem}.html", c, label, label, f'diag-{stem}')
+        write_page(f"diagrams/{stem}.html", c, label, label, f'diagrams/{stem}')
 
     for stem, label, icon, p in frontend_diagrams:
         c = md_to_html(p.read_text(), src_dir=p.parent)
-        write_page(f"diag-{stem}.html", c, label, label, f'diag-{stem}')
+        write_page(f"diagrams/{stem}.html", c, label, label, f'diagrams/{stem}')
 
     # Subdirectory docs (recursive scan)
     sub_page_count = 0

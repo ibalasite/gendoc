@@ -174,6 +174,85 @@ def test_B2_write_page_root_unchanged():
         assert (gh.PAGES_DIR / "index.html").is_file()
 
 
+# ─── B3: writer site 用新 slug 寫 subdir ───────────────────────────────
+
+def _make_diagram_md(title='X'):
+    return f'# {title}\n\n```mermaid\ngraph TD\n  A --> B\n```\n'
+
+
+def test_B3_diagrams_writer_subdir():
+    """server_diagrams writer 寫 pages/diagrams/{stem}.html (不是 diag-{stem}.html)."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/diagrams/use-case.md': _make_diagram_md('Use Case'),
+        'docs/diagrams/sequence-foo.md': _make_diagram_md('Sequence Foo'),
+    }
+    with _temp_project(layout):
+        gh.main()
+        assert (gh.PAGES_DIR / "diagrams/use-case.html").is_file(), \
+            "expected pages/diagrams/use-case.html"
+        assert (gh.PAGES_DIR / "diagrams/sequence-foo.html").is_file(), \
+            "expected pages/diagrams/sequence-foo.html"
+
+
+def test_B3_diagrams_writer_no_flat_diag():
+    """diagrams writer 不再寫 pages/diag-{stem}.html flat naming."""
+    layout = {
+        'README.md': '',
+        'docs/diagrams/use-case.md': _make_diagram_md('Use Case'),
+    }
+    with _temp_project(layout):
+        gh.main()
+        assert not (gh.PAGES_DIR / "diag-use-case.html").exists(), \
+            "should NOT write flat diag-use-case.html"
+
+
+def test_B3_blueprint_mock_writer_subdir():
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/blueprint/mock/MOCK_GUIDE.md': '# Mock\n\nbody',
+    }
+    with _temp_project(layout):
+        gh.main()
+        assert (gh.PAGES_DIR / "blueprint/mock/mock_guide.html").is_file(), \
+            "expected pages/blueprint/mock/mock_guide.html"
+        # No flat residue from this run
+        flat_residue = list(gh.PAGES_DIR.glob("blueprint__*.html"))
+        assert not flat_residue, f'flat residue: {flat_residue}'
+
+
+def test_B3_contracts_writer_subdir():
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/contracts/api-admin.md': '# API\n\nbody',
+    }
+    with _temp_project(layout):
+        gh.main()
+        assert (gh.PAGES_DIR / "contracts/api-admin.html").is_file(), \
+            "expected pages/contracts/api-admin.html"
+        flat_residue = list(gh.PAGES_DIR.glob("contracts__*.html"))
+        assert not flat_residue, f'flat residue: {flat_residue}'
+
+
+def test_B3_req_writer_subdir():
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/req/idea-input.md': '# Idea',
+    }
+    with _temp_project(layout):
+        gh.main()
+        assert (gh.PAGES_DIR / "req/idea-input.html").is_file(), \
+            "expected pages/req/idea-input.html"
+        # The dedicated 'req.html' download page may still exist; check for
+        # NO flat req__X.html
+        flat_residue = list(gh.PAGES_DIR.glob("req__*.html"))
+        assert not flat_residue, f'flat residue: {flat_residue}'
+
+
 # ─── Standalone runner ───────────────────────────────────────────────────
 
 def main() -> int:
@@ -188,6 +267,11 @@ def main() -> int:
         ('B2_write_page_creates_nested_dirs', test_B2_write_page_creates_nested_dirs),
         ('B2_write_page_nested_via_main_does_not_crash', test_B2_write_page_nested_via_main_does_not_crash),
         ('B2_write_page_root_unchanged', test_B2_write_page_root_unchanged),
+        ('B3_diagrams_writer_subdir', test_B3_diagrams_writer_subdir),
+        ('B3_diagrams_writer_no_flat_diag', test_B3_diagrams_writer_no_flat_diag),
+        ('B3_blueprint_mock_writer_subdir', test_B3_blueprint_mock_writer_subdir),
+        ('B3_contracts_writer_subdir', test_B3_contracts_writer_subdir),
+        ('B3_req_writer_subdir', test_B3_req_writer_subdir),
     ]
     passed = failed = 0
     for name, fn in tests:

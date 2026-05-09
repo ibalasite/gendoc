@@ -220,7 +220,7 @@ Status: `review` | `todo` | `running` | `done`
 | **Test case** | 1. `test_B3_diagrams_writer_subdir`：跑後 `pages/diagrams/{stem}.html` 存在<br>2. `test_B3_diagrams_writer_no_flat_diag`：跑後**沒有**新寫 `pages/diag-{stem}.html`<br>3. `test_B3_blueprint_mock_writer_subdir`：fixture `docs/blueprint/mock/X.md` → `pages/blueprint/mock/x.html` 存在<br>4. `test_B3_contracts_writer_subdir`：fixture `docs/contracts/Y.md` → `pages/contracts/y.html` 存在<br>5. `test_B3_req_writer_subdir`：fixture `docs/req/Z.md` → `pages/req/z.html` 存在；**沒有** `pages/req__z.html` |
 | **不影響其他 case** | 根目錄 .md writer (line 2620, 2624) 不動 |
 | **驗收對應** | A、B |
-| **Status** | **todo** |
+| **Status** | **done** ✅（5 test 全綠，226/226 全綠）|
 
 ---
 
