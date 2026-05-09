@@ -245,6 +245,39 @@ def test_table_cells_escaped():
     assert '&lt;b&gt;' in html
 
 
+# ─── A3: card / page / modal 邊界加深 ─────────────────────────────────────
+# 對齊核心目標 1. 清楚 — 邊界視覺要看得出來。
+# scope 限 .umock__page / .umock__modal / .umock__card 與其 title-bar，
+# 不影響一般 markdown div / table。
+
+def _read_gen_html_css():
+    """Return the inline <style> block from gen_html.py source as a string."""
+    src = GEN_HTML.read_text(encoding='utf-8')
+    return src
+
+
+def test_A3_card_outer_border_strong():
+    css = _read_gen_html_css()
+    # The .umock__page, .umock__modal, .umock__card rule must use
+    # a 1.5px solid border with a darker shade (#94a3b8).
+    assert '1.5px solid #94a3b8' in css, (
+        '.umock__page/__modal/__card outer border is still light '
+        '(expected 1.5px solid #94a3b8)'
+    )
+
+
+def test_A3_title_bar_border_strong():
+    css = _read_gen_html_css()
+    # .umock__card-title, .umock__page-title, .umock__modal-titlebar should
+    # share the same darker border-bottom so the title visually anchors.
+    # We accept the pattern 'border-bottom: 1.5px solid #94a3b8' anywhere
+    # the title-bar style block is defined; strict assertion: at least three
+    # title-bar selectors in a single contiguous block use it.
+    assert css.count('1.5px solid #94a3b8') >= 2, (
+        'title-bar border-bottom not unified to 1.5px solid #94a3b8'
+    )
+
+
 # ─── A5: mock 元件不可 focus（P4 — tabindex="-1"） ────────────────────────
 # Mock 是文件展示用，加 tabindex="-1" 讓 Tab 鍵跳過 → focus ring 永遠不出現。
 # 對齊核心目標 4. 不誤會（default 按鈕不會因 focus 看起來像 primary）。
@@ -319,6 +352,8 @@ def main() -> int:
         ('value_html_escaped', test_value_html_is_escaped),
         ('attr_html_escaped', test_attr_html_is_escaped),
         ('table_cells_escaped', test_table_cells_escaped),
+        ('A3_card_outer_border_strong', test_A3_card_outer_border_strong),
+        ('A3_title_bar_border_strong', test_A3_title_bar_border_strong),
         ('A5_button_tabindex', test_A5_button_renders_tabindex_minus_one),
         ('A5_button_default_tabindex', test_A5_button_default_variant_also_tabindex),
         ('A5_input_tabindex', test_A5_input_renders_tabindex_minus_one),

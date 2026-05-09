@@ -83,7 +83,7 @@ Status: `review` | `todo` | `running` | `done`
 | **Test case** | 1. `test_css_card_border_is_strong`：rendered HTML inline style 含 `border: 1.5px solid #94a3b8`<br>2. `test_css_title_bar_border_is_strong`：含 `border-bottom: 1.5px solid #94a3b8`（針對三個 title 選擇器）<br>3. **視覺驗證**：跑 erp/pdd.html 截圖給 user 看 |
 | **不影響其他 case** | 不動 lightbox / PUML / mermaid CSS；不動 sidebar、navbar；不動一般 markdown div |
 | **驗收對應** | B（card / page / modal 邊界視覺清楚）|
-| **Status** | **todo** |
+| **Status** | **done** ✅（2 test 全綠，210/210 全綠；視覺驗證待 user 看截圖）|
 
 ---
 
