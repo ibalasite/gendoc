@@ -1792,6 +1792,199 @@ def _um_ascii_segments_to_layered_arch(segments: list):
     return {'type': 'root', 'attrs': {}, 'value': None, 'children': [arch]}
 
 
+def _classify_ascii_block(text: str) -> str:
+    """F1 — classify a fenced ASCII code block as 'system' | 'ui' | 'unknown'.
+
+    Strategy: strong system signals first (any one → system); then UI signals.
+
+    System signals (any → 'system'):
+      - Unicode arrows: → ← ↑ ↓ ► ◄
+      - Long ASCII arrows: ──...──>  <──...──
+      - Text arrows: -->, <--
+      - Multiple parallel boxes on the same line: 2+ '┌' or 2+ '┐'
+      - Multiple vertical lifelines: 4+ '│' on 3+ lines (sequence diagram)
+      - In-content tree branches: '│ ... ├──' / '│ ... └──' inside a frame line
+
+    UI signals (any → 'ui') — only if no system signal:
+      - Short button labels: '[Apply]', '[取消]', '[+ 新增]' (1-12 chars,
+        not ALL_CAPS_CONSTANT, no '=' sign)
+      - Input fields: 6+ underscores in a row
+      - Pagination: '[< 1 2 3 ... >]'
+      - Page chrome: ☰, ▾ following short text in brackets
+
+    Else → 'unknown' (caller should fall back to <pre>).
+    """
+    # ── Strong system signals ──────────────────────────────────────
+    # Vertical / triangular arrows are unambiguous flow direction markers,
+    # but ONLY when they appear OUTSIDE square brackets (inside [label ▼]
+    # they are UI dropdown indicators). Horizontal `→ ←` are intentionally
+    # excluded — UI documentation uses them inline. Long ASCII arrows
+    # `──>` `<──` are caught by the next rule.
+    cleaned_for_arrow = re.sub(r'\[[^\]\n]*\]', '', text)
+    if re.search(r'[↑↓►◄▲▼◀▶]', cleaned_for_arrow):
+        return 'system'
+    if re.search(r'──+>|<──+', text):
+        return 'system'
+    if re.search(r'(?:^|\s)-{2,}>|<-{2,}(?:\s|$)', text):
+        return 'system'
+    # Parallel boxes on same line (2+ '┌'), but NOT inside a UI table row
+    # (UI tables have 2+ ┌ on the same line but always with a leading │ and
+    # no arrows — already excluded by the arrow checks above).
+    for line in text.split('\n'):
+        if line.count('┌') >= 2:
+            # If line starts with │ (we're inside a frame) and contains other
+            # UI markers (e.g. brackets [Ban]), treat as table row inside UI
+            # mock — let UI signals decide. Otherwise it's a parallel-box
+            # architecture diagram.
+            stripped = line.strip()
+            if stripped.startswith('│') and re.search(r'\[\s*[^\]]{1,12}\s*\]', line):
+                continue
+            return 'system'
+    # In-content tree branches: a │…│ line that contains ├── or └── followed
+    # by TEXT (a child label). Pure table-border └────┴─── doesn't qualify.
+    for line in text.split('\n'):
+        m = re.search(
+            r'│[^│┤]*?(?:├──|└──)[^│┤A-Za-z一-鿿_]*[A-Za-z一-鿿_]',
+            line,
+        )
+        if m and '┤' not in line[m.end():]:
+            return 'system'
+
+    # ── UI signals ────────────────────────────────────────────────
+    has_button = False
+    for m in re.finditer(r'\[\s*([^\]\[]+?)\s*\]', text):
+        label = m.group(1).strip()
+        if not (1 <= len(label) <= 12):
+            continue
+        if '=' in label:
+            continue
+        # Skip ALL_CAPS_CONSTANTS (likely annotation, not a button)
+        if re.fullmatch(r'[A-Z][A-Z0-9_]*', label):
+            continue
+        has_button = True
+        break
+    has_input = bool(re.search(r'_{6,}', text))
+    has_paginator = bool(re.search(r'\[\s*<.*?\d.*?>\s*\]', text))
+    if has_button or has_input or has_paginator:
+        return 'ui'
+
+    return 'unknown'
+
+
+def _ascii_to_mermaid_td(text: str) -> 'str | None':
+    """F2 — best-effort ASCII → mermaid graph TD converter.
+
+    Returns mermaid source code (with `graph TD` direction) or None when
+    the block isn't system content or can't be converted.
+
+    Strategy:
+      1. Refuse if classifier says 'ui'.
+      2. Extract all 'box' labels: text inside ┌──┐ / └──┘ frames OR
+         non-blank lines (for text-only flows).
+      3. Detect connections:
+         - Sequential arrows (→ / ──> / ↓) → linear chain
+         - Tree branches (├── / └──) → parent-children edges
+      4. Emit `graph TD` with quoted labels and edges.
+
+    This is intentionally conservative: when the structure is too complex,
+    it still emits at least a usable list of nodes so the reader sees the
+    extracted information rather than nothing.
+    """
+    kind = _classify_ascii_block(text)
+    if kind == 'ui':
+        return None
+
+    lines = text.split('\n')
+    # Strip outer frame characters from each line for easier parsing
+    cleaned = []
+    for line in lines:
+        s = line
+        # Remove leading and trailing │ and outer ┌/└/├ characters at line edges
+        s = re.sub(r'^[\s│┃]+', '', s)
+        s = re.sub(r'[\s│┃]+$', '', s)
+        if s and not re.match(r'^[─┌┐└┘├┤┬┴┼━]+$', s):
+            cleaned.append(s)
+
+    nodes = []  # list of (id, label) preserving order
+    seen_labels = {}
+
+    def _add_node(label: str) -> str:
+        label = label.strip().rstrip('│')
+        # Strip leading tree chars
+        label = re.sub(r'^[├└─\s]+', '', label).strip()
+        # Strip trailing arrows etc.
+        label = re.sub(r'[─→↓>]+$', '', label).strip()
+        if not label:
+            return ''
+        # De-duplicate
+        if label in seen_labels:
+            return seen_labels[label]
+        nid = f'N{len(nodes)}'
+        nodes.append((nid, label))
+        seen_labels[label] = nid
+        return nid
+
+    edges = []  # list of (src_id, dst_id)
+
+    # Pass 1: extract box-content as nodes (anything on a non-frame line)
+    for line in cleaned:
+        # Skip pure tree-character lines
+        if re.fullmatch(r'[└├─┐┌┘┤┬┴┼─\s]*', line):
+            continue
+        # Strip arrow tokens for label extraction
+        text_part = re.sub(r'──+>|<──+|[→←↑↓►◄]', '', line).strip()
+        if text_part:
+            _add_node(text_part)
+
+    # Pass 2: detect sequential connections via vertical-arrow flow
+    # (TEXT_FLOW pattern: A \n ↓ \n B \n ↓ \n C → chain A->B->C)
+    if re.search(r'[↓→]', text):
+        prev = None
+        for line in cleaned:
+            if line.strip() in ('↓', '→', '|', '│'):
+                continue
+            text_part = re.sub(r'──+>|<──+|[→←↑↓►◄]', '', line).strip()
+            label = re.sub(r'^[├└─\s]+', '', text_part).strip()
+            label = re.sub(r'[─→↓>]+$', '', label).strip()
+            if not label:
+                continue
+            cur = seen_labels.get(label)
+            if prev and cur and prev != cur:
+                if (prev, cur) not in edges:
+                    edges.append((prev, cur))
+            prev = cur
+
+    # Pass 3: tree-branch connections
+    # Find a parent line followed by ├── child lines belonging to it
+    parent_id = None
+    for line in cleaned:
+        if re.match(r'^[├└]──', line.strip()):
+            child_label = re.sub(r'^[├└]──+\s*', '', line.strip())
+            child_label = re.sub(r'[─→↓>]+$', '', child_label).strip()
+            cid = seen_labels.get(child_label)
+            if parent_id and cid and parent_id != cid:
+                if (parent_id, cid) not in edges:
+                    edges.append((parent_id, cid))
+        else:
+            text_part = re.sub(r'──+>|<──+|[→←↑↓►◄]', '', line).strip()
+            label = text_part
+            if label in seen_labels:
+                parent_id = seen_labels[label]
+
+    if not nodes:
+        return None
+
+    # Emit mermaid
+    md = ['graph TD']
+    for nid, label in nodes:
+        # Sanitise label: escape quotes
+        safe = label.replace('"', "'")
+        md.append(f'  {nid}["{safe}"]')
+    for src, dst in edges:
+        md.append(f'  {src} --> {dst}')
+    return '\n'.join(md)
+
+
 def _ui_mock_ascii_parse(text: str):
     """Parse ASCII box-drawing UI mock into AST root, or None if not parseable.
 
@@ -2186,15 +2379,40 @@ def md_to_html(text, src_dir=None):
             while i < len(lines) and lines[i].strip() != '```':
                 raw_block.append(lines[i])
                 i += 1
-            # Stage 9: try ASCII UI Mock parse if no language tag and box-
-            # drawing chars present. None → silent fallback to <pre>.
+            # F1+F2 + Stage 9: classify ASCII blocks before deciding renderer.
+            #   - special shapes (pyramid / layered-arch) → existing UI Mock
+            #     parser handles them (it already emits mermaid TB / SVG).
+            #   - 'ui'     → UI Mock parser
+            #   - 'system' → ASCII → mermaid TD (F2)
+            #   - 'unknown' → <pre> (safe default)
+            block_text = '\n'.join(raw_block)
             if not lang and any(any(c in line for c in '┌┐└┘├┤')
                                 for line in raw_block):
-                ast = _ui_mock_ascii_parse('\n'.join(raw_block))
-                if ast is not None:
-                    out.append(_ui_mock_render(ast))
-                    i += 1  # consume closing ```
-                    continue
+                # Try special-shape detection first (pyramid / layered-arch).
+                special_ast = _ui_mock_ascii_parse(block_text)
+                if special_ast and special_ast.get('children'):
+                    first_type = special_ast['children'][0].get('type')
+                    if first_type in ('pyramid', 'layered-arch'):
+                        out.append(_ui_mock_render(special_ast))
+                        i += 1
+                        continue
+
+                kind = _classify_ascii_block(block_text)
+                if kind == 'ui':
+                    ast = special_ast or _ui_mock_ascii_parse(block_text)
+                    if ast is not None:
+                        out.append(_ui_mock_render(ast))
+                        i += 1
+                        continue
+                elif kind == 'system':
+                    mermaid_src = _ascii_to_mermaid_td(block_text)
+                    if mermaid_src:
+                        out.append(
+                            f'<pre class="mermaid">{esc(mermaid_src)}</pre>'
+                        )
+                        i += 1
+                        continue
+                # 'unknown' or conversion failed → fall through to <pre>
             cls = f'language-{lang}' if lang else ''
             escaped = '\n'.join(esc(l) for l in raw_block)
             out.append(f'<pre><code class="{cls}">' + escaped + '</code></pre>')

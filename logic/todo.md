@@ -426,6 +426,93 @@ Status: `review` | `todo` | `running` | `done`
 
 ---
 
+## E 群拍板（2026-05-09）
+
+> **使用者原話**：「gen_html 不用管 docs/*.md 是真的還是假的，他就是照轉，這樣才能通用，若是有問題我自己會去 rm error .md，所以可以不用改」
+
+**Status: done** ✅
+- gen_html 是通用工具，不該揣測 source 真假
+- 有問題 user 自己 `rm error.md`
+- E 群無 code change，純實查紀錄
+
+---
+
+# ════════════════════════════════════════════════
+# F 群（ASCII 區塊分類器 + ASCII→Mermaid 轉換）
+# ════════════════════════════════════════════════
+
+## 主問題（user 視角）
+
+> **使用者原話**：
+> - 「pet 原是 ascii 但被強迫變 DSL，應該用 mermaid 才對」
+> - 「不是 UI 的也被換了，而系統，flow, UML 的，原本 .md 是 ascii html 也要幫他變成 mermaid 才對」
+> - 「top-down 方向」
+> - 「白名單，不就很容易漏嗎？」（→ 改用「強系統訊號」黑名單方式）
+
+**主問題**：UI Mock ASCII parser 太激進，把系統架構 / 流程圖 / UML 等非 UI 內容也渲染成 umock card，造成 EDD/ARCH/CICD 全被誤判。
+
+**對齊核心目標**：
+- 4. 不誤會（系統圖不該顯示成 UI 元件）
+- 3. 表達（ASCII 系統圖應該以 mermaid 視覺化呈現，不是死板 `<pre>`）
+
+---
+
+## # F1. ASCII 分類器（系統 vs UI vs unknown）
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | UI Mock parser 對任何含 `┌┐└┘├┤` 的 fence block 都無條件嘗試解析，無分類機制 |
+| **預期解** | `_classify_ascii_block(text) → 'system' | 'ui' | 'unknown'`：先強系統訊號 → 系統；否則檢 UI 訊號 → UI；皆無 → unknown<br>**強系統訊號**：`↑↓►◄▲▼◀▶`（不在 `[...]` 內）/ `──>` `<──` 長 ASCII 箭頭 / 並排多框（line 含 2+ `┌`）/ in-content 樹分支（`├──`/`└──` 後接文字）<br>**強 UI 訊號**：短按鈕 `[Apply]`（1-12 chars，非 ALL_CAPS_CONST）/ 6+ 底線 `[___]` / pagination `[< 1 / N >]` |
+| **Test case** | 8 個 fixture（pet 真實內容）：seq lifelines / arch parallel / cicd inline tree / text-flow / ui admin table / ui modal form / directory tree / simple box. 每個分類正確 |
+| **Status** | **done** ✅ |
+
+## # F2. ASCII → Mermaid TD 轉換器
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | 系統 ASCII 之前只能 `<pre>` 顯示，難讀；user 要求自動轉 mermaid TD |
+| **預期解** | `_ascii_to_mermaid_td(text) → str | None`：對 'system' kind 提取 box labels（每個 `┌─label─┐` 一個 node）+ 連線（箭頭 / 樹分支）→ 輸出 `graph TD` |
+| **Test case** | arch parallel → mermaid 含 Player App / Admin Portal nodes；cicd inline → 含 ESLint / Vitest；text-flow → chain；UI fixture → return None（拒絕轉換）|
+| **Status** | **done** ✅ |
+
+## # F3. Renderer 整合 — gate UI Mock parser by classifier
+
+| 欄位 | 內容 |
+|---|---|
+| **改動點** | `md_to_html` 處理 fenced code block 時：<br>1. 先試 `_ui_mock_ascii_parse` → 若 AST 第一個 child 是 'pyramid' / 'layered-arch'（特殊形狀），用既有 UI Mock parser（保留 mermaid TB / SVG 行為）<br>2. 否則跑 `_classify_ascii_block`：<br>　 - 'ui' → UI Mock parser（既有行為）<br>　 - 'system' → `_ascii_to_mermaid_td` → `<pre class="mermaid">...</pre>`<br>　 - 'unknown' → `<pre>` |
+| **Test case** | `test_F1_integration_arch_block_not_rendered_as_umock`：fixture 含 ARCH parallel-box block → 跑 gen_html → arch.html 不含 `<div class="umock__page|card|modal">`<br>所有現有 ui_mock_real fixtures（M01-M10）仍正確渲染（pyramid SVG / layered-arch mermaid TB / 真 UI 變 umock）|
+| **Status** | **done** ✅ |
+
+---
+
+## F 群實機驗證（pet sandbox）
+
+跑 sandbox-pet 重生：
+
+| 檔案 | 修改前 umock body 元素 | 修改後 umock body 元素 |
+|---|---|---|
+| arch.html | 4（誤判）| 0 ✅（變 3 張 mermaid TD）|
+| edd.html | 2（誤判）| 0 ✅（變 2 張 mermaid TD）|
+| cicd.html | 4（誤判）| 0 ✅（變 3 張 mermaid TD）|
+| admin_impl.html | 1（誤判）| 0 ✅（變 1 張 mermaid TD）|
+| frontend.html | 0 | 0（11 張 mermaid TD）|
+| prototype/*.html | 8/5/2（正確 UI mock）| 8/5/2 ✅ 保留 |
+
+10 個既有 ui_mock_real fixtures（M01-M10）全部維持原行為：M01 layered-arch 仍出 mermaid TB，M09 pyramid 仍出 SVG polygons，M02-M08/M10 真 UI 仍渲染 umock 元件。
+
+**測試**：270 → 283（+13）全綠。
+
+---
+
+## F 群改動摘要
+
+- 新增 `_classify_ascii_block(text)`：黑名單式分類，先強系統訊號（`▼` 在 `[]` 外、長箭頭、並排多框、in-content 樹分支），再 UI 訊號
+- 新增 `_ascii_to_mermaid_td(text)`：best-effort 轉換（提取 box labels，輸出 `graph TD`）
+- `md_to_html` 加 gate：特殊形狀（pyramid / layered-arch）走既有 parser；其他依 classifier 路由
+- pet sandbox：EDD/ARCH/CICD/ADMIN_IMPL 全部脫離 umock 誤判，正確顯示為 mermaid TD
+
+---
+
 ## B 群決策點（彙總，等 user 拍板）
 
 | # | 議題 | 我的建議 |
