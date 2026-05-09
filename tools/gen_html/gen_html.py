@@ -1954,20 +1954,45 @@ def rewrite_pages_paths(html: str, current_html_path, pages_dir) -> str:
     rewritten = rewritten.replace('__STRIP_A_TAG__', '')
 
     # Step 3: R1 — <code>X</code> auto-link when pages/X exists
+    # A1 fix: skip <code> already inside <a>...</a> to avoid invalid nested <a><a>.
+    def _find_a_spans(s):
+        spans = []
+        pos = 0
+        while True:
+            open_m = re.search(r'<a\b[^>]*>', s[pos:])
+            if not open_m:
+                break
+            open_start = pos + open_m.start()
+            close_idx = s.find('</a>', pos + open_m.end())
+            if close_idx == -1:
+                spans.append((open_start, len(s)))
+                break
+            end = close_idx + len('</a>')
+            spans.append((open_start, end))
+            pos = end
+        return spans
+
+    a_spans = _find_a_spans(rewritten)
+
+    def _is_inside_a(idx):
+        for lo, hi in a_spans:
+            if lo <= idx < hi:
+                return True
+        return False
+
     def _code_to_link(match):
+        if _is_inside_a(match.start()):
+            return match.group(0)
         content = match.group(1)
-        # 只考慮看似路徑的：含 / 或結尾是 .html / .md / .json / .yaml
         if not (('/' in content) or content.endswith(
                 ('.html', '.md', '.json', '.yaml', '.yml'))):
             return match.group(0)
-        # 嘗試原樣 + 剝 docs/pages/ prefix
         try_targets = [content]
         if content.startswith('docs/pages/'):
             try_targets.append(content[len('docs/pages/'):])
         for t in try_targets:
             resolved = _resolve(t)
             if resolved is not None and resolved.is_file():
-                # t 已是從 current_html_path 視角寫的相對路徑，直接當 href
                 return f'<a href="{t}">{content}</a>'
         return match.group(0)
     rewritten = re.sub(r'<code>([^<]+)</code>', _code_to_link, rewritten)

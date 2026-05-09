@@ -162,6 +162,88 @@ def test_R1_code_path_not_existing_stays_code():
     assert '<a href' not in out
 
 
+# ─── A1: Avoid nested <a><a> ──────────────────────────────────────────
+# When <code> is already inside an <a>, R1 must NOT wrap it again.
+
+def test_A1_code_inside_a_not_double_wrapped():
+    """已被 <a> 包住的 <code> 不該被 R1 二次包成 <a><a>。"""
+    html = '<a href="prototype/index.html"><code>prototype/index.html</code></a>'
+    pages = _make_pages_dir({
+        'index.html': '',
+        'prototype/index.html': '',
+    })
+    out = gh.rewrite_pages_paths(html, pages / 'index.html', pages)
+    # Output must contain exactly ONE <a> wrap around the code
+    assert out.count('<a ') == 1, f'expected exactly 1 <a>, got: {out}'
+    assert '<a href="prototype/index.html"><code>prototype/index.html</code></a>' in out
+
+
+def test_A1_code_outside_a_still_wrapped():
+    """裸 <code>（不在 <a> 內）仍應被 R1 正常包連結。"""
+    html = 'plain <code>prototype/index.html</code> text'
+    pages = _make_pages_dir({
+        'index.html': '',
+        'prototype/index.html': '',
+    })
+    out = gh.rewrite_pages_paths(html, pages / 'index.html', pages)
+    assert '<a href="prototype/index.html">prototype/index.html</a>' in out
+
+
+def test_A1_code_inside_a_multiline():
+    """<a> 內的 <code> 跨行也不該被二次包。"""
+    html = (
+        '<a href="prototype/index.html">\n'
+        '<code>prototype/index.html</code>\n'
+        '</a>'
+    )
+    pages = _make_pages_dir({
+        'index.html': '',
+        'prototype/index.html': '',
+    })
+    out = gh.rewrite_pages_paths(html, pages / 'index.html', pages)
+    assert out.count('<a ') == 1
+    # The <code> should still be there, untouched
+    assert '<code>prototype/index.html</code>' in out
+
+
+def test_A1_code_inside_a_multiple_codes():
+    """<a> 內多個 <code> 都不該被包。"""
+    html = (
+        '<a href="prototype/index.html">'
+        '<code>prototype/index.html</code>'
+        '<code>prototype/index.html</code>'
+        '</a>'
+    )
+    pages = _make_pages_dir({
+        'index.html': '',
+        'prototype/index.html': '',
+    })
+    out = gh.rewrite_pages_paths(html, pages / 'index.html', pages)
+    # Still exactly one <a>, both codes untouched
+    assert out.count('<a ') == 1
+    assert out.count('<code>prototype/index.html</code>') == 2
+
+
+def test_A1_already_nested_a_not_re_wrapped():
+    """source 已是 nested <a><a> (malformed) — R1 至少不該再加層。"""
+    html = (
+        '<a href="prototype/index.html">'
+        '<a href="prototype/index.html">'
+        '<code>prototype/index.html</code>'
+        '</a></a>'
+    )
+    pages = _make_pages_dir({
+        'index.html': '',
+        'prototype/index.html': '',
+    })
+    out = gh.rewrite_pages_paths(html, pages / 'index.html', pages)
+    # R1 must not introduce a NEW <a> on top of the existing nest.
+    assert out.count('<a ') == html.count('<a '), (
+        f'R1 added an extra <a>: input had {html.count("<a ")}, '
+        f'output has {out.count("<a ")}'
+    )
+
+
 # ─── LEGIT baseline (must NOT change) ─────────────────────────────────
 
 def test_LEGIT_simple_relative_link_unchanged():
@@ -300,6 +382,12 @@ def main():
         ('R1_code_to_link_when_path_exists', test_R1_code_to_link_when_path_exists),
         ('R1_code_with_docs_pages_prefix_to_link', test_R1_code_with_docs_pages_prefix_to_link),
         ('R1_code_path_not_existing_stays_code', test_R1_code_path_not_existing_stays_code),
+        # A1
+        ('A1_code_inside_a_not_double_wrapped', test_A1_code_inside_a_not_double_wrapped),
+        ('A1_code_outside_a_still_wrapped', test_A1_code_outside_a_still_wrapped),
+        ('A1_code_inside_a_multiline', test_A1_code_inside_a_multiline),
+        ('A1_code_inside_a_multiple_codes', test_A1_code_inside_a_multiple_codes),
+        ('A1_already_nested_a_not_re_wrapped', test_A1_already_nested_a_not_re_wrapped),
         # R2
         ('R2_sidebar_scan_prototype_entries', test_R2_sidebar_scan_prototype_entries),
         ('R2_sidebar_scan_no_prototype_dir', test_R2_sidebar_scan_no_prototype_dir),
