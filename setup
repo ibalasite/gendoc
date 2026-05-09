@@ -119,16 +119,38 @@ _deploy_tools() {
   log "[deploy] 部署 tools/<package>/ 源碼至 $RUNTIME_DIR/tools/bin/"
   # Source-of-truth packages live in tools/<package>/, runtime executables go to tools/bin/.
   # 設計：tools/<package>/ 含 dev source + tests + fixtures（由 pytest 跑）；
-  # 部署時把 source 複製到 tools/bin/ 作為 runtime 執行體（dryrun_core.py 等）。
-  # 加新 package 在此追加 cp 行。
-  if [[ -f "$RUNTIME_DIR/tools/dryrun_core/dryrun_core.py" ]]; then
-    cp "$RUNTIME_DIR/tools/dryrun_core/dryrun_core.py" "$RUNTIME_DIR/tools/bin/dryrun_core.py"
-    log "  · dryrun_core/dryrun_core.py → bin/dryrun_core.py"
-  fi
-  if [[ -f "$RUNTIME_DIR/tools/gen_html/gen_html.py" ]]; then
-    cp "$RUNTIME_DIR/tools/gen_html/gen_html.py" "$RUNTIME_DIR/tools/bin/gen_html.py"
-    log "  · gen_html/gen_html.py → bin/gen_html.py"
-  fi
+  # 部署時把 source 複製或 build 到 tools/bin/ 作為 runtime 執行體。
+  #
+  # 兩種部署模式（依 package 內檔案存在與否自動選）：
+  #   1. build.sh — 若 tools/<package>/build.sh 存在 → 執行它，由 build.sh
+  #                  自行決定產物（適合需要 compile / bundle / minify 的 package）
+  #                  build.sh 拿到環境變數：BIN_DIR、PACKAGE_DIR
+  #   2. convention — 否則自動 cp tools/<package>/<package>.py → bin/<package>.py
+  #                    （單檔 Python script 的最簡 case）
+  local bin_dir="$RUNTIME_DIR/tools/bin"
+  mkdir -p "$bin_dir"
+  for pkg_dir in "$RUNTIME_DIR/tools"/*/; do
+    local pkg_name
+    pkg_name=$(basename "$pkg_dir")
+    # 跳過 bin 自己（避免遞迴）
+    [[ "$pkg_name" == "bin" ]] && continue
+
+    if [[ -f "$pkg_dir/build.sh" ]]; then
+      log "  · build $pkg_name (running build.sh)"
+      if ! ( cd "$pkg_dir" \
+             && BIN_DIR="$bin_dir" PACKAGE_DIR="$pkg_dir" bash build.sh ); then
+        log "  ✗ build.sh failed for $pkg_name"
+        return 1
+      fi
+    else
+      # Convention: <package>/<package>.py → bin/<package>.py
+      local entry="$pkg_dir$pkg_name.py"
+      if [[ -f "$entry" ]]; then
+        cp "$entry" "$bin_dir/$pkg_name.py"
+        log "  · $pkg_name/$pkg_name.py → bin/$pkg_name.py"
+      fi
+    fi
+  done
 }
 
 _register_hook() {

@@ -49,18 +49,57 @@ function Deploy-Skills {
 
 function Deploy-Tools {
     # Source-of-truth packages live in tools/<package>/, runtime executables in tools/bin/.
+    # Two deploy modes (auto-selected per package):
+    #   1. build.ps1 / build.sh present -> run it; package owns its build
+    #      (gets env: BIN_DIR, PACKAGE_DIR)
+    #   2. otherwise -> cp tools/<package>/<package>.py -> bin/<package>.py
     Log "[deploy] deploy tools/<package>/ source to $ToolsBin/"
-    $dryrunSrc = Join-Path $RuntimeDir "tools\dryrun_core\dryrun_core.py"
-    $dryrunDst = Join-Path $ToolsBin "dryrun_core.py"
-    if (Test-Path $dryrunSrc) {
-        Copy-Item -Force $dryrunSrc $dryrunDst
-        Log "  - dryrun_core/dryrun_core.py -> bin/dryrun_core.py"
+    if (-not (Test-Path $ToolsBin)) {
+        New-Item -ItemType Directory -Force -Path $ToolsBin | Out-Null
     }
-    $genhtmlSrc = Join-Path $RuntimeDir "tools\gen_html\gen_html.py"
-    $genhtmlDst = Join-Path $ToolsBin "gen_html.py"
-    if (Test-Path $genhtmlSrc) {
-        Copy-Item -Force $genhtmlSrc $genhtmlDst
-        Log "  - gen_html/gen_html.py -> bin/gen_html.py"
+    $toolsRoot = Join-Path $RuntimeDir "tools"
+    Get-ChildItem -Path $toolsRoot -Directory | ForEach-Object {
+        $pkgDir = $_.FullName
+        $pkgName = $_.Name
+        if ($pkgName -eq 'bin') { return }
+
+        $buildPs = Join-Path $pkgDir "build.ps1"
+        $buildSh = Join-Path $pkgDir "build.sh"
+        $entry   = Join-Path $pkgDir "$pkgName.py"
+
+        if (Test-Path $buildPs) {
+            Log "  - build $pkgName (build.ps1)"
+            $env:BIN_DIR = $ToolsBin
+            $env:PACKAGE_DIR = $pkgDir
+            try {
+                & powershell -NoProfile -ExecutionPolicy Bypass -File $buildPs
+                if ($LASTEXITCODE -ne 0) { throw "build.ps1 exit $LASTEXITCODE" }
+            } catch {
+                Log "  x build.ps1 failed for $pkgName : $_"
+                throw
+            } finally {
+                Remove-Item Env:BIN_DIR, Env:PACKAGE_DIR -ErrorAction SilentlyContinue
+            }
+        }
+        elseif ((Test-Path $buildSh) -and (Get-Command bash -ErrorAction SilentlyContinue)) {
+            Log "  - build $pkgName (build.sh via bash)"
+            $env:BIN_DIR = $ToolsBin
+            $env:PACKAGE_DIR = $pkgDir
+            try {
+                bash $buildSh
+                if ($LASTEXITCODE -ne 0) { throw "build.sh exit $LASTEXITCODE" }
+            } catch {
+                Log "  x build.sh failed for $pkgName : $_"
+                throw
+            } finally {
+                Remove-Item Env:BIN_DIR, Env:PACKAGE_DIR -ErrorAction SilentlyContinue
+            }
+        }
+        elseif (Test-Path $entry) {
+            $dst = Join-Path $ToolsBin "$pkgName.py"
+            Copy-Item -Force $entry $dst
+            Log "  - $pkgName/$pkgName.py -> bin/$pkgName.py"
+        }
     }
 }
 

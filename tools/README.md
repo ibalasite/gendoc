@@ -153,39 +153,79 @@ cd docs/pages && python3 -m http.server 8761
 3. git commit + push                         ← 必須先 push 到 remote
 4. user runs ./setup upgrade (或 SessionStart hook 自動觸發)
    └── bash setup → _deploy_tools()
-       └── cp tools/<package>/<entry>.py → tools/bin/<entry>.py
+       └── 依 package 內檔自動選兩種模式之一（見下）
 5. ~/.claude/skills/gendoc/tools/bin/<entry>.py 變新版
 ```
 
-對應 `setup` 內部：
+### 兩種部署模式（per-package 自動選）
+
+`_deploy_tools()` 對 `tools/<package>/` 每個目錄做：
+
+| 條件 | 行為 |
+|---|---|
+| **`build.sh`（or `build.ps1` on Windows）存在** | 執行該 script，由 script 自行決定產物。適合需要 compile / minify / bundle / 多檔合併 的 package。|
+| **否則** | 套 convention：`cp tools/<package>/<package>.py → tools/bin/<package>.py`。適合單檔 Python script。|
+
+### 寫 `build.sh` 的契約
+
+build.sh 拿到的環境變數：
+
+| 變數 | 內容 |
+|---|---|
+| `PACKAGE_DIR` | 自己 package 的絕對路徑（如 `/Users/.../gendoc/tools/myalign/`）|
+| `BIN_DIR` | 部署目標的絕對路徑（如 `/Users/.../gendoc/tools/bin`）|
+
+範例（壓縮 + 加 build header）：
 
 ```bash
-# setup line 118-133 (bash) / setup.ps1 line 51-64 (powershell)
-_deploy_tools() {
-  log "[deploy] 部署 tools/<package>/ 源碼至 $RUNTIME_DIR/tools/bin/"
-  if [[ -f "$RUNTIME_DIR/tools/dryrun_core/dryrun_core.py" ]]; then
-    cp "$RUNTIME_DIR/tools/dryrun_core/dryrun_core.py" "$RUNTIME_DIR/tools/bin/dryrun_core.py"
-  fi
-  if [[ -f "$RUNTIME_DIR/tools/gen_html/gen_html.py" ]]; then
-    cp "$RUNTIME_DIR/tools/gen_html/gen_html.py" "$RUNTIME_DIR/tools/bin/gen_html.py"
-  fi
-}
+#!/usr/bin/env bash
+# tools/myalign/build.sh
+set -e
+echo "  [myalign] building..."
+{
+  echo "# Auto-built $(date -u +%Y-%m-%dT%H:%M:%SZ) — do not edit"
+  python3 -c "
+import re, sys
+src = open('$PACKAGE_DIR/myalign.py').read()
+# 範例：剝掉 inline test 區塊
+src = re.sub(r'^# === inline tests ===.*\$', '', src, flags=re.S | re.M)
+sys.stdout.write(src)
+"
+} > "$BIN_DIR/myalign.py"
+chmod +x "$BIN_DIR/myalign.py"
+echo "  [myalign] wrote $BIN_DIR/myalign.py"
 ```
 
-### 加一個新 package（例：`tools/myalign/myalign.py`）
+需求：build.sh 自己**負責把 artifact 寫進 `$BIN_DIR/`**；setup 不會幫你 cp。
+exit code 非 0 視為失敗，整個 setup 中止。
+
+### Windows: `build.ps1`
+
+如有（優先用 `build.ps1`），同 contract（環境變數一樣）。
+若只有 `build.sh` 而 user 機器有 `bash`（Git Bash / WSL），setup.ps1
+會用 bash 執行 `build.sh`。
+
+### 加一個新 package（不需 build）
+
+例：`tools/myalign/myalign.py`，單檔 Python script
 
 1. 建 `tools/myalign/myalign.py` + `tools/myalign/tests/test_*.py` + `pytest.ini`
-2. 改 `setup`（bash + ps1）的 `_deploy_tools()`：
-
-   ```bash
-   if [[ -f "$RUNTIME_DIR/tools/myalign/myalign.py" ]]; then
-     cp "$RUNTIME_DIR/tools/myalign/myalign.py" "$RUNTIME_DIR/tools/bin/myalign.py"
-   fi
-   ```
-
+2. **不用** 改 `setup` — 自動掃 `tools/*/` 並按 convention 套 cp
 3. 改對應 skill（`skills/gendoc-myalign/SKILL.md`）讓它呼叫 `bin/myalign.py`
 4. commit + push
 5. user `./setup upgrade`
+
+### 加一個新 package（需 build）
+
+例：`tools/mybundler/` 多檔合成單一 bundled output
+
+1. 建 `tools/mybundler/` 目錄，含若干 `.py` 模組 + tests
+2. 寫 `tools/mybundler/build.sh`（或 `build.ps1`），把所需檔合成
+   `$BIN_DIR/mybundler.py`（或任意名稱）
+3. **不用** 改 `setup` — 自動偵測 `build.sh` 並執行
+4. 改對應 skill 呼叫 `bin/mybundler.py`
+5. commit + push
+6. user `./setup upgrade`
 
 ---
 
