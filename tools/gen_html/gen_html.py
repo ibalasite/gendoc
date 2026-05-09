@@ -2618,6 +2618,34 @@ def health_section():
         '</div></div></section>'
     )
 
+def prototype_cards_section():
+    """D2: dedicated 'Prototype' section at top of index.html body.
+
+    Renders an independent <section> with its own h2 header and an index-grid
+    containing one card per scan_prototype_entries() result. Returns '' when
+    no entries.
+    """
+    entries = scan_prototype_entries(PAGES_DIR)
+    if not entries:
+        return ''
+    cards = []
+    for entry in entries:
+        cards.append(
+            f'<a class="index-card" href="{entry["href"]}">'
+            f'<span class="index-card__icon">🎮</span>'
+            f'<span class="index-card__title">{esc(entry["label"])}</span>'
+            f'</a>'
+        )
+    return (
+        '<section style="margin-top:2.5rem">'
+        '<h2 style="font-size:1rem;font-weight:600;color:var(--text-muted);'
+        'text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem">'
+        '🎮 互動 Prototype</h2>'
+        '<div class="index-grid">' + ''.join(cards) + '</div>'
+        '</section>'
+    )
+
+
 def doc_cards_section(doc_pages, server_diagrams, frontend_diagrams):
     cards = []
     for slug, label, icon in doc_pages:
@@ -2627,17 +2655,6 @@ def doc_cards_section(doc_pages, server_diagrams, frontend_diagrams):
             f'<a class="index-card" href="{slug}.html">'
             f'<span class="index-card__icon">{icon}</span>'
             f'<span class="index-card__title">{esc(label)}</span>'
-            f'</a>'
-        )
-    # D group (D5-P1): emit one index-card per interactive prototype entry so
-    # they're prominent on index.html body. Driven by scan_prototype_entries
-    # so they survive every gen_html re-run (no dependency on gen-prototype
-    # post-injection).
-    for entry in scan_prototype_entries(PAGES_DIR):
-        cards.append(
-            f'<a class="index-card" href="{entry["href"]}">'
-            f'<span class="index-card__icon">🎮</span>'
-            f'<span class="index-card__title">{esc(entry["label"])}</span>'
             f'</a>'
         )
     diag_total = len(server_diagrams) + len(frontend_diagrams)
@@ -2772,12 +2789,15 @@ def main():
 
     # index.html
     readme = BASE / "README.md"
+    proto_section_html = prototype_cards_section()
     cards = doc_cards_section(doc_pages, server_diagrams, frontend_diagrams)
     if readme.exists():
-        body = md_to_html(readme.read_text(), src_dir=BASE) + cards + health_section()
+        body = (md_to_html(readme.read_text(), src_dir=BASE)
+                + proto_section_html + cards + health_section())
     else:
         body = (f'<h1>{APP_NAME} 文件中心</h1>'
-                '<p>請從左側導覽列選擇文件。</p>' + cards + health_section())
+                '<p>請從左側導覽列選擇文件。</p>'
+                + proto_section_html + cards + health_section())
     write_page("index.html", body, f'{APP_NAME} 文件中心', f'{APP_NAME} 文件中心', 'index', True)
 
     for s, label, p in known_doc_entries:

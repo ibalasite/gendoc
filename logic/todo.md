@@ -374,8 +374,23 @@ Status: `review` | `todo` | `running` | `done`
 | **預期解（D5-P1，user 已先選）** | `doc_cards_section` 主動呼叫 `scan_prototype_entries(PAGES_DIR)`，對每個 entry 輸出 index-card（icon=🎮，title=label，href=entry.href）。<br>實作位置：在現有 doc_pages 卡片與 UML 卡片之間插入。沒掃到 entry 時不出 card（不要硬寫死）。|
 | **Test case** | 1. `test_D_index_has_prototype_cards_when_pages_prototype_exists`：fixture 含 `pages/prototype/index.html` → index.html 含 `<a class="index-card" href="prototype/index.html">...UI Prototype...</a>`<br>2. `test_D_no_proto_card_when_no_prototype_dir`：`pages/prototype/` 不存在 → index.html 不含任何 `prototype/*/index.html` 連結卡片<br>3. `test_D_multiple_prototype_entries_each_get_card`：fixture 含 `pages/prototype/index.html` + `pages/prototype/api-explorer/index.html` + `pages/prototype/admin/index.html` → index.html 有 3 張 prototype card<br>4. `test_D_proto_cards_survive_regen`：跑 gen_html 兩次 → 第二次 index.html 仍有 prototype cards（不消失）<br>5. `test_D_proto_cards_no_nested_a`：產出的 prototype card 不含 nested `<a><a>`（A1 regression guard）|
 | **不影響其他 case** | doc_pages / UML cards 不變；index.html 其他 sections 不動 |
-| **驗收對應** | A、B、C、D、E |
-| **Status** | **done** ✅（5 test 全綠，265/265 全綠；視覺驗證 pet body 出現 🎮 UI Prototype / 🎮 Admin Prototype / 🎮 API Explorer 三張卡片）|
+| **驗收對應** | A、B、C |
+| **Status** | **partial** ⚠️（5 test 鎖了「卡片有出現」但**位置不對**：摻在 doc_pages 結尾不夠「明顯位置」。D2 補強位置）|
+
+---
+
+## # D2. Prototype cards 放成獨立 section 在 index 最前面
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | D 把 prototype cards 摻進 doc_cards_section 結尾（在文件卡片之間），不符合 user 原話「**明顯位置**有 UI Prototype / API Explorer 可點擊曝光」（M1 驗收 A、B）。歷史 commit `8517c6b` 是獨立 `<div class="index-grid">` 純放 prototype 卡片|
+| **證據** | `d_pet_prototype_cards.png` 截圖：3 張 prototype card 在 doc cards 第二列尾，需要 user 滾動才看到，而非「明顯位置」|
+| **對齊核心目標** | 3. 表達（prototype 是核心交付物，應獨立顯眼）+ 4. 不誤會（混在文件卡片中讓 user 以為它跟 .md 文件同類）|
+| **預期解** | <br>1. 抽 `prototype_cards_section()` 函式，輸出獨立 `<section>` 含 h2 標題（如「🎮 互動 Prototype」）+ 自己的 `index-grid` 含 prototype cards<br>2. `doc_cards_section` 拿掉 prototype cards 邏輯（D 階段加的那段）<br>3. `main()` 寫 index.html 時順序：README → **prototype_cards_section** → doc_cards_section → health<br>4. 沒掃到 entry 時 `prototype_cards_section()` 回 ''（空字串）不渲染 h2 |
+| **Test case** | 1. `test_D2_proto_section_has_h2_header`：fixture 含 prototype → index.html 含 `<section>...<h2>...互動 Prototype...</h2>`<br>2. `test_D2_proto_cards_in_dedicated_section`：prototype cards 在獨立 section 內，而非 doc_cards_section 的「文件導覽」section<br>3. `test_D2_proto_section_before_doc_section`：prototype section 在 index.html 中**位置早於**「文件導覽」section（DOM 順序）<br>4. `test_D2_no_proto_section_when_no_prototype`：`pages/prototype/` 不存在 → index.html 不含「互動 Prototype」h2<br>5. `test_D2_doc_cards_no_longer_contain_proto`：fixture 含 prototype → 「文件導覽」section 內**沒有** `href="prototype/...`（已抽出去）|
+| **不影響其他 case** | health section 不變；diagram cards 仍在 doc_cards_section |
+| **驗收對應** | A、D、E（補 D 沒解的「位置」軸）|
+| **Status** | **done** ✅（5 test 全綠，270/270 全綠；視覺驗證 pet body 順序：README → 🎮 互動 PROTOTYPE 獨立 section 含 3 card → 文件導覽 → 健康狀態）|
 
 ---
 

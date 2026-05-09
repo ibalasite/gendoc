@@ -863,6 +863,91 @@ def test_D_proto_cards_survive_regen():
             'prototype index-card disappeared on second run (D5 regression!)'
 
 
+# ─── D2: prototype 獨立 section + 位置在最前 ──────────────────────────
+
+def test_D2_proto_section_has_h2_header():
+    """fixture 含 prototype → index.html 含獨立 <section> 帶 h2 含「互動 Prototype」."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/pages/prototype/index.html': '<h1>x</h1>',
+    }
+    with _temp_project(layout):
+        gh.main()
+        idx = (gh.PAGES_DIR / 'index.html').read_text()
+        assert '互動 Prototype' in idx, f'expected 「互動 Prototype」h2 header'
+
+
+def test_D2_proto_cards_in_dedicated_section():
+    """prototype cards 出現在獨立 section（不在「文件導覽」section 內）."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/pages/prototype/index.html': '<h1>x</h1>',
+    }
+    with _temp_project(layout):
+        gh.main()
+        idx = (gh.PAGES_DIR / 'index.html').read_text()
+        # Anchor on the body h2 文件導覽 (not the sidebar aria-label)
+        doc_h2_idx = idx.find('>文件導覽</h2>')
+        assert doc_h2_idx >= 0
+        doc_section_end = idx.find('</section>', doc_h2_idx)
+        doc_section = idx[doc_h2_idx:doc_section_end]
+        assert 'href="prototype/' not in doc_section, \
+            f'prototype card should NOT be in 文件導覽 section; doc section: {doc_section[:600]}'
+
+
+def test_D2_proto_section_before_doc_section():
+    """prototype section 在 body 中早於「文件導覽」section."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/pages/prototype/index.html': '<h1>x</h1>',
+    }
+    with _temp_project(layout):
+        gh.main()
+        idx = (gh.PAGES_DIR / 'index.html').read_text()
+        # Anchor on body h2 (not sidebar aria-label)
+        proto_h2 = idx.find('>🎮 互動 Prototype</h2>')
+        doc_h2 = idx.find('>文件導覽</h2>')
+        assert proto_h2 >= 0 and doc_h2 >= 0, \
+            f'h2 anchors not found: proto={proto_h2}, doc={doc_h2}'
+        assert proto_h2 < doc_h2, \
+            f'互動 Prototype h2 should appear BEFORE 文件導覽 h2 (proto@{proto_h2} doc@{doc_h2})'
+
+
+def test_D2_no_proto_section_when_no_prototype():
+    """pages/prototype/ 不存在 → index.html 不含 互動 Prototype h2."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+    }
+    with _temp_project(layout):
+        gh.main()
+        idx = (gh.PAGES_DIR / 'index.html').read_text()
+        assert '互動 Prototype' not in idx, \
+            'should not emit 互動 Prototype section when no prototype/'
+
+
+def test_D2_doc_cards_no_longer_contain_proto():
+    """fixture 含 prototype → 「文件導覽」section 不再含 prototype cards."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/pages/prototype/index.html': '<h1>x</h1>',
+    }
+    with _temp_project(layout):
+        gh.main()
+        idx = (gh.PAGES_DIR / 'index.html').read_text()
+        # Anchor on body h2
+        doc_h2_idx = idx.find('>文件導覽</h2>')
+        assert doc_h2_idx >= 0
+        doc_section_end = idx.find('</section>', doc_h2_idx)
+        doc_section = idx[doc_h2_idx:doc_section_end]
+        assert '🎮' not in doc_section, \
+            f'文件導覽 section should not contain 🎮 prototype cards anymore'
+
+
 def test_D_proto_cards_no_nested_a():
     """產出的 prototype card 不含 nested <a><a> (A1 regression guard)."""
     layout = {
@@ -935,6 +1020,11 @@ def main() -> int:
         ('D_no_proto_card_when_no_prototype_dir', test_D_no_proto_card_when_no_prototype_dir),
         ('D_multiple_prototype_entries_each_get_card', test_D_multiple_prototype_entries_each_get_card),
         ('D_proto_cards_survive_regen', test_D_proto_cards_survive_regen),
+        ('D2_proto_section_has_h2_header', test_D2_proto_section_has_h2_header),
+        ('D2_proto_cards_in_dedicated_section', test_D2_proto_cards_in_dedicated_section),
+        ('D2_proto_section_before_doc_section', test_D2_proto_section_before_doc_section),
+        ('D2_no_proto_section_when_no_prototype', test_D2_no_proto_section_when_no_prototype),
+        ('D2_doc_cards_no_longer_contain_proto', test_D2_doc_cards_no_longer_contain_proto),
         ('D_proto_cards_no_nested_a', test_D_proto_cards_no_nested_a),
     ]
     passed = failed = 0
