@@ -138,6 +138,11 @@ upstream-alignment:
 **Risk**: 無資料模型，SCHEMA.md 撰寫者無設計依據，資料庫設計與業務需求不一致，後期 migration 成本高。
 **Fix**: 補充核心 ER Diagram（Mermaid erDiagram），至少涵蓋 PRD P0 功能的主要 Entity，並說明主要 Index 設計依據（查詢模式）。
 
+#### [HIGH] 11b — 資料表 / Redis key 呈現格式雙段式違反（issue I3）
+**Check**: EDD 中任何 schema-like 區塊（§5.5 資料模型、§3.4 BC Schema Ownership 引用、§6.3 資料生命週期 storage 等）若列出 PostgreSQL 表 / Redis key / cache 結構，是否都遵守「**欄位/key 說明 markdown table 先、語法 (CREATE TABLE / SET / ZADD ...) 後**」的順序？逐一檢查：(1) 是否有只給 SQL/CLI 沒給說明 table 的；(2) 是否有只給 table 沒給語法的；(3) 順序是否反了（先語法後 table）。
+**Risk**: 讀者只看到 SQL 或 table 之一，要在語法跟說明間切換閱讀；HTML 渲染後 PostgreSQL section 是純語法清單，與 Redis section 的 table 呈現不一致，造成認知切換成本與資訊缺漏。
+**Fix**: 對每個違反的 schema-like 區塊：(1) 補上缺少的「欄位/key 說明 markdown table」（必填 5 欄：欄位名 / 型別 / Nullable / 預設值 / 說明）；(2) 補上缺少的對應語法區塊；(3) 確保兩者**同時存在且順序為說明先、語法後**。詳細生成規則見 SCHEMA.gen.md Part 2 / Part 4.5。
+
 #### [MEDIUM] 12 — 錯誤處理與降級策略未定義
 **Check**: EDD 是否說明系統的錯誤處理策略（錯誤碼規範、Retry 策略、Circuit Breaker）和降級方案（當外部服務不可用時的行為）？完全未提及降級策略視為 MEDIUM。
 **Risk**: 降級策略缺失，外部依賴不可用時系統整體崩潰，而非優雅降級，影響 SLO 達成率。

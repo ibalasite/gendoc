@@ -1071,6 +1071,15 @@ Feature: <功能名稱>
 
 > 詳細欄位定義與 CREATE TABLE SQL 見 SCHEMA.md（由 gendoc-gen-schema 產出）。
 
+**呈現格式強制（issue I3）**：
+EDD 中**任何 schema-like 區塊**（含本章 §5.5、§3.4 BC Schema Ownership 引用、
+§6.3 資料生命週期 storage 結構等）若列出資料表 / Redis key / cache 結構，
+**強制兩段式順序**：
+1. 先給「欄位/key 說明 markdown table」（必填欄：欄位名 / 型別 / 必填 / 預設值 / 說明）
+2. 再給對應的語法區塊（CREATE TABLE / SET / ZADD ...）
+
+不得只給 SQL / table 程式碼而沒有說明，也不得只給說明 table 而沒有對應語法。
+
 **§5.5-A Admin RBAC 資料模型（has_admin_backend=true 時必填）**
 
 若 `_ADMIN_FRAMEWORK != "none"`，在此章節加入 Admin RBAC Entity 設計：

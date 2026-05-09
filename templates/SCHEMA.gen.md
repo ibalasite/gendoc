@@ -115,9 +115,14 @@ Data Retention & GDPR Lifecycle Policy（§17）、Database Observability & Heal
 
 ## Part 2：每張資料表說明文件生成規則
 
-每張表必須包含以下格式：
+每張資料表的呈現**強制兩段式順序**（issue I3 要求）：
 
-**欄位說明表格（必填欄：欄位、型別、Nullable、預設值、說明）**
+### Part 2.A — 欄位說明 markdown table（**先呈現**）
+
+每張表必有一張 markdown table，必填 5 欄：
+
+| 欄位 | 型別 | Nullable | 預設值 | 說明 |
+|------|------|---------|--------|------|
 
 **標準欄位（每張表必備）：**
 - `id`：UUID，PRIMARY KEY，`DEFAULT gen_random_uuid()`
@@ -134,6 +139,13 @@ Data Retention & GDPR Lifecycle Policy（§17）、Database Observability & Heal
 **安全注意（PII 欄位標記）：**
 - 標記所有 PII 欄位及其加密要求（AES-256-GCM）
 - 密碼 hash 欄位：bcrypt（cost ≥ 12），永不儲存明文
+
+### Part 2.B — CREATE TABLE SQL（**後呈現**）
+
+緊接在欄位說明之後，給對應的 `CREATE TABLE` SQL（規則見 Part 3）。
+
+> **絕對禁止**：只給 SQL 不給說明 table；或只給說明 table 不給 SQL。
+> 兩者必須**同時存在**且**說明先、SQL 後**。
 
 ---
 
@@ -184,6 +196,48 @@ $$ LANGUAGE plpgsql;
 3. JOIN 查詢（左外連接 + 條件過濾）
 4. 寫入操作（INSERT + ON CONFLICT DO UPDATE）
 5. 軟刪除操作（UPDATE SET deleted_at = NOW()）
+
+---
+
+## Part 4.5：Redis Key Schema 生成規則
+
+對每個 Redis key pattern / data structure，**強制兩段式順序**（issue I3，與 PostgreSQL 一致）：
+
+### Part 4.5.A — Key 說明 markdown table（**先呈現**）
+
+每組 key（依 §4.x 子章節分組：rate limit / matchmaking / session / leaderboard / config cache 等）都有一張 markdown table：
+
+| Key Pattern | Type | TTL | Value | Notes |
+|-------------|------|-----|-------|-------|
+
+- **Key Pattern**：含模板變數（如 `rl:claim:{email_hash}`）
+- **Type**：`String` / `Hash` / `List` / `Set` / `Sorted Set` / `Stream` / `Bitmap` / `HyperLogLog`
+- **TTL**：秒數 + 對應 constants 名稱（從 docs/CONSTANTS.md）
+- **Value**：值的格式（Integer / JSON / `"{petId}:{ts}"` 等）
+- **Notes**：用途、限流策略、fail-open / fail-closed 行為
+
+### Part 4.5.B — Redis CLI 命令範例（**後呈現**）
+
+緊接在 key 說明 table 之後，給對應的 Redis CLI 操作範例：
+
+```redis
+# 設定 rate limit counter（首次 +TTL）
+SET rl:claim:abc123hash 1 EX 3600 NX
+INCR rl:claim:abc123hash
+
+# 加入排行榜
+ZADD leaderboard:global 1234 pet_uuid_xyz
+ZRANGE leaderboard:global 0 99 REV WITHSCORES
+
+# 加入排隊
+ZADD matchmaking:queue:standard 1715000000000 "pet_uuid:1715000000000"
+ZPOPMIN matchmaking:queue:standard
+```
+
+每組 key 至少給 **2-4 個有代表性的 CLI 範例**（含 set / get / 操作 / 清理）。
+
+> **絕對禁止**：只給 table 不給 CLI 範例；或只給 CLI 不給 table。
+> 兩者必須**同時存在**且**說明先、CLI 後**。
 
 ---
 

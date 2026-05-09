@@ -134,6 +134,21 @@ CREATE TRIGGER trg_user_updated_at
 
 **說明：** {{儲存什麼資料，業務用途，與其他表的關係}}
 
+**欄位說明：** （格式強制：說明 table 先、SQL 後 — 詳見 issue I3）
+
+| 欄位 | 類型 | 必填 | 預設值 | 說明 |
+|------|------|------|--------|------|
+| id | UUID | 是 | gen_random_uuid() | 主鍵，對外暴露 |
+| name | VARCHAR(255) | 是 | — | 名稱，最長 255 字元 |
+| description | TEXT | 否 | NULL | 說明文字 |
+| status | VARCHAR(50) | 是 | 'active' | 狀態：active / inactive / archived |
+| user_id | UUID | 是 | — | 關聯使用者，軟刪除不影響外鍵 |
+| created_at | TIMESTAMPTZ | 是 | NOW() | 建立時間 |
+| updated_at | TIMESTAMPTZ | 是 | NOW() | 更新時間（trigger 自動更新）|
+| deleted_at | TIMESTAMPTZ | 否 | NULL | 軟刪除時間戳 |
+
+**CREATE TABLE：**
+
 ```sql
 CREATE TABLE {{table_name}} (
   id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -156,15 +171,6 @@ CREATE TABLE {{table_name}} (
   CONSTRAINT fk_{{table_name}}_user FOREIGN KEY (user_id) REFERENCES "user"(id)
 );
 ```
-
-**欄位說明：**
-
-| 欄位 | 類型 | 必填 | 預設值 | 說明 |
-|------|------|------|--------|------|
-| id | UUID | 是 | gen_random_uuid() | 主鍵，對外暴露 |
-| name | VARCHAR(255) | 是 | — | 名稱，最長 255 字元 |
-| status | VARCHAR(50) | 是 | 'active' | 狀態：active / inactive / archived |
-| user_id | UUID | 是 | — | 關聯使用者，軟刪除不影響外鍵 |
 
 **索引：**
 
@@ -189,6 +195,23 @@ CREATE INDEX idx_{{table_name}}_user_status
 ---
 
 ### 3.2 `user`（基礎使用者表）
+
+**欄位說明：** （格式強制：說明 table 先、SQL 後 — 詳見 issue I3）
+
+| 欄位 | 類型 | 必填 | 預設值 | 說明 |
+|------|------|------|--------|------|
+| id | UUID | 是 | gen_random_uuid() | 主鍵，對外暴露 |
+| email | VARCHAR(320) | 是 | — | 電子郵件（PII，加密 + LOWER 唯一性） |
+| is_email_verified | BOOLEAN | 是 | FALSE | 是否驗證 |
+| password_hash | VARCHAR(255) | 否 | NULL | bcrypt hash，cost ≥ 12，**永不儲存明文** |
+| display_name | VARCHAR(100) | 否 | NULL | 顯示名稱 |
+| avatar_url | TEXT | 否 | NULL | 頭像 URL |
+| last_login_at | TIMESTAMPTZ | 否 | NULL | 最後登入時間 |
+| created_at | TIMESTAMPTZ | 是 | NOW() | 建立時間 |
+| updated_at | TIMESTAMPTZ | 是 | NOW() | 更新時間 |
+| deleted_at | TIMESTAMPTZ | 否 | NULL | 軟刪除時間戳 |
+
+**CREATE TABLE：**
 
 ```sql
 CREATE TABLE "user" (

@@ -159,6 +159,20 @@ upstream-alignment:
 
 ---
 
+### Layer 7: 呈現格式雙段式（issue I 群，由 Database Architect 主審，共 2 項）
+
+#### [HIGH] 21 — PostgreSQL 表沒有「欄位說明 markdown table」
+**Check**: SCHEMA §3.x 每張 PostgreSQL `CREATE TABLE` 區塊**前面**是否都有對應的「欄位說明 markdown table」（必填 5 欄：欄位名 / 型別 / Nullable / 預設值 / 說明）？逐一檢查每張表，列出只有 SQL 沒有說明 table 的（包含 `id`、`created_at`、`updated_at`、`deleted_at` 等標準欄位）。SQL 跟說明 table 順序必須是「**說明 table 先、SQL 後**」。
+**Risk**: 讀者只看到 SQL 程式碼，要逐欄位讀 SQL 才能理解 schema 意義；HTML 渲染後是純語法清單，與 Redis section 的 table 呈現不一致，造成認知切換成本。
+**Fix**: 對每張缺少欄位說明的 PostgreSQL table 補上完整的 markdown table（在 SQL 區塊**之前**）；對缺少 SQL 的 table 補上 `CREATE TABLE`（在 markdown table **之後**）；確保兩者**同時存在**且順序正確。
+
+#### [HIGH] 22 — Redis Key 沒有「Redis CLI 命令範例」
+**Check**: SCHEMA §4.x（Redis Key Schema）每組 key 的「key 說明 markdown table」**之後**是否都有對應的「Redis CLI 命令範例區塊」（含 SET / GET / EXPIRE / ZADD / ZRANGE 等）？逐一檢查 §4.1 / §4.2 / §4.3 / §4.4 / §4.5 等子節，列出只有 table 沒有 CLI 範例的。每組 key 至少給 2-4 個有代表性的命令（含設定 / 讀取 / 操作 / 清理）。
+**Risk**: 實作端只看到 table 看不到 command 語法，要自行翻譯成 Redis 操作；與 PostgreSQL section 的 SQL 呈現不一致，造成認知切換成本。
+**Fix**: 對每組缺少 CLI 範例的 Redis key group 補上 ```redis 區塊，含至少 2-4 個有代表性的命令範例；確保 table + CLI 範例**同時存在**且順序為「table 先、CLI 後」。
+
+---
+
 ### Layer 6: 效能考量（由 Backend Engineer + Database Architect 聯合審查，共 4 項）
 
 #### [HIGH] 21 — Migration Plan 包含不可逆操作

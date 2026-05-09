@@ -242,6 +242,84 @@
 
 ---
 
+## I. SCHEMA / EDD 資料表呈現格式不一致（PostgreSQL vs Redis 寫法不對齊）
+
+### I1. PostgreSQL 資料表只給 SQL，沒有欄位說明表
+
+**現況**：`SCHEMA.md` §3 「資料表定義」每張 PostgreSQL 表的格式是
+**先 `CREATE TABLE` SQL，後（甚至沒有）欄位說明**。
+
+例（pet/SCHEMA.md L137-186）：
+````
+### 3.1 `claim_codes`
+
+```sql
+CREATE TABLE claim_codes (
+    id          UUID NOT NULL DEFAULT gen_random_uuid(),
+    pet_id      UUID NOT NULL REFERENCES pets(id),
+    code_hash   TEXT NOT NULL,
+    expires_at  TIMESTAMPTZ NOT NULL,
+    ...
+)
+```
+（沒有對應的欄位說明 markdown table）
+````
+
+**問題**：HTML 渲染後 user 看到的只是 SQL 程式碼，要逐欄位讀 SQL 才知道
+意義。SQL 是「實作面」，不是「閱讀面」。
+
+### I2. Redis Key 只給表格，沒給命令語法
+
+**現況**：`SCHEMA.md` §4 「Redis Key Schema」每個 key 的格式是
+**只有 markdown table（Key Pattern / TTL / Value / Notes），沒給 Redis CLI 命令範例**。
+
+例（pet/SCHEMA.md L731-737）：
+```
+| Key Pattern | TTL | Value | Notes |
+|-------------|-----|-------|-------|
+| `rl:claim:{email_hash}` | 3600 s | Integer attempt count | ... |
+```
+（沒有對應 `SET / EXPIRE / ZADD` 等 command 範例）
+
+**問題**：實作端只有 table 看不到 command 語法，要自行翻譯成 Redis 操作。
+
+### I3. 期望（user 拍板）：兩者都要「**欄位說明 → 然後 syntax**」
+
+對 PostgreSQL 表 與 Redis key，兩者**都採同一順序**：
+
+```
+1. 欄位/Key 說明 markdown table（必填欄：欄位名 / 型別 / Nullable /
+   預設值 / 說明）
+2. 該 table/key 對應的語法區塊（CREATE TABLE / SET / ZADD ...）
+```
+
+理由：
+- HTML 渲染後 user **同時看得到表格（閱讀）跟語法（實作）**，不用
+  在語法跟說明間切換
+- PostgreSQL 跟 Redis 兩種儲存層的呈現方式一致，避免認知切換成本
+
+### I4. 同樣規則套用到 EDD 內任何 schema-like 區塊
+
+EDD 文件中若引用 schema-style 內容（如 §3.4 BC Schema Ownership table、
+§4.x 模組內列出 entity/table、§6.3 資料生命週期含 storage 結構等），
+**任何時候列出資料表/Redis key 都遵守「說明表 → 然後語法」順序**，
+不要只給 SQL 或只給 table。
+
+### I5. 修法切片
+
+| 檔案 | 改什麼 |
+|---|---|
+| `templates/SCHEMA.gen.md` Part 2 + Part 3 | 改成「欄位說明 → 然後 SQL」明確順序；新增 Part 對 Redis key 加「key 說明 → 然後 command 範例」|
+| `templates/SCHEMA.review.md` | 新增 finding：**`[HIGH] PostgreSQL 表沒欄位說明表`** + **`[HIGH] Redis key 沒 command 範例`** |
+| `templates/SCHEMA.md` | §3.1 / §3.2 範例改成新順序；§4.x（如有）加範例 |
+| `templates/EDD.gen.md` | 在「§3.4 / §4.x / §6.3 schema 引用區塊」說明：列 table/key 一律 dual format |
+| `templates/EDD.review.md` | 加對應 finding（同 SCHEMA review）|
+
+預期執行 `gendoc-flow EDD` / `gendoc-flow SCHEMA` 時，review subagent
+會列出缺漏並 fix subagent 補上 missing 欄位說明 / 缺的語法區塊。
+
+---
+
 # 待補實查（未列入主清單的不確定項）
 
 | 項 | 待查內容 |
