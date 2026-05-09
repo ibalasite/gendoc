@@ -221,23 +221,24 @@
 
 ---
 
-## H. 額外發現（清查中）
+## H. 額外發現  ✅ **全部 RESOLVED 或 DEFERRED**
 
-### H1. pet/pages 有 22 個 stale HTML 檔
+### ~~H1.~~ pet/pages 有 22 個 stale HTML 檔  ✅ deferred (user 政策「舊的不砍」)
 
-- **事實**：來源 `.md` 已不存在，但 HTML 仍留存。
-- **證據**：腳本檢查共 22 個（含 `admin-dashboard.html`、`player-arena.html`、9 個 cicd 舊圖、5 個 puml 舊圖等）。
-- **根因**：gen_html 不會清舊 HTML，重生時 .md 已刪但 HTML 仍在。
+- **原**：來源 `.md` 已不存在，但 HTML 仍留存（22 個）
+- **user 政策**（B/E 群已確認）：「gen_html 不用管 docs/*.md 是真的還是假的，他就是照轉，這樣才能通用，若是有問題我自己會去 rm error .md」
+- 結論：**無 fix 工作**；user 自行手動 rm 即可
 
-### H2. erp/pages 也有 stale HTML（待清點）`[未實查]`
+### ~~H2.~~ erp/pages 也有 stale HTML  ✅ deferred (同 H1)
 
-- **事實**：erp 也有歷史殘留，但未細數。
-- **驗證需要**：跑與 pet 相同的腳本。
+- **原**：erp 71 個 HTML，部分為歷史殘留
+- 同 H1 政策
 
-### H3. erp sidebar 沒 `diagrams/` 折疊群
+### ~~H3.~~ erp sidebar 沒 `diagrams/` 折疊群  ✅ resolved by B5/B8
 
-- **事實**：因為 `diag-*.html` flat 在 root，不會被 subdir scan 收進折疊群。
-- **根因**：同 B1，flat 命名導致 sidebar 無法分群。
+- **原**：flat 命名導致 sidebar 無法分群
+- **現**：sandbox-erp 重生後 `📁 DIAGRAMS/` 折疊群完整，內含 Server UML / Frontend UML + Activity/Class/Sequence/State/CI/CD/其他 6 個 prefix sub-groups
+- 證據：`h3_erp_sidebar_diagrams_folding.png`
 
 ---
 

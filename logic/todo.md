@@ -558,6 +558,22 @@ G 群結案。
 
 ---
 
+# ════════════════════════════════════════════════
+# H 群（額外發現）
+# ════════════════════════════════════════════════
+
+## 全部 done
+
+| # | 子題 | 狀態 |
+|---|---|---|
+| **H1** | pet/pages 有 22 個 stale HTML | ✅ deferred — user 政策「舊的不砍」（B/E 群已確認），自己手動 rm |
+| **H2** | erp/pages 也有 stale HTML | ✅ deferred — 同 H1 |
+| **H3** | erp sidebar 沒 `diagrams/` 折疊群 | ✅ resolved by B5/B8 — sandbox-erp 重生後 `📁 DIAGRAMS/` 折疊群完整（截圖 `h3_erp_sidebar_diagrams_folding.png`）|
+
+H 群無新 fix 工作。
+
+---
+
 ## B 群決策點（彙總，等 user 拍板）
 
 | # | 議題 | 我的建議 |
