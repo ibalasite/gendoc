@@ -98,7 +98,7 @@ Status: `review` | `todo` | `running` | `done`
 | **Test case** | 1. `test_css_table_padding_increased`：含 `padding: 0.75rem 0.875rem`<br>2. `test_css_table_row_border_strong`：td border 改 `#cbd5e1`<br>3. `test_css_table_thead_emphasized`：th border-bottom `2px solid #94a3b8`<br>4. `test_css_table_no_invalid_border_radius`：`.umock__table` rule 不含 `border-radius`<br>5. **視覺驗證 + 寬度檢查**：跑 erp/pdd.html，確認 table 不溢出 sidebar 區（用 Playwright bbox） |
 | **不影響其他 case** | 不動 markdown 一般 table；不動 .umock__pagination |
 | **驗收對應** | C（table cell padding 足夠、列分隔明顯、thead 突出）|
-| **Status** | **todo** |
+| **Status** | **done** ✅（4 test 全綠，214/214 全綠；視覺驗證待 user 看截圖）|
 
 ---
 

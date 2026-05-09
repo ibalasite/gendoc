@@ -219,10 +219,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       border-radius: 4px; overflow-x: auto; font-size: 0.8rem;
       font-family: ui-monospace, "SF Mono", Consolas, monospace; }
     .umock__code code { background: none; color: inherit; padding: 0; }
-    .umock__table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.875rem; }
-    .umock__table th, .umock__table td { padding: 0.5rem 0.625rem; text-align: left;
-      border-bottom: 1px solid #e2e8f0; }
-    .umock__table th { background: #f8fafc; font-weight: 600; color: #334155; }
+    .umock__table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.9rem; }
+    .umock__table th, .umock__table td { padding: 0.75rem 0.875rem; text-align: left;
+      border-bottom: 1px solid #cbd5e1; }
+    .umock__table th { background: #f8fafc; font-weight: 600; color: #334155;
+      border-bottom: 2px solid #94a3b8; }
     .umock__pagination { padding: 0.5rem 0; color: #64748b; font-size: 0.8rem; text-align: right; }
     .umock__tabs { display: flex; gap: 0.5rem; padding: 0.25rem 0; border-bottom: 1px solid #e2e8f0; }
     .umock__tab { padding: 0.375rem 0.75rem; color: #475569; font-size: 0.875rem;

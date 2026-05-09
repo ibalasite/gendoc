@@ -278,6 +278,50 @@ def test_A3_title_bar_border_strong():
     )
 
 
+# ─── A4: table padding / border 加深 ─────────────────────────────────────
+# 對齊核心目標 1. 清楚 — table 行可區分、thead 突出。
+# scope 限 .umock__table，不影響一般 markdown table。
+
+def test_A4_table_padding_increased():
+    css = _read_gen_html_css()
+    assert 'padding: 0.75rem 0.875rem' in css, (
+        '.umock__table cell padding should be 0.75rem 0.875rem'
+    )
+
+
+def test_A4_table_row_border_strong():
+    css = _read_gen_html_css()
+    # th/td common rule — row border now uses #cbd5e1 (was #e2e8f0)
+    # We accept the literal "1px solid #cbd5e1" appearing in the umock__table cell rule
+    # by checking that the cell rule line follows the new pattern.
+    assert 'border-bottom: 1px solid #cbd5e1' in css, (
+        '.umock__table td border-bottom should darken to #cbd5e1'
+    )
+
+
+def test_A4_table_thead_emphasized():
+    css = _read_gen_html_css()
+    # th separately gets a 2px solid #94a3b8 border-bottom override.
+    assert 'border-bottom: 2px solid #94a3b8' in css, (
+        '.umock__table th border-bottom should be 2px solid #94a3b8'
+    )
+
+
+def test_A4_table_no_invalid_border_radius():
+    """border-radius 在 border-collapse: collapse 表格上不會生效，移除避免誤導。"""
+    css = _read_gen_html_css()
+    # We don't ban border-radius globally (badge / card use it). We check the
+    # specific .umock__table rule line doesn't carry it.
+    import re as _re
+    m = _re.search(r'\.umock__table\s*\{[^}]*\}', css)
+    assert m, '.umock__table rule not found'
+    table_rule = m.group(0)
+    assert 'border-radius' not in table_rule, (
+        f'.umock__table should not declare border-radius (collapsed table ignores it): '
+        f'{table_rule}'
+    )
+
+
 # ─── A5: mock 元件不可 focus（P4 — tabindex="-1"） ────────────────────────
 # Mock 是文件展示用，加 tabindex="-1" 讓 Tab 鍵跳過 → focus ring 永遠不出現。
 # 對齊核心目標 4. 不誤會（default 按鈕不會因 focus 看起來像 primary）。
@@ -354,6 +398,10 @@ def main() -> int:
         ('table_cells_escaped', test_table_cells_escaped),
         ('A3_card_outer_border_strong', test_A3_card_outer_border_strong),
         ('A3_title_bar_border_strong', test_A3_title_bar_border_strong),
+        ('A4_table_padding_increased', test_A4_table_padding_increased),
+        ('A4_table_row_border_strong', test_A4_table_row_border_strong),
+        ('A4_table_thead_emphasized', test_A4_table_thead_emphasized),
+        ('A4_table_no_invalid_border_radius', test_A4_table_no_invalid_border_radius),
         ('A5_button_tabindex', test_A5_button_renders_tabindex_minus_one),
         ('A5_button_default_tabindex', test_A5_button_default_variant_also_tabindex),
         ('A5_input_tabindex', test_A5_input_renders_tabindex_minus_one),
