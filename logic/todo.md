@@ -513,6 +513,51 @@ Status: `review` | `todo` | `running` | `done`
 
 ---
 
+# ════════════════════════════════════════════════
+# G 群（lightbox / PUML 修正 / .md link rewriter）
+# ════════════════════════════════════════════════
+
+## 主問題（user 視角）
+
+> **使用者重點**：
+> 1. UI 線稿（DSL pyramid 等）lightbox 點下空白 — **最重要**
+> 2. PUML 出圖：要兩層防護（gen-diagrams 不生壞 + gen-html 即使壞也修到能出）
+> 3. 圖太大溢出可視範圍（後處理）
+> 4. `.md` link 沒 rewrite 成 `.html`
+
+## 已 done
+
+| 編號 | 項目 | 修法 | 實機驗證 |
+|---|---|---|---|
+| **G-Q2** | lightbox cloned diagram 空白 | inline `<style>` 加 lightbox-scoped CSS，cloned `.diagram-container` 顯式 `width: 80vw; max-width: 1400px; min-width: 60vw`；SVG `width: 100%, height: auto` | ✅ erp/frontend 點 pyramid → 1024×472 container, 974×422 SVG, 3 polygons 全顯示 |
+| **G-Q1b** | gen-html 自動修壞 PUML | 新增 `_puml_autofix(text)` 套 3 條規則：1) `par/and→else`；2) arrow `\|label\|` 移除；3) `!define NAME #HEX` 展開。`_plantuml_to_svg` 第一次 server 失敗 → autofix 後重試 | ✅ pet/edd.html 修前 2 fail/7 ok → 修後 0 fail/9 ok；4 個 .puml 檔修前 4 fail → 修後 4 ok |
+| **G-Q4** | rewriter bare `.md` → `.html` | rewrite_pages_paths 加 fallback 規則：bare `X.md` / `./X.md` 結尾的 target，改 lowercase + `.html`，pages 有對應檔則改寫，否則 strip | ✅ pet 8 + erp 16 個壞 .md href 全部清零 |
+
+**測試**：283 → 298（+15）全綠。
+
+## 全部 done
+
+| 編號 | 項目 | 修法 | Commit |
+|---|---|---|---|
+| **G-Q2** | UI Mock DSL pyramid lightbox 空白 | inline `<style>` 加 lightbox cloned diagram 顯式寬度 | `bccc935` |
+| **G-Q1b** | gen-html 自動修壞 PUML（Layer 2）| `_puml_autofix` 套 3 條 rule + `_plantuml_to_svg` retry | `c5d1ebb` |
+| **G-Q4** | rewriter bare `.md` → `.html` | rewrite_pages_paths 加 fallback rule | `c4edb50` |
+| **G-Q5** | main.doc-content 被撐爆 | inline `<style>` 加 `min-width:0` + `pre max-width:100%` | `cdd49b7` |
+| **G-Q1a** | gendoc-gen-diagrams 預防（Layer 1）| SKILL.md 加 PUML 禁區附錄（3 條 anti-pattern + 正確寫法） | `87ca90c` |
+
+**測試**：283 → 300（+17）全綠。
+
+**實機驗證**（sandbox-pet/erp）：
+- pyramid lightbox 顯示 3 polygons（截圖 `gq2_pyramid_lightbox_fixed.png`）
+- EDD.html 9 個 PUML 全 render（修前 2 fail）
+- 4 個 .puml 檔全 render（修前 4 fail）
+- pet 8 + erp 16 個 .md link 全清零
+- main.doc-content 從 3228px → 1016px（截圖 `gq5_edd_constrained_layout.png`）
+
+G 群結案。
+
+---
+
 ## B 群決策點（彙總，等 user 拍板）
 
 | # | 議題 | 我的建議 |
