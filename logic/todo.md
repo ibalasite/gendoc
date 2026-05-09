@@ -133,3 +133,184 @@ Status: `review` | `todo` | `running` | `done`
 - 順序：A1 → A5 → A2 → A3 → A4
 - 每項：寫 test（RED）→ 改 code（GREEN）→ run all tests → commit（不 push）
 - 每項 commit 後 user 確認 → 才進下一項
+
+---
+
+# ════════════════════════════════════════════════
+# B 群（docs/**/*.md → pages/**/*.html 全面 1:1 鏡射）
+# ════════════════════════════════════════════════
+
+## 統一原則（user 在 2026-05-09 釐清）
+
+> **使用者原話**：
+> - 「docs/ 有子目錄，有些有 md 的文件，像 `blueprint/mock/xxx.md` 也是要依目錄，相對放在 `pages/xxxxxx/xxx/xxx.html`」
+> - 「.md 都是轉換目標，但其他檔不動」
+> - 「用途可以使用者閱讀，不用去翻 .md，適合多人 review 用」
+> - 「舊的不砍」
+> - 「sidebar 視覺結構，有目錄的要能折疊」
+> - 「原來不在根目錄，就不要在根目錄放」
+> - 「要跟 pages/ 下的目錄結構相同，這樣才知道對比那一份 .md」
+> - 「docs/prototype 應該是有問題的，是舊版，但剛好可以測，在 pages/ 有了 prototype，docs/prototype 能不能不破壞 pages/prototype/ 也長出三份新的 html，但原本在 pages/prototype/*.html 不破壞」
+
+**唯一規則（一句話）**：
+> **所有 `docs/**/*.md` → `pages/**/*.html`，保留相對路徑；非 `.md` 不動；sidebar 樹狀結構 = `pages/` 目錄結構（含折疊）；既有 `pages/prototype/*.html` 絕不覆寫/刪除。**
+
+**對齊核心目標**：
+- **3. 表達**：pages/ 目錄結構就是文件分類；URL `pages/blueprint/mock/X.html` 一看就知道源頭是 `docs/blueprint/mock/X.md`
+- **4. 不誤會**：URL ↔ source path 完全對得上，不會誤判分類
+
+---
+
+## B 群驗收標準
+
+- **A**. `find pages -name '*.html'` 與 `find docs -name '*.md'` 路徑一一對應（除 prototype/ 互動 HTML 例外）
+- **B**. 不再產生任何 flat slug（`diag-X.html`、`req__X.html`、`blueprint__mock-X.html`、`contracts__X.html`、`prototype__X.html`）
+- **C**. **舊的 flat HTML 不砍**（user 明確指示）；user 視覺上會看到舊 + 新雙版
+- **D**. **`pages/prototype/` 既有 HTML 絕不覆寫/刪除**
+- **E**. 跨層連結正確：
+  - 從 `pages/diagrams/X.html` 連 `pages/EDD.html` 自動寫 `../EDD.html`
+  - 從 `pages/blueprint/mock/X.html` 連 `pages/EDD.html` 自動寫 `../../EDD.html`
+- **F**. Sidebar 樹狀結構：
+  - 根目錄 .md → flat list（既有）
+  - 每個有 .md 的子目錄 → `<details>` 折疊群
+  - 巢狀子目錄 → 巢狀折疊（`📁 blueprint/` 內含 `📁 mock/`）
+  - 折疊群連結指向新 subdir 路徑
+- **G**. 既有 214 test 全綠（含 R3 系列 expected 值升級）
+
+---
+
+## # B1. 統一 scanner — slug 公式 `subdir__stem` → `subdir/stem`
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | `scan_subdirectory_docs` 用 `{subdir}__{stem}` flat slug，造成 `docs/blueprint/mock/X.md` → `pages/blueprint__mock-x.html` 全部擠在 root |
+| **證據** | gen_html.py L2334：`slug = subdir.name.lower() + '__' + str(rel).replace('/', '-').replace('\\', '-').lower()`；scan 是 rglob 已遞迴，但 slug 把路徑壓平 |
+| **對齊核心目標** | 3. 表達 + 4. 不誤會（URL ↔ source path 對應）|
+| **預期解** | slug 公式改成 `{subdir}/{rel-with-slashes-lowercase}`，保留 `/` 分隔。例：<br>- `docs/req/idea-input.md` → slug `req/idea-input`<br>- `docs/blueprint/mock/X.md` → slug `blueprint/mock/x` |
+| **Test case** | 1. `test_B1_scan_slug_preserves_slash_simple`：`docs/req/idea-input.md` → slug `req/idea-input`<br>2. `test_B1_scan_slug_preserves_slash_nested`：`docs/blueprint/mock/X.md` → slug `blueprint/mock/x`<br>3. `test_B1_scan_slug_no_double_underscore`：scan 結果中沒有任何 slug 含 `__`<br>4. `test_B1_scan_slug_lowercase`：`MOCK_SERVER_GUIDE.md` → slug 結尾為 `mock_server_guide`（lowercase 規則保留） |
+| **不影響其他 case** | `scan_prototype_entries`（互動 HTML 入口）獨立邏輯，不波及 |
+| **驗收對應** | A、B |
+| **Status** | **done** ✅（4 test 全綠，218/218 全綠）|
+
+---
+
+## # B2. `write_page` 支援巢狀子目錄（mkdir parents）
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | `write_page(filename, ...)` 直接 `out_path.write_text()`，若 filename 含 `/`（如 `blueprint/mock/x.html`）且父目錄不存在 → FileNotFoundError |
+| **證據** | gen_html.py L2599-2601：`out_path = PAGES_DIR / filename` 後直接 `write_text`，無 mkdir |
+| **對齊核心目標** | （技術前置）支撐 B1 slug 改 `/` 後仍能寫出檔案 |
+| **預期解** | `out_path.parent.mkdir(parents=True, exist_ok=True)` 加在 `write_text` 之前 |
+| **Test case** | 1. `test_B2_write_page_creates_nested_dirs`：呼叫 `write_page("a/b/c.html", ...)` 在乾淨 PAGES_DIR 上 → `pages/a/b/c.html` 寫入成功，路徑上 `a/`、`a/b/` 都被建立<br>2. `test_B2_write_page_root_unchanged`：`write_page("foo.html", ...)` 仍在 `pages/foo.html`（regression） |
+| **不影響其他 case** | root .html 寫入路徑不變 |
+| **驗收對應** | A |
+| **Status** | **todo** |
+
+---
+
+## # B3. 既有 writer site 全部改用統一 slug
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | 4 處 writer 寫死 flat naming，需全部改用 B1 的新 slug 公式 |
+| **證據** | gen_html.py：<br>- L2646 `write_page(f"diag-{stem}.html", ...)` (server_diagrams)<br>- L2650 `write_page(f"diag-{stem}.html", ...)` (frontend_diagrams)<br>- L2657 `write_page(f"{slug}.html", ...)` (subdir_docs，slug 仍是 flat) |
+| **對齊核心目標** | 3. 表達 + 4. 不誤會 |
+| **預期解** | <br>1. `server_diagrams` / `frontend_diagrams` writer：`f"diagrams/{stem}.html"`<br>2. `subdir_docs` writer：`f"{slug}.html"`（slug 已含 `/` 來自 B1）|
+| **Test case** | 1. `test_B3_diagrams_writer_subdir`：跑後 `pages/diagrams/{stem}.html` 存在<br>2. `test_B3_diagrams_writer_no_flat_diag`：跑後**沒有**新寫 `pages/diag-{stem}.html`<br>3. `test_B3_blueprint_mock_writer_subdir`：fixture `docs/blueprint/mock/X.md` → `pages/blueprint/mock/x.html` 存在<br>4. `test_B3_contracts_writer_subdir`：fixture `docs/contracts/Y.md` → `pages/contracts/y.html` 存在<br>5. `test_B3_req_writer_subdir`：fixture `docs/req/Z.md` → `pages/req/z.html` 存在；**沒有** `pages/req__z.html` |
+| **不影響其他 case** | 根目錄 .md writer (line 2620, 2624) 不動 |
+| **驗收對應** | A、B |
+| **Status** | **todo** |
+
+---
+
+## # B4. `pages/prototype/` 既有檔保護
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | `gendoc-gen-prototype` 寫互動 HTML 到 `pages/prototype/index.html`、`pages/prototype/api-explorer/index.html` 等。若 gen_html 鏡射 `docs/prototype/*.md` 不小心覆寫了 `index.html`，互動入口會被破壞 |
+| **證據** | user 原話：「pages/prototype/*.html 不破壞」；現況 `scan_subdirectory_docs` 會掃 `docs/prototype/*.md`，若新寫的 .html 與 gen-prototype 既有 .html 同名會覆寫 |
+| **對齊核心目標** | （行為承諾）不破壞下游 skill 寫的內容；間接保 4. 不誤會（互動入口若消失 user 會誤以為功能沒了）|
+| **預期解** | `write_page` 對 prototype/ 子目錄啟用「**目標檔已存在 → skip 並印 `↪ skip (preserved)`**」；其他子目錄正常覆寫。實作：<br>```python<br>if out_path.exists() and 'prototype' in out_path.relative_to(PAGES_DIR).parts:<br>    print(f"↪ skip {filename} (preserved)")<br>    return<br>``` |
+| **Test case** | 1. `test_B4_prototype_existing_html_preserved`：fixture 預存 `pages/prototype/index.html` 內容 = `MARKER-INTERACTIVE`，跑 gen_html 後內容**不變**<br>2. `test_B4_prototype_md_mirror_writes_when_target_absent`：fixture `docs/prototype/sample.md`，預先**沒有** `pages/prototype/sample.html` → 跑後**寫入**<br>3. `test_B4_prototype_md_skip_when_target_present`：fixture `docs/prototype/sample.md`，預存 `pages/prototype/sample.html` = `INTERACTIVE-VERSION` → 跑後內容**不變**<br>4. `test_B4_non_prototype_subdir_overwrites_normally`：fixture `docs/blueprint/mock/X.md` 已有 `pages/blueprint/mock/x.html`（前次 gen_html 寫的）→ 跑後**覆寫**（非 prototype，正常 regenerate） |
+| **不影響其他 case** | 非 prototype/ 子目錄 writer 行為不變（每次 gen_html 重生覆寫）|
+| **驗收對應** | D |
+| **Status** | **todo** |
+
+---
+
+## # B5. Sidebar 樹狀折疊 + diagrams 內部分區（non-clickable label）
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | <br>1. 現有 `make_sidebar` 對所有 subdir 平層處理（`<details>` 只一層），無法表達 `blueprint/mock/` 這種巢狀<br>2. `📁 diagrams/` 內動輒 30~50 個 .md，平層列表太長，user「查找有困擾」 |
+| **證據** | gen_html.py L2378-2391（subdir 只一層 details）；pet/erp diagrams/ 共 ~50 檔 |
+| **對齊核心目標** | 3. 表達（sidebar 結構 = pages/ 目錄結構）+ 1. 清楚（不是平 50 行讓 user 找） |
+| **預期解** | <br>**(a) 樹狀折疊**：`sub_docs` 從 `dict[subdir, flat-entries]` 升級為「目錄樹」；`make_sidebar` 遞迴 render：每層 subdir 一個 `<details><summary>📁 {name}/</summary>...</details>`<br>**(b) `📁 diagrams/` 內部結構（user 拍板版）**：兩層 non-clickable label，**先依 server/frontend 分大區，再依檔名 prefix 分小區**。視覺樹：<br>```<br>📁 diagrams/  ← <details><summary><br>├─ Server UML       ← label（大區，non-clickable）<br>│  ├─ Activity      ← sub-label（小區，non-clickable）<br>│  │   📐 Activity Arena Battle<br>│  │   📐 Activity Claim And Train<br>│  │   ...<br>│  ├─ Class<br>│  │   📐 Class Application<br>│  │   ...<br>│  ├─ Sequence<br>│  ├─ State<br>│  ├─ CI/CD<br>│  └─ 其他<br>│      📐 Use Case<br>│      📐 Communication<br>│      📐 Component / Deployment / ER / Object<br>├─ Frontend UML    ← label（大區）<br>│  ├─ Activity     ← sub-label（同上規則但檔名前綴是 frontend-，分群時剝掉）<br>│  ├─ Class<br>│  ├─ Sequence<br>│  ├─ State<br>│  └─ 其他<br>├─ 📁 admin/        ← 巢狀子目錄用 nested <details><br>├─ 📁 modulith/<br>└─ 📁 puml/<br>```<br>**(c) 分群規則**：<br>- Server 區：依檔名 prefix（`activity-` / `class-` / `sequence-` / `state-`(含 `state-machine-`) / `cicd-`（加 `infra-local-topology`、`developer-workflow-activity` 一起進 CI/CD）/ 其他<br>- Frontend 區：先剝 `frontend-` 再用同上規則<br>**(d) active 規則**：current slug 在子樹任一位置 → 該層及所有上層 `<details>` 加 `open`<br>**(e) sub-label CSS**：用 `<div class="sidebar__label sidebar__label--sub">` 縮排 / 字小一階；現有 `<div class="sidebar__label">` 樣式不動 |
+| **Test case** | <br>1. `test_B5_sidebar_one_level_collapsible`：fixture `docs/req/x.md` → sidebar 含 `<details>...📁 req/...<a href=".../req/x.html">`<br>2. `test_B5_sidebar_nested_collapsible`：fixture `docs/blueprint/mock/x.md` → sidebar 含 `<details>...📁 blueprint/...<details>...📁 mock/...`<br>3. `test_B5_sidebar_collapsed_unless_active`：current = `index` 時，所有 `<details>` 沒 `open`<br>4. `test_B5_sidebar_open_chain_when_active`：current = `blueprint/mock/x` 時，`📁 blueprint/` 與 `📁 mock/` 兩層都 `open`<br>5. `test_B5_sidebar_diagrams_collapsible`：fixture 含若干 `docs/diagrams/*.md` → sidebar 有 `📁 diagrams/` 折疊群（取消現有 root-level `Server UML / Frontend UML` 兩個獨立 section，把它們塞進 `📁 diagrams/` 內當 sub-label）<br>6. `test_B5_diagrams_inner_has_server_label`：`📁 diagrams/` 內含 `<div class="sidebar__label">Server UML</div>`（**non-clickable**，只當分區）<br>7. `test_B5_diagrams_inner_has_frontend_label`：同上對 Frontend UML<br>8. `test_B5_diagrams_inner_has_activity_sub_label`：fixture 含 `activity-arena-battle.md` → `📁 diagrams/` Server UML 區內有 `<div class="sidebar__label sidebar__label--sub">Activity</div>` 後接 `<a>` 連結<br>9. `test_B5_diagrams_inner_class_group`：fixture 含 `class-domain.md` → 出現 Class sub-label group<br>10. `test_B5_diagrams_frontend_strips_prefix_for_grouping`：fixture 含 `frontend-activity-init.md` → 出現在 Frontend UML 區的 Activity sub-label 下（不是 Server 區）<br>11. `test_B5_diagrams_other_group_catches_misc`：fixture 含 `er-diagram.md` → 進入 Server UML 的「其他」sub-label<br>12. `test_B5_diagrams_nested_subdir_uses_details`：fixture 含 `docs/diagrams/admin/admin-c4-container.md` → `📁 diagrams/` 內含 `<details>📁 admin/...`<br>13. `test_B5_sidebar_prototype_md_inside_folder`：fixture `docs/prototype/sample.md` → sidebar `📁 prototype/` 折疊群內含對應連結<br>14. `test_B5_sidebar_interactive_prototype_section_kept`：sidebar 仍有「Interactive Prototypes」section（與 `📁 prototype/` 並存） |
+| **不影響其他 case** | `scan_prototype_entries` 邏輯不動；根目錄 .md flat list 不動；CSS 只加 `--sub` modifier，不動其他樣式 |
+| **驗收對應** | F |
+| **Status** | **todo** |
+
+---
+
+## # B6. 跨層連結（`os.path.relpath`）
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | 現有 `link()` 寫死 `<a href="{slug}.html">`，不考慮當前頁所在子目錄。當 page 在 `pages/blueprint/mock/x.html`，連 `EDD.html` 應該寫 `../../EDD.html`，現況寫 `EDD.html` 會找不到 |
+| **證據** | gen_html.py L2363-2366：`link(slug, label, icon)` 直接 `href="{slug}.html"`，不接受 current page 路徑 |
+| **對齊核心目標** | （技術前置）讓 sidebar 在所有頁面都能正確連結；不解 = 子目錄頁 sidebar 全部 broken |
+| **預期解** | <br>1. `link()` 加參數 `current_slug`（或 `current_html_path`）<br>2. 用 `os.path.relpath(target_path, current_dir)` 算 href<br>3. `make_sidebar` 把 current 傳進去<br>4. `index-card` 的 href 同樣處理 |
+| **Test case** | 1. `test_B6_link_root_to_root`：current=`index`，target=`edd` → href=`edd.html`<br>2. `test_B6_link_root_to_subdir`：current=`index`，target=`blueprint/mock/x` → href=`blueprint/mock/x.html`<br>3. `test_B6_link_subdir_to_root`：current=`blueprint/mock/x`，target=`edd` → href=`../../edd.html`<br>4. `test_B6_link_subdir_to_sibling_subdir`：current=`blueprint/mock/x`，target=`diagrams/y` → href=`../../diagrams/y.html`<br>5. `test_B6_active_class_still_works`：current=`blueprint/mock/x`，link 對應 slug 也是 `blueprint/mock/x` → 含 `class="...active"` |
+| **不影響其他 case** | 既有 root page 的 sidebar href 結果不變（relpath 在同層就是檔名）|
+| **驗收對應** | E |
+| **Status** | **todo** |
+
+---
+
+## # B7. Path rewriter R3-2 / R3-3 升級
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | <br>1. **R3-3** `<a href="diagrams/X.md">` 目前 rewrite 成 `diag-X.html`（flat），應改成 `diagrams/X.html`<br>2. **R3-2** `<a href="docs/X.md">` 目前只支援 root `.md`；若 X 含 `/`（如 `docs/blueprint/mock/Y.md`），需要 rewrite 成 `blueprint/mock/y.html` |
+| **證據** | gen_html.py：<br>- L1927 R3-3 docs 變體：`flat = 'diag-' + base[len('diagrams/'):] + '.html'`<br>- L1942 R3-3 直接變體：`flat = 'diag-' + md_part[:-3] + '.html'`<br>- L1933 R3-2：`html_name = base + '.html'`（base 含 `/` 時 fallback 行為要驗證） |
+| **對齊核心目標** | 3. 表達（連結也對應 subdir 結構）|
+| **預期解** | <br>1. R3-3 兩處：`flat = 'diag-' + ...` → `target = 'diagrams/' + ...`<br>2. R3-2：base 含 `/` 時也 try `pages_dir / (base + '.html')`，若存在則 rewrite |
+| **Test case** | 1. **升級** `test_R3_3_diagrams_md_to_diag_html`（既有）：expected 從 `diag-X.html` 改 `diagrams/X.html`<br>2. **新增** `test_B7_R3_2_subdir_md_to_subdir_html`：input `<a href="docs/blueprint/mock/y.md">` 且 `pages/blueprint/mock/y.html` 存在 → href=`blueprint/mock/y.html`<br>3. **新增** `test_B7_R3_2_subdir_md_target_absent_strips`：target 不存在 → strip `<a>` 留 inner text<br>4. **新增** `test_B7_R3_3_diagrams_md_target_must_exist`：rewrite 用 `is_file()` 確認，不存在則 strip |
+| **不影響其他 case** | R3-1 / R3-4 / R3-5 / R3-6 不動；R1（A1 已改）不動 |
+| **驗收對應** | E |
+| **Status** | **todo** |
+
+---
+
+## B 群決策點（彙總，等 user 拍板）
+
+| # | 議題 | 我的建議 |
+|---|---|---|
+| 1 | **跨層連結機制**：`os.path.relpath` vs `'../' * depth` | ✅ relpath（穩、不需手算） |
+| 2 | **prototype/ 既有檔保護範圍**：只保護 `pages/prototype/`，其他 subdir 正常覆寫 | ✅（user 已明確） |
+| 3 | ~~B5 diagrams 平層 vs 子分類~~ | ✅ user 已拍板：用 non-clickable label 分區（Server UML / Frontend UML 為主分區，內部再依檔名 prefix 分 Activity / Class / Sequence / State / CI/CD / 其他） |
+| 4 | **Stale 不砍** | ✅（user 已明確） |
+
+---
+
+## B 群實作順序
+
+依依賴關係：
+1. **B1**（slug 公式）→ 是其他所有的前置
+2. **B2**（mkdir parents）→ 讓 B1 的新 slug 能寫得進去
+3. **B3**（writer site 改用新 slug）→ 主功能
+4. **B4**（prototype/ 保護）→ 確保 B3 不破壞 gen-prototype 寫的檔
+5. **B5**（sidebar 樹狀）→ user 視覺核心需求
+6. **B6**（cross-link relpath）→ 讓子目錄頁 sidebar 連得回去
+7. **B7**（path rewriter 升級）→ 讓文件內 `<a href="docs/X.md">` 也對
+
+---
+
+## 與 A 群一致的行為承諾
+
+- 一個 fix 完才談下一個
+- RED → GREEN → run all tests → commit（不 push）
+- 每項 commit 後 user 確認 → 才進下一項
+

@@ -2314,7 +2314,7 @@ def scan_subdirectory_docs():
     """Scan docs/ subdirectories recursively for .md files.
     Excludes: docs/pages/ (output), docs/diagrams/ (handled by scan_diagram_pages).
     Returns: dict { subdir_name: [(slug, label, path), ...] } ordered by dirname.
-    Slug format: '{subdir}__{relative_stem}' (lowercase, / → -)
+    Slug format: '{subdir}/{relative_stem}' (lowercase, preserves '/').
     """
     excluded = {PAGES_DIR.resolve(), DIAGRAMS_DIR.resolve()}
     result = {}
@@ -2331,7 +2331,7 @@ def scan_subdirectory_docs():
         entries = []
         for p in md_files:
             rel = p.relative_to(subdir).with_suffix('')
-            slug = subdir.name.lower() + '__' + str(rel).replace('/', '-').replace('\\', '-').lower()
+            slug = subdir.name.lower() + '/' + str(rel).replace('\\', '/').lower()
             label = p.stem.replace('_', ' ').replace('-', ' ').title()
             entries.append((slug, label, p))
         result[subdir.name] = entries
