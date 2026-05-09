@@ -2418,6 +2418,31 @@ def strip_frontmatter(text: str) -> str:
         after += 1
     return text[after:]
 
+def _heading_slug(text: str) -> str:
+    """J2: derive HTML id from heading text (GitHub-style slug).
+
+    Order matters — same as GitHub / commonmark slug:
+      1. Strip [label](url) wrappers → keep label only
+      2. Lowercase
+      3. EACH whitespace char → '-' (no collapse)
+      4. Drop everything that isn't alphanumeric / CJK / '-' / '_'
+      5. Trim leading/trailing '-'
+
+    Producing e.g. `§9 — Data Access Layer` → `9--data-access-layer`
+    (matches existing TOC anchors): `§` and `—` both removed in step 4
+    AFTER spaces became '-', so the dashes from spaces stay.
+    """
+    s = text or ''
+    s = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', s)
+    s = s.lower()
+    # Each whitespace → '-' (preserves consecutive separators as multi-'-')
+    s = re.sub(r'\s', '-', s)
+    # Drop non-allowed chars (keeps a-z, 0-9, _, -, CJK)
+    s = re.sub(r'[^\w\-一-鿿]', '', s, flags=re.UNICODE)
+    s = s.strip('-')
+    return s
+
+
 def inline_md(text, src_dir=None):
     """Process inline markdown. src_dir: Path of source .md file's directory for img path fixing."""
     codes = {}
@@ -2444,7 +2469,14 @@ def inline_md(text, src_dir=None):
                 f'{{className:\'badge-fallback\',textContent:this.alt}}))">')
 
     text = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', fix_img, text)
-    text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2" target="_blank" rel="noopener">\1</a>', text)
+    # J1: in-page anchor [X](#section) must not get target="_blank" (otherwise
+    # it opens a new tab and never scrolls to the anchor).
+    def _link(m):
+        label, href = m.group(1), m.group(2)
+        if href.startswith('#'):
+            return f'<a href="{href}">{label}</a>'
+        return f'<a href="{href}" target="_blank" rel="noopener">{label}</a>'
+    text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', _link, text)
     text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
     text = re.sub(r'(?<!\w)__(.+?)__(?!\w)', r'<strong>\1</strong>', text)
     text = re.sub(r'\*(.+?)\*', r'<em>\1</em>', text)
@@ -2551,13 +2583,17 @@ def md_to_html(text, src_dir=None):
             escaped = '\n'.join(esc(l) for l in raw_block)
             out.append(f'<pre><code class="{cls}">' + escaped + '</code></pre>')
         elif s.startswith('#### '):
-            out.append(f'<h4>{inline_md(s[5:], src_dir)}</h4>')
+            txt = s[5:]
+            out.append(f'<h4 id="{_heading_slug(txt)}">{inline_md(txt, src_dir)}</h4>')
         elif s.startswith('### '):
-            out.append(f'<h3>{inline_md(s[4:], src_dir)}</h3>')
+            txt = s[4:]
+            out.append(f'<h3 id="{_heading_slug(txt)}">{inline_md(txt, src_dir)}</h3>')
         elif s.startswith('## '):
-            out.append(f'<h2>{inline_md(s[3:], src_dir)}</h2>')
+            txt = s[3:]
+            out.append(f'<h2 id="{_heading_slug(txt)}">{inline_md(txt, src_dir)}</h2>')
         elif s.startswith('# '):
-            out.append(f'<h1>{inline_md(s[2:], src_dir)}</h1>')
+            txt = s[2:]
+            out.append(f'<h1 id="{_heading_slug(txt)}">{inline_md(txt, src_dir)}</h1>')
         elif re.match(r'^[-*_]{3,}$', s):
             out.append('<hr>')
         elif s.startswith('> '):
