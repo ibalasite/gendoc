@@ -3,6 +3,9 @@
 
 # Preview sandbox: source PDD.md committed; generated pages regenerated locally
 tools/gen_html/preview/docs/pages/
+# Sidebar preview sandboxes: docs/ rsync'd from pet/erp on demand, pages/ regenerated
+tools/gen_html/preview/sidebar-pet/docs/
+tools/gen_html/preview/sidebar-erp/docs/
 
 .skill-guard-queue
 .last-update-check
