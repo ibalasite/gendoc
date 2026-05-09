@@ -714,6 +714,68 @@ def test_B8_interactive_alone_creates_prototype_folder():
     assert 'Interactive Prototypes' in chunk
 
 
+# ─── B9: prototype 內 Interactive vs .md 鏡射視覺區隔 ──────────────────
+
+def test_B9_prototype_md_under_specs_label():
+    """fixture 含 interactive + .md → sample 鏡射連結出現在「規格文件」label 之後."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/prototype/sample.md': '# Sample Spec',
+        'docs/pages/prototype/index.html': '<h1>x</h1>',
+    }
+    html = _sidebar_for(layout)
+    proto_idx = html.find('📁 prototype/')
+    assert proto_idx >= 0
+    end_idx = html.find('</details>', proto_idx)
+    while end_idx >= 0 and html[proto_idx:end_idx].count('<details') > html[proto_idx:end_idx].count('</details>'):
+        end_idx = html.find('</details>', end_idx + 1)
+    chunk = html[proto_idx:end_idx]
+    # Spec label appears
+    assert '規格文件' in chunk, f'規格文件 label missing; chunk: {chunk[:600]}'
+    # Sample link must come AFTER 規格文件 label (not after Interactive)
+    spec_idx = chunk.find('規格文件')
+    sample_idx = chunk.find('sample')
+    inter_idx = chunk.find('Interactive Prototypes')
+    assert sample_idx > spec_idx, f'sample link should come after 規格文件 label'
+    assert spec_idx > inter_idx, f'規格文件 label should come AFTER Interactive Prototypes'
+
+
+def test_B9_prototype_only_interactive_no_specs_label():
+    """只有 interactive 沒 .md → 不顯示「規格文件」label."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/pages/prototype/index.html': '<h1>x</h1>',
+    }
+    html = _sidebar_for(layout)
+    proto_idx = html.find('📁 prototype/')
+    assert proto_idx >= 0
+    end_idx = html.find('</details>', proto_idx)
+    while end_idx >= 0 and html[proto_idx:end_idx].count('<details') > html[proto_idx:end_idx].count('</details>'):
+        end_idx = html.find('</details>', end_idx + 1)
+    chunk = html[proto_idx:end_idx]
+    assert '規格文件' not in chunk, '規格文件 label should not appear when no .md'
+
+
+def test_B9_prototype_only_md_no_interactive_label():
+    """只有 .md 沒 interactive → 不顯示「Interactive Prototypes」label."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/prototype/sample.md': '# Sample',
+    }
+    html = _sidebar_for(layout)
+    proto_idx = html.find('📁 prototype/')
+    assert proto_idx >= 0
+    end_idx = html.find('</details>', proto_idx)
+    while end_idx >= 0 and html[proto_idx:end_idx].count('<details') > html[proto_idx:end_idx].count('</details>'):
+        end_idx = html.find('</details>', end_idx + 1)
+    chunk = html[proto_idx:end_idx]
+    assert 'Interactive Prototypes' not in chunk, \
+        'Interactive Prototypes label should not appear when no interactive entries'
+
+
 # ─── Standalone runner ───────────────────────────────────────────────────
 
 def main() -> int:
@@ -762,6 +824,9 @@ def main() -> int:
         ('B8_interactive_inside_prototype_folder', test_B8_interactive_inside_prototype_folder),
         ('B8_no_standalone_interactive_section', test_B8_no_standalone_interactive_section),
         ('B8_interactive_alone_creates_prototype_folder', test_B8_interactive_alone_creates_prototype_folder),
+        ('B9_prototype_md_under_specs_label', test_B9_prototype_md_under_specs_label),
+        ('B9_prototype_only_interactive_no_specs_label', test_B9_prototype_only_interactive_no_specs_label),
+        ('B9_prototype_only_md_no_interactive_label', test_B9_prototype_only_md_no_interactive_label),
     ]
     passed = failed = 0
     for name, fn in tests:

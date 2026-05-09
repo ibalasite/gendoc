@@ -2504,7 +2504,13 @@ def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, curren
                f'<summary>{icon} {name}/</summary>']
         if proto_entries:
             out.extend(render_interactive_block())
-        for slug, label in tree['leaves']:
+        # B9: distinguish .md spec docs from interactive entries with a label
+        # (only when both interactive and .md leaves exist; pure-md case shows
+        # leaves directly under the folder summary without a redundant label).
+        leaves = tree['leaves']
+        if leaves and proto_entries:
+            out.append('<div class="sidebar__label sidebar__label--sub">規格文件</div>')
+        for slug, label in leaves:
             out.append(link(slug, label))
         for sub_name in sorted(tree['dirs'].keys()):
             out.append(render_subdir_tree(sub_name, tree['dirs'][sub_name]))

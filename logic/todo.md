@@ -299,6 +299,21 @@ Status: `review` | `todo` | `running` | `done`
 
 ---
 
+## # B9. PROTOTYPE/ 內 Interactive 與 .md 鏡射要視覺區隔
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | B8 把 Interactive Prototypes 移進 `📁 PROTOTYPE/` 之後，三份 .md 鏡射（Admin Moderation Prototype / Arena Battle Prototype / Pet Display Prototype）緊接在 🎮 連結後面沒有 label 分隔，視覺上像是同一組（user 反映「區別」）|
+| **證據** | `b8_pet_prototype_section.png` 截圖：`INTERACTIVE PROTOTYPES` label 後直接 🎮 三筆，再直接 .md 鏡射三筆，沒有 label 隔開 |
+| **對齊核心目標** | 4. 不誤會（Interactive 是「可操作的互動 prototype」， .md 鏡射是「設計規格文件」，兩者語意不同，不該看起來是同一群）|
+| **預期解** | `render_prototype_subdir` 在 `📁 PROTOTYPE/` 內，先放 `INTERACTIVE PROTOTYPES` label + 🎮 連結，再放第二個 sub-label `規格文件` + .md 鏡射連結。沒有 .md 時不放 label；沒有 interactive 時不放 INTERACTIVE label。|
+| **Test case** | 1. `test_B9_prototype_md_under_specs_label`：fixture 含 `pages/prototype/index.html` + `docs/prototype/sample.md` → sidebar 中 sample 連結出現在「規格文件」label 之後（不在 Interactive 之後）<br>2. `test_B9_prototype_only_interactive_no_specs_label`：只有 interactive entries 沒 .md → 不顯示「規格文件」label<br>3. `test_B9_prototype_only_md_no_interactive_label`：只有 .md 沒 interactive → 不顯示「INTERACTIVE PROTOTYPES」label，可選地顯示「規格文件」label 或不顯示（視 spec 而定）|
+| **不影響其他 case** | 不動 B8 已對的 PLANTUML 整併、SERVER UML 縮排；不影響其他子目錄 |
+| **驗收對應** | F |
+| **Status** | **done** ✅（3 test 全綠，260/260 全綠；視覺實機驗證 prototype/ 內 Interactive 與規格文件已視覺區隔）|
+
+---
+
 ## B 群決策點（彙總，等 user 拍板）
 
 | # | 議題 | 我的建議 |
