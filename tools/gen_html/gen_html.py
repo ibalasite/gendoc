@@ -2270,6 +2270,19 @@ def rewrite_pages_paths(html: str, current_html_path, pages_dir) -> str:
         elif (re.match(r'^(features|blueprint|src|tests|infrastructure|scripts)/', target)
               and not target.split('#', 1)[0].split('?', 1)[0].endswith('.html')):
             return _strip_anchor(full_match)
+        # G-Q4: bare X.md / ./X.md / subdir/X.md (no `docs/` prefix)
+        # 把 .md 改成 .html (lowercase)，若 pages/ 內有對應檔則保留連結，
+        # 否則 strip。anchor (#section) 保留。
+        else:
+            md_part, _, frag = target.partition('#')
+            if md_part.endswith('.md'):
+                # Strip leading "./" if present
+                clean_md = md_part[2:] if md_part.startswith('./') else md_part
+                html_candidate = clean_md[:-3].lower() + '.html'
+                if (pages_dir / html_candidate).is_file():
+                    target = html_candidate + (('#' + frag) if frag else '')
+                else:
+                    return _strip_anchor(full_match)
         # R3-6 防護：最終 target 解析後必須在 pages/ 內，否則 strip
         # （catch AI 寫 ../../../X 跳出 server root 的情況）
         resolved_check = _resolve(target)

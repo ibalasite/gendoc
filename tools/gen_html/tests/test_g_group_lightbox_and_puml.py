@@ -216,6 +216,59 @@ def test_GQ1b_plantuml_to_svg_retries_with_autofix():
         '_plantuml_to_svg must call _puml_autofix on failure'
 
 
+# ─── G-Q4: rewrite_pages_paths bare .md → .html ─────────────────────────
+
+def _make_pages_dir_with(layout):
+    tmp = pathlib.Path(tempfile.mkdtemp())
+    for rel in layout:
+        target = tmp / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text('')
+    return tmp
+
+
+def test_GQ4_bare_md_rewrites_to_html():
+    """<a href="PRD.md"> → <a href="prd.html"> when pages/prd.html exists."""
+    html = '<a href="PRD.md">PRD</a>'
+    pages = _make_pages_dir_with(['prd.html', 'index.html'])
+    out = gh.rewrite_pages_paths(html, pages / 'index.html', pages)
+    assert 'href="prd.html"' in out, f'expected prd.html href; got: {out}'
+
+
+def test_GQ4_dot_slash_md_rewrites():
+    """<a href="./PRD.md"> → <a href="prd.html">."""
+    html = '<a href="./PRD.md">PRD</a>'
+    pages = _make_pages_dir_with(['prd.html', 'index.html'])
+    out = gh.rewrite_pages_paths(html, pages / 'index.html', pages)
+    assert 'href="prd.html"' in out, f'expected prd.html href; got: {out}'
+
+
+def test_GQ4_md_target_missing_strips_anchor():
+    """<a href="MISSING.md"> 且 missing.html 不存在 → strip <a> 留 text."""
+    html = '<a href="MISSING.md">MISSING</a>'
+    pages = _make_pages_dir_with(['index.html'])
+    out = gh.rewrite_pages_paths(html, pages / 'index.html', pages)
+    assert '<a href' not in out, f'expected stripped anchor; got: {out}'
+    assert 'MISSING' in out
+
+
+def test_GQ4_subdir_relative_md_rewrites():
+    """<a href="diagrams/X.md"> bare（無 docs/ prefix）已被 R3-3 處理(B 群)，不重複 case."""
+    # Just regression check that it still works
+    html = '<a href="diagrams/foo.md">x</a>'
+    pages = _make_pages_dir_with(['diagrams/foo.html', 'index.html'])
+    out = gh.rewrite_pages_paths(html, pages / 'index.html', pages)
+    assert 'href="diagrams/foo.html"' in out
+
+
+def test_GQ4_anchor_after_md_preserved():
+    """<a href="PRD.md#section"> → <a href="prd.html#section">."""
+    html = '<a href="PRD.md#features">PRD</a>'
+    pages = _make_pages_dir_with(['prd.html', 'index.html'])
+    out = gh.rewrite_pages_paths(html, pages / 'index.html', pages)
+    assert 'href="prd.html#features"' in out, f'anchor not preserved; got: {out}'
+
+
 # ─── Standalone runner ─────────────────────────────────────────────────
 
 def main() -> int:
@@ -237,6 +290,11 @@ def main() -> int:
         ('GQ1b_autofix_idempotent', test_GQ1b_autofix_idempotent),
         ('GQ1b_autofix_does_not_break_clean_puml', test_GQ1b_autofix_does_not_break_clean_puml),
         ('GQ1b_plantuml_to_svg_retries_with_autofix', test_GQ1b_plantuml_to_svg_retries_with_autofix),
+        ('GQ4_bare_md_rewrites_to_html', test_GQ4_bare_md_rewrites_to_html),
+        ('GQ4_dot_slash_md_rewrites', test_GQ4_dot_slash_md_rewrites),
+        ('GQ4_md_target_missing_strips_anchor', test_GQ4_md_target_missing_strips_anchor),
+        ('GQ4_subdir_relative_md_rewrites', test_GQ4_subdir_relative_md_rewrites),
+        ('GQ4_anchor_after_md_preserved', test_GQ4_anchor_after_md_preserved),
     ]
     passed = failed = 0
     for name, fn in tests:
