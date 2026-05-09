@@ -1,5 +1,9 @@
 .gendoc-state*.json
 .skill-guard.json
+
+# Preview sandbox: source PDD.md committed; generated pages regenerated locally
+tools/gen_html/preview/docs/pages/
+
 .skill-guard-queue
 .last-update-check
 .update-lock/
