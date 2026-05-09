@@ -836,7 +836,10 @@ def _um_r_field(n):
 def _um_r_button(n):
     variant = _um_esc(_um_attr(n, 'variant', 'default'))
     label = _um_value_text(n) or 'Button'
-    return f'<button type="button" class="umock__btn umock__btn--{variant}">{label}</button>'
+    return (
+        f'<button type="button" tabindex="-1" '
+        f'class="umock__btn umock__btn--{variant}">{label}</button>'
+    )
 
 
 def _um_r_badge(n):
@@ -850,7 +853,10 @@ def _um_r_input(n):
     placeholder = _um_esc(_um_attr(n, 'placeholder'))
     maxlen = _um_attr(n, 'maxlength')
     maxlen_attr = f' maxlength="{_um_esc(maxlen)}"' if maxlen != '' and maxlen is not None else ''
-    return f'<input class="umock__input" type="{typ}" placeholder="{placeholder}"{maxlen_attr} readonly>'
+    return (
+        f'<input class="umock__input" type="{typ}" '
+        f'placeholder="{placeholder}"{maxlen_attr} tabindex="-1" readonly>'
+    )
 
 
 def _um_r_code_block(n):
@@ -892,7 +898,10 @@ def _um_r_tabs(n):
 
 def _um_r_search(n):
     placeholder = _um_esc(_um_attr(n, 'placeholder'))
-    return f'<input class="umock__search" type="search" placeholder="{placeholder}" readonly>'
+    return (
+        f'<input class="umock__search" type="search" '
+        f'placeholder="{placeholder}" tabindex="-1" readonly>'
+    )
 
 
 def _um_r_card(n):

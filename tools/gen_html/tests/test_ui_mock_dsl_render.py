@@ -245,6 +245,33 @@ def test_table_cells_escaped():
     assert '&lt;b&gt;' in html
 
 
+# ─── A5: mock 元件不可 focus（P4 — tabindex="-1"） ────────────────────────
+# Mock 是文件展示用，加 tabindex="-1" 讓 Tab 鍵跳過 → focus ring 永遠不出現。
+# 對齊核心目標 4. 不誤會（default 按鈕不會因 focus 看起來像 primary）。
+
+def test_A5_button_renders_tabindex_minus_one():
+    html = render_dsl('button "Apply" variant:"primary"')
+    assert 'tabindex="-1"' in html, f'button missing tabindex="-1": {html}'
+    assert 'umock__btn' in html
+
+
+def test_A5_button_default_variant_also_tabindex():
+    html = render_dsl('button "Reset"')
+    assert 'tabindex="-1"' in html
+
+
+def test_A5_input_renders_tabindex_minus_one():
+    html = render_dsl('input placeholder:"name"')
+    assert 'tabindex="-1"' in html, f'input missing tabindex="-1": {html}'
+    assert 'umock__input' in html
+
+
+def test_A5_search_renders_tabindex_minus_one():
+    html = render_dsl('search placeholder:"find"')
+    assert 'tabindex="-1"' in html, f'search missing tabindex="-1": {html}'
+    assert 'umock__search' in html
+
+
 # ─── Unknown type fallback ───────────────────────────────────────────────
 
 def test_unknown_type_renders_silently():
@@ -292,6 +319,10 @@ def main() -> int:
         ('value_html_escaped', test_value_html_is_escaped),
         ('attr_html_escaped', test_attr_html_is_escaped),
         ('table_cells_escaped', test_table_cells_escaped),
+        ('A5_button_tabindex', test_A5_button_renders_tabindex_minus_one),
+        ('A5_button_default_tabindex', test_A5_button_default_variant_also_tabindex),
+        ('A5_input_tabindex', test_A5_input_renders_tabindex_minus_one),
+        ('A5_search_tabindex', test_A5_search_renders_tabindex_minus_one),
         ('unknown_type_silent', test_unknown_type_renders_silently),
     ]
     passed = failed = 0

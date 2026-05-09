@@ -113,7 +113,7 @@ Status: `review` | `todo` | `running` | `done`
 | **Test case** | 1. `test_mock_button_renders_tabindex_minus_one`：`_um_r_btn(...)` 輸出含 `tabindex="-1"`<br>2. `test_mock_input_renders_tabindex_minus_one`：同上<br>3. `test_mock_search_renders_tabindex_minus_one`：同上<br>4. `test_outer_chrome_button_unaffected`：`.sidebar-toggle` 等外殼按鈕的 HTML 不含 `tabindex="-1"`（不能誤波及）|
 | **不影響其他 case** | 不動外殼（sidebar-toggle、search-input、頁面連結）；既有 191 個 UI Mock test 不檢查 tabindex |
 | **驗收對應** | E（截圖中不存在 default 看起來像 primary 的視覺誤會）|
-| **Status** | **todo** |
+| **Status** | **done** ✅（4 test 全綠，200/200 全綠）|
 
 ---
 
