@@ -68,7 +68,7 @@ Status: `review` | `todo` | `running` | `done`
 | **Test case** | 1. `test_strip_pipes_single_at_start`：`│ Item` → `Item`<br>2. `test_strip_pipes_single_at_end`：`Item │` → `Item`<br>3. `test_strip_pipes_single_in_middle`：`Foo │ Bar` → `Foo │ Bar`（保留）<br>4. `test_strip_pipes_only_pipe`：`│` → ``（空字串）<br>5. `test_strip_pipes_pipe_then_whitespace`：`│   ` → ``（空字串）<br>6. `test_sidenav_filters_empty_item`：sidenav AST 含一個 strip 後為空的 line → render 結果不含空 `<li>` |
 | **不影響其他 case** | 既有 14+ ASCII parser test 全綠 |
 | **驗收對應** | A（sidenav 不出現 `│` `|` 開頭）|
-| **Status** | **todo** |
+| **Status** | **done** ✅（8 test 全綠，208/208 全綠）|
 
 ---
 

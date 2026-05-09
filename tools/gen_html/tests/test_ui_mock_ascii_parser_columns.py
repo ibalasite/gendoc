@@ -25,6 +25,7 @@ gh = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(gh)
 
 ascii_parse = gh._ui_mock_ascii_parse
+strip_pipes = gh._um_ascii_strip_pipes
 
 
 def _find_all(node, type_):
@@ -186,6 +187,66 @@ def test_table_with_three_columns():
     assert all(len(r.get('value') or []) == 3 for r in rows)
 
 
+# ─── A2: _um_ascii_strip_pipes single-pipe edge cases ────────────────────
+# When a line has only ONE │ (e.g. left column after 2-col split), the
+# function previously returned the line unchanged → sidenav showed leading
+# │ residue. Fix: strip if at start/end, keep if middle.
+
+def test_A2_strip_pipes_single_at_start():
+    assert strip_pipes('│ ERP Side') == ' ERP Side'
+
+
+def test_A2_strip_pipes_single_at_end():
+    assert strip_pipes('Item │') == 'Item '
+
+
+def test_A2_strip_pipes_single_in_middle_kept():
+    """Mock 作者刻意當分隔符 → 保留。"""
+    assert strip_pipes('Foo │ Bar') == 'Foo │ Bar'
+
+
+def test_A2_strip_pipes_only_pipe_yields_empty():
+    """Single │ alone → empty string (downstream sidenav already filters empty)."""
+    assert strip_pipes('│').strip() == ''
+
+
+def test_A2_strip_pipes_pipe_then_whitespace():
+    assert strip_pipes('│   ').strip() == ''
+
+
+def test_A2_strip_pipes_two_pipes_unchanged_behavior():
+    """Two pipes → existing behavior: extract content between them."""
+    assert strip_pipes('│ Side │') == ' Side '
+
+
+def test_A2_strip_pipes_no_pipe_unchanged():
+    assert strip_pipes('plain text') == 'plain text'
+
+
+# ─── A2 integration: sidenav rendering does not contain leading │ ────────
+
+def test_A2_real_world_sidenav_no_pipe_residue():
+    """erp/PDD-like 2-column ASCII → sidenav items must not start with │."""
+    text = '''┌──────────────────────────────────┐
+│ Top Nav                          │
+├──────────┬───────────────────────┤
+│ ERP Side │ Content here          │
+│ Nav      │ More content          │
+└──────────┴───────────────────────┘'''
+    ast = ascii_parse(text)
+    assert ast is not None
+    body = ast['children'][0]
+    sidenavs = _find_all(body, 'sidenav')
+    assert len(sidenavs) >= 1
+    # Inspect each item's value: must NOT contain │
+    items = [c for c in sidenavs[0].get('children', []) if c.get('type') == 'item']
+    assert items, 'expected at least one sidenav item'
+    for it in items:
+        v = it.get('value', '')
+        assert '│' not in v, f'sidenav item still has │: {v!r}'
+        assert not v.startswith('|'), f'sidenav item starts with |: {v!r}'
+
+
 # ─── Real-world equivalence ──────────────────────────────────────────────
 
 def test_real_world_admin_table_yields_table():
@@ -226,6 +287,15 @@ def main() -> int:
         ('single_pipe_not_table', test_single_pipe_line_is_not_a_table),
         ('table_three_cols', test_table_with_three_columns),
         ('real_world_admin_table', test_real_world_admin_table_yields_table),
+        # A2 unit + integration
+        ('A2_strip_pipes_single_at_start', test_A2_strip_pipes_single_at_start),
+        ('A2_strip_pipes_single_at_end', test_A2_strip_pipes_single_at_end),
+        ('A2_strip_pipes_single_in_middle_kept', test_A2_strip_pipes_single_in_middle_kept),
+        ('A2_strip_pipes_only_pipe_yields_empty', test_A2_strip_pipes_only_pipe_yields_empty),
+        ('A2_strip_pipes_pipe_then_whitespace', test_A2_strip_pipes_pipe_then_whitespace),
+        ('A2_strip_pipes_two_pipes_unchanged_behavior', test_A2_strip_pipes_two_pipes_unchanged_behavior),
+        ('A2_strip_pipes_no_pipe_unchanged', test_A2_strip_pipes_no_pipe_unchanged),
+        ('A2_real_world_sidenav_no_pipe_residue', test_A2_real_world_sidenav_no_pipe_residue),
     ]
     passed = failed = 0
     for name, fn in tests:

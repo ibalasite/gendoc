@@ -1207,7 +1207,13 @@ _UM_BOX_CHARS = set('┌┐└┘├┤┬┴┼─│┏┓┗┛┃━')
 
 
 def _um_ascii_strip_pipes(line: str) -> str:
-    """Extract content between first and last │ (or ┃) on a line."""
+    """Extract content between first and last │ (or ┃) on a line.
+
+    A2 fix — single-pipe handling:
+      - pipe at start (only whitespace before) → strip leading pipe
+      - pipe at end   (only whitespace after)  → strip trailing pipe
+      - pipe in middle (mock author's separator) → keep line unchanged
+    """
     first = -1
     last = -1
     for i, c in enumerate(line):
@@ -1215,8 +1221,17 @@ def _um_ascii_strip_pipes(line: str) -> str:
             if first < 0:
                 first = i
             last = i
-    if first >= 0 and last > first:
+    if first < 0:
+        return line
+    if last > first:
         return line[first + 1:last]
+    # single pipe — disambiguate by surrounding whitespace
+    before = line[:first]
+    after = line[first + 1:]
+    if before.strip() == '':
+        return after
+    if after.strip() == '':
+        return before
     return line
 
 
