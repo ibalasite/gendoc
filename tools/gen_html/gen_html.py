@@ -158,15 +158,24 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     .sidebar__section details .sidebar__link { padding-left: 1.75rem; font-size: 0.8125rem; }
     .sidebar__section details details > summary { padding-left: 1.75rem; }
     .sidebar__section details details .sidebar__link { padding-left: 2.5rem; }
+    /* B5/B8: labels inside details are sub-labels — indent past their parent <summary>. */
+    .sidebar__section details > .sidebar__label {
+      padding-left: 2.25rem;
+    }
+    .sidebar__section details details > .sidebar__label {
+      padding-left: 3rem;
+    }
     /* B5: sub-label inside diagrams folding for prefix groups (Activity / Class / ...) */
     .sidebar__label--sub {
-      padding: 0.25rem 1rem 0.125rem 1.75rem;
+      padding: 0.25rem 1rem 0.125rem 3rem;
       font-size: 0.6875rem; font-weight: 600;
       color: var(--text-muted); text-transform: uppercase;
       letter-spacing: 0.06em;
     }
-    .sidebar__section details .sidebar__label--sub + .sidebar__link,
-    .sidebar__section details .sidebar__link { padding-left: 2.25rem; }
+    /* B5: links following a sub-label indent further still */
+    .sidebar__section details .sidebar__label--sub ~ .sidebar__link {
+      padding-left: 3.5rem;
+    }
 
     /* ─── UI Mock DSL (stage 9) ─── */
     .umock { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #1e293b; }
@@ -2470,6 +2479,38 @@ def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, curren
 
     sections = []
 
+    # B8: pre-fetch interactive prototype entries to inject into 📁 prototype/
+    proto_entries = scan_prototype_entries(PAGES_DIR)
+    depth_prefix = ('../' * current_depth) if current_depth else ''
+
+    def render_interactive_block():
+        """Render Interactive Prototypes label + 🎮 entries (used inside prototype/ folder)."""
+        out = ['<div class="sidebar__label sidebar__label--sub">Interactive Prototypes</div>']
+        for entry in proto_entries:
+            href = depth_prefix + entry['href']
+            out.append(
+                f'<a class="sidebar__link" href="{href}">'
+                f'🎮 {entry["label"]}</a>'
+            )
+        return out
+
+    def render_prototype_subdir(name, tree):
+        """Specialised render for prototype/ folder: include Interactive entries inside."""
+        is_active = _tree_contains_active(tree, current) or bool(proto_entries)
+        # Force open if interactive entries exist (they are user's likely landing path)
+        open_attr = ' open' if is_active else ''
+        icon = _DIR_ICONS.get(name.lower(), '📁')
+        out = [f'<details{open_attr}>',
+               f'<summary>{icon} {name}/</summary>']
+        if proto_entries:
+            out.extend(render_interactive_block())
+        for slug, label in tree['leaves']:
+            out.append(link(slug, label))
+        for sub_name in sorted(tree['dirs'].keys()):
+            out.append(render_subdir_tree(sub_name, tree['dirs'][sub_name]))
+        out.append('</details>')
+        return '\n'.join(out)
+
     # ── Main docs ──────────────────────────────────────────
     sections.append('<div class="sidebar__section">')
     sections.append('<div class="sidebar__label">文件</div>')
@@ -2479,15 +2520,24 @@ def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, curren
 
     # ── Subdirectory tree (recursive collapsible) ─────────
     subdir_tree = _build_subdir_tree(sub_docs)
+    rendered_top_names = set()
     for top_name in sorted(subdir_tree['dirs'].keys()):
         sections.append('<div class="sidebar__section">')
-        sections.append(render_subdir_tree(top_name, subdir_tree['dirs'][top_name]))
-        # Append req/ download page link inside the req/ section if applicable
-        if top_name.lower() == 'req' and has_req:
-            # Re-open last <details> by inserting before the closing tag
-            # Simpler: just render as a sibling link below; user already sees
-            # 📁 req/ collapsible above
-            pass
+        if top_name.lower() == 'prototype':
+            sections.append(render_prototype_subdir(top_name, subdir_tree['dirs'][top_name]))
+        else:
+            sections.append(render_subdir_tree(top_name, subdir_tree['dirs'][top_name]))
+        rendered_top_names.add(top_name.lower())
+        sections.append('</div>')
+
+    # B8: synthesize 📁 prototype/ folder if interactive entries exist but no
+    # docs/prototype/*.md was scanned (so subdir_tree has no 'prototype' node).
+    if proto_entries and 'prototype' not in rendered_top_names:
+        sections.append('<div class="sidebar__section">')
+        sections.append('<details open>')
+        sections.append('<summary>📁 prototype/</summary>')
+        sections.extend(render_interactive_block())
+        sections.append('</details>')
         sections.append('</div>')
 
     # ── req download page (only if req/ not already a subdir tree node) ──
@@ -2497,37 +2547,14 @@ def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, curren
         sections.append(link('req', 'req/ 素材清單', '📎'))
         sections.append('</div>')
 
-    # ── Interactive Prototypes ────────────────────────────
-    proto_entries = scan_prototype_entries(PAGES_DIR)
-    if proto_entries:
-        sections.append('<div class="sidebar__section">')
-        sections.append('<div class="sidebar__label">Interactive Prototypes</div>')
-        depth_prefix = ('../' * current_depth) if current_depth else ''
-        for entry in proto_entries:
-            href = depth_prefix + entry['href']
-            sections.append(
-                f'<a class="sidebar__link" href="{href}">'
-                f'🎮 {entry["label"]}</a>'
-            )
-        sections.append('</div>')
-
-    # ── PlantUML standalone files ──────────────────────────
-    if puml_files:
-        is_active_puml = any(slug == current for slug, _, _ in puml_files)
-        open_attr = ' open' if is_active_puml else ''
-        sections.append('<div class="sidebar__section">')
-        sections.append(f'<details{open_attr}>')
-        sections.append('<summary>📐 PlantUML</summary>')
-        for slug, label, _ in puml_files:
-            sections.append(link(slug, label))
-        sections.append('</details>')
-        sections.append('</div>')
-
-    # ── UML diagrams (📁 diagrams/ collapsible with Server/Frontend labels) ──
-    if server_diagrams or frontend_diagrams:
+    # ── UML diagrams (📁 diagrams/ collapsible) ──
+    # B8: PlantUML files render inside this same details (since .puml lives in
+    # docs/diagrams/puml/), not as a sibling section.
+    if server_diagrams or frontend_diagrams or puml_files:
         is_active = (
             any(f'diagrams/{slug}' == current for slug, *_ in server_diagrams)
             or any(f'diagrams/{slug}' == current for slug, *_ in frontend_diagrams)
+            or (puml_files and any(slug == current for slug, _, _ in puml_files))
         )
         open_attr = ' open' if is_active else ''
         sections.append('<div class="sidebar__section">')
@@ -2539,6 +2566,10 @@ def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, curren
         if frontend_diagrams:
             sections.append('<div class="sidebar__label">Frontend UML</div>')
             sections.extend(render_diagram_prefix_groups(frontend_diagrams, is_frontend=True))
+        if puml_files:
+            sections.append('<div class="sidebar__label">PlantUML</div>')
+            for slug, label, _ in puml_files:
+                sections.append(link(slug, label))
         sections.append('</details>')
         sections.append('</div>')
 

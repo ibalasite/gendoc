@@ -597,6 +597,123 @@ def test_B6_active_class_still_works():
         assert m, f'no active class on self link in subdir page; sidebar slice unavailable'
 
 
+# ─── B8: Sidebar 結構修正 ────────────────────────────────────────────
+
+def test_B8_server_uml_indented_under_diagrams():
+    """SERVER UML label 應在 📁 DIAGRAMS/ <details> 內 (DOM 嵌套)。"""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/diagrams/use-case.md': '# Use Case',
+    }
+    html = _sidebar_for(layout)
+    diag_idx = html.find('📁 diagrams/')
+    assert diag_idx >= 0, 'diagrams folder missing'
+    # End of the diagrams details
+    end_idx = html.find('</details>', diag_idx)
+    while end_idx >= 0 and html[diag_idx:end_idx].count('<details') > html[diag_idx:end_idx].count('</details>'):
+        end_idx = html.find('</details>', end_idx + 1)
+    chunk = html[diag_idx:end_idx]
+    assert 'Server UML' in chunk
+
+
+def test_B8_plantuml_inside_diagrams():
+    """📐 PLANTUML 出現在 📁 DIAGRAMS/ <details> 內，不獨立成 root-level section。"""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/diagrams/use-case.md': '# Use Case',
+        'docs/diagrams/puml/sample.puml': '@startuml\nclass A\n@enduml',
+    }
+    html = _sidebar_for(layout)
+    diag_idx = html.find('📁 diagrams/')
+    assert diag_idx >= 0
+    end_idx = html.find('</details>', diag_idx)
+    while end_idx >= 0 and html[diag_idx:end_idx].count('<details') > html[diag_idx:end_idx].count('</details>'):
+        end_idx = html.find('</details>', end_idx + 1)
+    chunk = html[diag_idx:end_idx]
+    assert 'PLANTUML' in chunk or 'PlantUML' in chunk, \
+        f'PlantUML label missing inside diagrams; chunk: {chunk[:600]}'
+
+
+def test_B8_no_standalone_plantuml_section():
+    """Sidebar 不應有 root-level 獨立 PLANTUML section."""
+    layout = {
+        'README.md': '',
+        'docs/diagrams/foo.puml': '@startuml\nA->B\n@enduml',
+    }
+    html = _sidebar_for(layout)
+    # The only place PLANTUML/PlantUML may appear is inside diagrams details.
+    diag_idx = html.find('📁 diagrams/')
+    diag_end = html.find('</details>', diag_idx)
+    while diag_end >= 0 and html[diag_idx:diag_end].count('<details') > html[diag_idx:diag_end].count('</details>'):
+        diag_end = html.find('</details>', diag_end + 1)
+    pre_diagrams = html[:diag_idx]
+    post_diagrams = html[diag_end:] if diag_end >= 0 else ''
+    assert 'PLANTUML' not in pre_diagrams.upper(), \
+        'PLANTUML should not appear before diagrams folder'
+    assert 'PLANTUML' not in post_diagrams.upper(), \
+        'PLANTUML should not appear after diagrams folder'
+
+
+def test_B8_interactive_inside_prototype_folder():
+    """Interactive Prototypes label + 🎮 連結應出現在 📁 PROTOTYPE/ <details> 內。"""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/prototype/sample.md': '# Sample',
+        'docs/pages/prototype/index.html': '<h1>Interactive</h1>',
+    }
+    html = _sidebar_for(layout)
+    proto_idx = html.find('📁 prototype/')
+    assert proto_idx >= 0, f'prototype folder not found; html: {html[:600]}'
+    end_idx = html.find('</details>', proto_idx)
+    while end_idx >= 0 and html[proto_idx:end_idx].count('<details') > html[proto_idx:end_idx].count('</details>'):
+        end_idx = html.find('</details>', end_idx + 1)
+    chunk = html[proto_idx:end_idx]
+    assert 'Interactive Prototypes' in chunk, \
+        f'Interactive Prototypes label not inside prototype folder; chunk: {chunk[:600]}'
+
+
+def test_B8_no_standalone_interactive_section():
+    """Sidebar 不應有 root-level 獨立 Interactive Prototypes section."""
+    layout = {
+        'README.md': '',
+        'docs/prototype/sample.md': '# Sample',
+        'docs/pages/prototype/index.html': '<h1>x</h1>',
+    }
+    html = _sidebar_for(layout)
+    proto_idx = html.find('📁 prototype/')
+    proto_end = html.find('</details>', proto_idx)
+    while proto_end >= 0 and html[proto_idx:proto_end].count('<details') > html[proto_idx:proto_end].count('</details>'):
+        proto_end = html.find('</details>', proto_end + 1)
+    pre = html[:proto_idx]
+    post = html[proto_end:] if proto_end >= 0 else ''
+    assert 'Interactive Prototypes' not in pre, \
+        'Interactive Prototypes should not appear before prototype folder'
+    assert 'Interactive Prototypes' not in post, \
+        'Interactive Prototypes should not appear after prototype folder'
+
+
+def test_B8_interactive_alone_creates_prototype_folder():
+    """只有 pages/prototype/index.html 時 (沒有 docs/prototype/*.md) 仍要顯示
+    📁 PROTOTYPE/ 折疊群裝著 Interactive Prototypes."""
+    layout = {
+        'README.md': '',
+        'docs/EDD.md': '# EDD',
+        'docs/pages/prototype/index.html': '<h1>x</h1>',
+    }
+    html = _sidebar_for(layout)
+    proto_idx = html.find('📁 prototype/')
+    assert proto_idx >= 0, \
+        f'prototype folder must be synthesized when interactive entries exist; html: {html[:600]}'
+    end_idx = html.find('</details>', proto_idx)
+    while end_idx >= 0 and html[proto_idx:end_idx].count('<details') > html[proto_idx:end_idx].count('</details>'):
+        end_idx = html.find('</details>', end_idx + 1)
+    chunk = html[proto_idx:end_idx]
+    assert 'Interactive Prototypes' in chunk
+
+
 # ─── Standalone runner ───────────────────────────────────────────────────
 
 def main() -> int:
@@ -639,6 +756,12 @@ def main() -> int:
         ('B6_link_subdir_to_root', test_B6_link_subdir_to_root),
         ('B6_link_subdir_to_sibling_subdir', test_B6_link_subdir_to_sibling_subdir),
         ('B6_active_class_still_works', test_B6_active_class_still_works),
+        ('B8_server_uml_indented_under_diagrams', test_B8_server_uml_indented_under_diagrams),
+        ('B8_plantuml_inside_diagrams', test_B8_plantuml_inside_diagrams),
+        ('B8_no_standalone_plantuml_section', test_B8_no_standalone_plantuml_section),
+        ('B8_interactive_inside_prototype_folder', test_B8_interactive_inside_prototype_folder),
+        ('B8_no_standalone_interactive_section', test_B8_no_standalone_interactive_section),
+        ('B8_interactive_alone_creates_prototype_folder', test_B8_interactive_alone_creates_prototype_folder),
     ]
     passed = failed = 0
     for name, fn in tests:

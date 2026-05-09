@@ -284,6 +284,21 @@ Status: `review` | `todo` | `running` | `done`
 
 ---
 
+## # B8. Sidebar 結構修正（B5 視覺檢視後 user 找到 3 個問題）
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | 1. `SERVER UML / FRONTEND UML` label 縮排與 `📁 DIAGRAMS/` 同一層，看起來像獨立區段而非「DIAGRAMS 內的子分區」<br>2. `📐 PLANTUML` 獨立一塊，但 `.puml` 檔本來就在 `docs/diagrams/puml/`，應該在 `📁 DIAGRAMS/` 內<br>3. `INTERACTIVE PROTOTYPES` 獨立一塊，但語意上是 `📁 PROTOTYPE/` 內容的入口，應放進該折疊群 |
+| **證據** | pet sidebar 截圖（`b_pet_sidebar_mid.png`）顯示三個結構問題 |
+| **對齊核心目標** | 3. 表達（sidebar 結構應對應 pages/ 目錄真實階層，避免讓 user 誤判「PLANTUML 跟 DIAGRAMS 是平級」「INTERACTIVE PROTOTYPES 跟 PROTOTYPE 是兩件事」）|
+| **預期解** | <br>1. **CSS**：`.sidebar__section details > .sidebar__label` padding-left 加深一階；`.sidebar__section details details .sidebar__link` 也再加深，反映實際層級<br>2. **PLANTUML 整併進 DIAGRAMS**：`make_sidebar` 中把 puml_files 的 render 從獨立 `<div class="sidebar__section">` 移進 `📁 DIAGRAMS/` `<details>` 內（在 Frontend UML 之後）。`puml_files` 為空時不顯示<br>3. **INTERACTIVE 整併進 PROTOTYPE**：`make_sidebar` 把 `scan_prototype_entries` 的 render 從獨立 section 移進 `📁 PROTOTYPE/` 折疊群內。當 `prototype` 不在 sub_docs 但有 interactive entries 時，仍要建一個 `📁 PROTOTYPE/` 折疊群把 interactive 包進來 |
+| **Test case** | 1. `test_B8_server_uml_indented_under_diagrams`：SERVER UML label 在 sidebar 出現位置位於 `📁 DIAGRAMS/` 的 `<details>` 內（DOM 嵌套，既有 test 已驗）；視覺上靠 CSS `.sidebar__section details .sidebar__label` 加 padding-left → 在 HTML 中該 label 是否有對應 selector 命中（grep CSS）<br>2. `test_B8_plantuml_inside_diagrams`：fixture 含 `docs/foo.puml` → sidebar 中 `📐 PLANTUML` 出現在 `📁 DIAGRAMS/` `<details>` 內，**不在** root sidebar level<br>3. `test_B8_no_standalone_plantuml_section`：sidebar 不含 root-level `📐 PLANTUML` `<details>` section<br>4. `test_B8_interactive_inside_prototype_folder`：fixture 含 `docs/pages/prototype/index.html` → sidebar 中 `Interactive Prototypes` label + 🎮 連結出現在 `📁 PROTOTYPE/` `<details>` 內<br>5. `test_B8_no_standalone_interactive_section`：sidebar 不含 root-level `Interactive Prototypes` 區塊（必在 prototype/ 折疊群內）<br>6. `test_B8_interactive_alone_creates_prototype_folder`：fixture 只有 `pages/prototype/index.html`（**沒有** `docs/prototype/*.md`）→ sidebar 仍要建 `📁 PROTOTYPE/` 折疊群，內含 interactive 連結 |
+| **不影響其他 case** | 既有 B5 子目錄 tree、B6 relpath、prototype 不覆寫邏輯（B4）不動；非 prototype/ 子目錄不受影響 |
+| **驗收對應** | F（sidebar 樹狀真實層級）|
+| **Status** | **done** ✅（6 test 全綠，257/257 全綠；視覺實機驗證 pet 三個問題全部解掉）|
+
+---
+
 ## B 群決策點（彙總，等 user 拍板）
 
 | # | 議題 | 我的建議 |
