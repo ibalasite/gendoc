@@ -108,32 +108,30 @@
 
 ---
 
-## C. 「實作用」檔案誤生成到 pages/
+## C. 「實作用」檔案誤生成到 pages/  ✅ **全部 RESOLVED BY B 群（方向反轉）**
 
-### C1. `docs/blueprint/mock/MOCK_SERVER_GUIDE.md` → `pages/blueprint__mock-mock_server_guide.html`
+> **2026-05-09 user 釐清**：原 C 群 4 子題都是「EXCLUDE 方向」，user 反轉
+> 為「.md 都要鏡射，但要進正確 subdir」。B 群實作後 4 子題全部達成。
 
-- **事實**：blueprint 是實作用（含 helm/openapi yaml/python code），不該出現在 pages。但唯一的 `.md`（Mock Server Guide）被掃到並轉 HTML。
-- **證據**：pet 1 個、erp 1 個。
-- **根因**：`scan_subdirectory_docs` 沒排除 `blueprint`。
+### ~~C1.~~ `docs/blueprint/mock/MOCK_SERVER_GUIDE.md`  ✅ resolved by B1+B3
 
-### C2. `docs/contracts/*.md` → `pages/contracts__*.html`
+- **原**：blueprint 不該出現在 pages
+- **現**：`pages/blueprint/mock/mock_server_guide.html` 存在於正確 subdir（B1 slug + B3 writer）
 
-- **事實**：contracts 是實作用（API contract spec for code），不該在 pages。
-- **證據**：pet 3 個（api-admin-contract、api-player-contract、event-schema-contract）。
-- **根因**：同 C1，沒排除 `contracts`。
+### ~~C2.~~ `docs/contracts/*.md`  ✅ resolved by B1+B3
 
-### C3. sidebar 出現 📁 blueprint/、📁 contracts/、📁 bdd/
+- **原**：contracts 不該在 pages
+- **現**：`pages/contracts/{api-admin,api-player,event-schema}-contract.html` 全部進 subdir
 
-- **事實**：sidebar 把所有 subdir 都建折疊群。
-- **證據**：
-  - pet sidebar：📁 blueprint/、📁 contracts/、📁 prototype/、📎 req/、📐 PlantUML
-  - erp sidebar：📁 bdd/、📁 blueprint/、📎 req/
-- **根因**：`make_sidebar` 對所有 subdir 一律建群，沒排除實作用。
+### ~~C3.~~ sidebar 出現 📁 blueprint/、📁 contracts/、📁 bdd/  ✅ resolved by B5
 
-### C4. `docs/CONTRACTS.md`（root）和 `docs/contracts/`（subdir）同名造成混淆
+- **原**：sidebar 不該顯示這些折疊群
+- **現**：sidebar **正確顯示**這些折疊群（user 新意願：sidebar 樹狀 = pages/ 目錄結構）
 
-- **事實**：pet 同時有 `pages/contracts.html`（來自 root `CONTRACTS.md`）和 `pages/contracts__*.html`（來自 subdir）。
-- **根因**：命名衝突，root .md 與同名 subdir 共用「contracts」前綴。
+### ~~C4.~~ `docs/CONTRACTS.md`（root）vs `docs/contracts/`（subdir）命名衝突  ✅ resolved by B1+B2
+
+- **原**：root contracts.html 與 flat contracts__*.html 共用 contracts 前綴混淆
+- **現**：`pages/contracts.html`（檔，root CONTRACTS.md）與 `pages/contracts/`（目錄，含 3 個 sub-md html）filesystem 共存無衝突
 
 ---
 

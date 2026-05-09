@@ -314,6 +314,31 @@ Status: `review` | `todo` | `running` | `done`
 
 ---
 
+# ════════════════════════════════════════════════
+# C 群（被 B 群吸收，不需新工作）
+# ════════════════════════════════════════════════
+
+> **背景**：原 C 群 4 子題都是「EXCLUDE blueprint/contracts/bdd」方向。
+> User 在 B 群會議反轉了方向 — `.md` 都要鏡射，只是不能在 root flat。
+> B 群實作後，C 群 4 子題全部達成（用相反的方式：透過 subdir 鏡射）。
+
+## 實機驗證（pet sandbox）
+
+| C 子題 | 原描述 | 現況驗證 | Status |
+|---|---|---|---|
+| **C1** | blueprint/mock/X.md 不該入 pages | `pages/blueprint/mock/mock_server_guide.html` 存在於正確 subdir | **✅ done by B1+B3** |
+| **C2** | contracts/*.md 不該入 pages | `pages/contracts/{api-admin,api-player,event-schema}-contract.html` 全部進 subdir | **✅ done by B1+B3** |
+| **C3** | sidebar 不該顯示 blueprint/contracts/bdd 折疊群 | sidebar 顯示 `📁 BLUEPRINT/、📁 CONTRACTS/、📁 BDD/` 折疊群（user 新意願）| **✅ done by B5** |
+| **C4** | CONTRACTS.md vs contracts/ 命名衝突 | `pages/contracts.html`（檔，來自 root CONTRACTS.md）與 `pages/contracts/`（目錄，含 3 個 .md html）共存無衝突 | **✅ done by B1+B2** |
+
+## 結論
+
+**C 群全部 done。沒有新 fix 要做。**
+
+只需要在 issues.md 加註「resolved by B group」標記讓清單一致。
+
+---
+
 ## B 群決策點（彙總，等 user 拍板）
 
 | # | 議題 | 我的建議 |
