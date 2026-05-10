@@ -1100,12 +1100,74 @@ index.html, runbook.html, test-plan.html
 
 ---
 
-## 5 個決策點（請 user 拍板）
+## 7 個決策點（user 已拍板）
 
-| # | 議題 | 我的建議 |
+| # | 議題 | 拍板 |
 |---|---|---|
-| 1 | TOC 渲染位置 | **B 右側 sticky** + RWD 回退 A |
-| 2 | TOC 展開深度 | **H2+H3** |
-| 3 | Scroll-spy 高亮 | **✅ 加** |
-| 4 | 短文件不渲染門檻 | H2 數 < 3 → 不渲染 |
-| 5 | manual TOC 共存策略 | 偵測到 H2 "Table of Contents" → skip auto-TOC |
+| 1 | 預設 tab active | **文件 tab** |
+| 2 | 預設 sidebar 展開狀態 | **展開** |
+| 3 | 收合狀態跨頁記憶 | **localStorage 記憶**（key: `gendoc:sidebar-collapsed`）|
+| 4 | TOC 展開深度 | **H2 + H3**（H4 不放）|
+| 5 | Scroll-spy 高亮 | **加**（IntersectionObserver）|
+| 6 | 短文件 + RWD | **永遠渲染** TOC + 手機 RWD 自動收合 |
+| 7 | source manual TOC 共存 | **不破壞**（main 內 manual TOC 保留）+ **sidebar TOC tab 永遠存在**（位置不衝突，不重複）|
+
+---
+
+## 設計（採 demo-v4：左 sidebar 兩 tab + 收合）
+
+```
+預設展開 (1440 viewport)：
+┌──────────┬─────────────────────────┐
+│ ⇤ tab    │                         │
+│ [📁 文件] │                         │
+│ [📑 目錄] │     MAIN (1100px)       │
+│ panel    │                         │
+│ (240px)  │                         │
+└──────────┴─────────────────────────┘
+
+收合後：
+┌──┬─────────────────────────────────┐
+│⇥ │     MAIN (1340px) — 拉到最大     │
+└──┴─────────────────────────────────┘
+
+手機 (375)：
+sidebar default collapsed (32px)，user 點 ⇥ 展開（覆蓋 main）
+```
+
+---
+
+## 修法切片（單一 commit）
+
+| 變更 | 位置 |
+|---|---|
+| 加 `_build_toc(html)` 函式 | `gen_html.py` — 掃 `<h2 id>` `<h3 id>` 產出 anchor list |
+| 改 sidebar layout | `make_sidebar` 包進 tabs + panels + toggle button |
+| 加 CSS | inline `<style>` 加 tab bar / panel / collapsed / scroll-spy / RWD 媒體查詢 |
+| 加 JS | `assets/app.js` 加 tab toggle + sidebar collapse + localStorage + IntersectionObserver scroll-spy |
+
+---
+
+## Test case (11 個)
+
+1. `test_N1_sidebar_has_two_tabs` — `<button data-tab="docs">` + `<button data-tab="toc">`
+2. `test_N1_doc_list_in_docs_panel` — 原 sidebar 連結進 `<div data-panel="docs">`
+3. `test_N1_toc_panel_has_h2_h3_anchors` — toc panel 含對應 anchor links
+4. `test_N1_h4_not_in_toc` — H4 不出現
+5. `test_N1_toc_panel_always_rendered` — 即使 0 H2 也有 panel（顯示空 list 或提示）
+6. `test_N1_manual_toc_in_main_preserved` — source 內 manual TOC 保留
+7. `test_N1_active_tab_default_docs` — docs tab 帶 active
+8. `test_N1_collapse_toggle_button_exists` — sidebar 含 `<button class="sidebar__toggle">`
+9. `test_N1_localstorage_key_in_js` — `app.js` 含 `gendoc:sidebar-collapsed`
+10. `test_N1_scrollspy_intersection_observer_in_js` — `app.js` 含 `IntersectionObserver` + active 切換
+11. `test_N1_rwd_mobile_collapse_css` — `<style>` 含 `@media (max-width: 768px)` 對 sidebar 的 default-collapse rule
+
+---
+
+## 驗收（4 張截圖）
+
+跑 k-group sandbox `K-FIXTURE.md`（含 11 H2）：
+- **N1-final-1-docs-tab.png** (1440)：預設展開 + 文件 tab active
+- **N1-final-2-toc-tab.png** (1440)：點 toc tab → 11 H2 + 子 H3 anchor 列出
+- **N1-final-3-collapsed.png** (1440)：點 ⇤ → sidebar 32px，main 1340px
+- **N1-final-4-mobile-rwd.png** (375 viewport)：手機 sidebar 預設收合
