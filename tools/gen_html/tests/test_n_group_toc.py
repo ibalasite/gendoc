@@ -243,6 +243,25 @@ def test_N1_tab_panel_css_exists():
     assert re.search(r'\.sidebar-collapsed\b', text), '.sidebar-collapsed CSS missing'
 
 
+# ─── 6: N1 inline CSS 必須覆寫 style.css 的 sidebar padding ───────────
+# Real-world bug（user 在 erp/index.html 看到的 4 個 sidebar 問題之 #4）：
+# style.css L198 `.sidebar { padding: 1.5rem 0; }` 沒被 N1 inline CSS 蓋過 →
+# tab 上下各留 24px 空白 + panel 高度被吃掉造成 scrollbar 全展不開。
+
+def test_N1_inline_sidebar_overrides_padding():
+    """N1 inline `.sidebar` rule 必須含 `padding: 0` 覆寫 style.css 的 1.5rem。"""
+    text = _read_gen_html_text()
+    # Find the N1 .sidebar rule (inside HTML_TEMPLATE inline <style>)
+    n1_rule = re.search(
+        r'\.sidebar\s*\{[^{}]*?display:\s*flex[^{}]*?\}',
+        text, re.DOTALL,
+    )
+    assert n1_rule, 'N1 inline .sidebar rule not found'
+    body = n1_rule.group(0)
+    assert 'padding' in body and re.search(r'padding\s*:\s*0\b', body), \
+        f'N1 .sidebar must set padding: 0 to override style.css; got:\n{body}'
+
+
 # ─── Standalone runner ────────────────────────────────────────────────
 
 def main():
@@ -263,6 +282,7 @@ def main():
         ('N1_scrollspy_intersection_observer_in_js', test_N1_scrollspy_intersection_observer_in_js),
         ('N1_rwd_mobile_collapse_css', test_N1_rwd_mobile_collapse_css),
         ('N1_tab_panel_css_exists', test_N1_tab_panel_css_exists),
+        ('N1_inline_sidebar_overrides_padding', test_N1_inline_sidebar_overrides_padding),
     ]
     passed = failed = 0
     for name, fn in tests:
