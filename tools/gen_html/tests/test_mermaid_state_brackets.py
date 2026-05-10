@@ -115,6 +115,86 @@ def test_state_semicolon_in_label_still_normalized():
         f'semicolon should be normalized to comma; got:\n{fixed}'
 
 
+# ─── 3: empty state block 移除（真實破圖 root cause）──────────────────
+# 實機 Playwright + mermaid v11.14 browser 驗證：
+# v7a 只 transitions          → ✅ render OK
+# v7b transitions + 空 state X { } → ❌ Syntax error in text
+# v7c transitions + state X : 描述 → ✅
+# v7e 只 state X : 描述         → ✅
+# → root cause: 空的 `state X { }` block 讓 mermaid v11 browser parser fail。
+#   gen_html.py `fix_state_line` L643-644 刪掉 `entry:` / `exit:` 行後，
+#   既有 source（pet/PDD.md, erp/diagrams/frontend-state-{scene,ui}.md）
+#   的 `state X { entry: ... exit: ... }` block 被掏空 → 留下空 block → 破圖。
+
+def test_empty_state_block_removed_after_entry_exit_strip():
+    """`state X { entry: ... exit: ... }` 經 entry/exit strip 變空後，
+    整個 block 應移除（避免空 block 導致 mermaid v11 parse fail）。"""
+    src = (
+        'stateDiagram-v2\n'
+        '    [*] --> Foo\n'
+        '    state Foo {\n'
+        '      entry: doSomething()\n'
+        '      exit: cleanup()\n'
+        '    }\n'
+    )
+    fixed = _fix(src)
+    # The block body (entry/exit) is fully stripped → block becomes empty →
+    # the entire `state Foo { ... }` block must be removed.
+    assert 'state Foo {' not in fixed, \
+        f'empty state block should be removed; got:\n{fixed}'
+
+
+def test_state_block_with_only_blank_lines_removed():
+    """`state X { (only blank lines) }` 也視為空 block，整個移除。"""
+    src = (
+        'stateDiagram-v2\n'
+        '    [*] --> Bar\n'
+        '    state Bar {\n'
+        '\n'
+        '\n'
+        '    }\n'
+    )
+    fixed = _fix(src)
+    assert 'state Bar {' not in fixed, \
+        f'state block with only blank lines should be removed; got:\n{fixed}'
+
+
+def test_state_block_with_real_content_preserved():
+    """非空 state block（含 nested state / transition）必須保留。"""
+    src = (
+        'stateDiagram-v2\n'
+        '    [*] --> Outer\n'
+        '    state Outer {\n'
+        '        [*] --> Sub1\n'
+        '        Sub1 --> Sub2\n'
+        '        Sub2 --> [*]\n'
+        '    }\n'
+    )
+    fixed = _fix(src)
+    assert 'state Outer {' in fixed, \
+        f'state block with content should be preserved; got:\n{fixed}'
+    assert 'Sub1' in fixed and 'Sub2' in fixed, \
+        f'nested states should be preserved; got:\n{fixed}'
+
+
+def test_state_block_description_line_preserved_when_block_removed():
+    """空 block 移除時，同 state 的 `state X : description` 行必須保留。"""
+    src = (
+        'stateDiagram-v2\n'
+        '    [*] --> Idle\n'
+        '    state Idle {\n'
+        '      entry: enable()\n'
+        '      exit: disable()\n'
+        '    }\n'
+        '    state Idle : 預設靜止狀態\n'
+    )
+    fixed = _fix(src)
+    assert 'state Idle {' not in fixed, \
+        f'empty block should be removed; got:\n{fixed}'
+    assert 'state Idle : 預設靜止狀態' in fixed, \
+        f'description line should be preserved; got:\n{fixed}'
+
+
 # ─── Standalone runner ────────────────────────────────────────────────
 
 def main():
@@ -128,6 +208,10 @@ def main():
         ('state_default_keyword_still_renamed', test_state_default_keyword_still_renamed),
         ('state_entry_exit_lines_still_stripped', test_state_entry_exit_lines_still_stripped),
         ('state_semicolon_in_label_still_normalized', test_state_semicolon_in_label_still_normalized),
+        ('empty_state_block_removed_after_entry_exit_strip', test_empty_state_block_removed_after_entry_exit_strip),
+        ('state_block_with_only_blank_lines_removed', test_state_block_with_only_blank_lines_removed),
+        ('state_block_with_real_content_preserved', test_state_block_with_real_content_preserved),
+        ('state_block_description_line_preserved_when_block_removed', test_state_block_description_line_preserved_when_block_removed),
     ]
     passed = failed = 0
     for name, fn in tests:
