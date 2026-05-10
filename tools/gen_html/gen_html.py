@@ -418,7 +418,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     .umock__field-required { color: #dc2626; margin-left: 0.125rem; }
     .umock__input, .umock__search {
       display: block; width: 100%; padding: 0.5rem 0.625rem; font-size: 0.9rem;
-      border: 1px solid #cbd5e1; border-radius: 4px; background: #fff;
+      border: 1px solid #94a3b8; border-radius: 4px; background: #fff;
       color: #475569; box-sizing: border-box;
     }
     .umock__btn { display: inline-block; padding: 0.4rem 0.9rem; margin: 0.125rem;
