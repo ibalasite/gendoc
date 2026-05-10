@@ -960,3 +960,152 @@ K8 (umock wrapper) ───────┘
 | 1 | **L 群 fix 後 K group sandbox 內無 subdir 案例可驗證** — 是否要新增 sandbox 加一個 subdir HTML？ | ✅ 加（K group sandbox 已存在 fixtures，新增 1-2 個 subdir docs 即可） |
 | 2 | **R3-7 是否該檢查 `(pages_dir / target)` 真實存在** 才 prepend `../`？ | ✅（避免誤判：例如 `bare-string` 不是檔案路徑卻被誤加 `../`）|
 | 3 | **`href="index.html"` 在 root pages/ 不需處理（self-reference）；只在 subdir 才需 `../`** | ✅（rewrite 用 `current_html_path` 計算 depth，root 時 depth=0 → 不加） |
+
+---
+
+# N 群 — 每頁 TOC（Table of Contents）標配
+
+> **新需求**（user 加）：「不是每一個 HTML 有 table of contents，對於這個我想 gen-html 要把每一個 html 都有這個標配」。
+
+---
+
+## 實機現況（2026-05-10 read-only inspection）
+
+| 指標 | 數值 |
+|---|---|
+| pet/docs/pages 中 top-level HTML 總數 | 110 |
+| 含 "Table of Contents" 字串的 HTML | **7** |
+| 主要文件 edd/schema/arch/prd/brd/pdd/vdd 含 TOC | **0** ❌ |
+| edd.html (2354 行) heading 結構 | H2=24, H3=76, H4=53 |
+| schema.html (2281 行) heading 結構 | H2=22, H3=73, H4=2 |
+| arch.html (1428 行) heading 結構 | H2=22, H3=49, H4=0 |
+| `gen_html.py` 中 TOC 生成邏輯 | **0 個函式** |
+| heading id 屬性（J 群已加，anchor 跳轉前提） | edd.html 154 個 heading 全帶 id ✓ |
+
+**意涵**：使用者打開 edd / schema / arch 等 1500-2400 行的大文件，沒有導覽，只能全頁滑。
+
+---
+
+## 7 個既有含 TOC 的檔案分析
+
+來源都是 source markdown 手寫的：
+```
+api.html, cicd.html, developer-guide.html, developer_guide.html,
+index.html, runbook.html, test-plan.html
+```
+
+`cicd.html` L342-343 範例（manual TOC pattern）：
+```html
+<h2 id="table-of-contents">Table of Contents</h2>
+<ol>
+  <li><a href="#pipeline-overview">Pipeline Overview</a></li>
+  <li><a href="#github-actions-workflows">GitHub Actions Workflows</a></li>
+  ...
+</ol>
+```
+
+純 markdown list，無 sticky、無 scroll-spy、無 indent 階層。
+
+---
+
+## 設計目標（提案 + 待 user 拍板）
+
+要 gen-html 自動生成 TOC，需決定 5 件事：
+
+### 1. TOC 渲染位置（4 選項）
+
+| 選項 | 說明 | 視覺 | RWD |
+|---|---|---|---|
+| **A. main 頂部 inline** | TOC 寫在 main 開頭（替代 source 寫的 `## Table of Contents`） | 跟 cicd.html 既有 7 個一致 | 簡單，窄屏不受影響 |
+| **B. 右側 sticky** | 三欄 layout：左 sidebar + 中 main + 右 sticky TOC | 跟 Stripe / Material UI / Tailwind docs 一致 | 需 RWD（窄屏改回頂部）|
+| **C. left sidebar 內折疊** | 在 docs sidebar 底部折疊 `<details><summary>本頁目錄</summary>` | 跟 sidebar 整合，無新欄 | 簡單 |
+| **D. floating drawer** | 右下浮動按鈕 → 點開 drawer 顯示 TOC | 不佔版面 | RWD 容易 |
+
+**我的推薦：B（右側 sticky）**。理由：
+- 現代 docs site 標準做法（user 期待）
+- 大文件（edd 2354 行）需要常態可見 TOC 隨捲動定位
+- scroll-spy 可高亮當前 section，user 知道讀到哪
+- 窄屏（< 1024px）回退到 A（main 頂部 inline）
+
+### 2. TOC 展開深度（3 選項）
+
+| 選項 | 說明 | edd 例 |
+|---|---|---|
+| 只 H2 | 22 條 link | 短而簡 |
+| H2+H3 | 22+76=98 條 link | 中等 |
+| H2+H3+H4 | 22+76+53=151 條 link | 詳細，可能擠 |
+
+**我的推薦：H2+H3**（98 條對 sticky panel 高度合理；H4 太細放折疊）。
+
+### 3. Scroll-spy（隨頁面捲動高亮當前 section）
+
+**我的推薦：✅ 加**。輕量 JS（IntersectionObserver），無需 framework。
+
+### 4. 短文件不顯示（避免 1-2 個 H2 也擺 TOC）
+
+**我的推薦**：H2 數 ≥ 3 才渲染。
+
+### 5. 既有 source 寫的 TOC 怎麼辦
+
+7 個檔內 markdown 已寫 `## Table of Contents` + manual list。auto-TOC 跟 manual TOC 共存會重複。
+
+**我的推薦**：自動偵測 source 含 manual TOC（H2 = "Table of Contents"）→ **跳過 auto-TOC**（尊重作者）。
+
+---
+
+## 修法切片
+
+**單一 commit**（根目標：每頁 TOC 標配）：
+
+| 變更 | 位置 | 動作 |
+|---|---|---|
+| 加 TOC 生成器 | `gen_html.py` 加 `_build_toc(html)` 函式 — 掃 H2/H3 帶 `id` 的 heading，產出 `<nav class="page-toc">` HTML |
+| 加 layout 三欄 | head template L443 `<main class="doc-content">` 改成 `<main class="doc-content"> + <aside class="page-toc-aside" />` |
+| 加 CSS | inline `<style>` 內加 `.page-toc-aside`（sticky right）+ `.page-toc__link.active`（scroll-spy 高亮）+ RWD 媒體查詢 |
+| 加 scroll-spy JS | `assets/app.js` 加 IntersectionObserver bind H2/H3 → 切 active class |
+| 偵測 manual TOC | `_build_toc` 看到 source 已有 H2 "Table of Contents" → return 空（不重複生成） |
+| 短文件 skip | H2 數 < 3 → return 空 |
+
+---
+
+## Test case（含 edge）
+
+1. `test_N1_long_doc_gets_auto_toc`<br>
+   含 ≥ 3 個 H2 的 markdown → 渲染後含 `<nav class="page-toc">`
+2. `test_N1_short_doc_no_toc`<br>
+   只 1-2 個 H2 → 不含 page-toc
+3. `test_N1_h2_h3_in_toc_h4_skipped`<br>
+   含 H2/H3/H4 → page-toc 含 H2 + H3 anchor，無 H4
+4. `test_N1_manual_toc_skipped`<br>
+   source markdown 已寫 `## Table of Contents` → auto-TOC return 空（regression for cicd / developer-guide / api 等 7 檔）
+5. `test_N1_toc_anchors_match_heading_ids`<br>
+   page-toc 內 `<a href="#X">` 必須對應到 main 內某個 `<h2 id="X">` 或 `<h3 id="X">`
+6. `test_N1_subdir_page_toc_works`<br>
+   subdir HTML（如 pages/diagrams/X.html）也有 page-toc（不被 L1 R3-7 路徑誤動）
+7. `test_N1_scroll_spy_css_active_class_exists`<br>
+   `<style>` 含 `.page-toc__link.active` rule
+8. `test_N1_rwd_narrow_screen_falls_back`<br>
+   `<style>` 含 `@media (max-width: ...)` 對 .page-toc-aside 的處理（如改 inline）
+
+---
+
+## 驗收（3 視角 + screenshot）
+
+加 sandbox 案例（K-group sandbox 已有 K-FIXTURE 含多 H2/H3，可重用）：
+1. **inspect HTML**: K-FIXTURE.html 含 `<nav class="page-toc">` 含 ≥ 11 個 H2 anchor
+2. **screenshot N1-1**: docs page 預設視窗（≥ 1024px）顯示左 sidebar + 中 main + 右 sticky TOC 三欄
+3. **screenshot N1-2**: 點 TOC 任一條 link → main 滾到對應 section（用 J 群 anchor 跳轉）
+4. **screenshot N1-3**: scroll page 後 TOC 高亮當前 section（scroll-spy）
+5. **screenshot N1-4**: 窄視窗（< 1024px）TOC 改顯示在 main 頂部 inline
+
+---
+
+## 5 個決策點（請 user 拍板）
+
+| # | 議題 | 我的建議 |
+|---|---|---|
+| 1 | TOC 渲染位置 | **B 右側 sticky** + RWD 回退 A |
+| 2 | TOC 展開深度 | **H2+H3** |
+| 3 | Scroll-spy 高亮 | **✅ 加** |
+| 4 | 短文件不渲染門檻 | H2 數 < 3 → 不渲染 |
+| 5 | manual TOC 共存策略 | 偵測到 H2 "Table of Contents" → skip auto-TOC |
