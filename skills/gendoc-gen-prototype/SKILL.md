@@ -568,8 +568,9 @@ router.init();
 
 <!-- Prototype Shell -->
 <div id="proto-shell">
-  <!-- 頂部導覽列：含 "流程地圖" + 目前畫面 breadcrumb + 返回按鈕 -->
+  <!-- 頂部導覽列：含 文件站回首頁、"流程地圖" + 目前畫面 breadcrumb + 返回按鈕 -->
   <nav id="proto-nav">
+    <a href="../index.html" class="proto-back-docs">← 文件站</a>
     <button onclick="router.back()">← 返回</button>
     <span id="proto-breadcrumb"></span>
     <button onclick="showFlowMap()">📍 流程地圖</button>
@@ -691,7 +692,7 @@ HTML 結構規範：
              oninput="saveAuth(this.value)">
       <label><input type="checkbox" id="auth-enabled" checked> 自動帶入 Auth Header</label>
     </div>
-    <a class="nav-link" href="../index.html">← 文件站</a>
+    <a class="nav-link" href="../../index.html">← 文件站</a>
   </header>
 
   <div class="layout">
@@ -980,11 +981,12 @@ Step A-4：生成 5 個 Admin HTML 頁面（使用 Write 工具分別寫入）
 - 錯誤提示文字（紅色，預設隱藏）
 - 底部版本資訊（Admin Portal v1.0）
 - 示範帳號提示（demo 使用：admin / Admin@2026）
+- **頂部固定**：`<a href="../../index.html" class="back-link">← 文件站</a>`（depth=2 from `pages/prototype/admin/`，回 docs hub；登入後也保留此 link 在後續頁面）
 
 **頁面 2：docs/pages/prototype/admin/admin-dashboard.html**
 
 控制台主頁（含 sidebar + 頂部 nav）：
-- 頂部 nav：左側 Logo + 右側「系統管理員 (super_admin)」下拉（含「登出」選項 → 返回 admin-login.html）
+- 頂部 nav：左側 `<a href="../../index.html" class="back-link">← 文件站</a>` + Logo + 右側「系統管理員 (super_admin)」下拉（含「登出」選項 → 返回 admin-login.html）
 - 左側 sidebar（固定，含導覽項目 + active 樣式）：
   - 控制台（active）
   - 用戶管理 → admin-users.html
@@ -1151,6 +1153,7 @@ API Explorer（_PROTO_MODE = api-explorer / full）：
 - [ ] P-8: **音效觸發** — 若有 audio-engine.js，BGM 進入首頁時是否觸發？P0 SFX 事件是否綁定？（Technical）
 - [ ] P-9: **iOS 音效解鎖** — 是否有 audio-unlock-btn 或等效的首次點擊解鎖機制？（Technical）
 - [ ] P-10: **無 JS 語法錯誤** — prototype.js 和 audio-engine.js 是否無明顯語法錯誤（未閉合的 {}/[]/"，缺少分號，未定義變數）？（Technical）
+- [ ] P-11: **回 docs link** — 每個 prototype HTML（含 `prototype/index.html`、`prototype/admin/*.html`、`prototype/api-explorer/index.html`）必須含可解析到 docs index 的 back-link `<a>...← 文件站</a>`，href 由 depth 決定（depth=1 用 `../index.html`，depth=2 用 `../../index.html`）。確認 label 跟 href 對應正確（不可 label 寫文件站但 href 只到 prototype shell）。（UX Flow）
 
 ### A. API Explorer 品質審查（_PROTO_MODE = api-explorer / full）
 
