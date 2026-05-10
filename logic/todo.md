@@ -822,3 +822,103 @@ K8 (umock wrapper) ───────┘
 - RED → GREEN → run all tests → commit（不 push）
 - 每項 commit 後 user 確認 → 才進下一項
 - 每個 step 的 commit 訊息：`fix(gen-html): K<N> ...`
+
+---
+
+# L 群 — subdir HTML 的 `<head>` CSS / nav-brand / breadcrumb 路徑全壞
+
+> 範圍：`logic/issues.md` L 群。50 個位於 subdir 的 HTML（`pages/diagrams/*.html` `pages/contracts/*.html` `pages/blueprint/mock/*.html` `pages/req/*.html` `pages/prototype/*.html`）的 `<head>` 引用 CSS 路徑相對於 pages/ 根，但檔案在 subdir 內，瀏覽器找不到 → **打開沒任何 style**。
+
+---
+
+## 問題範圍實機統計（pet/docs/pages，read-only inspection）
+
+| 路徑類型 | broken / total subdir HTMLs |
+|---|---|
+| `<link rel="stylesheet" href="assets/style.css">` | 50 / 57 |
+| `<a href="index.html" class="nav-brand">pet</a>` | 50 / 57 |
+| `<p class="banner-breadcrumb"><a href="index.html">pet</a> ...` | 50 / 57 |
+
+對照：sidebar `<a class="sidebar__link" href="../idea.html">` ✅ 全部正確帶 `../` prefix（B6 `make_sidebar` 已做 depth-aware 處理）。
+
+---
+
+## # L1. `<head><link rel="stylesheet" href="assets/style.css">` 沒 depth-aware
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | subdir 下每個 .html 的 `<head>` 寫死 `href="assets/style.css"`（相對於 pages/ 根的路徑），但檔案實際在 `pages/<subdir>/`，瀏覽器解析後去找 `pages/<subdir>/assets/style.css` ← **不存在**。整頁無 CSS。 |
+| **實機證據** | `pages/diagrams/class-domain.html` L7、`pages/contracts/api-admin-contract.html` L7、`pages/blueprint/mock/mock_server_guide.html` L7、`pages/req/idea-input.html` L7、`pages/prototype/admin-moderation-prototype.html` L7 — 全部寫死 `<link rel="stylesheet" href="assets/style.css">`<br>截圖：subdir HTML 點開無樣式（純文字 + browser default 字體） |
+| **gen_html.py 行號** | L221 head template：`<link rel="stylesheet" href="assets/style.css">`（寫死），無 `__DEPTH_PREFIX__` placeholder<br>L2929 `rewrite_pages_paths` 用 `re.sub(r'\b(href\|src)="([^"]+)"', _href_rewrite, html)` 確實**會**掃到這個 href，但 `_href_rewrite` 邏輯只處理 R3-1~R3-5 特定 case（`docs/pages/`、`docs/X.md`、`diagrams/X.md`、`features/X` 等），對 `assets/X` 沒處理 → 原樣 return |
+| **對齊核心目標** | **3. 表達**（整頁無樣式無法閱讀）+ **1. 清楚**（user 從 sidebar 點 subdir 連結 → 樣式全失） |
+| **預期解** | `_href_rewrite` callback 加新規則：<br>- 偵測 target 是 pages/ 根級檔/資料夾（如 `assets/style.css`、`assets/app.js`）<br>- 偵測當前 page 在 subdir 內（`rel_dir != Path('.')`）<br>- 若 target 已有 `../` 前綴 → 跳過<br>- 否則 prepend `'../' * depth + target` |
+| **Status** | review |
+
+---
+
+## # L2. nav-brand `<a href="index.html">` 沒 depth-aware
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | subdir 下每個 .html 的 header `<a class="nav-brand">pet</a>` 寫死 `href="index.html"`，點下去解析為 `pages/<subdir>/index.html`，**不是** `pages/index.html`。在 `diagrams/` 跟 `contracts/` 子目錄下 → 404；在 `prototype/` 下 → 落到 prototype shell（誤導）。 |
+| **實機證據** | `pages/diagrams/class-domain.html` L177：`<a href="index.html" class="nav-brand">pet</a>`<br>`pages/contracts/api-admin-contract.html` L177：同<br>`pages/blueprint/mock/mock_server_guide.html`、`pages/req/idea-input.html`、`pages/prototype/admin-moderation-prototype.html` 全同<br>50 / 57 subdir HTMLs broken |
+| **gen_html.py 行號** | L424 header template：`<a href="index.html" class="nav-brand">__APP__</a>`（寫死） |
+| **對齊核心目標** | **4. 不誤會**（讀者期待點 nav-brand 回首頁，到 404 或 prototype shell） |
+| **預期解** | 同 L1：`_href_rewrite` 偵測 target 是 pages/ 根級檔（含 `index.html`），subdir 中 prepend `../` |
+| **Status** | review |
+
+---
+
+## # L3. banner-breadcrumb `<a href="index.html">pet</a>` 沒 depth-aware
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | subdir 下每個 .html 的 banner `<p class="banner-breadcrumb"><a href="index.html">pet</a> › ...</p>` 寫死 `href="index.html"`，行為同 L2。 |
+| **實機證據** | `pages/diagrams/class-domain.html` L188：`<a href="index.html">pet</a> › 類別圖：領域模型`<br>`pages/contracts/api-admin-contract.html` L188：`<a href="index.html">pet</a> › contracts/ › ...`<br>`pages/prototype/arena-battle-prototype.html` L188：`<a href="index.html">pet</a> › prototype/ › ...`<br>50 / 57 subdir HTMLs broken |
+| **gen_html.py 行號** | L435 banner template：`<p class="banner-breadcrumb">__BREADCRUMB__</p>`，breadcrumb 內含寫死 `<a href="index.html">{APP}</a>`（在 breadcrumb 生成處，待查具體行號） |
+| **對齊核心目標** | **4. 不誤會**（同 L2） |
+| **預期解** | 同 L1：`_href_rewrite` 統一處理 |
+| **Status** | review |
+
+---
+
+## # L4. （連帶問題）原規則 R3-* 不夠 generic
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | `rewrite_pages_paths` 規則只列了 5 種特定 transform（R3-1 docs/pages/、R3-2 docs/X.md、R3-3 diagrams/X.md、R3-4/5 features/blueprint/src/）。**沒有「subdir page 中 root-level 路徑要 prepend `../`」的通用規則**。等於每加一種新 root-level 路徑（assets / index.html）都要改 callback。 |
+| **gen_html.py 行號** | L2820-2826（`R3-1` ~ `R3-5` docstring）+ L2867-2920（`_href_rewrite` body 對應每條規則的 if/elif） |
+| **預期解** | 加 R3-6 通用規則：<br>- target 不是外部 URL / anchor / mailto / data: / javascript:<br>- target 不以 `../` 或 `/` 開頭<br>- target 不是 R3-1~R3-5 已覆蓋的 case<br>- 若 `(pages_dir / target)` 存在（pages/ 根級檔）AND 當前 page 在 subdir →<br>  改為 `'../' * depth + target` |
+| **Status** | review |
+
+---
+
+## L 群處理順序
+
+依依賴關係：
+1. **L4**（加 R3-6 通用規則）— 最根本的修法，自動覆蓋 L1/L2/L3
+2. **L1/L2/L3 驗收**：跑 sandbox 確認 3 種路徑都對
+
+實際 commit 拆 1 個 step（L4 = 加 R3-6 + 整體驗收）即可。
+
+---
+
+## L 群驗收（3 視角對照同 K 群慣例）
+
+需建 sandbox case：
+- 一個 markdown 在 subdir 例：`docs/diagrams/sample.md` 或 `docs/contracts/sample.md`
+- 跑 gen_html 後驗證：
+  1. **inspect HTML**: `<head><link href>`、nav-brand、breadcrumb 都帶 `../`
+  2. **screenshot subdir page (HTML inline)**: 樣式正常顯示
+  3. **screenshot 從 subdir 點 nav-brand**: 跳到 `pages/index.html`（首頁）
+  4. **screenshot 從 subdir 點 breadcrumb pet**: 同上跳到首頁
+
+---
+
+## L 群決策點（等 user 拍板）
+
+| # | 議題 | 我的建議 |
+|---|---|---|
+| 1 | **L 群 fix 後 K group sandbox 內無 subdir 案例可驗證** — 是否要新增 sandbox 加一個 subdir HTML？ | ✅ 加（K group sandbox 已存在 fixtures，新增 1-2 個 subdir docs 即可） |
+| 2 | **R3-6 是否該檢查 `(pages_dir / target)` 真實存在** 才 prepend `../`？ | ✅（避免誤判：例如 `bare-string` 不是檔案路徑卻被誤加 `../`）|
+| 3 | **`href="index.html"` 在 root pages/ 不需處理（self-reference）；只在 subdir 才需 `../`** | ✅（rewrite 用 `current_html_path` 計算 depth，root 時 depth=0 → 不加） |
