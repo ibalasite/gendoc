@@ -194,7 +194,8 @@ def test_B7_R3_2_subdir_md_target_absent_strips():
 # When <code> is already inside an <a>, R1 must NOT wrap it again.
 
 def test_A1_code_inside_a_not_double_wrapped():
-    """已被 <a> 包住的 <code> 不該被 R1 二次包成 <a><a>。"""
+    """已被 <a> 包住的 <code> 不該被 R1 二次包成 <a><a>。
+    M8: prototype/ link 會被加 target="prototype-window"，不影響 wrap 結構。"""
     html = '<a href="prototype/index.html"><code>prototype/index.html</code></a>'
     pages = _make_pages_dir({
         'index.html': '',
@@ -203,7 +204,9 @@ def test_A1_code_inside_a_not_double_wrapped():
     out = gh.rewrite_pages_paths(html, pages / 'index.html', pages)
     # Output must contain exactly ONE <a> wrap around the code
     assert out.count('<a ') == 1, f'expected exactly 1 <a>, got: {out}'
-    assert '<a href="prototype/index.html"><code>prototype/index.html</code></a>' in out
+    # M8: prototype link gets target injected; structure preserved
+    assert 'href="prototype/index.html"' in out and '<code>prototype/index.html</code></a>' in out, \
+        f'unexpected wrap structure: {out}'
 
 
 def test_A1_code_outside_a_still_wrapped():

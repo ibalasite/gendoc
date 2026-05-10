@@ -26,6 +26,26 @@ def _read_skill_md() -> str:
     return SKILL_MD.read_text(encoding='utf-8')
 
 
+# ─── M8 helpers — load gen_html.py ─────────────────────────────────────
+
+import importlib.util
+import tempfile
+
+GEN_HTML = REPO / 'tools' / 'gen_html' / 'gen_html.py'
+_spec = importlib.util.spec_from_file_location('gh_m8', GEN_HTML)
+gh = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(gh)
+
+
+def _make_pages_dir(layout):
+    tmp = pathlib.Path(tempfile.mkdtemp())
+    for rel, content in layout.items():
+        target = tmp / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content if isinstance(content, str) else '')
+    return tmp
+
+
 # ─── M2: prototype shell template (Step G-7) has docs link ─────────────
 
 def _section_between(text: str, start_marker: str, end_marker_re: str) -> str:
@@ -109,6 +129,85 @@ def test_M7_review_subagent_checks_docs_link():
         'review/quality checklist 沒明確驗證 prototype HTML 含 docs back-link'
 
 
+# ─── M8: docs side — prototype links use named target ─────────────────
+# 所有 docs HTML 中指向 `prototype/...` 的 anchor 加 `target="prototype-window"`
+# 行為：第一次點開新 tab；後續點任何 prototype link → 同 tab 切換；
+# docs 主 tab 不被取代。
+
+def test_M8_sidebar_prototype_link_has_target():
+    """make_sidebar 內 prototype 3 個 entry 渲染為 sidebar link 時帶
+    target="prototype-window"。"""
+    # Setup minimal pages dir with prototype entries
+    tmp = _make_pages_dir({
+        'index.html': '',
+        'prototype/index.html': '',
+        'prototype/admin/index.html': '',
+        'prototype/api-explorer/index.html': '',
+    })
+    # Patch PAGES_DIR for scan
+    saved = gh.PAGES_DIR
+    gh.PAGES_DIR = tmp
+    try:
+        sidebar = gh.make_sidebar(
+            doc_pages=[], server_diagrams=[], frontend_diagrams=[],
+            sub_docs={}, current='index',
+        )
+    finally:
+        gh.PAGES_DIR = saved
+    # 必含 prototype link 帶 target
+    pattern = r'<a[^>]*href="[^"]*prototype/[^"]+"[^>]*target="prototype-window"'
+    matches = re.findall(pattern, sidebar)
+    assert len(matches) >= 3, \
+        f'sidebar prototype links missing target="prototype-window"; matches={len(matches)}\n' \
+        f'sidebar (first 1500 chars):\n{sidebar[:1500]}'
+
+
+def test_M8_cards_prototype_link_has_target():
+    """index.html 內 prototype 卡片帶 target="prototype-window"."""
+    tmp = _make_pages_dir({
+        'index.html': '',
+        'prototype/index.html': '',
+        'prototype/admin/index.html': '',
+        'prototype/api-explorer/index.html': '',
+    })
+    saved = gh.PAGES_DIR
+    gh.PAGES_DIR = tmp
+    try:
+        section = gh.prototype_cards_section()
+    finally:
+        gh.PAGES_DIR = saved
+    pattern = r'<a[^>]*class="index-card"[^>]*target="prototype-window"'
+    matches = re.findall(pattern, section)
+    assert len(matches) >= 3, \
+        f'prototype cards missing target="prototype-window"; matches={len(matches)}\n' \
+        f'section:\n{section[:1500]}'
+
+
+def test_M8_rewriter_adds_target_for_prototype_link():
+    """rewrite_pages_paths 對 markdown 寫的 `<a href="prototype/...">` 自動補
+    target="prototype-window"。"""
+    tmp = _make_pages_dir({
+        'index.html': '',
+        'prototype/index.html': '',
+    })
+    html = '<a href="prototype/index.html">UI Prototype</a>'
+    out = gh.rewrite_pages_paths(html, tmp / 'index.html', tmp)
+    assert 'target="prototype-window"' in out, \
+        f'rewriter should add target for prototype link; got: {out}'
+
+
+def test_M8_non_prototype_link_no_target():
+    """非 prototype/ 的 link 不該被加 target（regression）。"""
+    tmp = _make_pages_dir({
+        'index.html': '',
+        'edd.html': '',
+    })
+    html = '<a href="edd.html">EDD</a>'
+    out = gh.rewrite_pages_paths(html, tmp / 'index.html', tmp)
+    assert 'target="prototype-window"' not in out, \
+        f'non-prototype link should not get target; got: {out}'
+
+
 # ─── Standalone runner ────────────────────────────────────────────────
 
 def main():
@@ -126,6 +225,14 @@ def main():
          test_M4_api_explorer_old_broken_link_removed),
         ('M7_review_subagent_checks_docs_link',
          test_M7_review_subagent_checks_docs_link),
+        ('M8_sidebar_prototype_link_has_target',
+         test_M8_sidebar_prototype_link_has_target),
+        ('M8_cards_prototype_link_has_target',
+         test_M8_cards_prototype_link_has_target),
+        ('M8_rewriter_adds_target_for_prototype_link',
+         test_M8_rewriter_adds_target_for_prototype_link),
+        ('M8_non_prototype_link_no_target',
+         test_M8_non_prototype_link_no_target),
     ]
     passed = failed = 0
     for name, fn in tests:

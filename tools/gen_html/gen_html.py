@@ -2957,6 +2957,21 @@ def rewrite_pages_paths(html: str, current_html_path, pages_dir) -> str:
     # 殘留的 sentinel 也清掉（防 self-closing 等）
     rewritten = rewritten.replace('__STRIP_A_TAG__', '')
 
+    # Step 2b (M8): 對指向 prototype/ 的 <a> 注入 target="prototype-window"
+    # 讓 docs 主 tab 不被取代，多次點 prototype 入口 → 同一個 named tab 切換。
+    # 規則：<a href> 含 'prototype/' AND 沒已有 target → 加 target；
+    #       <link href>、<script src> 不動。
+    def _inject_prototype_target(m):
+        full = m.group(0)
+        if 'target=' in full:
+            return full
+        return full[:-1] + ' target="prototype-window">'
+
+    rewritten = re.sub(
+        r'<a\s[^>]*href="[^"]*prototype/[^"]*"[^>]*>',
+        _inject_prototype_target, rewritten,
+    )
+
     # Step 3: R1 — <code>X</code> auto-link when pages/X exists
     # A1 fix: skip <code> already inside <a>...</a> to avoid invalid nested <a><a>.
     def _find_a_spans(s):
@@ -3517,12 +3532,17 @@ def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, curren
     depth_prefix = ('../' * current_depth) if current_depth else ''
 
     def render_interactive_block():
-        """Render Interactive Prototypes label + 🎮 entries (used inside prototype/ folder)."""
+        """Render Interactive Prototypes label + 🎮 entries (used inside prototype/ folder).
+
+        M8: 所有 prototype 連結加 `target="prototype-window"` named tab，
+        讓 docs 主 tab 不被取代；多次點 prototype 入口 → 同一個 tab 切換。
+        """
         out = ['<div class="sidebar__label sidebar__label--sub">Interactive Prototypes</div>']
         for entry in proto_entries:
             href = depth_prefix + entry['href']
             out.append(
-                f'<a class="sidebar__link" href="{href}">'
+                f'<a class="sidebar__link" href="{href}" '
+                f'target="prototype-window">'
                 f'🎮 {entry["label"]}</a>'
             )
         return out
@@ -3664,7 +3684,8 @@ def prototype_cards_section():
     cards = []
     for entry in entries:
         cards.append(
-            f'<a class="index-card" href="{entry["href"]}">'
+            f'<a class="index-card" href="{entry["href"]}" '
+            f'target="prototype-window">'
             f'<span class="index-card__icon">🎮</span>'
             f'<span class="index-card__title">{esc(entry["label"])}</span>'
             f'</a>'
