@@ -722,7 +722,36 @@ def _mermaid_fix_block(lines):
     if is_sequence:
         return [fix_sequence_line(l) for l in lines]
     if is_state:
-        return [fix_state_line(l) for l in lines]
+        per_line = [fix_state_line(l) for l in lines]
+        # Post-pass: remove empty `state X { ... }` blocks. mermaid v11 browser
+        # parser fails on empty blocks (only blank/comment lines between { and }).
+        # This commonly happens after fix_state_line strips all entry:/exit: lines
+        # within a state block. The `state X : description` companion line stays.
+        out = []
+        i = 0
+        n = len(per_line)
+        while i < n:
+            ln = per_line[i]
+            m = re.match(r'^(\s*)state\s+\S+\s*\{\s*$', ln)
+            if m:
+                # Find matching closing `}` (state blocks don't nest the same way
+                # as flowchart subgraphs — just look for the next `}` at any indent).
+                j = i + 1
+                while j < n and not re.match(r'^\s*\}\s*$', per_line[j]):
+                    j += 1
+                if j < n:
+                    body = per_line[i + 1:j]
+                    non_empty = [
+                        b for b in body
+                        if b.strip() and not b.lstrip().startswith('%%')
+                    ]
+                    if not non_empty:
+                        # Whole block is effectively empty → drop i..j inclusive.
+                        i = j + 1
+                        continue
+            out.append(ln)
+            i += 1
+        return out
     if is_class:
         return [fix_class_line(l) for l in lines]
     return lines
@@ -1288,7 +1317,11 @@ def _um_r_layered_arch(n):
             lines.append(f'    {src} -->|{_um_mermaid_label(label)}| {dst}')
         else:
             lines.append(f'    {src} --> {dst}')
-    body = '\n'.join(lines)
+    # Run through the same v11-fix pipeline as user-authored mermaid blocks
+    # (see fix_flowchart_line edge-label quoting at L604-609). Without this,
+    # auto-generated edge labels containing `()` / `/` etc. break mermaid v11.
+    fixed = _mermaid_fix_block(lines)
+    body = '\n'.join(fixed)
     return (
         '<div class="diagram-container">'
         f'<pre class="mermaid">\n{body}\n</pre>'
@@ -3294,9 +3327,15 @@ def md_to_html(text, src_dir=None):
                 elif kind == 'system':
                     mermaid_src = _ascii_to_mermaid_td(block_text)
                     if mermaid_src:
+                        # Run through v11-fix pipeline (edge-label quoting,
+                        # node-label paren handling, etc.) so auto-generated
+                        # mermaid follows the same rules as authored mermaid.
+                        fixed_src = '\n'.join(
+                            _mermaid_fix_block(mermaid_src.split('\n'))
+                        )
                         out.append(
                             '<div class="diagram-container">'
-                            f'<pre class="mermaid">{esc(mermaid_src)}</pre>'
+                            f'<pre class="mermaid">{esc(fixed_src)}</pre>'
                             '</div>'
                         )
                         i += 1
