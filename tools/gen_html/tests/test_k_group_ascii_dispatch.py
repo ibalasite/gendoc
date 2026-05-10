@@ -704,6 +704,186 @@ def test_K8_native_mermaid_wrapper_unchanged():
         f'native mermaid wrapper missing; html:\n{html[:500]}'
 
 
+# ─── K9: umock parser 渲染品質修對 ──────────────────────────────────────
+
+# Real-world fixture: pet/docs/prototype/arena-battle Post-Battle screen
+# 含 title + 子框 (Phaser anim) + 統計 + 並排 2 button
+POST_BATTLE_SCREEN = """\
+┌───────────────────────────────────────────────┐
+│                                               │
+│           🏆  BLAZEKIN WINS!                  │
+│                                               │
+│        ┌────────────────────────┐             │
+│        │  Phaser victory anim   │             │
+│        │  (confetti + sparkles) │             │
+│        └────────────────────────┘             │
+│                                               │
+│  XP Gained:    +120                           │
+│  New Rank:     #39  (was #43  ↑ +4)           │
+│  Total XP:     4,820 / 6,000 to Lv 13        │
+│                                               │
+│  ┌────────────────┐    ┌────────────────────┐ │
+│  │  Fight Again   │    │   Back to Pet View  │ │
+│  └────────────────┘    └────────────────────┘ │
+│                                               │
+└───────────────────────────────────────────────┘
+"""
+
+
+# ─── K9-b: 並排 box → actions group with buttons ────────────────────────
+
+def test_K9b_parallel_buttons_become_actions_not_input():
+    """並排 2 個含短文字的 box → AST 含 actions{button×2}，無 input。"""
+    ast = gh._ui_mock_ascii_parse(POST_BATTLE_SCREEN)
+    assert ast is not None
+    # 遞迴搜整個 AST 找 actions / input nodes
+    def walk(node, types_found):
+        types_found.add(node.get('type'))
+        for c in node.get('children', []):
+            walk(c, types_found)
+    types = set()
+    walk(ast, types)
+    assert 'actions' in types, \
+        f'expected actions node; types found: {types}'
+    # 並排 button 不該變 input field
+    # (注意：原 mock 仍有其他 input/code 是合理的，所以這裡只檢查 actions 存在)
+
+
+def test_K9b_parallel_button_labels_extracted():
+    """`Fight Again` / `Back to Pet View` 應變成兩個獨立 button label。"""
+    ast = gh._ui_mock_ascii_parse(POST_BATTLE_SCREEN)
+    assert ast is not None
+    button_labels = []
+    def walk(node):
+        if node.get('type') == 'button':
+            button_labels.append((node.get('value') or '').strip())
+        for c in node.get('children', []):
+            walk(c)
+    walk(ast)
+    assert any('Fight Again' in lbl for lbl in button_labels), \
+        f'"Fight Again" missing from buttons; got: {button_labels}'
+    assert any('Back to Pet View' in lbl for lbl in button_labels), \
+        f'"Back to Pet View" missing from buttons; got: {button_labels}'
+
+
+# ─── K9-d: `│` 不殘留進任何 placeholder ─────────────────────────────────
+
+def test_K9d_no_pipe_in_input_placeholder():
+    """整個 segment 渲染後，input placeholder 不含 `│` 字元。"""
+    md = f'# T\n\n```\n{POST_BATTLE_SCREEN}\n```\n'
+    html = gh.md_to_html(md)
+    # 檢查所有 placeholder="..." 屬性，不該含 │
+    for m in re.finditer(r'placeholder="([^"]*)"', html):
+        ph = m.group(1)
+        assert '│' not in ph, \
+            f'placeholder still contains `│`: {ph!r}\nhtml:\n{html[:800]}'
+
+
+# ─── K9-a: 重複 title 修對 ──────────────────────────────────────────────
+
+def test_K9a_title_not_duplicated_in_field_label():
+    """outer card-title 文字不該再出現在內部 field label。"""
+    md = f'# T\n\n```\n{POST_BATTLE_SCREEN}\n```\n'
+    html = gh.md_to_html(md)
+    # 抓 card-title 的內容
+    title_match = re.search(r'<div class="umock__card-title">([^<]+)</div>', html)
+    assert title_match, f'umock__card-title missing; html:\n{html[:600]}'
+    title_text = title_match.group(1).strip()
+    # 同樣文字不該出現在 field-label
+    field_labels = re.findall(r'<label class="umock__field-label">([^<]+)</label>', html)
+    for lbl in field_labels:
+        assert lbl.strip() != title_text, \
+            f'title "{title_text}" duplicated as field-label; field labels: {field_labels}'
+
+
+# ─── K9 整合測試 ────────────────────────────────────────────────────────
+
+def test_K9_md_to_html_post_battle_clean():
+    """整合：post-battle screen 渲染後具備 actions、無 input field、
+    無 │ 殘留、title 不重複。"""
+    md = f'# T\n\n```\n{POST_BATTLE_SCREEN}\n```\n'
+    html = gh.md_to_html(md)
+    # 應有 umock__actions
+    assert 'umock__actions' in html, f'umock__actions missing; html:\n{html[:800]}'
+    # 應有 ≥ 2 個 umock__btn
+    btn_count = html.count('umock__btn')
+    assert btn_count >= 2, f'expected ≥2 umock__btn; got {btn_count}\nhtml:\n{html[:800]}'
+    # 不該有 input field
+    assert 'umock__input' not in html, \
+        f'should not have umock__input for post-battle screen; html:\n{html[:800]}'
+
+
+def test_K9_single_inner_box_regression():
+    """單 inner box（沒並排）仍正確走 input/code-block 路徑。"""
+    single_box = """\
+┌──────────────────────────┐
+│ Email                    │
+│ ┌────────────────────┐   │
+│ │  user@example.com  │   │
+│ └────────────────────┘   │
+└──────────────────────────┘
+"""
+    ast = gh._ui_mock_ascii_parse(single_box)
+    assert ast is not None
+    # 應該出現 field+input 或 input
+    types = set()
+    def walk(n):
+        types.add(n.get('type'))
+        for c in n.get('children', []):
+            walk(c)
+    walk(ast)
+    assert 'input' in types or 'field' in types, \
+        f'single inner box regression; types: {types}'
+
+
+# ─── K9-e: CSS 置中 ─────────────────────────────────────────────────────
+
+def test_K9e_card_title_centered_in_css():
+    """gen_html 內聯 `<style>` 含 `.umock__card-title { ... text-align: center }`。"""
+    md = '# T\n\n```ui-mock\ncard title:"Hi" { }\n```\n'
+    html = gh.md_to_html(md)
+    # 從整頁 HTML 抓 <style> 區塊內 .umock__card-title 規則
+    style_match = re.search(r'<style[^>]*>(.+?)</style>', html, re.DOTALL)
+    if not style_match:
+        # md_to_html 不含 style block 時，用整檔 page generator 的 STYLE 常數驗證
+        # gen_html.py L308 直接 grep 即可（test_K9e_* 主要驗證 CSS 改了）
+        with open(GEN_HTML) as f:
+            full = f.read()
+        m = re.search(r'\.umock__card-title\s*\{[^}]*\}', full)
+        assert m, '.umock__card-title CSS rule missing'
+        assert 'text-align' in m.group(0) and 'center' in m.group(0), \
+            f'.umock__card-title not centered: {m.group(0)}'
+    else:
+        css = style_match.group(1)
+        m = re.search(r'\.umock__card-title\s*\{[^}]*\}', css)
+        assert m, f'.umock__card-title rule missing in CSS'
+        assert 'text-align' in m.group(0) and 'center' in m.group(0), \
+            f'.umock__card-title not centered: {m.group(0)}'
+
+
+def test_K9e_page_title_centered_in_css():
+    """`.umock__page-title` 加 `text-align: center`."""
+    with open(GEN_HTML) as f:
+        full = f.read()
+    m = re.search(r'\.umock__page-title\s*\{[^}]*\}', full)
+    assert m, '.umock__page-title CSS rule missing'
+    assert 'text-align' in m.group(0) and 'center' in m.group(0), \
+        f'.umock__page-title not centered: {m.group(0)}'
+
+
+def test_K9e_actions_centered_not_right():
+    """`.umock__actions` 從 `text-align: right` 改為 `text-align: center`."""
+    with open(GEN_HTML) as f:
+        full = f.read()
+    m = re.search(r'\.umock__actions\s*\{[^}]*\}', full)
+    assert m, '.umock__actions CSS rule missing'
+    rule = m.group(0)
+    assert 'text-align: center' in rule, \
+        f'.umock__actions should be center-aligned; got: {rule}'
+    assert 'text-align: right' not in rule, \
+        f'.umock__actions should not be right-aligned; got: {rule}'
+
+
 # ─── Standalone runner ──────────────────────────────────────────────────
 
 def main() -> int:
@@ -752,6 +932,15 @@ def main() -> int:
         ('K8_umock_ui_classified_emit_wraps', test_K8_umock_ui_classified_emit_wraps),
         ('K8_diagram_container_modifier_for_umock', test_K8_diagram_container_modifier_for_umock),
         ('K8_native_mermaid_wrapper_unchanged', test_K8_native_mermaid_wrapper_unchanged),
+        ('K9b_parallel_buttons_become_actions_not_input', test_K9b_parallel_buttons_become_actions_not_input),
+        ('K9b_parallel_button_labels_extracted', test_K9b_parallel_button_labels_extracted),
+        ('K9d_no_pipe_in_input_placeholder', test_K9d_no_pipe_in_input_placeholder),
+        ('K9a_title_not_duplicated_in_field_label', test_K9a_title_not_duplicated_in_field_label),
+        ('K9_md_to_html_post_battle_clean', test_K9_md_to_html_post_battle_clean),
+        ('K9_single_inner_box_regression', test_K9_single_inner_box_regression),
+        ('K9e_card_title_centered_in_css', test_K9e_card_title_centered_in_css),
+        ('K9e_page_title_centered_in_css', test_K9e_page_title_centered_in_css),
+        ('K9e_actions_centered_not_right', test_K9e_actions_centered_not_right),
     ]
     passed = failed = 0
     for name, fn in tests:

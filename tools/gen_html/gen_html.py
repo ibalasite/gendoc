@@ -306,9 +306,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       overflow: hidden;
     }
     .umock__card-title { padding: 0.625rem 1rem; font-weight: 600; font-size: 0.95rem;
-      background: #f8fafc; border-bottom: 1.5px solid #94a3b8; color: #1e293b; }
+      background: #f8fafc; border-bottom: 1.5px solid #94a3b8; color: #1e293b;
+      text-align: center; }
     .umock__page-title { padding: 0.75rem 1rem; font-weight: 600; font-size: 1.05rem;
-      background: #f8fafc; border-bottom: 1.5px solid #94a3b8; }
+      background: #f8fafc; border-bottom: 1.5px solid #94a3b8;
+      text-align: center; }
     .umock__modal { max-width: 540px; }
     .umock__modal-titlebar { display: flex; justify-content: space-between; align-items: center;
       padding: 0.75rem 1rem; background: #f1f5f9; border-bottom: 1.5px solid #94a3b8; }
@@ -345,7 +347,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     .umock__btn--primary { background: #2563eb; color: #fff; }
     .umock__btn--secondary { background: #fff; color: #475569; border-color: #cbd5e1; }
     .umock__btn--danger { background: #dc2626; color: #fff; }
-    .umock__actions { padding: 0.5rem 0; text-align: right;
+    .umock__actions { padding: 0.5rem 0; text-align: center;
       border-top: 1px solid #f1f5f9; }
     .umock__badge { display: inline-block; padding: 0.125rem 0.5rem;
       border-radius: 999px; font-size: 0.75rem; font-weight: 500;
@@ -1485,12 +1487,18 @@ def _um_ascii_extract_table(segment_lines: list):
     return table_node, leftover
 
 
-def _um_ascii_extract_inner_boxes(segment_lines: list):
+def _um_ascii_extract_inner_boxes(segment_lines: list, taken_title_text: str = ''):
     """Find nested ┌──┐ ... └──┘ boxes inside a segment. For each, build:
       - input or code-block node based on content shape
+      - K9-b: if a top-border line has ≥ 2 ┌ chars (parallel boxes side-by-side
+        on same row), parse each box independently by column ranges. If each
+        contains only short single-line text → emit `actions { button×N }`.
+        Else emit N independent boxes.
       - if preceded by a label line (last non-blank line before the box),
         wrap the box in a `field { label, required?, child=box }` node and
         consume the label line too
+      - K9-a: skip label lines whose stripped text equals `taken_title_text`
+        (already consumed as outer card-title)
     Returns list of (anchor_idx, last_idx, node) tuples sorted by anchor.
     """
     out = []
@@ -1499,6 +1507,93 @@ def _um_ascii_extract_inner_boxes(segment_lines: list):
     i = 0
     while i < n:
         line = segment_lines[i]
+        # K9-b: parallel-box row detection (≥ 2 ┌ on same line)
+        if line.count('┌') >= 2:
+            # Find matching bottom row: ≥ 2 └ on a later line
+            box_end = -1
+            for j in range(i + 1, n):
+                if segment_lines[j].count('└') >= 2:
+                    box_end = j
+                    break
+            if box_end < 0:
+                i += 1
+                continue
+            # Walk top border, collect each [start, end] col range (┌ → ┐)
+            top = line
+            col_ranges = []
+            jj = 0
+            while jj < len(top):
+                if top[jj] == '┌':
+                    start = jj
+                    kk = jj + 1
+                    while kk < len(top) and top[kk] != '┐':
+                        kk += 1
+                    if kk >= len(top):
+                        break
+                    col_ranges.append((start, kk))
+                    jj = kk + 1
+                else:
+                    jj += 1
+            # Extract per-box content lines using col ranges
+            box_contents = [[] for _ in col_ranges]
+            for k in range(i + 1, box_end):
+                row = segment_lines[k]
+                for ci, (s, e) in enumerate(col_ranges):
+                    if s + 1 < len(row):
+                        cell = row[s + 1:min(e, len(row))].strip().strip('│').strip()
+                        if cell:
+                            box_contents[ci].append(cell)
+            # Heuristic: each box has only ≤ 1 short line (≤ 16 chars,
+            # no `=`, not ALL_CAPS const) → buttons; else → independent boxes
+            def _looks_like_button(lines):
+                if len(lines) != 1:
+                    return False
+                txt = lines[0]
+                if len(txt) > 24:
+                    return False
+                if '=' in txt:
+                    return False
+                if re.fullmatch(r'[A-Z][A-Z0-9_]*', txt):
+                    return False
+                return True
+
+            all_buttons = all(_looks_like_button(bc) for bc in box_contents) and len(box_contents) >= 2
+            if all_buttons:
+                children = []
+                for bc in box_contents:
+                    label = bc[0]
+                    children.append({
+                        'type': 'button', 'attrs': {},
+                        'value': label, 'children': [],
+                    })
+                node = {
+                    'type': 'actions', 'attrs': {}, 'value': None,
+                    'children': children,
+                }
+                out.append((i, box_end, node))
+                for k in range(i, box_end + 1):
+                    consumed.add(k)
+                i = box_end + 1
+                continue
+            # Else: emit N independent boxes (each input/code-block, no label)
+            for ci, bc in enumerate(box_contents):
+                if not bc:
+                    continue
+                joined_txt = ' '.join(bc)
+                is_code = len(bc) >= 2 or any(c in joined_txt for c in ('{', '}', '"', '[', ']'))
+                if is_code:
+                    sub = {'type': 'code-block', 'attrs': {},
+                           'value': '\n'.join(bc), 'children': []}
+                else:
+                    sub = {'type': 'input',
+                           'attrs': {'placeholder': joined_txt} if joined_txt else {},
+                           'value': None, 'children': []}
+                out.append((i, box_end, sub))
+            for k in range(i, box_end + 1):
+                consumed.add(k)
+            i = box_end + 1
+            continue
+        # ── Single-box path (original logic) ─────────────────────────────
         if '┌' in line and '┐' in line and line.index('┌') < line.rindex('┐'):
             # Find matching └──┘ on a later line
             box_end = -1
@@ -1534,11 +1629,18 @@ def _um_ascii_extract_inner_boxes(segment_lines: list):
                     'value': None, 'children': [],
                 }
             # Look for a label line (immediate previous non-blank, not consumed)
+            # K9-a: also skip if the candidate label equals an already-taken
+            # outer card-title (avoid duplicate title in field-label)
             label_idx = -1
             for k in range(i - 1, -1, -1):
                 if k in consumed:
                     break
                 if segment_lines[k].strip():
+                    candidate = segment_lines[k].strip()
+                    if taken_title_text and candidate == taken_title_text:
+                        # Skip this candidate; don't take an earlier one as label
+                        # (the box just won't have a field-label wrapper).
+                        break
                     label_idx = k
                     break
             anchor = label_idx if label_idx >= 0 else i
@@ -1570,10 +1672,13 @@ def _um_ascii_extract_inner_boxes(segment_lines: list):
     return out, consumed
 
 
-def _um_ascii_parse_segment_content(segment_lines: list):
+def _um_ascii_parse_segment_content(segment_lines: list, taken_title_text: str = ''):
     """Extract table + nested boxes + form rows + hints + badges + text
     + trailing action row from a non-action segment.
-    Returns list of AST child nodes."""
+    Returns list of AST child nodes.
+    K9-a: `taken_title_text` is forwarded to `_um_ascii_extract_inner_boxes`
+    so a candidate field-label that equals the outer card-title is skipped.
+    """
     import re as _re
     # Detect trailing action row (last non-empty line is all-buttons + hints)
     trailing_actions = None
@@ -1589,7 +1694,7 @@ def _um_ascii_parse_segment_content(segment_lines: list):
     children = []
     if table_node:
         children.append(table_node)
-    inner_boxes, consumed = _um_ascii_extract_inner_boxes(segment_lines)
+    inner_boxes, consumed = _um_ascii_extract_inner_boxes(segment_lines, taken_title_text)
     inner_boxes.sort(key=lambda t: t[0])
     box_at = {anchor: (last, node) for anchor, last, node in inner_boxes}
     text_parts = []
@@ -1635,6 +1740,11 @@ def _um_ascii_parse_segment_content(segment_lines: list):
         line = segment_lines[i].strip()
         if not line:
             flush_text()
+            i += 1
+            continue
+        # K9-a: skip lines that exactly match the outer card-title (avoid
+        # the title showing up as a duplicate `info` node inside the body).
+        if taken_title_text and line == taken_title_text:
             i += 1
             continue
         # Badge inline
@@ -2570,7 +2680,7 @@ def _ui_mock_ascii_parse(text: str):
                 'children': children,
             })
             continue
-        body_children.extend(_um_ascii_parse_segment_content(seg))
+        body_children.extend(_um_ascii_parse_segment_content(seg, title))
     outer_type = 'modal' if is_modal else 'card'
     outer_attrs = {}
     if title:
