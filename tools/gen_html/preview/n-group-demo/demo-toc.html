@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>N 群 demo — 右側 sticky TOC + 收合</title>
+<style>
+  /* Reset + base */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    background: #f8fafc;
+    color: #1e293b;
+    line-height: 1.6;
+  }
+  /* Top nav */
+  .top-nav {
+    position: sticky; top: 0; z-index: 100;
+    background: #0f172a; color: #fff;
+    padding: 0.75rem 1.5rem;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid #1e293b;
+  }
+  .top-nav .brand { font-weight: 600; font-size: 1rem; }
+  /* Banner */
+  .banner {
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    color: #fff;
+    padding: 1.5rem 2rem;
+  }
+  .banner h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+  .banner-breadcrumb { font-size: 0.85rem; opacity: 0.75; }
+  /* 3-column layout: left sidebar + main + right TOC */
+  .layout {
+    display: grid;
+    grid-template-columns: 240px 1fr 280px;
+    gap: 0;
+    min-height: calc(100vh - 200px);
+  }
+  /* Adjusted layout when TOC collapsed */
+  .layout.toc-collapsed {
+    grid-template-columns: 240px 1fr 32px;
+  }
+  /* Left sidebar */
+  .sidebar {
+    background: #fff;
+    border-right: 1px solid #e2e8f0;
+    padding: 1rem 0.5rem;
+    font-size: 0.875rem;
+  }
+  .sidebar__label { font-size: 0.7rem; color: #64748b;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 0 0.75rem; margin-top: 0.5rem; }
+  .sidebar__link {
+    display: block; padding: 0.375rem 0.75rem; color: #334155;
+    text-decoration: none; border-radius: 4px; margin: 1px 0;
+  }
+  .sidebar__link.active { background: #dbeafe; color: #1e3a8a; font-weight: 600; }
+  .sidebar__link:hover { background: #f1f5f9; }
+  /* Main content */
+  .main {
+    padding: 2rem 2.5rem;
+    background: #f8fafc;
+    overflow-y: auto;
+    min-width: 0;
+  }
+  .main h2 {
+    font-size: 1.4rem; margin: 2rem 0 0.75rem 0;
+    padding-bottom: 0.5rem; border-bottom: 1px solid #cbd5e1;
+  }
+  .main h2:first-child { margin-top: 0; }
+  .main h3 { font-size: 1.1rem; margin: 1.25rem 0 0.5rem 0; }
+  .main p { margin: 0.5rem 0 1rem 0; }
+  .main code {
+    background: #e2e8f0; padding: 1px 6px; border-radius: 3px;
+    font-size: 0.875em;
+  }
+  /* Right TOC aside */
+  .toc-aside {
+    background: #fff;
+    border-left: 1px solid #e2e8f0;
+    position: sticky; top: 60px;
+    align-self: flex-start;
+    height: calc(100vh - 60px);
+    overflow-y: auto;
+    transition: width 200ms ease;
+    display: flex; flex-direction: column;
+  }
+  /* Collapse toggle button */
+  .toc-toggle {
+    position: absolute; top: 0.5rem; right: 0.5rem;
+    background: #f1f5f9; border: 1px solid #cbd5e1;
+    padding: 0.25rem 0.5rem; border-radius: 4px;
+    cursor: pointer; font-size: 0.75rem; color: #475569;
+    z-index: 2;
+  }
+  .toc-toggle:hover { background: #e2e8f0; }
+  .toc-aside .toc-content {
+    padding: 1rem 1rem 2rem 1rem;
+  }
+  .toc-aside .toc-label {
+    font-size: 0.7rem; color: #64748b; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 0.5rem;
+  }
+  .toc-aside ul { list-style: none; }
+  .toc-aside .toc__link {
+    display: block; padding: 0.25rem 0.5rem;
+    color: #475569; text-decoration: none;
+    font-size: 0.8125rem; border-left: 2px solid transparent;
+    border-radius: 0 3px 3px 0; margin: 1px 0;
+  }
+  .toc-aside .toc__link:hover { background: #f1f5f9; color: #1e293b; }
+  .toc-aside .toc__link.active {
+    background: #eff6ff; color: #1e3a8a;
+    border-left-color: #3b82f6; font-weight: 500;
+  }
+  .toc-aside .toc__link--h3 { padding-left: 1.25rem; font-size: 0.8rem; color: #64748b; }
+  /* Collapsed state */
+  .layout.toc-collapsed .toc-content { display: none; }
+  .layout.toc-collapsed .toc-aside { padding: 0; }
+  .layout.toc-collapsed .toc-toggle { right: 0; padding: 0.25rem 0.4rem; }
+  /* RWD: < 1024px hide TOC, render inline at top of main */
+  @media (max-width: 1023px) {
+    .layout { grid-template-columns: 240px 1fr; }
+    .toc-aside { display: none; }
+  }
+  @media (max-width: 768px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="top-nav">
+  <span class="brand">k-group</span>
+  <span style="font-size: 0.85rem; opacity: 0.75;">N 群 demo — 右側 sticky TOC + 收合</span>
+</nav>
+
+<div class="banner">
+  <p class="banner-breadcrumb">k-group › 文件中心 › EDD</p>
+  <h1>Engineering Design Document</h1>
+</div>
+
+<div class="layout" id="layout">
+  <aside class="sidebar">
+    <div class="sidebar__label">文件</div>
+    <a class="sidebar__link" href="#">🏠 首頁</a>
+    <a class="sidebar__link" href="#">💡 IDEA</a>
+    <a class="sidebar__link" href="#">📋 BRD</a>
+    <a class="sidebar__link" href="#">📝 PRD</a>
+    <a class="sidebar__link active" href="#">🏗️ EDD</a>
+    <a class="sidebar__link" href="#">🧩 ARCH</a>
+    <a class="sidebar__link" href="#">🔌 API</a>
+    <a class="sidebar__link" href="#">🗄️ Schema</a>
+    <a class="sidebar__link" href="#">🧪 Test Plan</a>
+    <a class="sidebar__link" href="#">🚀 Local Deploy</a>
+  </aside>
+
+  <main class="main">
+    <h2 id="overview">§1. Executive Summary</h2>
+    <p>This document describes the engineering design of the pixel-pet-arena
+    project, including architecture, data model, API design, and operational
+    concerns. It covers 21 sections in total.</p>
+
+    <h2 id="architecture">§2. System Architecture Overview</h2>
+    <p>The system follows a Modular Monolith pattern with 6 Bounded Contexts:
+    Identity, Pet, Arena, Leaderboard, Marketplace, and Admin. Each BC owns
+    its own data and exposes Public APIs and Domain Events.</p>
+    <h3 id="ctx">§2.1 Context Map</h3>
+    <p>Inter-BC communication uses Domain Events for async + Public APIs for sync.</p>
+
+    <h2 id="tech-stack">§3. Technology Stack & ADRs</h2>
+    <p>Backend: Node.js 20 / Fastify 4. Database: PostgreSQL 15 (Supabase).
+    Cache: Redis 7 (Upstash). Frontend: React 18 + Phaser.js 3.</p>
+    <h3 id="adr-001">§3.2 ADR-001: Backend stack</h3>
+    <p>Chose Node.js + Fastify over Go/FastAPI for team velocity.</p>
+
+    <h2 id="modules">§4. Module / Component Design</h2>
+    <p>Each BC is a separate module under <code>apps/api/src/&lt;bc&gt;/</code>
+    with its own routes, services, repositories.</p>
+
+    <h2 id="api">§5. API Design</h2>
+    <p>RESTful endpoints under <code>/api/v1/*</code> for player, <code>/admin/api/*</code>
+    for admin. Auth: pet token (URL-based) for player, TOTP+session for admin.</p>
+
+    <h2 id="data-model">§6. Data Model</h2>
+    <p>12 PostgreSQL tables + 6 Redis key patterns. Cross-BC FKs forbidden
+    (HC-1 hard constraint).</p>
+
+    <h2 id="key-flows">§7. Key Sequence Flows</h2>
+    <p>Claim flow: email → OTP → token. Arena battle: matchmaking → POST /arena/battle
+    → animation. GDPR erasure: request → 24h SLA → background job.</p>
+
+    <h2 id="error-handling">§8. Error Handling & Resilience</h2>
+    <p>Bulkhead pattern, circuit breaker on external APIs, exponential backoff
+    on retry.</p>
+
+    <h2 id="security">§9. Security Design</h2>
+    <p>STRIDE threat model + OWASP Top 10 coverage. RBAC for admin operations.</p>
+
+    <h2 id="observability">§10. Observability Design</h2>
+    <p>SLO/SLI, structured logs, audit log retention 2 years.</p>
+
+    <h2 id="performance">§11. Performance Design</h2>
+    <p>Capacity planning: 10K MAU, p95 API latency < 200ms.</p>
+
+    <h2 id="testing">§12. Testing Strategy</h2>
+    <p>Unit ≥ 80% coverage, integration via Supabase local stack, E2E Playwright.</p>
+
+    <h2 id="deployment">§13. Deployment & Operations</h2>
+    <p>Vercel CDN + Railway containers. ArgoCD GitOps for k8s.</p>
+
+    <h2 id="risk">§14. Risk Assessment</h2>
+    <p>Top risks: Phaser.js bundle size, Redis cost at scale, GDPR compliance.</p>
+  </main>
+
+  <aside class="toc-aside" id="toc-aside">
+    <button class="toc-toggle" id="toc-toggle" title="收合 / 展開">⇥</button>
+    <div class="toc-content">
+      <div class="toc-label">本頁目錄</div>
+      <ul>
+        <li><a class="toc__link" href="#overview">§1. Executive Summary</a></li>
+        <li><a class="toc__link active" href="#architecture">§2. System Architecture Overview</a></li>
+        <li><a class="toc__link toc__link--h3" href="#ctx">§2.1 Context Map</a></li>
+        <li><a class="toc__link" href="#tech-stack">§3. Technology Stack & ADRs</a></li>
+        <li><a class="toc__link toc__link--h3" href="#adr-001">§3.2 ADR-001: Backend stack</a></li>
+        <li><a class="toc__link" href="#modules">§4. Module / Component Design</a></li>
+        <li><a class="toc__link" href="#api">§5. API Design</a></li>
+        <li><a class="toc__link" href="#data-model">§6. Data Model</a></li>
+        <li><a class="toc__link" href="#key-flows">§7. Key Sequence Flows</a></li>
+        <li><a class="toc__link" href="#error-handling">§8. Error Handling & Resilience</a></li>
+        <li><a class="toc__link" href="#security">§9. Security Design</a></li>
+        <li><a class="toc__link" href="#observability">§10. Observability Design</a></li>
+        <li><a class="toc__link" href="#performance">§11. Performance Design</a></li>
+        <li><a class="toc__link" href="#testing">§12. Testing Strategy</a></li>
+        <li><a class="toc__link" href="#deployment">§13. Deployment & Operations</a></li>
+        <li><a class="toc__link" href="#risk">§14. Risk Assessment</a></li>
+      </ul>
+    </div>
+  </aside>
+</div>
+
+<script>
+  const layout = document.getElementById('layout');
+  const toggle = document.getElementById('toc-toggle');
+  toggle.addEventListener('click', () => {
+    layout.classList.toggle('toc-collapsed');
+    toggle.textContent = layout.classList.contains('toc-collapsed') ? '⇤' : '⇥';
+  });
+</script>
+</body>
+</html>
