@@ -2036,6 +2036,148 @@ def _classify_ascii_block(text: str) -> str:
     return 'unknown'
 
 
+def _try_parse_multi_column(text: str):
+    """K4: parse multi-column architecture diagram (parallel boxes + fan-in).
+
+    Detection: a line containing ≥ 2 '┌' chars marks a multi-column top border.
+    Algorithm:
+      1. Find column [start,end] ranges from the top border by walking '┌'..'┐'.
+      2. For each row line until bottom border, slice text per column range.
+      3. Concatenate cell text per column with '<br/>' → multi-line node label.
+      4. After bottom, look for edge-label row (e.g. "HTTPS") and downstream
+         single-column box → fan-in edges from each column → downstream node.
+
+    Returns (nodes, edges) or None if not applicable.
+    nodes = [(id, label), ...]
+    edges = [(src_id, dst_id, edge_label), ...]
+    """
+    lines = text.split('\n')
+
+    # Find first line with ≥ 2 '┌' chars
+    multi_top_idx = None
+    for i, line in enumerate(lines):
+        if line.count('┌') >= 2:
+            multi_top_idx = i
+            break
+    if multi_top_idx is None:
+        return None
+
+    top = lines[multi_top_idx]
+    # Walk top border to extract column [start, end] ranges (┌ → matching ┐)
+    col_ranges = []
+    j = 0
+    while j < len(top):
+        if top[j] == '┌':
+            start = j
+            k = j + 1
+            while k < len(top) and top[k] != '┐':
+                k += 1
+            if k >= len(top):
+                break
+            col_ranges.append((start, k))
+            j = k + 1
+        else:
+            j += 1
+    if len(col_ranges) < 2:
+        return None
+
+    # Collect content rows for each column until bottom border
+    n_cols = len(col_ranges)
+    col_lines = [[] for _ in range(n_cols)]
+    bottom_idx = None
+    for i in range(multi_top_idx + 1, len(lines)):
+        line = lines[i]
+        # Bottom signal: ≥ 2 '└' chars on the line
+        if line.count('└') >= 2:
+            bottom_idx = i
+            break
+        # Extract cell content per column range
+        for ci, (s, e) in enumerate(col_ranges):
+            if s + 1 < len(line):
+                cell = line[s + 1:min(e, len(line))].strip().strip('│').strip()
+                if cell:
+                    col_lines[ci].append(cell)
+
+    if bottom_idx is None:
+        return None
+
+    # Build column nodes (de-dup by label)
+    nodes = []
+    seen = {}
+    col_node_ids = []
+    for ci, ls in enumerate(col_lines):
+        label = '<br/>'.join(ls).strip()
+        if not label:
+            col_node_ids.append(None)
+            continue
+        if label in seen:
+            col_node_ids.append(seen[label])
+            continue
+        nid = f'N{len(nodes)}'
+        nodes.append((nid, label))
+        seen[label] = nid
+        col_node_ids.append(nid)
+
+    # Walk lines after bottom: collect edge label, then find downstream box
+    edge_label = ''
+    downstream_id = None
+    i = bottom_idx + 1
+    while i < len(lines):
+        line = lines[i].rstrip()
+        if not line.strip():
+            i += 1
+            continue
+        # Arrow row: contains ▼/↓ but no other significant text
+        bare = re.sub(r'[▼▲↓↑│┃\s]+', '', line)
+        if not bare:
+            i += 1
+            continue
+        # Downstream box top: starts with ┌── (single ┌)
+        stripped = line.lstrip()
+        if stripped.startswith('┌') and line.count('┌') == 1:
+            # Walk content lines until '└'
+            content_parts = []
+            j = i + 1
+            while j < len(lines):
+                cont = lines[j]
+                if cont.lstrip().startswith('└'):
+                    break
+                if '│' in cont:
+                    cell = cont.strip().strip('│').strip()
+                    if cell:
+                        content_parts.append(cell)
+                j += 1
+            if content_parts:
+                ds_label = '<br/>'.join(content_parts)
+                if ds_label in seen:
+                    downstream_id = seen[ds_label]
+                else:
+                    downstream_id = f'N{len(nodes)}'
+                    nodes.append((downstream_id, ds_label))
+                    seen[ds_label] = downstream_id
+            break
+        # Otherwise it's an edge-label row (e.g. "│  HTTPS  │  HTTPS  ...")
+        # Extract first non-empty alpha token
+        parts = [p.strip() for p in line.split('│')
+                 if p.strip()
+                 and p.strip() not in ('▼', '↓', '↑', '▲')
+                 and not re.fullmatch(r'[─\s]+', p.strip())]
+        if parts and not edge_label:
+            edge_label = parts[0]
+        i += 1
+
+    # Fan-in edges: each column → downstream
+    edges = []
+    if downstream_id:
+        for cid in col_node_ids:
+            if cid and cid != downstream_id:
+                edges.append((cid, downstream_id, edge_label))
+
+    if not nodes:
+        return None
+    return nodes, edges
+
+
 def _ascii_to_mermaid_td(text: str) -> 'str | None':
     """F2 — best-effort ASCII → mermaid graph TD converter.
 
@@ -2058,6 +2200,23 @@ def _ascii_to_mermaid_td(text: str) -> 'str | None':
     kind = _classify_ascii_block(text)
     if kind == 'ui':
         return None
+
+    # K4: try multi-column architecture (parallel boxes + fan-in to downstream)
+    multi_col_result = _try_parse_multi_column(text)
+    if multi_col_result is not None:
+        nodes, edges = multi_col_result
+        if nodes:
+            md = ['graph TD']
+            for nid, label in nodes:
+                safe = label.replace('"', "'")
+                md.append(f'  {nid}["{safe}"]')
+            for src, dst, edge_label in edges:
+                if edge_label:
+                    safe_label = edge_label.replace('"', "'")
+                    md.append(f'  {src} -->|"{safe_label}"| {dst}')
+                else:
+                    md.append(f'  {src} --> {dst}')
+            return '\n'.join(md)
 
     lines = text.split('\n')
 

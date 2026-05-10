@@ -696,7 +696,7 @@ H 群無新 fix 工作。
 | **Test case** | 1. `test_K4_split_columns_by_pipe_boundary`（`│ A │  │ B │` → 2 nodes A, B）<br>2. `test_K4_merge_multi_row_cell`（`│Guest│\n│(no token)│` → 1 node "Guest<br/>(no token)"）<br>3. `test_K4_fanin_to_downstream`（4 並排 + 4 ▼ + 1 共同下方 box → 4→1 fan-in edges）<br>4. `test_K4_pipe_not_in_node_label`（轉出 mermaid 內 N\d+\["...│..."\] 不應出現） |
 | **不影響其他 case** | K2 樹狀 / K3 單欄流不受影響；多欄判定條件嚴：必須同行 ≥ 2 個 ┌ |
 | **驗收對應** | pet 重跑 gen-html，arch.html L379 §1.2 System Context 渲染成 4 個 actor → CDN → API → DB 的清楚 fan-in mermaid；殘留 `│` = 0 |
-| **Status** | review |
+| **Status** | **done** ✅（6 test 全綠，333/333 全綠） |
 
 ---
 

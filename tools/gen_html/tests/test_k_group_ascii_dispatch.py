@@ -332,6 +332,88 @@ def test_K3_pure_flow_no_label_no_extra_nodes():
         f'expected 3 nodes for 3 boxes; got {node_count}\nmermaid:\n{md}'
 
 
+# ─── K4: F2 多欄並排 fan-in（arch L379 形） ──────────────────────────────
+
+# Real-world fixture: pet/docs/ARCH.md §1.2 System Context Diagram (4 actors)
+ARCH_MULTI_COL_FAN_IN = """\
+┌─────────────┐  ┌──────────────────┐  ┌───────────────────┐  ┌───────────────┐
+│ Guest Player│  │ Pet Owner        │  │Competitive Player │  │Admin Operator │
+│ (no token)  │  │ (URL token)      │  │(token + arena)    │  │(TOTP session) │
+└──────┬──────┘  └────────┬─────────┘  └─────────┬─────────┘  └──────┬────────┘
+       │  HTTPS            │  HTTPS                  │  HTTPS            │  HTTPS
+       ▼                   ▼                         ▼                   ▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│  CDN / Edge (Vercel)                                                                │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+"""
+
+
+def test_K4_multi_column_creates_separate_nodes():
+    """4 並排 box → 4 個 mermaid node，每個 label 含對應 actor 名稱。"""
+    md = gh._ascii_to_mermaid_td(ARCH_MULTI_COL_FAN_IN)
+    assert md is not None, 'multi-column arch must produce mermaid'
+    assert 'Guest Player' in md
+    assert 'Pet Owner' in md
+    assert 'Competitive Player' in md
+    assert 'Admin Operator' in md
+    assert 'CDN / Edge' in md
+
+
+def test_K4_no_pipe_chars_in_node_labels():
+    """node label 內不該殘留 `│` 字元（K1 描述的核心 bug）。"""
+    md = gh._ascii_to_mermaid_td(ARCH_MULTI_COL_FAN_IN)
+    assert md is not None
+    # 抽出所有 N\d+["..."] label，檢查內容無 │
+    for m in re.finditer(r'N\d+\["([^"]*)"\]', md):
+        label = m.group(1)
+        assert '│' not in label, \
+            f'node label "{label}" contains `│` (multi-column bug); mermaid:\n{md}'
+
+
+def test_K4_multi_row_cell_joins_with_br():
+    """多 row 的同一欄（"Guest Player" + "(no token)"）合併成 1 個 node 的 multi-line label。"""
+    md = gh._ascii_to_mermaid_td(ARCH_MULTI_COL_FAN_IN)
+    assert md is not None
+    # mermaid `<br/>` 用來分行；同一個 actor 的兩行應在同一 N\d+ label
+    # 形如 N0["Guest Player<br/>(no token)"]
+    assert re.search(r'N\d+\["[^"]*Guest Player[^"]*<br\s*/?>[^"]*\(no token\)[^"]*"\]', md), \
+        f'multi-row cell merge missing; mermaid:\n{md}'
+
+
+def test_K4_fan_in_to_downstream():
+    """4 個 actor box 各自 → 1 個 CDN box 的 fan-in（4 條 edges 指向同一 N）。"""
+    md = gh._ascii_to_mermaid_td(ARCH_MULTI_COL_FAN_IN)
+    assert md is not None
+    # 找到 CDN node id
+    cdn_match = re.search(r'(N\d+)\["[^"]*CDN[^"]*"\]', md)
+    assert cdn_match, f'CDN node missing; mermaid:\n{md}'
+    cdn_id = cdn_match.group(1)
+    # 應有 ≥ 4 條 edges 指向 cdn_id（4 個 actor → CDN）
+    edges_to_cdn = len(re.findall(rf'-->[^\n]*\b{cdn_id}\b', md))
+    assert edges_to_cdn >= 4, \
+        f'expected ≥4 edges to CDN; got {edges_to_cdn}\nmermaid:\n{md}'
+
+
+def test_K4_https_label_on_edges():
+    """4 條 fan-in edges 應帶 HTTPS label。"""
+    md = gh._ascii_to_mermaid_td(ARCH_MULTI_COL_FAN_IN)
+    assert md is not None
+    # 至少 1 條 edge 含 "HTTPS" label
+    https_edges = len(re.findall(r'-->\|"[^"]*HTTPS[^"]*"\|', md))
+    assert https_edges >= 1, \
+        f'expected ≥1 edge with HTTPS label; got {https_edges}\nmermaid:\n{md}'
+
+
+def test_K4_pure_flow_still_works_no_multi_col():
+    """純單欄流（K3 的 fixture）不應走 multi-col parser，結果照舊。"""
+    md = gh._ascii_to_mermaid_td(SINGLE_COL_FLOW_PURE)
+    assert md is not None
+    # K3 行為：3 個 box → 3 個 node
+    node_count = len(re.findall(r'^\s*N\d+\["', md, re.MULTILINE))
+    assert node_count == 3, \
+        f'K3 single-col regression: expected 3 nodes, got {node_count}\nmermaid:\n{md}'
+
+
 # ─── Standalone runner ──────────────────────────────────────────────────
 
 def main() -> int:
@@ -355,6 +437,12 @@ def main() -> int:
         ('K3_chain_three_boxes', test_K3_chain_three_boxes),
         ('K3_edge_annotation_becomes_label', test_K3_edge_annotation_becomes_label),
         ('K3_pure_flow_no_label_no_extra_nodes', test_K3_pure_flow_no_label_no_extra_nodes),
+        ('K4_multi_column_creates_separate_nodes', test_K4_multi_column_creates_separate_nodes),
+        ('K4_no_pipe_chars_in_node_labels', test_K4_no_pipe_chars_in_node_labels),
+        ('K4_multi_row_cell_joins_with_br', test_K4_multi_row_cell_joins_with_br),
+        ('K4_fan_in_to_downstream', test_K4_fan_in_to_downstream),
+        ('K4_https_label_on_edges', test_K4_https_label_on_edges),
+        ('K4_pure_flow_still_works_no_multi_col', test_K4_pure_flow_still_works_no_multi_col),
     ]
     passed = failed = 0
     for name, fn in tests:
