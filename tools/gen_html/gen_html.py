@@ -257,8 +257,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       padding-left: 3.5rem;
     }
     /* ─── N1: sidebar tab switcher (📁 文件 / 📑 本頁目錄) ─── */
+    /* `padding: 0` overrides style.css `.sidebar { padding: 1.5rem 0 }`.
+       Without it, tabs/panels inherit 24px top/bottom space and panel
+       flex child can't fully fill height → scrollbar truncated mid-list. */
     .sidebar { position: relative; display: flex; flex-direction: column;
-      overflow: hidden; }
+      overflow: hidden; padding: 0; }
     .sidebar__toggle { position: absolute; top: 6px; right: 6px;
       background: #f1f5f9; border: 1px solid #cbd5e1;
       padding: 2px 6px; border-radius: 4px;
