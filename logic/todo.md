@@ -870,6 +870,126 @@ K8 (umock wrapper) ───────┘
 
 ---
 
+# M 群 — prototype 回 docs link 失效
+
+> 範圍：`logic/issues.md` M 群。prototype 目錄下的 HTML 沒有正確回 docs 站 / 回 prototype shell 的 link，使用者一旦進去就「迷路」。
+
+---
+
+## M 群實機現況（含 L1 已修了哪些）
+
+| 子題 | 哪份 HTML | 由誰寫 | L1 (R3-7) 修了嗎 |
+|---|---|---|---|
+| M1 spec docs breadcrumb | `prototype/{admin-moderation,arena-battle,pet-display}-prototype.html`（3 檔） | gen-html 渲染 markdown | ✅ **L1 自動修**（下次 gen-html 跑 → breadcrumb `href="index.html"` → `href="../index.html"`） |
+| M2 prototype shell 無 docs link | `prototype/index.html` | gen-prototype 自產 | ❌ 未修（gen-prototype 模板沒寫此 link） |
+| M3 admin/*.html 整層無出口 | `prototype/admin/{index,pets,leaderboard,config,analytics}.html`（5 檔） | gen-prototype 自產 | ❌ 未修 |
+| M4 api-explorer 連錯地方 | `prototype/api-explorer/index.html` | gen-prototype 自產 | ❌ 未修（連 prototype shell 不是 docs 站） |
+
+---
+
+## M 群核心觀察
+
+- **M1 自動修**：L1 (R3-7) 已 cover。重生後 spec docs 的 breadcrumb `href="index.html"` 會被 gen-html 自動 rewrite 成 `href="../index.html"` ← 連到 root docs index ✓
+- **M2/M3/M4 三條都是 gen-prototype 模板問題**：這些 HTML 由 gen-prototype skill 自產（非經 gen-html render），所以 L1 不 cover。修法在 `skills/gendoc-gen-prototype/SKILL.md` 模板層
+- **M5/M6 是設計層問題**：gen-html 對 prototype/ 是 byte-copy + B4 保護（避免覆寫 gen-prototype 寫的檔），這個保護同時也阻止 L1 對這些檔的 path rewrite
+
+---
+
+## # M1. spec docs breadcrumb 落到錯地方（L1 已自動修，待重生驗證）
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | `pages/prototype/{admin-moderation,arena-battle,pet-display}-prototype.html` 的 breadcrumb `<a href="index.html">pet</a>`，相對於 `pages/prototype/`，解析為 `pages/prototype/index.html`（prototype shell），不是 `pages/index.html`（docs hub） |
+| **實機證據（pet, L1 fix 前的 user 上次跑的結果）** | `pages/prototype/admin-moderation-prototype.html` L188：`<a href="index.html">pet</a> › prototype/ › Admin Moderation Prototype`<br>`pages/prototype/arena-battle-prototype.html` L188：同<br>`pages/prototype/pet-display-prototype.html` L188：同 |
+| **L1 自動修法** | L1 R3-7 在 gen-html `_href_rewrite` 加通用 root-prefix。下次 gen-html 跑 → breadcrumb 自動變 `href="../index.html"` → 連到 docs hub。**無需額外 fix**。 |
+| **驗收（已部分完成）** | sandbox 已經有 `pages/prototype/...` 嗎？— 實際上 K-group sandbox 沒 prototype/ 子目錄，只有 diagrams/。L1-1/L1-2 截圖驗證了 diagrams/ subdir 行為，跟 prototype/ 行為一致（同樣是 depth=1 subdir）。**M1 視為 done by L1**。 |
+| **Status** | **done by L1** ✅（無獨立 commit，靠 L1 R3-7 通用規則自動覆蓋） |
+
+---
+
+## # M2. prototype shell `prototype/index.html` 完全無 docs 連結
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | gen-prototype 自產的 `pages/prototype/index.html`（prototype shell）整檔沒任何回 docs 站 link。使用者從 docs sidebar 點進 prototype，**沒地方回**。唯一的 `<button onclick="router.back()">← 返回</button>` 是 internal JS history.back（外部直開時失靈、刷新後也失靈） |
+| **實機證據** | grep `pages/prototype/index.html` 對 keyword `BACK / 文件 / 首頁 / docs / HOME / RETURN / 主頁` → 只有 `<button id="btn-back" onclick="protoBack()">← BACK</button>`（L144），其他 0 命中 |
+| **gen-prototype SKILL.md 行號** | L553-608 「Step G-7：寫入 index.html（主殼層）」HTML 模板：<br>L572-576：`<nav id="proto-nav"> <button onclick="router.back()">← 返回</button> ... </nav>`<br>無 `<a href="../index.html">` 或同類 docs back-link |
+| **對齊核心目標** | **4. 不誤會**（使用者預期能回 docs 站，找不到出口） |
+| **預期解** | 修 SKILL.md L572-576 nav 區塊，加 docs back-link：<br>```html`<br>`<nav id="proto-nav">`<br>`  <a href="../index.html" class="proto-back-docs">← 文件站</a>`<br>`  <button onclick="router.back()">← 返回</button>`<br>`  <span id="proto-breadcrumb"></span>`<br>`  <button onclick="showFlowMap()">📍 流程地圖</button>`<br>`</nav>`<br>``` |
+| **Status** | review |
+
+---
+
+## # M3. admin prototype `prototype/admin/*.html` 整層無出口
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | gen-prototype 自產的 admin 5 檔（`admin-login.html` `admin-dashboard.html` `admin-users.html` `admin-roles.html` `admin-audit-log.html` 或現名 `index.html` `pets.html` `leaderboard.html` `config.html` `analytics.html`）整層 nav 沒任何 link 回 prototype shell 或 docs 站 |
+| **實機證據** | `pages/prototype/admin/index.html` grep `href="\.\.|HOME|DOCS|文件|主頁` → 0 命中。整檔 nav 列：`Dashboard / Pets / Leaderboard / Config / Analytics`，全是 admin 內部頁，**沒出口**。從 admin 進去就回不去 |
+| **gen-prototype SKILL.md 行號** | L969+ 「Step A-4：生成 5 個 Admin HTML 頁面」每頁的 nav 模板（L987 起），預定 sidebar 含「控制台 / 用戶管理 / 角色管理 / 審計日誌」等內部 link，**沒提到任何 back-to-prototype-shell 或 back-to-docs link** |
+| **對齊核心目標** | **4. 不誤會**（admin 子應用一旦進去無路出，user 必須手改 URL） |
+| **預期解** | 修 SKILL.md Step A-4 模板，admin 每頁的 nav top 加：<br>- `<a href="../index.html" class="back-link">← 互動原型</a>`（回 prototype shell，depth=1 from `pages/prototype/admin/`）<br>- `<a href="../../index.html" class="back-link">← 文件站</a>`（回 docs hub，depth=2）<br>放在 logo 旁邊或登出選項旁 |
+| **Status** | review |
+
+---
+
+## # M4. api-explorer 連到 prototype shell 但 label 寫「文件站」
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | `pages/prototype/api-explorer/index.html` 唯一回上層 link：`<a href="../index.html">← Prototype</a>`（從 api-explorer 看）→ 解析到 `pages/prototype/index.html`（prototype shell）。**這是對的**。<br>但 SKILL.md 模板原本寫 `<a class="nav-link" href="../index.html">← 文件站</a>`（label 寫「文件站」），**href 卻只回 prototype shell**。實際 pet 已被 user 或 fixer 改成 `← Prototype` label，但 SKILL.md 模板沒改 |
+| **實機證據** | `pages/prototype/api-explorer/index.html` L540：`<a href="../index.html" class="nav-link">← Prototype</a>`（user 自己改的）<br>SKILL.md L694：`<a class="nav-link" href="../index.html">← 文件站</a>`（模板，label 跟 href 不對應）|
+| **對齊核心目標** | **4. 不誤會**（label 騙人）+ **3. 表達**（少了真的回 docs 的 link） |
+| **預期解** | 修 SKILL.md L694 模板：<br>```html<br><a class="nav-link" href="../index.html">← 互動原型</a>   <!-- 回 prototype shell -->`<br>`<a class="nav-link" href="../../index.html">← 文件站</a>  <!-- 回 docs hub -->`<br>``` |
+| **Status** | review |
+
+---
+
+## # M5. gen-html B4 保護阻止 path-rewriter 修 prototype/ 內檔
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | gen-html B4 保護 (`write_page` 對 `pages/prototype/` 既有檔不覆寫) 同時也阻止 L1 R3-7 對 `prototype/index.html` `prototype/admin/*.html` `prototype/api-explorer/index.html` 等 gen-prototype 自產檔的 path-rewrite。所以 M2/M3/M4 不能由 L1 自動修。 |
+| **實機證據** | gen_html.py B4 protection 邏輯（待查具體行號）+ gen_html 不 render gen-prototype 寫的 HTML（byte-copy 也沒 — 它根本不碰）|
+| **對齊核心目標** | （這是設計層問題不是 user-facing bug） |
+| **預期解** | **不需要動 B4 保護**（保護 gen-prototype 自產檔是必要的，避免 gen-html 覆寫 fancy admin 子應用）。修法是讓 **gen-prototype 模板層自己寫對連結**（M2/M3/M4 修法）|
+| **Status** | **done by design** ✅（保護機制本身正確；M2/M3/M4 從 gen-prototype 模板修） |
+
+---
+
+## # M6. 雙保險：gen-prototype 寫對 + gen-html 驗錯
+
+| 欄位 | 內容 |
+|---|---|
+| **問題** | user 期待：「gen-prototype 也要寫對，gen-html 要去檢查，若錯要修正」。即使 M2/M3/M4 在模板修了，未來若有 regression（模板被改錯 / 新版加了寫死路徑），gen-html 應該能 detect-and-warn 或 detect-and-fix |
+| **預期解（待拍板）** | 兩種選項：<br>**A. 警告而不改寫**：gen-html scan 完 prototype/ 後，verify 每個 `<a href>` 跟 `<link href>` 解析是否合法，產 warning 列表（不改檔，user 自查）<br>**B. detect-and-fix**：gen-html 對 prototype/ 內檔做被動 path-rewrite（但 byte-copy 改變 = 違反 B4 保護精神，可能破壞 gen-prototype 自有 fancy logic）|
+| **建議** | A（警告不改寫）。理由：B4 保護精神不破壞、warning 推 user 修 gen-prototype 模板而不是 gen-html 偷偷改檔 |
+| **Status** | review（待拍板 A vs B） |
+
+---
+
+## M 群處理順序
+
+依依賴關係：
+1. **M2 / M3 / M4**（gen-prototype 模板修）— 3 個獨立位置，可一個 commit 修完<br>
+   檔案：`skills/gendoc-gen-prototype/SKILL.md`<br>
+   3 個 edit：L572-576 (M2)、L987+ admin nav (M3)、L694 (M4)
+2. **M6 驗錯機制**（gen-html 加 warning）— 視 M2/M3/M4 修完後是否真有 regression 風險再做
+
+---
+
+## M 群決策點（等 user 拍板）
+
+| # | 議題 | 我的建議 |
+|---|---|---|
+| 1 | **M3 admin nav 該回 prototype shell + docs，還是只回其中一個？** | 兩個都加（user 從 docs 進來想回 docs；從 prototype shell 進來想回 prototype）|
+| 2 | **M4 改 label 還是改 href？** | 兩個 link 都加（按 M3 同邏輯：`← 互動原型` + `← 文件站`）|
+| 3 | **M6 verify-and-fix vs verify-and-warn？** | warn-only（保護 B4 精神，不偷改 gen-prototype 檔）|
+| 4 | **驗收 sandbox 怎麼做？gen-prototype skill 是 markdown spec, 不能直接 invoke** | grep SKILL.md 文字 + 如果 user 自己跑 gen-prototype 可實機驗，否則只驗 SKILL.md 修改正確 |
+| 5 | **是否要寫 Python test 對 SKILL.md 做 grep 驗證？** | ✅ 至少寫 3 個 grep test，確保模板含正確 href 字串 |
+
+---
+
 ## L 群驗收（3 視角對照同 K 群慣例）
 
 需建 sandbox case：
