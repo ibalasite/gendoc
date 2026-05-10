@@ -311,8 +311,20 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       background: #f8fafc; border-bottom: 1.5px solid #94a3b8; }
     /* `.diagram-container` (assets/style.css) defaults to text-align: center
        which is right for SVG/mermaid but wrong for umock body text. Reset
-       to start so individual umock elements decide their own alignment. */
-    .diagram-container--umock { text-align: start; }
+       to start so individual umock elements decide their own alignment.
+       Also constrain width to content so umock card mirrors ASCII source
+       proportions (rather than stretching to full doc-content width). */
+    .diagram-container--umock {
+      text-align: start;
+      width: fit-content;
+      max-width: 100%;
+    }
+    .diagram-container--umock .umock__card,
+    .diagram-container--umock .umock__page,
+    .diagram-container--umock .umock__modal {
+      width: fit-content;
+      max-width: 100%;
+    }
     /* Outer-alignment modifiers — applied via attrs.align detected from
        the source ASCII's leading/trailing whitespace within `│ ... │`. */
     .umock__card-title--center, .umock__page-title--center,
