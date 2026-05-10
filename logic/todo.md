@@ -872,26 +872,36 @@ K8 (umock wrapper) ───────┘
 
 # M 群 — prototype 回 docs link 失效
 
-> 範圍：`logic/issues.md` M 群。prototype 目錄下的 HTML 沒有正確回 docs 站 / 回 prototype shell 的 link，使用者一旦進去就「迷路」。
+> 範圍：`logic/issues.md` M 群。prototype 目錄下的 HTML 沒有正確回 docs 首頁的 link，使用者一旦進去就「迷路」。
 
 ---
 
-## M 群實機現況（含 L1 已修了哪些）
+## 責任分配原則（user 拍板）
 
-| 子題 | 哪份 HTML | 由誰寫 | L1 (R3-7) 修了嗎 |
+- **gen-prototype（SSOT）**：模板**必須**含回 docs 首頁 link。M2/M3/M4 是模板缺陷，必修
+- **gen-html（fallback）**：scan prototype/ 內 HTML，**只在沒找到** 回 docs link 時 **才補**。如果 gen-prototype 已寫對 → gen-html 不重複加；如果模板有 regression 漏寫 → gen-html 補
+- 不是雙重平行加，而是「主寫 + 沒寫才補」
+
+---
+
+## M 群實機現況
+
+| 子題 | 哪份 HTML | 由誰寫 | 現況 |
 |---|---|---|---|
-| M1 spec docs breadcrumb | `prototype/{admin-moderation,arena-battle,pet-display}-prototype.html`（3 檔） | gen-html 渲染 markdown | ✅ **L1 自動修**（下次 gen-html 跑 → breadcrumb `href="index.html"` → `href="../index.html"`） |
+| M1 spec docs breadcrumb | `prototype/{admin-moderation,arena-battle,pet-display}-prototype.html`（3 檔） | gen-html 渲染 markdown | ✅ **L1 自動修**（下次跑 → breadcrumb `href="index.html"` → `href="../index.html"`） |
 | M2 prototype shell 無 docs link | `prototype/index.html` | gen-prototype 自產 | ❌ 未修（gen-prototype 模板沒寫此 link） |
 | M3 admin/*.html 整層無出口 | `prototype/admin/{index,pets,leaderboard,config,analytics}.html`（5 檔） | gen-prototype 自產 | ❌ 未修 |
 | M4 api-explorer 連錯地方 | `prototype/api-explorer/index.html` | gen-prototype 自產 | ❌ 未修（連 prototype shell 不是 docs 站） |
+| M6 gen-html fallback 補缺 | 對 prototype/ 內任何 HTML | gen-html 新增邏輯 | ❌ 未做 |
 
 ---
 
 ## M 群核心觀察
 
 - **M1 自動修**：L1 (R3-7) 已 cover。重生後 spec docs 的 breadcrumb `href="index.html"` 會被 gen-html 自動 rewrite 成 `href="../index.html"` ← 連到 root docs index ✓
-- **M2/M3/M4 三條都是 gen-prototype 模板問題**：這些 HTML 由 gen-prototype skill 自產（非經 gen-html render），所以 L1 不 cover。修法在 `skills/gendoc-gen-prototype/SKILL.md` 模板層
-- **M5/M6 是設計層問題**：gen-html 對 prototype/ 是 byte-copy + B4 保護（避免覆寫 gen-prototype 寫的檔），這個保護同時也阻止 L1 對這些檔的 path rewrite
+- **M2/M3/M4 三條都是 gen-prototype 模板問題**：這些 HTML 由 gen-prototype skill 自產（非經 gen-html render），所以 L1 不 cover。**主修在 `skills/gendoc-gen-prototype/SKILL.md` 模板層**
+- **M5 是設計層問題**：gen-html 對 prototype/ 是 byte-copy + B4 保護（避免覆寫 gen-prototype 寫的檔），這個保護同時也阻止 L1 對這些檔的 path rewrite
+- **M6 是 fallback 補救**：gen-html 對 prototype/ 內檔做「dock back-link 缺漏偵測」，缺才補（不是平行加）
 
 ---
 
@@ -949,44 +959,46 @@ K8 (umock wrapper) ───────┘
 
 | 欄位 | 內容 |
 |---|---|
-| **問題** | gen-html B4 保護 (`write_page` 對 `pages/prototype/` 既有檔不覆寫) 同時也阻止 L1 R3-7 對 `prototype/index.html` `prototype/admin/*.html` `prototype/api-explorer/index.html` 等 gen-prototype 自產檔的 path-rewrite。所以 M2/M3/M4 不能由 L1 自動修。 |
-| **實機證據** | gen_html.py B4 protection 邏輯（待查具體行號）+ gen_html 不 render gen-prototype 寫的 HTML（byte-copy 也沒 — 它根本不碰）|
-| **對齊核心目標** | （這是設計層問題不是 user-facing bug） |
-| **預期解** | **不需要動 B4 保護**（保護 gen-prototype 自產檔是必要的，避免 gen-html 覆寫 fancy admin 子應用）。修法是讓 **gen-prototype 模板層自己寫對連結**（M2/M3/M4 修法）|
-| **Status** | **done by design** ✅（保護機制本身正確；M2/M3/M4 從 gen-prototype 模板修） |
+| **問題** | gen-html B4 保護 (`write_page` 對 `pages/prototype/` 既有檔不覆寫) 同時也阻止 L1 R3-7 對 `prototype/index.html` `prototype/admin/*.html` `prototype/api-explorer/index.html` 等 gen-prototype 自產檔的 path-rewrite |
+| **預期解** | **不需要動 B4 保護**（保護 gen-prototype 自產檔是必要的）。M2/M3/M4 主修從 gen-prototype 模板來；gen-html 對缺 docs link 的檔走 M6 fallback |
+| **Status** | **done by design** ✅ |
 
 ---
 
-## # M6. 雙保險：gen-prototype 寫對 + gen-html 驗錯
+## # M6. gen-html fallback：prototype/ 內檔缺 docs link 時補注入
 
 | 欄位 | 內容 |
 |---|---|
-| **問題** | user 期待：「gen-prototype 也要寫對，gen-html 要去檢查，若錯要修正」。即使 M2/M3/M4 在模板修了，未來若有 regression（模板被改錯 / 新版加了寫死路徑），gen-html 應該能 detect-and-warn 或 detect-and-fix |
-| **預期解（待拍板）** | 兩種選項：<br>**A. 警告而不改寫**：gen-html scan 完 prototype/ 後，verify 每個 `<a href>` 跟 `<link href>` 解析是否合法，產 warning 列表（不改檔，user 自查）<br>**B. detect-and-fix**：gen-html 對 prototype/ 內檔做被動 path-rewrite（但 byte-copy 改變 = 違反 B4 保護精神，可能破壞 gen-prototype 自有 fancy logic）|
-| **建議** | A（警告不改寫）。理由：B4 保護精神不破壞、warning 推 user 修 gen-prototype 模板而不是 gen-html 偷偷改檔 |
-| **Status** | review（待拍板 A vs B） |
+| **問題** | gen-prototype 模板若漏寫 / 第三方放進 prototype/ 的舊檔沒 docs link → 使用者迷路。需要 gen-html 作為**最後一道防線**：scan prototype/ 內 HTML，沒回 docs link 才補 |
+| **行為合約** | 1. **觸發時機**：gen-html main pipeline 結束前，掃 `pages/prototype/**/*.html`<br>2. **偵測規則**：HTML body 內若**已有** `<a href="../index.html">` / `<a href="../../index.html">` / `<a href="../../../index.html">` 等指向 docs root 的 anchor → **跳過此檔**（gen-prototype 已寫對）<br>3. **補注入規則**：未偵測到時，**不修改 gen-prototype 既有結構**，只**注入**一個固定位置的 floating back-link：`<a class="gendoc-fallback-back" href="{depth × ../}index.html">← 文件站</a>` 放 `<body>` 開頭<br>4. **CSS**：`.gendoc-fallback-back { position: fixed; top: 1rem; left: 1rem; z-index: 9999; padding: 0.5rem 1rem; background: #1e293b; color: #fff; border-radius: 6px; text-decoration: none; font-size: 0.85rem; }` |
+| **不破壞 gen-prototype**：補注入只加新 element，不改既有 element / class / 結構 |
+| **對齊核心目標** | **3. 表達**（補回失蹤的出口）+ **4. 不誤會**（user 不再迷路）|
+| **Test case** | 1. `test_M6_prototype_html_with_docs_link_unchanged`<br>   含 `<a href="../index.html">← 文件站</a>` → 不注入 fallback<br>2. `test_M6_prototype_html_without_docs_link_gets_fallback`<br>   沒任何 `../index.html` → 注入 `<a class="gendoc-fallback-back">`<br>3. `test_M6_two_level_deep_uses_correct_prefix`<br>   `pages/prototype/admin/index.html` (depth=2) → 注入時 href=`../../index.html`<br>4. `test_M6_idempotent`<br>   同 HTML 跑兩次 → 只注入 1 次（含 `gendoc-fallback-back` class 視為已注入，不重複）<br>5. `test_M6_does_not_modify_gen_prototype_structure`<br>   既有 `<nav>` `<button>` 等都不變 |
+| **Status** | review |
 
 ---
 
 ## M 群處理順序
 
 依依賴關係：
-1. **M2 / M3 / M4**（gen-prototype 模板修）— 3 個獨立位置，可一個 commit 修完<br>
+1. **M2 / M3 / M4**（gen-prototype 模板修）— SKILL.md 3 個 edit 一個 commit<br>
    檔案：`skills/gendoc-gen-prototype/SKILL.md`<br>
-   3 個 edit：L572-576 (M2)、L987+ admin nav (M3)、L694 (M4)
-2. **M6 驗錯機制**（gen-html 加 warning）— 視 M2/M3/M4 修完後是否真有 regression 風險再做
+   3 個 edit：L572-576 (M2)、L987+ admin nav (M3)、L694 (M4)<br>
+   驗收：grep test SKILL.md 含正確 href 字串
+2. **M6**（gen-html fallback 補缺機制）— gen_html.py 加 prototype/ scanner + 5 個 test<br>
+   驗收：sandbox 加無 docs link 的 prototype HTML，重跑 gen-html 後檔內被注入 fallback link
 
 ---
 
-## M 群決策點（等 user 拍板）
+## M 群決策點（待 user 拍板）
 
-| # | 議題 | 我的建議 |
+| # | 議題 | 建議 |
 |---|---|---|
-| 1 | **M3 admin nav 該回 prototype shell + docs，還是只回其中一個？** | 兩個都加（user 從 docs 進來想回 docs；從 prototype shell 進來想回 prototype）|
-| 2 | **M4 改 label 還是改 href？** | 兩個 link 都加（按 M3 同邏輯：`← 互動原型` + `← 文件站`）|
-| 3 | **M6 verify-and-fix vs verify-and-warn？** | warn-only（保護 B4 精神，不偷改 gen-prototype 檔）|
-| 4 | **驗收 sandbox 怎麼做？gen-prototype skill 是 markdown spec, 不能直接 invoke** | grep SKILL.md 文字 + 如果 user 自己跑 gen-prototype 可實機驗，否則只驗 SKILL.md 修改正確 |
-| 5 | **是否要寫 Python test 對 SKILL.md 做 grep 驗證？** | ✅ 至少寫 3 個 grep test，確保模板含正確 href 字串 |
+| 1 | **M3 admin nav 加 1 個還 2 個 back-link？** | 兩個都加：`← 互動原型`（回 prototype shell）+ `← 文件站`（回 docs hub）|
+| 2 | **M4 label/href 不對應怎麼修？** | 同 M3 兩個都加 |
+| 3 | **M6 fallback 注入方式：原地修 nav vs floating button？** | floating button（不破 gen-prototype 結構，user 可一眼看到出口）|
+| 4 | **M6 floating button 出現位置 & 樣式？** | `position: fixed; top:1rem; left:1rem; z-index:9999; 深色背景 + 白字 ← 文件站`|
+| 5 | **驗收 sandbox：gen-prototype skill 是 .md spec 怎驗？** | (a) grep SKILL.md 文字驗模板字串 (b) sandbox 寫一個 mock prototype HTML 驗 gen-html M6 fallback 行為 |
 
 ---
 
