@@ -726,7 +726,7 @@ H 群無新 fix 工作。
 | **Test case** | 1. `test_K6_state_machine_uses_stateDiagram_v2`（含 `IDLE → ANIM` → 輸出 `stateDiagram-v2`）<br>2. `test_K6_transition_label_extracted`（`IDLE ─opponent─▶ LIST` → `IDLE --> LIST: opponent`）<br>3. `test_K6_initial_state_arrow`（`──▶ IDLE` → `[*] --> IDLE`） |
 | **不影響其他 case** | 非狀態機 ASCII 流不誤判（無 ALL_CAPS state 名 + 無 transition label 不觸發） |
 | **驗收對應** | proto/arena L415 渲染成 mermaid stateDiagram，狀態箭頭與標籤正確 |
-| **Status** | review |
+| **Status** | **done** ✅（4 test 全綠，343/343 全綠；初始 arrow + 所有 state declared + 同行可抽 transition；多行 spanning transitions 為 best-effort，未抽出） |
 
 ---
 

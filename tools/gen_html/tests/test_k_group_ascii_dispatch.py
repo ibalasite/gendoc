@@ -517,6 +517,69 @@ def test_K5_no_pipe_in_box_node_labels():
             f'node label "{label}" contains `│` (linear-box bug); mermaid:\n{md}'
 
 
+# ─── K6: F2 UML state diagram 識別 ──────────────────────────────────────
+
+# Real-world fixture: pet/docs/prototype/arena-battle-prototype.md State Machine
+ARENA_STATE_MACHINE = """\
+          ┌─────────────────────────────────────────────────────┐
+          │                                                     │
+  ┌───────▼──────┐   user selects   ┌────────────────────┐      │
+  │    IDLE      │─────opponent────▶│   CHALLENGING      │      │
+  │ (opponent    │                  │ (POST /arena/battle│      │
+  │  list shown) │                  │  in-flight)        │      │
+  └──────────────┘                  └─────────┬──────────┘      │
+          ▲                                   │ response 200     │
+          │                                   ▼                  │
+          │                         ┌──────────────────┐        │
+          │                         │    BATTLING      │        │
+          │                         │ (Phaser animates │        │
+          │                         │  battle log)     │        │
+          │                         └────────┬─────────┘        │
+          │                                  │ animation done   │
+          │                                  ▼                  │
+          │                         ┌──────────────────┐        │
+          └──────"Fight Again"───── │     RESULT       │────────┘
+                                    │  (winner, XP,    │  "Back to
+                                    │   rank shown)    │   Pet View"
+                                    └──────────────────┘
+"""
+
+
+def test_K6_state_machine_emits_stateDiagram_v2():
+    """偵測到 ≥ 3 個 ALL_CAPS 狀態名 → 輸出 `stateDiagram-v2` 而非 `graph TD`。"""
+    md = gh._ascii_to_mermaid_td(ARENA_STATE_MACHINE)
+    assert md is not None
+    assert md.startswith('stateDiagram-v2'), \
+        f'state machine should use stateDiagram-v2, not graph TD; got:\n{md[:200]}'
+
+
+def test_K6_all_states_extracted():
+    """4 個狀態 IDLE / CHALLENGING / BATTLING / RESULT 都應出現在 mermaid 內。"""
+    md = gh._ascii_to_mermaid_td(ARENA_STATE_MACHINE)
+    assert md is not None
+    for state in ('IDLE', 'CHALLENGING', 'BATTLING', 'RESULT'):
+        assert state in md, f'state {state} missing; mermaid:\n{md}'
+
+
+def test_K6_initial_state_arrow():
+    """應有 `[*] --> X` 起始狀態 arrow。"""
+    md = gh._ascii_to_mermaid_td(ARENA_STATE_MACHINE)
+    assert md is not None
+    assert re.search(r'\[\*\]\s*-->\s*[A-Z]', md), \
+        f'initial state [*] arrow missing; mermaid:\n{md}'
+
+
+def test_K6_non_state_machine_unaffected():
+    """純架構 multi-col（無 ALL_CAPS state names）→ 不該被當 state machine。"""
+    md = gh._ascii_to_mermaid_td(ARCH_MULTI_COL_FAN_IN)
+    assert md is not None
+    # 應該還是 graph TD（K4 路徑），非 stateDiagram
+    assert 'graph TD' in md, \
+        f'arch multi-col regression: should use graph TD; got:\n{md[:200]}'
+    assert not md.startswith('stateDiagram'), \
+        f'arch multi-col should NOT use stateDiagram; got:\n{md[:200]}'
+
+
 # ─── Standalone runner ──────────────────────────────────────────────────
 
 def main() -> int:
@@ -552,6 +615,10 @@ def main() -> int:
         ('K5_text_before_first_box_becomes_node', test_K5_text_before_first_box_becomes_node),
         ('K5_edge_annotation_between_boxes', test_K5_edge_annotation_between_boxes),
         ('K5_no_pipe_in_box_node_labels', test_K5_no_pipe_in_box_node_labels),
+        ('K6_state_machine_emits_stateDiagram_v2', test_K6_state_machine_emits_stateDiagram_v2),
+        ('K6_all_states_extracted', test_K6_all_states_extracted),
+        ('K6_initial_state_arrow', test_K6_initial_state_arrow),
+        ('K6_non_state_machine_unaffected', test_K6_non_state_machine_unaffected),
     ]
     passed = failed = 0
     for name, fn in tests:

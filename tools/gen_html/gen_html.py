@@ -2036,6 +2036,65 @@ def _classify_ascii_block(text: str) -> str:
     return 'unknown'
 
 
+def _try_parse_state_machine(text: str):
+    """K6: parse UML state machine ASCII → mermaid stateDiagram-v2.
+
+    Detection: ≥ 3 ALL_CAPS state-like words (3-30 chars) inside `│ STATE │`
+    box-bordered cells.
+
+    Best-effort transition extraction: lines containing 2 state names with
+    arrow/dash text between them yield `S1 --> S2: label`. Multi-line
+    spanning transitions are not extracted (acceptable trade-off; at least
+    states render correctly with `[*] --> first_state` initial arrow).
+
+    Returns mermaid src starting with 'stateDiagram-v2' or None.
+    """
+    state_pattern = re.compile(r'│\s*([A-Z][A-Z_]{2,30})\s*│')
+    seen = []
+    for match in state_pattern.finditer(text):
+        s = match.group(1)
+        if s not in seen:
+            seen.append(s)
+    if len(seen) < 3:
+        return None
+
+    md_lines = ['stateDiagram-v2']
+    md_lines.append(f'  [*] --> {seen[0]}')
+    # Explicitly declare all detected states so even those without in-line
+    # transitions still render as boxes.
+    for state in seen:
+        md_lines.append(f'  {state}')
+
+    # Extract in-line transitions: lines with ≥ 2 state-name occurrences
+    seen_pairs = set()
+    transitions = []
+    for line in text.split('\n'):
+        token_matches = list(re.finditer(r'\b([A-Z][A-Z_]{2,30})\b', line))
+        if len(token_matches) < 2:
+            continue
+        for i in range(len(token_matches) - 1):
+            s1 = token_matches[i].group(1)
+            s2 = token_matches[i + 1].group(1)
+            if s1 not in seen or s2 not in seen or s1 == s2:
+                continue
+            if (s1, s2) in seen_pairs:
+                continue
+            between = line[token_matches[i].end():token_matches[i + 1].start()]
+            # Strip box / arrow / quote chars to get label
+            label = re.sub(r'[─▶▼▲►◄│┃└┘┐┌→\"]+', ' ', between)
+            label = re.sub(r'\s+', ' ', label).strip()
+            transitions.append((s1, s2, label))
+            seen_pairs.add((s1, s2))
+
+    for s1, s2, label in transitions:
+        if label:
+            md_lines.append(f'  {s1} --> {s2}: {label}')
+        else:
+            md_lines.append(f'  {s1} --> {s2}')
+
+    return '\n'.join(md_lines)
+
+
 def _try_parse_multi_column(text: str):
     """K4: parse multi-column architecture diagram (parallel boxes + fan-in).
 
@@ -2200,6 +2259,11 @@ def _ascii_to_mermaid_td(text: str) -> 'str | None':
     kind = _classify_ascii_block(text)
     if kind == 'ui':
         return None
+
+    # K6: try state machine first (ALL_CAPS state names in boxes)
+    state_machine_md = _try_parse_state_machine(text)
+    if state_machine_md is not None:
+        return state_machine_md
 
     # K4: try multi-column architecture (parallel boxes + fan-in to downstream)
     multi_col_result = _try_parse_multi_column(text)
