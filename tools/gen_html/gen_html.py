@@ -654,13 +654,17 @@ def _mermaid_fix_block(lines):
             # X : (state description 行首)
             line = re.sub(rf'^(\s*){esc}(\s*:)', rf'\1{bad}_st\2', line)
         # Mermaid v11: ; in transition / state label treated as statement separator
-        # 也把 [...] / {...} 在 label 內換成 (...)（mermaid 把 [X] 當 state ref）
+        # — 仍須改成 ,
+        # NOTE：早先有 `[...] → (...)` 跟 `{...} → (...)` 改寫，註解寫「mermaid
+        # 把 [X] 當 state ref」。對 mermaid v11.14 經實機驗證為錯：
+        # browser mermaid.run() 對 transition label 含 `[guard]` 是合法的，
+        # 強改成 `(guard)` 反而產生 `event() (guard) /` 連續括號樣式，
+        # mermaid v11 parser 渲染失敗（顯示「Syntax error in text」）。
+        # → common fix：留 source 原 syntax，只做必要的 ; → , normalize。
         m = re.match(r'^(.*?(?:-->|state\s+\S+).*?:\s*)(.*)$', line)
         if m:
             prefix, label = m.group(1), m.group(2)
             label = label.replace(';', ',')
-            label = re.sub(r'\[([^\[\]]*)\]', r'(\1)', label)
-            label = re.sub(r'\{([^\{\}]*)\}', r'(\1)', label)
             line = prefix + label
         return line
 
