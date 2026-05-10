@@ -256,6 +256,64 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     .sidebar__section details .sidebar__label--sub ~ .sidebar__link {
       padding-left: 3.5rem;
     }
+    /* ─── N1: sidebar tab switcher (📁 文件 / 📑 本頁目錄) ─── */
+    .sidebar { position: relative; display: flex; flex-direction: column;
+      overflow: hidden; }
+    .sidebar__toggle { position: absolute; top: 6px; right: 6px;
+      background: #f1f5f9; border: 1px solid #cbd5e1;
+      padding: 2px 6px; border-radius: 4px;
+      cursor: pointer; font-size: 11px; line-height: 1;
+      color: #475569; z-index: 3; }
+    .sidebar__toggle:hover { background: #e2e8f0; }
+    .sidebar__tabs { display: flex; gap: 2px; padding: 4px 32px 0 4px;
+      border-bottom: 1px solid #e2e8f0; background: #f8fafc;
+      flex-shrink: 0; }
+    .sidebar__tab { flex: 1; padding: 6px 8px; font-size: 12px;
+      border: 1px solid transparent; border-bottom: none;
+      border-radius: 4px 4px 0 0; cursor: pointer; background: transparent;
+      color: #64748b; font-family: inherit; text-align: center;
+      transition: background-color 150ms, color 150ms; }
+    .sidebar__tab:hover { color: #1e293b; background: #f1f5f9; }
+    .sidebar__tab.active { background: #fff; color: #1e3a8a;
+      border-color: #e2e8f0; font-weight: 600; margin-bottom: -1px; }
+    .sidebar__panel { display: none; flex: 1; overflow-y: auto;
+      padding: 0.5rem 0; font-size: 0.875rem; }
+    .sidebar__panel.active { display: block; }
+    /* TOC list rendering inside the toc panel */
+    .sidebar__panel .toc-list { list-style: none; padding: 0; margin: 0; }
+    .sidebar__panel .toc-list li { margin: 0; }
+    .toc__link { display: block; padding: 0.25rem 0.75rem;
+      color: #475569; text-decoration: none; font-size: 0.8125rem;
+      border-left: 2px solid transparent; margin: 1px 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .toc__link:hover { background: #f1f5f9; color: #1e293b; }
+    .toc__link.active { background: #eff6ff; color: #1e3a8a;
+      border-left-color: #3b82f6; font-weight: 500; }
+    .toc__link--h3 { padding-left: 1.5rem; font-size: 0.78rem; color: #64748b; }
+    /* Sidebar collapsed state — keep a 32px rail visible so the toggle
+       button stays clickable; hide tabs + panels. Overrides style.css's
+       .page-wrapper.sidebar-collapsed { grid-template-columns: 0 4px 1fr; }
+       to keep the rail. */
+    .page-wrapper.sidebar-collapsed { grid-template-columns: 32px 4px 1fr; }
+    .page-wrapper.sidebar-collapsed .sidebar {
+      width: 32px; min-width: 32px;
+      visibility: visible; padding: 0; overflow: visible;
+    }
+    .page-wrapper.sidebar-collapsed .sidebar__tabs,
+    .page-wrapper.sidebar-collapsed .sidebar__panel { display: none; }
+    .page-wrapper.sidebar-collapsed .sidebar__toggle { left: 4px; right: 4px; }
+    /* RWD — auto-collapse on phones (<768px). Only kicks in when no
+       explicit `.sidebar-expanded` flag is set; tap the toggle to expand. */
+    @media (max-width: 768px) {
+      .page-wrapper:not(.sidebar-expanded) {
+        grid-template-columns: 32px 4px 1fr;
+      }
+      .page-wrapper:not(.sidebar-expanded) .sidebar {
+        width: 32px; min-width: 32px;
+      }
+      .page-wrapper:not(.sidebar-expanded) .sidebar__tabs,
+      .page-wrapper:not(.sidebar-expanded) .sidebar__panel { display: none; }
+    }
     /* G-Q2: lightbox cloned-diagram visibility.
        The lightbox sets `.lightbox__zoom-content > * { position:absolute }`
        which collapses the cloned .diagram-container to 0×0; its child SVG
@@ -3480,7 +3538,39 @@ def _diag_prefix_of(stem, is_frontend):
 _DIAG_PREFIX_ORDER = ['Activity', 'Class', 'Sequence', 'State', 'CI/CD', '其他']
 
 
-def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, current, has_req=False, puml_files=None):
+_TOC_HEADING_RE = re.compile(
+    r'<h([23])\b[^>]*\bid="([^"]+)"[^>]*>(.*?)</h\1>',
+    re.DOTALL | re.IGNORECASE,
+)
+_TOC_TAG_STRIP_RE = re.compile(r'<[^>]+>')
+
+
+def _build_toc(html):
+    """Extract H2/H3 with id attributes from rendered HTML and produce a
+    `<ul class="toc-list">` for the sidebar TOC panel.
+
+    H4+ excluded. Returns empty list HTML when no H2/H3 found (still a `<ul>`
+    so the panel structure stays consistent).
+
+    N1 (TOC tab): used by render_page to fill `<div data-panel="toc">`.
+    """
+    if not isinstance(html, str):
+        return '<ul class="toc-list"></ul>'
+    items = []
+    for m in _TOC_HEADING_RE.finditer(html):
+        level, hid, inner = m.group(1), m.group(2), m.group(3)
+        text = _TOC_TAG_STRIP_RE.sub('', inner).strip()
+        if not text:
+            continue
+        cls = 'toc__link' + (' toc__link--h3' if level == '3' else '')
+        items.append(
+            f'<li><a class="{cls}" href="#{_html.escape(hid)}">'
+            f'{_html.escape(text)}</a></li>'
+        )
+    return '<ul class="toc-list">' + ''.join(items) + '</ul>'
+
+
+def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, current, has_req=False, puml_files=None, toc_html=''):
     # B6: compute href relative to current page's location.
     # current is a slug like 'index', 'edd', 'blueprint/mock/x', or 'diagrams/foo'.
     # Pages are at pages/{current}.html. For a target slug, href must be the
@@ -3632,7 +3722,25 @@ def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, curren
         sections.append('</details>')
         sections.append('</div>')
 
-    return '\n'.join(sections)
+    # ── N1: wrap docs sections in tab/panel structure with TOC ──
+    docs_panel_html = '\n'.join(sections)
+    toc_panel_html = toc_html if toc_html else '<ul class="toc-list"></ul>'
+    return (
+        '<button class="sidebar__toggle" id="sidebarCollapseBtn" '
+        'type="button" aria-label="收合 / 展開側欄" title="收合 / 展開">⇤</button>'
+        '<div class="sidebar__tabs" role="tablist">'
+        '<button class="sidebar__tab active" data-tab="docs" '
+        'type="button" role="tab" aria-selected="true">📁 文件</button>'
+        '<button class="sidebar__tab" data-tab="toc" '
+        'type="button" role="tab" aria-selected="false">📑 本頁目錄</button>'
+        '</div>'
+        '<div class="sidebar__panel active" data-panel="docs" role="tabpanel">'
+        f'{docs_panel_html}'
+        '</div>'
+        '<div class="sidebar__panel" data-panel="toc" role="tabpanel">'
+        f'{toc_panel_html}'
+        '</div>'
+    )
 
 def render_page(content, title, banner, doc_pages, server_diagrams, frontend_diagrams, sub_docs, current, is_index=False, has_req=False, puml_files=None):
     gh = (f'<a class="nav-gh-link" href="{GITHUB_REPO}" target="_blank" rel="noopener">⌥ GitHub</a>'
@@ -3645,7 +3753,8 @@ def render_page(content, title, banner, doc_pages, server_diagrams, frontend_dia
                    f'</span>')
     else:
         bc = f'<a href="index.html">{APP_NAME}</a> › {banner}'
-    sidebar_html = make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, current, has_req=has_req, puml_files=puml_files)
+    toc_html = _build_toc(content)
+    sidebar_html = make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, current, has_req=has_req, puml_files=puml_files, toc_html=toc_html)
     return (HTML_TEMPLATE
             .replace('__TITLE__', title)
             .replace('__APP__', APP_NAME)

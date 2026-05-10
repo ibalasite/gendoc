@@ -69,16 +69,77 @@ const pageWrapper   = document.querySelector('.page-wrapper');
 const sidebarEl     = document.querySelector('.sidebar');
 const resizerEl     = document.getElementById('sidebarResizer');
 
-if (localStorage.getItem('sidebar-collapsed') === 'true') {
-  pageWrapper?.classList.add('sidebar-collapsed');
-}
+// N1: namespaced key — single source of truth for sidebar collapse state
+// across both the top-nav button (#sidebarToggle) and the in-sidebar
+// button (#sidebarCollapseBtn). Falls back to the legacy unprefixed key
+// once so users with prior state don't see a regression.
+const SIDEBAR_COLLAPSE_KEY = 'gendoc:sidebar-collapsed';
+const legacyCollapsed = localStorage.getItem('sidebar-collapsed');
+const initialCollapsed = (
+  localStorage.getItem(SIDEBAR_COLLAPSE_KEY) ?? legacyCollapsed
+) === 'true';
+if (initialCollapsed) pageWrapper?.classList.add('sidebar-collapsed');
 const savedW = localStorage.getItem('sidebar-width');
 if (savedW) document.documentElement.style.setProperty('--sidebar-w', savedW);
 
-sidebarToggle?.addEventListener('click', () => {
+function toggleSidebarCollapse() {
+  if (!pageWrapper) return;
   const collapsed = pageWrapper.classList.toggle('sidebar-collapsed');
-  localStorage.setItem('sidebar-collapsed', collapsed);
+  localStorage.setItem(SIDEBAR_COLLAPSE_KEY, String(collapsed));
+}
+sidebarToggle?.addEventListener('click', toggleSidebarCollapse);
+const sidebarCollapseBtn = document.getElementById('sidebarCollapseBtn');
+sidebarCollapseBtn?.addEventListener('click', toggleSidebarCollapse);
+
+// ─── N1: Sidebar tab switcher (📁 文件 / 📑 本頁目錄) ─────────
+document.querySelectorAll('.sidebar__tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const target = tab.dataset.tab;
+    document.querySelectorAll('.sidebar__tab').forEach(t => {
+      const on = t.dataset.tab === target;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    document.querySelectorAll('.sidebar__panel').forEach(p => {
+      p.classList.toggle('active', p.dataset.panel === target);
+    });
+  });
 });
+
+// ─── N1: TOC scroll-spy via IntersectionObserver ─────────────
+// Highlights the .toc__link whose target heading is currently in view.
+// Falls back silently when no headings/links are present.
+(function initTocScrollSpy() {
+  const tocLinks = Array.from(document.querySelectorAll('.toc__link'));
+  if (!tocLinks.length || typeof IntersectionObserver === 'undefined') return;
+  const idToLink = new Map();
+  tocLinks.forEach(a => {
+    const href = a.getAttribute('href') || '';
+    if (href.startsWith('#')) idToLink.set(href.slice(1), a);
+  });
+  const headings = Array.from(idToLink.keys())
+    .map(id => document.getElementById(id))
+    .filter(Boolean);
+  if (!headings.length) return;
+  const setActive = (id) => {
+    tocLinks.forEach(a => a.classList.remove('active'));
+    const link = idToLink.get(id);
+    if (link) link.classList.add('active');
+  };
+  const visible = new Set();
+  const observer = new IntersectionObserver(entries => {
+    for (const e of entries) {
+      if (e.isIntersecting) visible.add(e.target.id);
+      else visible.delete(e.target.id);
+    }
+    // Pick the topmost visible heading (smallest viewport-relative top)
+    const inView = headings.filter(h => visible.has(h.id));
+    if (!inView.length) return;
+    inView.sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
+    setActive(inView[0].id);
+  }, { rootMargin: '-72px 0px -60% 0px', threshold: [0, 1] });
+  headings.forEach(h => observer.observe(h));
+})();
 
 if (resizerEl && pageWrapper && sidebarEl) {
   let startX, startW;
