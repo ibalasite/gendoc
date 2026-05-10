@@ -741,7 +741,7 @@ H 群無新 fix 工作。
 | **Test case** | 1. `test_K7_ui_mock_with_emoji_classified_umock`（含 🏆、+120 → 'umock'）<br>2. `test_K7_ui_mock_with_canvas_area_classified_umock`（含 `Phaser Canvas` + 像素尺寸 → 'umock'）<br>3. `test_K7_pure_workflow_not_umock`（單欄流 + ▼ 不誤判為 umock）<br>4. `test_K7_emit_umock_html`（轉出 `<pre class="umock">` 而非 `<pre class="mermaid">`） |
 | **不影響其他 case** | K3 單欄流（無 emoji 無 [Button]）不誤判；K4 多欄架構（系統元件名 + ▼）不誤判 |
 | **驗收對應** | proto/arena L403、proto/pet-display L344 渲染成 umock UI 線圖（與既有 spec doc 內 UI mock 視覺一致） |
-| **Status** | review |
+| **Status** | **done** ✅（5 test 全綠，348/348 全綠） |
 
 ---
 

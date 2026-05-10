@@ -1913,6 +1913,37 @@ def _um_ascii_segments_to_layered_arch(segments: list):
     return {'type': 'root', 'attrs': {}, 'value': None, 'children': [arch]}
 
 
+def _looks_like_ui_mock_signal(text: str) -> bool:
+    """K7 — detect UI mock screen-layout signals (vs system / state machine).
+
+    Strong signals (any → 'ui'):
+      1. Emoji in U+1F000-1FFFF range (🏆 ⚡ 🎮 🔥 💧 🐉 etc.)
+      2. Pixel dimensions like `160 × 160 px` or `220x220px`
+      3. Canvas / sprite markers: `Phaser ... Canvas`, `(pet sprite)`
+      4. UI-specific labels: `Lv\\d+`, `XP Gained`, `Player:`, `Type:`
+
+    These signals are unique to UI mocks and won't appear in system
+    architecture or state machine ASCII.
+    """
+    # Emoji range (covers most pictographs)
+    if re.search(r'[\U0001F000-\U0001FAFF\U00002600-\U000027BF]', text):
+        return True
+    # Pixel dimensions
+    if re.search(r'\d+\s*[×x]\s*\d+\s*px', text):
+        return True
+    # Canvas markers (Phaser / WebGL canvas labels in UI mocks)
+    if re.search(r'(?:Phaser|WebGL|HTML5)\s+\d?\s*Canvas', text, re.IGNORECASE):
+        return True
+    # Game-specific UI labels (Lv, XP, Type, Rank)
+    ui_label_count = 0
+    for pat in (r'\bLv\s*\d+', r'XP\s+Gained', r'Player:\s', r'Type:\s', r'Rank:'):
+        if re.search(pat, text):
+            ui_label_count += 1
+    if ui_label_count >= 2:
+        return True
+    return False
+
+
 def _looks_like_tree(text: str) -> bool:
     """K2 — detect tree-shaped ASCII (file dir / component tree / sitemap / IA tree).
 
@@ -1978,6 +2009,12 @@ def _classify_ascii_block(text: str) -> str:
     # and other hierarchies don't trip the arrow rules below.
     if _looks_like_tree(text):
         return 'tree'
+
+    # ── K7: UI mock signals (emoji / pixel dimensions / canvas markers) ──
+    # Detected before system signals so that screen layouts with arrows
+    # like `↑ +4` (rank delta) don't get mis-routed to mermaid graph TD.
+    if _looks_like_ui_mock_signal(text):
+        return 'ui'
 
     # ── Strong system signals ──────────────────────────────────────
     # Vertical / triangular arrows are unambiguous flow direction markers,

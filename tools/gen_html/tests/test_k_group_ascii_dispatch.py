@@ -580,6 +580,84 @@ def test_K6_non_state_machine_unaffected():
         f'arch multi-col should NOT use stateDiagram; got:\n{md[:200]}'
 
 
+# ─── K7: ASCII → umock UI 線圖轉換 ───────────────────────────────────────
+
+# Real-world fixture: pet/docs/prototype/arena-battle-prototype.md Screen 3
+SCREEN_RESULT_UI_MOCK = """\
+┌───────────────────────────────────────────────┐
+│                                               │
+│           🏆  BLAZEKIN WINS!                  │
+│                                               │
+│        ┌────────────────────────┐             │
+│        │  Phaser victory anim   │             │
+│        │  (confetti + sparkles) │             │
+│        └────────────────────────┘             │
+│                                               │
+│  XP Gained:    +120                           │
+│  New Rank:     #39  (was #43  ↑ +4)           │
+│  Total XP:     4,820 / 6,000 to Lv 13        │
+│                                               │
+│  ┌────────────────┐    ┌────────────────────┐ │
+│  │  Fight Again   │    │   Back to Pet View  │ │
+│  └────────────────┘    └────────────────────┘ │
+│                                               │
+└───────────────────────────────────────────────┘
+"""
+
+# Real-world fixture: pet/docs/prototype/pet-display-prototype.md Screen Layout
+PET_DISPLAY_UI_MOCK = """\
+┌──────────────────────────────────────────────┐
+│  pixel-pet-arena          [Player: dragonfly] │
+├──────────────────────────────────────────────┤
+│                                              │
+│           ┌──────────────────┐               │
+│           │                  │               │
+│           │  Phaser 3 Canvas │               │
+│           │   (pet sprite)   │               │
+│           │   160 × 160 px   │               │
+│           └──────────────────┘               │
+│             Pet Name: Blazekin               │
+│             Level 12  ·  Type: Fire          │
+│                                              │
+└──────────────────────────────────────────────┘
+"""
+
+
+def test_K7_ui_mock_with_emoji_classified_ui():
+    """含 emoji（🏆）的 ASCII → 'ui' kind。"""
+    kind = gh._classify_ascii_block(SCREEN_RESULT_UI_MOCK)
+    assert kind == 'ui', f'screen with 🏆 emoji should be ui; got {kind!r}'
+
+
+def test_K7_ui_mock_with_pixel_dim_classified_ui():
+    """含 pixel 尺寸（160 × 160 px）的 ASCII → 'ui'。"""
+    kind = gh._classify_ascii_block(PET_DISPLAY_UI_MOCK)
+    assert kind == 'ui', f'screen with pixel dimension should be ui; got {kind!r}'
+
+
+def test_K7_ui_mock_emit_via_md_to_html():
+    """整合測試: md_to_html 處理 UI mock → 產出 umock HTML 而非 mermaid。"""
+    md = f'# T\n\n```\n{SCREEN_RESULT_UI_MOCK}\n```\n'
+    html = gh.md_to_html(md)
+    assert '<pre class="mermaid">' not in html, \
+        f'UI mock should NOT become mermaid; html (first 500):\n{html[:500]}'
+    # umock render produces `umock__` class HTML
+    assert 'umock__' in html, \
+        f'UI mock should produce umock HTML; html (first 800):\n{html[:800]}'
+
+
+def test_K7_pure_state_machine_not_misclassified_ui():
+    """state machine（無 emoji 無像素尺寸）不該被 K7 誤判 ui。"""
+    kind = gh._classify_ascii_block(ARENA_STATE_MACHINE)
+    assert kind != 'ui', f'state machine should NOT be ui; got {kind!r}'
+
+
+def test_K7_pure_arch_not_misclassified_ui():
+    """arch multi-col（無 emoji）不該被 K7 誤判 ui。"""
+    kind = gh._classify_ascii_block(ARCH_MULTI_COL_FAN_IN)
+    assert kind != 'ui', f'arch multi-col should NOT be ui; got {kind!r}'
+
+
 # ─── Standalone runner ──────────────────────────────────────────────────
 
 def main() -> int:
@@ -619,6 +697,11 @@ def main() -> int:
         ('K6_all_states_extracted', test_K6_all_states_extracted),
         ('K6_initial_state_arrow', test_K6_initial_state_arrow),
         ('K6_non_state_machine_unaffected', test_K6_non_state_machine_unaffected),
+        ('K7_ui_mock_with_emoji_classified_ui', test_K7_ui_mock_with_emoji_classified_ui),
+        ('K7_ui_mock_with_pixel_dim_classified_ui', test_K7_ui_mock_with_pixel_dim_classified_ui),
+        ('K7_ui_mock_emit_via_md_to_html', test_K7_ui_mock_emit_via_md_to_html),
+        ('K7_pure_state_machine_not_misclassified_ui', test_K7_pure_state_machine_not_misclassified_ui),
+        ('K7_pure_arch_not_misclassified_ui', test_K7_pure_arch_not_misclassified_ui),
     ]
     passed = failed = 0
     for name, fn in tests:
