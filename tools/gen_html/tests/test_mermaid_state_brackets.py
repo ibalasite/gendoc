@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import importlib.util
 import pathlib
+import re
 import sys
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -195,6 +196,62 @@ def test_state_block_description_line_preserved_when_block_removed():
         f'description line should be preserved; got:\n{fixed}'
 
 
+# ─── 4: emit-time _mermaid_fix_block 套用（layered-arch + F2 ASCII→mermaid）
+
+def test_layered_arch_emit_quotes_edge_label_with_parens():
+    """`_um_r_layered_arch` emit 的 edge label 含 () 必須 quote-wrap。
+
+    Root cause（pet/PDD.md 重 render 後 block 1 仍破）：
+    `_um_r_layered_arch` 直接寫 `<pre class="mermaid">flowchart TB ...</pre>`
+    沒過 `_mermaid_fix_block`，所以 edge label `|calls (via props / context)|`
+    內含 `()` 沒被 quote-wrap → mermaid v11 browser parser fail。
+
+    fix_flowchart_line L604-609 已實作 edge label quote-wrap，但 emit point
+    沒套用。Common fix: emit time 統一過 _mermaid_fix_block。
+    """
+    ast = {
+        'type': 'root',
+        'children': [{
+            'type': 'layered-arch',
+            'children': [
+                {'type': 'layer', 'value': 'L0', 'children': []},
+                {'type': 'flow-down', 'value': 'calls (via props / context)'},
+                {'type': 'layer', 'value': 'L1', 'children': []},
+            ]
+        }]
+    }
+    html = gh._ui_mock_render(ast)
+    # mermaid v11 needs edge label with `()` to be wrapped in `|"..."|`
+    assert '|"calls (via props / context)"|' in html, \
+        f'edge label with parens must be quoted; got:\n{html[:600]}'
+
+
+def test_ascii_to_mermaid_td_emit_quotes_edge_label_parens():
+    """F2 `_ascii_to_mermaid_td` emit 的 edge label 也要過 fix（quote 含 () 的 label）。"""
+    # Build a tiny ASCII flow that should produce mermaid with parens in edges
+    ascii_src = (
+        '┌─────┐\n'
+        '│ A   │\n'
+        '└──┬──┘\n'
+        '   │ calls (sync)\n'
+        '   ▼\n'
+        '┌─────┐\n'
+        '│ B   │\n'
+        '└─────┘\n'
+    )
+    mermaid_src = gh._ascii_to_mermaid_td(ascii_src)
+    if not mermaid_src or '-->' not in mermaid_src:
+        # Some inputs may not yield edges — skip in that case.
+        return
+    # If the converter produced an edge label containing `(`, the EMIT path
+    # must quote it (so mermaid v11 won't trip).
+    for ln in mermaid_src.split('\n'):
+        m = re.search(r'\|([^|]+)\|', ln)
+        if m and '(' in m.group(1):
+            assert m.group(1).startswith('"') and m.group(1).endswith('"'), \
+                f'edge label with `(` must be quoted; got line:\n{ln}'
+
+
 # ─── Standalone runner ────────────────────────────────────────────────
 
 def main():
@@ -212,6 +269,8 @@ def main():
         ('state_block_with_only_blank_lines_removed', test_state_block_with_only_blank_lines_removed),
         ('state_block_with_real_content_preserved', test_state_block_with_real_content_preserved),
         ('state_block_description_line_preserved_when_block_removed', test_state_block_description_line_preserved_when_block_removed),
+        ('layered_arch_emit_quotes_edge_label_with_parens', test_layered_arch_emit_quotes_edge_label_with_parens),
+        ('ascii_to_mermaid_td_emit_quotes_edge_label_parens', test_ascii_to_mermaid_td_emit_quotes_edge_label_parens),
     ]
     passed = failed = 0
     for name, fn in tests:
