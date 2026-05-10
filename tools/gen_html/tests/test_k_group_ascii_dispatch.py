@@ -658,6 +658,52 @@ def test_K7_pure_arch_not_misclassified_ui():
     assert kind != 'ui', f'arch multi-col should NOT be ui; got {kind!r}'
 
 
+# ─── K8: umock card 包 wrapper（既有 UI 線圖加放大） ─────────────────────
+
+UMOCK_DSL_FENCE = '''```ui-mock
+page title:"Login" {
+  card title:"Sign In" { }
+}
+```
+'''
+
+
+def test_K8_umock_dsl_emit_wraps_diagram_container():
+    """` ```umock ` fence 的輸出必須包 `<div class="diagram-container">`。"""
+    md = '# T\n\n' + UMOCK_DSL_FENCE
+    html = gh.md_to_html(md)
+    # 該 markdown 應產生 umock HTML
+    assert 'umock__' in html, f'umock render missing; html (first 600):\n{html[:600]}'
+    # umock 區塊必須包在 .diagram-container 內
+    assert re.search(r'<div class="[^"]*\bdiagram-container\b[^"]*">\s*<div class="[^"]*\bumock\b[^"]*">', html), \
+        f'umock should be wrapped in .diagram-container; html (first 800):\n{html[:800]}'
+
+
+def test_K8_umock_ui_classified_emit_wraps():
+    """K7 路徑（UI mock 偵測）emit 的 umock 也包 wrapper。"""
+    md = f'# T\n\n```\n{SCREEN_RESULT_UI_MOCK}\n```\n'
+    html = gh.md_to_html(md)
+    assert 'umock__' in html, f'umock render missing; html (first 800):\n{html[:800]}'
+    assert re.search(r'<div class="[^"]*\bdiagram-container\b[^"]*">', html), \
+        f'K7-emitted umock should be wrapped; html (first 800):\n{html[:800]}'
+
+
+def test_K8_diagram_container_modifier_for_umock():
+    """umock wrapper 帶 BEM modifier `diagram-container--umock` 利於 CSS hook。"""
+    md = '# T\n\n' + UMOCK_DSL_FENCE
+    html = gh.md_to_html(md)
+    assert 'diagram-container--umock' in html, \
+        f'umock wrapper should include `--umock` modifier; html (first 800):\n{html[:800]}'
+
+
+def test_K8_native_mermaid_wrapper_unchanged():
+    """K1 native mermaid wrapper 不該被 K8 動到（regression）。"""
+    md = '# T\n\n```mermaid\ngraph TD\n  A --> B\n```\n'
+    html = gh.md_to_html(md)
+    assert '<div class="diagram-container">' in html, \
+        f'native mermaid wrapper missing; html:\n{html[:500]}'
+
+
 # ─── Standalone runner ──────────────────────────────────────────────────
 
 def main() -> int:
@@ -702,6 +748,10 @@ def main() -> int:
         ('K7_ui_mock_emit_via_md_to_html', test_K7_ui_mock_emit_via_md_to_html),
         ('K7_pure_state_machine_not_misclassified_ui', test_K7_pure_state_machine_not_misclassified_ui),
         ('K7_pure_arch_not_misclassified_ui', test_K7_pure_arch_not_misclassified_ui),
+        ('K8_umock_dsl_emit_wraps_diagram_container', test_K8_umock_dsl_emit_wraps_diagram_container),
+        ('K8_umock_ui_classified_emit_wraps', test_K8_umock_ui_classified_emit_wraps),
+        ('K8_diagram_container_modifier_for_umock', test_K8_diagram_container_modifier_for_umock),
+        ('K8_native_mermaid_wrapper_unchanged', test_K8_native_mermaid_wrapper_unchanged),
     ]
     passed = failed = 0
     for name, fn in tests:

@@ -756,7 +756,7 @@ H 群無新 fix 工作。
 | **Test case** | 1. `test_K8_umock_card_wrapped`（umock render 輸出含 `diagram-container`）<br>2. `test_K8_lightbox_selector_matches_umock`（CSS selector `.diagram-container--umock` 不破現有 lightbox） |
 | **不影響其他 case** | mermaid / PUML wrapper 仍走原 path；既有 umock render 函式內部 markup 不變 |
 | **驗收對應** | pet 重跑 gen-html，5 個 spec doc 內 11 個 umock card 全部能 lightbox 放大；K7 新轉出的 2 個 umock 也能放大 |
-| **Status** | review |
+| **Status** | **done** ✅（4 test 全綠，352/352 全綠） |
 
 ---
 

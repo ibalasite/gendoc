@@ -2915,7 +2915,12 @@ def md_to_html(text, src_dir=None):
                 i += 1
             try:
                 ast = _ui_mock_dsl_parse('\n'.join(block))
-                out.append(_ui_mock_render(ast))
+                # K8: wrap umock in .diagram-container so lightbox can bind.
+                out.append(
+                    '<div class="diagram-container diagram-container--umock">'
+                    + _ui_mock_render(ast)
+                    + '</div>'
+                )
             except Exception:
                 escaped = '\n'.join(esc(l) for l in block)
                 out.append(f'<pre><code>{escaped}</code></pre>')
@@ -2940,7 +2945,12 @@ def md_to_html(text, src_dir=None):
                 if special_ast and special_ast.get('children'):
                     first_type = special_ast['children'][0].get('type')
                     if first_type in ('pyramid', 'layered-arch'):
-                        out.append(_ui_mock_render(special_ast))
+                        # K8: wrap umock in .diagram-container so lightbox binds.
+                        out.append(
+                            '<div class="diagram-container diagram-container--umock">'
+                            + _ui_mock_render(special_ast)
+                            + '</div>'
+                        )
                         i += 1
                         continue
 
@@ -2948,7 +2958,12 @@ def md_to_html(text, src_dir=None):
                 if kind == 'ui':
                     ast = special_ast or _ui_mock_ascii_parse(block_text)
                     if ast is not None:
-                        out.append(_ui_mock_render(ast))
+                        # K8: wrap umock in .diagram-container so lightbox binds.
+                        out.append(
+                            '<div class="diagram-container diagram-container--umock">'
+                            + _ui_mock_render(ast)
+                            + '</div>'
+                        )
                         i += 1
                         continue
                 elif kind == 'system':
