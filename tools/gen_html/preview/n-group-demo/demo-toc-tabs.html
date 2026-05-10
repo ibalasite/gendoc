@@ -22,15 +22,31 @@
 
   /* 2-column layout: left sidebar + main (NO right TOC) */
   .layout { display: grid; grid-template-columns: 240px 1fr;
-    min-height: calc(100vh - 200px); }
+    min-height: calc(100vh - 200px);
+    transition: grid-template-columns 200ms ease; }
+  .layout.sidebar-collapsed { grid-template-columns: 32px 1fr; }
 
   /* Left sidebar with TAB switcher at top */
   .sidebar { background: #fff; border-right: 1px solid #e2e8f0;
-    display: flex; flex-direction: column; overflow: hidden; }
+    display: flex; flex-direction: column; overflow: hidden;
+    position: relative; }
 
-  /* Tab bar — small, compact */
+  /* Collapse toggle — small button on top-right of sidebar */
+  .sidebar__toggle { position: absolute; top: 6px; right: 4px;
+    background: #f1f5f9; border: 1px solid #cbd5e1;
+    padding: 2px 6px; border-radius: 4px;
+    cursor: pointer; font-size: 11px; color: #475569;
+    z-index: 2; line-height: 1; }
+  .sidebar__toggle:hover { background: #e2e8f0; }
+
+  /* Collapsed state: hide tabs + panels, show only toggle */
+  .layout.sidebar-collapsed .sidebar__tabs,
+  .layout.sidebar-collapsed .sidebar__panel { display: none; }
+  .layout.sidebar-collapsed .sidebar__toggle { right: 4px; left: 4px; }
+
+  /* Tab bar — small, compact, leave room for toggle on right */
   .sidebar__tabs { display: flex; border-bottom: 1px solid #e2e8f0;
-    background: #f8fafc; padding: 4px 4px 0 4px; gap: 2px; flex-shrink: 0; }
+    background: #f8fafc; padding: 4px 28px 0 4px; gap: 2px; flex-shrink: 0; }
   .sidebar__tab { flex: 1; padding: 6px 8px; font-size: 12px;
     border: 1px solid transparent; border-bottom: none;
     border-radius: 4px 4px 0 0; cursor: pointer;
@@ -91,8 +107,9 @@
   <h1>Engineering Design Document</h1>
 </div>
 
-<div class="layout">
+<div class="layout" id="layout">
   <aside class="sidebar">
+    <button class="sidebar__toggle" id="sidebar-toggle" title="收合 / 展開">⇤</button>
     <div class="sidebar__tabs">
       <button class="sidebar__tab active" data-tab="docs">📁 文件</button>
       <button class="sidebar__tab" data-tab="toc">📑 本頁目錄</button>
@@ -173,6 +190,13 @@
       document.querySelectorAll('.sidebar__panel').forEach(p =>
         p.classList.toggle('active', p.dataset.panel === target));
     });
+  });
+  // Sidebar collapse toggle
+  const layout = document.getElementById('layout');
+  const sidebarToggle = document.getElementById('sidebar-toggle');
+  sidebarToggle.addEventListener('click', () => {
+    layout.classList.toggle('sidebar-collapsed');
+    sidebarToggle.textContent = layout.classList.contains('sidebar-collapsed') ? '⇥' : '⇤';
   });
 </script>
 </body>
