@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>k-group 文件中心 — k-group</title>
-  <link rel="stylesheet" href="assets/style.css">
+  <title>Sample Diag — k-group</title>
+  <link rel="stylesheet" href="../assets/style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
   <style>
     /* ─── Sidebar collapsible folder groups ─── */
@@ -207,7 +207,7 @@
 </head>
 <body>
   <header class="top-nav">
-    <a href="index.html" class="nav-brand">k-group</a>
+    <a href="../index.html" class="nav-brand">k-group</a>
     <div class="nav-controls">
       <div class="search-wrap">
         <input class="search-input" type="search" placeholder="搜尋文件...">
@@ -218,38 +218,33 @@
     </div>
   </header>
   <div class="doc-page-banner">
-    <p class="banner-breadcrumb"><a href="index.html">k-group</a> › 文件中心 <span style="margin-left:1rem"><a href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener" style="color:var(--banner-link)">⌥ GitHub ↗</a></span></p>
-    <h1 class="banner-title">k-group 文件中心</h1>
+    <p class="banner-breadcrumb"><a href="../index.html">k-group</a> › Sample Diag</p>
+    <h1 class="banner-title">Sample Diag</h1>
   </div>
   <div class="page-wrapper">
     <aside class="sidebar" aria-label="文件導覽">
       <div class="sidebar__section">
 <div class="sidebar__label">文件</div>
-<a class="sidebar__link active" href="index.html">🏠 首頁</a>
-<a class="sidebar__link" href="k-fixture.html">📄 K-Fixture</a>
+<a class="sidebar__link" href="../index.html">🏠 首頁</a>
+<a class="sidebar__link" href="../k-fixture.html">📄 K-Fixture</a>
 </div>
 <div class="sidebar__section">
-<details>
+<details open>
 <summary>📁 diagrams/</summary>
 <div class="sidebar__label">Server UML</div>
 <div class="sidebar__label sidebar__label--sub">其他</div>
-<a class="sidebar__link" href="diagrams/sample-diag.html">📐 Sample Diag</a>
+<a class="sidebar__link active" href="../diagrams/sample-diag.html">📐 Sample Diag</a>
 </details>
 </div>
     </aside>
     <div class="sidebar-resizer" id="sidebarResizer"></div>
-    <main class="doc-content"><h1 id="k-group-preview-sandbox">k-group preview sandbox</h1>
-<p>K 群驗證環境。<strong>不碰任何真實專案（pet/erp）的檔案</strong>。</p>
-<p>包含 K1-K8 全部場景的 fixture，用來：</p>
-<ol><li>跑 gen_html 產出 docs/pages/</li><li>用 Playwright 開頁、點 lightbox、截圖</li><li>screenshots/ 存所有驗證截圖</li></ol>
-<h2 id="重新產出">重新產出</h2>
-<pre><code class="language-bash">cd /Users/tobala/projects/gendoc/tools/gen_html/preview/k-group
-python3 ../../gen_html.py</code></pre>
-<h2 id="場景對應">場景對應</h2>
-<table>
-<tr><th>檔</th><th>K 群 step</th><th>驗證</th></tr>
-<tr><td><code>docs/K-FIXTURE.md</code></td><td>K1-K8</td><td>所有形態混在 1 個 .md，方便集中驗證</td></tr>
-</table><section style="margin-top:2.5rem"><h2 style="font-size:1rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem">文件導覽</h2><div class="index-grid"><a class="index-card" href="k-fixture.html"><span class="index-card__icon">📄</span><span class="index-card__title">K-Fixture</span></a><a class="index-card" href="diagrams/sample-diag.html"><span class="index-card__icon">📐</span><span class="index-card__title">UML 圖表 (1 張)</span><span class="index-card__desc">Server 1 / Frontend 0</span></a></div></section><section style="margin-top:3rem;padding:1.5rem;background:#fff;border:1px solid var(--border);border-radius:8px;"><h2 style="margin-top:0">📊 專案健康狀態</h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;margin-top:1rem"><div style="text-align:center;padding:1rem;background:var(--page-bg);border-radius:6px"><div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem">已完成 STEP</div><div style="font-size:1.5rem;font-weight:700;color:var(--accent)">0/20</div></div></div></section></main>
+    <main class="doc-content"><h1 id="sample-diagram-l1-subdir-verification">Sample Diagram (L1 subdir verification)</h1>
+<p>This page lives at <code>pages/diagrams/sample-diag.html</code> (depth=1).</p>
+<p>L1 verifies:</p>
+<ul><li><code>&lt;head&gt;&lt;link href=&quot;../assets/style.css&quot;&gt;</code> (prefix added)</li><li>nav-brand <code>&lt;a href=&quot;../index.html&quot;&gt;</code> (prefix added)</li><li>breadcrumb <code>&lt;a href=&quot;../index.html&quot;&gt;k-group&lt;/a&gt;</code> (prefix added)</li></ul>
+<h2 id="sample-content">Sample Content</h2>
+<div class="diagram-container"><pre class="mermaid">graph TD
+  A[&quot;Subdir Sample&quot;] --&gt; B[&quot;L1 Verified&quot;]</pre></div></main>
   </div>
   <script type="module">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
@@ -266,6 +261,6 @@ python3 ../../gen_html.py</code></pre>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-go.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
-  <script src="assets/app.js"></script>
+  <script src="../assets/app.js"></script>
 </body>
 </html>

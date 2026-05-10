@@ -2910,6 +2910,25 @@ def rewrite_pages_paths(html: str, current_html_path, pages_dir) -> str:
                     target = html_candidate + (('#' + frag) if frag else '')
                 else:
                     return _strip_anchor(full_match)
+        # R3-7 (L1): generic root-prefix for subdir pages.
+        # When current page is in pages/<subdir>/ and target is a root-level
+        # path that resolves to an actual file/dir at pages/, prepend
+        # `../` × depth so the browser resolves correctly.
+        # Examples it fixes:
+        #   <head><link href="assets/style.css">  in pages/diagrams/x.html
+        #     → href="../assets/style.css"
+        #   <a href="index.html" class="nav-brand"> in pages/diagrams/x.html
+        #     → href="../index.html"
+        # Excludes:
+        #   - already-prefixed paths (../X) — sidebar pre-prefixes via make_sidebar
+        #   - absolute (/X) and external (http://) — handled earlier
+        #   - root-level page (depth=0) — no prefix needed
+        depth = len(rel_dir.parts) if rel_dir != Path('.') else 0
+        if depth > 0 and not target.startswith(('../', '/')):
+            check_path = target.split('#', 1)[0].split('?', 1)[0]
+            if check_path and (pages_dir / check_path).exists():
+                target = ('../' * depth) + target
+
         # R3-6 防護：最終 target 解析後必須在 pages/ 內，否則 strip
         # （catch AI 寫 ../../../X 跳出 server root 的情況）
         resolved_check = _resolve(target)

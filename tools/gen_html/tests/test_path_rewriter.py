@@ -382,6 +382,117 @@ def test_R2_sidebar_scan_only_main_prototype():
     assert paths == ['prototype/index.html']
 
 
+# ─── L1 / R3-7: generic root-prefix rule for subdir pages ──────────────
+# Subdir HTML's `<head><link>`, nav-brand, breadcrumb pet anchor reference
+# pages/-root paths verbatim (e.g. `assets/style.css`, `index.html`). When
+# the page itself sits in `pages/<subdir>/`, the browser resolves these as
+# `pages/<subdir>/assets/...` → 404. Need depth-aware `../` prefix.
+
+def test_L1_subdir_head_css_gets_dotdot_prefix():
+    """<head><link href="assets/style.css"> 在 pages/diagrams/X.html →
+    href="../assets/style.css"."""
+    html = '<link rel="stylesheet" href="assets/style.css">'
+    pages = _make_pages_dir({
+        'assets/style.css': '',
+        'diagrams/x.html': '',
+    })
+    out = gh.rewrite_pages_paths(html, pages / 'diagrams' / 'x.html', pages)
+    assert 'href="../assets/style.css"' in out, f'expected ../prefix; got: {out}'
+
+
+def test_L1_subdir_navbrand_index_gets_prefix():
+    """nav-brand <a href="index.html"> 在 subdir → href="../index.html"."""
+    html = '<a href="index.html" class="nav-brand">pet</a>'
+    pages = _make_pages_dir({
+        'index.html': '',
+        'diagrams/x.html': '',
+    })
+    out = gh.rewrite_pages_paths(html, pages / 'diagrams' / 'x.html', pages)
+    assert 'href="../index.html"' in out, f'expected ../prefix; got: {out}'
+
+
+def test_L1_subdir_breadcrumb_gets_prefix():
+    """breadcrumb <a href="index.html">pet</a> 在 subdir → href="../index.html"."""
+    html = '<p class="banner-breadcrumb"><a href="index.html">pet</a> › X</p>'
+    pages = _make_pages_dir({
+        'index.html': '',
+        'contracts/y.html': '',
+    })
+    out = gh.rewrite_pages_paths(html, pages / 'contracts' / 'y.html', pages)
+    assert 'href="../index.html"' in out, f'expected ../prefix; got: {out}'
+
+
+def test_L1_two_level_deep_gets_double_dotdot():
+    """pages/blueprint/mock/x.html (depth=2) → href="../../assets/style.css"."""
+    html = '<link rel="stylesheet" href="assets/style.css">'
+    pages = _make_pages_dir({
+        'assets/style.css': '',
+        'blueprint/mock/x.html': '',
+    })
+    out = gh.rewrite_pages_paths(
+        html, pages / 'blueprint' / 'mock' / 'x.html', pages)
+    assert 'href="../../assets/style.css"' in out, \
+        f'expected ../../prefix for depth=2; got: {out}'
+
+
+def test_L1_root_page_unchanged():
+    """pages/index.html (depth=0) → href="assets/style.css" 不動。"""
+    html = '<link rel="stylesheet" href="assets/style.css">'
+    pages = _make_pages_dir({
+        'assets/style.css': '',
+        'index.html': '',
+    })
+    out = gh.rewrite_pages_paths(html, pages / 'index.html', pages)
+    assert 'href="assets/style.css"' in out
+    assert '../assets' not in out, f'root page should not get ../prefix; got: {out}'
+
+
+def test_L1_already_prefixed_unchanged():
+    """已有 ../ 前綴的不重複加（e.g. sidebar links）。"""
+    html = '<a href="../idea.html">idea</a>'
+    pages = _make_pages_dir({
+        'idea.html': '',
+        'diagrams/x.html': '',
+    })
+    out = gh.rewrite_pages_paths(html, pages / 'diagrams' / 'x.html', pages)
+    assert 'href="../idea.html"' in out
+    assert '../../idea' not in out, f'should not double-prefix; got: {out}'
+
+
+def test_L1_external_url_unchanged():
+    """外部 URL / anchor / mailto 不動。"""
+    html = ('<a href="https://example.com">x</a>'
+            '<a href="#section">y</a>'
+            '<a href="mailto:x@y.com">z</a>')
+    pages = _make_pages_dir({'diagrams/x.html': ''})
+    out = gh.rewrite_pages_paths(html, pages / 'diagrams' / 'x.html', pages)
+    assert 'href="https://example.com"' in out
+    assert 'href="#section"' in out
+    assert 'href="mailto:x@y.com"' in out
+
+
+def test_L1_target_not_in_pages_unchanged():
+    """target 對應檔不存在於 pages/ 根級 → 保守不動。"""
+    html = '<a href="nonexistent.html">x</a>'
+    pages = _make_pages_dir({'diagrams/x.html': ''})
+    out = gh.rewrite_pages_paths(html, pages / 'diagrams' / 'x.html', pages)
+    # No transformation since pages/nonexistent.html doesn't exist
+    assert 'href="nonexistent.html"' in out, f'should not prefix; got: {out}'
+
+
+def test_L1_existing_R3_rules_still_work():
+    """既有 R3-1 / R3-2 transforms 不受影響（regression）。"""
+    pages = _make_pages_dir({'api.html': '', 'index.html': ''})
+    # R3-1 still works: docs/pages/ prefix strip
+    html1 = '<a href="docs/pages/api.html">api</a>'
+    out1 = gh.rewrite_pages_paths(html1, pages / 'index.html', pages)
+    assert 'href="api.html"' in out1
+    # R3-2 still works: docs/X.md → X.html
+    html2 = '<a href="docs/api.md">api</a>'
+    out2 = gh.rewrite_pages_paths(html2, pages / 'index.html', pages)
+    assert 'href="api.html"' in out2
+
+
 # ─── Standalone runner ────────────────────────────────────────────────
 
 def main():
@@ -406,6 +517,22 @@ def main():
         ('R3_6_subdir_too_many_dots_strip', test_R3_6_subdir_too_many_dots_strip),
         ('R3_6_subdir_correct_relative_unchanged',
          test_R3_6_subdir_correct_relative_unchanged),
+        # L1 / R3-7: generic root-prefix for subdir pages
+        ('L1_subdir_head_css_gets_dotdot_prefix',
+         test_L1_subdir_head_css_gets_dotdot_prefix),
+        ('L1_subdir_navbrand_index_gets_prefix',
+         test_L1_subdir_navbrand_index_gets_prefix),
+        ('L1_subdir_breadcrumb_gets_prefix',
+         test_L1_subdir_breadcrumb_gets_prefix),
+        ('L1_two_level_deep_gets_double_dotdot',
+         test_L1_two_level_deep_gets_double_dotdot),
+        ('L1_root_page_unchanged', test_L1_root_page_unchanged),
+        ('L1_already_prefixed_unchanged', test_L1_already_prefixed_unchanged),
+        ('L1_external_url_unchanged', test_L1_external_url_unchanged),
+        ('L1_target_not_in_pages_unchanged',
+         test_L1_target_not_in_pages_unchanged),
+        ('L1_existing_R3_rules_still_work',
+         test_L1_existing_R3_rules_still_work),
         # B7
         ('B7_R3_2_subdir_md_to_subdir_html', test_B7_R3_2_subdir_md_to_subdir_html),
         ('B7_R3_2_subdir_md_target_absent_strips', test_B7_R3_2_subdir_md_target_absent_strips),

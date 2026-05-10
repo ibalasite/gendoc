@@ -278,7 +278,7 @@ Status: `review` | `todo` | `running` | `done`
 | **對齊核心目標** | 3. 表達（連結也對應 subdir 結構）|
 | **預期解** | <br>1. R3-3 兩處：`flat = 'diag-' + ...` → `target = 'diagrams/' + ...`<br>2. R3-2：base 含 `/` 時也 try `pages_dir / (base + '.html')`，若存在則 rewrite |
 | **Test case** | 1. **升級** `test_R3_3_diagrams_md_to_diag_html`（既有）：expected 從 `diag-X.html` 改 `diagrams/X.html`<br>2. **新增** `test_B7_R3_2_subdir_md_to_subdir_html`：input `<a href="docs/blueprint/mock/y.md">` 且 `pages/blueprint/mock/y.html` 存在 → href=`blueprint/mock/y.html`<br>3. **新增** `test_B7_R3_2_subdir_md_target_absent_strips`：target 不存在 → strip `<a>` 留 inner text<br>4. **新增** `test_B7_R3_3_diagrams_md_target_must_exist`：rewrite 用 `is_file()` 確認，不存在則 strip |
-| **不影響其他 case** | R3-1 / R3-4 / R3-5 / R3-6 不動；R1（A1 已改）不動 |
+| **不影響其他 case** | R3-1 / R3-4 / R3-5 / R3-7 不動；R1（A1 已改）不動 |
 | **驗收對應** | E |
 | **Status** | **done** ✅（2 新 test 全綠；R3-3 已在 B5 順帶解；R3-2 既有 docs/X/Y/Z.md 邏輯已支援巢狀 subdir，無需改 code，251/251 全綠）|
 
@@ -847,14 +847,14 @@ K8 (umock wrapper) ───────┘
 
 依拍板的 3 個決策：
 - ✅ K-group sandbox 加 subdir 案例驗證
-- ✅ R3-6 檢查目標檔存在才 prepend `../`
+- ✅ R3-7 檢查目標檔存在才 prepend `../`
 - ✅ root pages/ 不處理（depth=0），只 subdir 加 prefix
 
-整併為 1 個 step：**L1 = R3-6 通用規則 + sandbox subdir 案例 + 3 視角驗證**。
+整併為 1 個 step：**L1 = R3-7 通用規則 + sandbox subdir 案例 + 3 視角驗證**。
 
 ---
 
-## # L1. R3-6 通用規則：root-level 路徑在 subdir 中 prepend `../`
+## # L1. R3-7 通用規則：root-level 路徑在 subdir 中 prepend `../`
 
 | 欄位 | 內容 |
 |---|---|
@@ -862,11 +862,11 @@ K8 (umock wrapper) ───────┘
 | **實機證據（pet 50/57）** | `<link href="assets/style.css">`：50/57<br>`nav-brand href="index.html"`：50/57<br>`breadcrumb href="index.html">pet</a>`：50/57<br>檔案：`pages/diagrams/*.html` (42)、`pages/contracts/*.html` (3)、`pages/blueprint/mock/*.html` (1)、`pages/req/*.html` (1)、`pages/prototype/*spec.html` (3)<br>對照組（已對的）：sidebar `<a class="sidebar__link" href="../idea.html">` 50/50 全對（`make_sidebar` L3460-3464 depth-aware 處理） |
 | **gen_html.py 行號** | head template L221（寫死）<br>header template L424（寫死）<br>banner-breadcrumb 生成處（用 `__APP__` 嵌 `<a href="index.html">`）<br>L2817 `rewrite_pages_paths` regex L2929 涵蓋所有 href/src 但 callback L2867-2920 只 5 種規則<br>L3460-3464 `make_sidebar.link()` 已用 `'../' * current_depth` 做 depth-aware，可參考 |
 | **對齊核心目標** | **3. 表達**（整頁無 CSS 無法讀）+ **4. 不誤會**（nav-brand 點下去 404 / 落到錯地方）|
-| **預期解** | `_href_rewrite` 加 R3-6 通用規則：<br>1. 計算 `depth = len(rel_dir.parts)`（current page 距 pages/ 根的深度，root = 0）<br>2. 若 `depth == 0` → 不處理（root page 路徑本來就對）<br>3. target 是外部 URL / anchor / mailto / data: / javascript: / 已 `../` 前綴 / `/` 絕對路徑 → 跳過<br>4. R3-1~R3-5 已 cover 的 case → 走原邏輯，最後再 wrap `'../' * depth +` 結果<br>5. 通用 fallback：若 `(pages_dir / target).exists()`（target 對應 pages/ 根級檔／資料夾），且 depth > 0 → return `'../' * depth + target`<br>6. 否則 → 不處理（保守）|
+| **預期解** | `_href_rewrite` 加 R3-7 通用規則：<br>1. 計算 `depth = len(rel_dir.parts)`（current page 距 pages/ 根的深度，root = 0）<br>2. 若 `depth == 0` → 不處理（root page 路徑本來就對）<br>3. target 是外部 URL / anchor / mailto / data: / javascript: / 已 `../` 前綴 / `/` 絕對路徑 → 跳過<br>4. R3-1~R3-5 已 cover 的 case → 走原邏輯，最後再 wrap `'../' * depth +` 結果<br>5. 通用 fallback：若 `(pages_dir / target).exists()`（target 對應 pages/ 根級檔／資料夾），且 depth > 0 → return `'../' * depth + target`<br>6. 否則 → 不處理（保守）|
 | **Test case（含 edge）** | 1. `test_L1_subdir_head_css_gets_dotdot_prefix`<br>   `<link href="assets/style.css">` 在 `pages/diagrams/X.html` 中 → 變成 `href="../assets/style.css"`<br>2. `test_L1_subdir_navbrand_index_gets_prefix`<br>   `<a href="index.html" class="nav-brand">` 在 `pages/diagrams/X.html` → `href="../index.html"`<br>3. `test_L1_subdir_breadcrumb_gets_prefix`<br>   `<a href="index.html">pet</a>` 在 banner-breadcrumb 內 → `href="../index.html"`<br>4. `test_L1_two_level_deep_gets_double_dotdot`<br>   `pages/blueprint/mock/X.html` （depth=2）→ `href="../../assets/style.css"`<br>5. `test_L1_root_page_unchanged`<br>   `pages/index.html` (depth=0) → `href="assets/style.css"`（不動）<br>6. `test_L1_already_prefixed_unchanged`<br>   `<a href="../assets/style.css">` 已對 → 不重複加 prefix<br>7. `test_L1_external_url_unchanged`<br>   `<a href="https://example.com">`、`<a href="#section">`、`<a href="mailto:x@y">` → 不動<br>8. `test_L1_target_not_in_pages_unchanged`<br>   `<a href="nonexistent.html">` （pages/ 根級沒這檔）→ 不動（保守）<br>9. `test_L1_existing_R3_rules_still_work`（regression）<br>   R3-1~R3-5 既有 transform 不受影響 |
 | **不影響其他 case** | 27 個既有 path_rewriter test 全綠；sidebar `__link` 已 pre-prefixed，rewriter 看到 `../` 開頭會跳過（rule 3）|
-| **驗收對應（3 視角 + screenshot）** | 1. **加 sandbox 案例**：`tools/gen_html/preview/k-group/docs/diagrams/sample-diag.md` 跟 `docs/contracts/sample-contract.md`<br>2. 重跑 gen_html，自動產 `pages/diagrams/sample-diag.html`、`pages/contracts/sample-contract.html`<br>3. **inspect HTML**: 兩檔的 `<head><link>`、nav-brand、breadcrumb 全帶 `../`<br>4. **screenshot subdir page (HTML inline)**: `pages/diagrams/sample-diag.html` 樣式正常、可讀<br>5. **screenshot 點 nav-brand**: 跳到 `pages/index.html`（首頁）<br>6. **screenshot 點 breadcrumb pet**: 同上跳到首頁<br>7. screenshot 存 `tools/gen_html/preview/k-group/screenshots/L1-*.png` |
-| **Status** | review |
+| **驗收對應（3 視角 + screenshot）** | 1. sandbox 案例：`tools/gen_html/preview/k-group/docs/diagrams/sample-diag.md` (depth=1)<br>2. inspect HTML: `<head><link href="../assets/style.css">`、nav-brand `href="../index.html"`、breadcrumb `href="../index.html">k-group</a>`、sidebar `__link href="../X">` 全帶 `../`<br>3. **screenshot L1-1**: 樣式正常顯示（top nav / banner / sidebar / 內容全部 styled）<br>4. **screenshot L1-2**: 點 nav-brand 跳到 root index.html（k-group 文件中心首頁）<br>5. evaluate 驗證 `nav-brand.href == http://.../index.html`、`breadcrumb a.href == http://.../index.html`（root） |
+| **Status** | **done** ✅（9 test 全綠，370/370 全綠，subdir 樣式驗收通過） |
 
 ---
 
@@ -887,5 +887,5 @@ K8 (umock wrapper) ───────┘
 | # | 議題 | 我的建議 |
 |---|---|---|
 | 1 | **L 群 fix 後 K group sandbox 內無 subdir 案例可驗證** — 是否要新增 sandbox 加一個 subdir HTML？ | ✅ 加（K group sandbox 已存在 fixtures，新增 1-2 個 subdir docs 即可） |
-| 2 | **R3-6 是否該檢查 `(pages_dir / target)` 真實存在** 才 prepend `../`？ | ✅（避免誤判：例如 `bare-string` 不是檔案路徑卻被誤加 `../`）|
+| 2 | **R3-7 是否該檢查 `(pages_dir / target)` 真實存在** 才 prepend `../`？ | ✅（避免誤判：例如 `bare-string` 不是檔案路徑卻被誤加 `../`）|
 | 3 | **`href="index.html"` 在 root pages/ 不需處理（self-reference）；只在 subdir 才需 `../`** | ✅（rewrite 用 `current_html_path` 計算 depth，root 時 depth=0 → 不加） |
