@@ -2242,17 +2242,50 @@ def _ascii_to_mermaid_td(text: str) -> 'str | None':
     # K3: edges now carry an optional label — list of (src_id, dst_id, label_or_'')
     edges = []
 
-    # K3: classify each raw line as one of:
+    # K3+K5: classify each raw line as one of:
     #   ('node', text)       — a content node
     #   ('arrow', None)      — a standalone vertical arrow (▼/▲/↓/↑)
     #   ('annot', text)      — edge annotation: indent + │ + text (arrow-side note)
+    # K5: a single-column box (┌──┐ ... └──┘) groups all interior content lines
+    #     into ONE 'node' event with multi-line label joined by '<br/>'.
     # Frame-only / blank lines are skipped.
     events = []
     arrow_only_re = re.compile(r'^\s*[▼▲↓↑]+\s*$')
     frame_only_re = re.compile(r'^[─┌┐└┘├┤┬┴┼━│┃▼▲↓↑\s]*$')
     annot_re = re.compile(r'^\s*[│┃]\s+([^│┃]+?)\s*$')
+    # K5 box-frame detection: single ┌ on top, single ┘ on bottom (single-col box).
+    # Multi-col case is already handled by _try_parse_multi_column above and
+    # would have returned earlier — so by here, only single ┌/┘ remain.
+    box_top_re = re.compile(r'^\s*┌[─┬]+┐\s*$')
+    box_bottom_re = re.compile(r'^\s*└[─┴]+┘\s*$')
 
+    in_box = False
+    box_content = []
     for raw in lines:
+        # K5: box top → enter box collecting mode
+        if box_top_re.match(raw):
+            in_box = True
+            box_content = []
+            continue
+        # K5: box bottom → emit accumulated box content as one 'node' event
+        if box_bottom_re.match(raw):
+            if in_box:
+                label = '<br/>'.join(box_content).strip()
+                if label:
+                    events.append(('node', label))
+                box_content = []
+            in_box = False
+            continue
+        if in_box:
+            # Inside box: strip outer │ borders, accumulate content (preserve internal
+            # decoration like ├── ESLint per user pinning).
+            s = re.sub(r'^[\s│┃]+', '', raw)
+            s = re.sub(r'[\s│┃]+$', '', s)
+            if not s or re.fullmatch(r'[─\s]+', s):
+                continue
+            box_content.append(s)
+            continue
+        # ── Outside box: existing K3 line-by-line logic ──
         if not raw.strip():
             continue
         # Standalone arrow line → 'arrow' event (advances flow but doesn't create node)

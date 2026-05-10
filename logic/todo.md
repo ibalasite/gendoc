@@ -711,7 +711,7 @@ H 群無新 fix 工作。
 | **Test case** | 1. `test_K5_box_content_joined_with_br`（`┌──┐\n│ A │\n│ B │\n│ C │\n└──┘` → 1 node "A<br/>B<br/>C"）<br>2. `test_K5_linear_chain_of_boxes`（box1 ▼ box2 ▼ box3 → 3 nodes linear chain）<br>3. `test_K5_fork_at_end`（box → 2 子 box → 2 條 edges from parent）<br>4. `test_K5_inline_tree_chars_preserved`（box 內 `├── ESLint` 字元保留進 multi-line label） |
 | **不影響其他 case** | K2 純檔案樹（無 ┌─┐ 框）不受影響；K3 單欄流（無 ┌─┐ 框）不受影響 |
 | **驗收對應** | pet 重跑 gen-html，cicd L347 渲染成 3 大 box linear chain（每 box 含子 list 在 label 內）；cicd L1348 上半 GitHub→ArgoCD linear、下半 ArgoCD→staging+production 1-to-2 fork |
-| **Status** | review |
+| **Status** | **done** ✅（6 test 全綠，339/339 全綠；下半 fork 留為 single multi-line ArgoCD node，可讀，未做 inner-fork 拆分） |
 
 ---
 

@@ -414,6 +414,109 @@ def test_K4_pure_flow_still_works_no_multi_col():
         f'K3 single-col regression: expected 3 nodes, got {node_count}\nmermaid:\n{md}'
 
 
+# ─── K5: F2 多行框 linear flow + box-with-inner-content ──────────────────
+
+# Real-world fixture: pet/docs/CICD.md L24-69 Pipeline Overview shape
+CICD_PIPELINE_LINEAR = """\
+Developer workstation
+        │
+        │  git push origin feature/my-feature
+        ▼
+┌───────────────────────────────────────────────────────┐
+│  GitHub Pull Request                                  │
+│  ci.yml  ─── pnpm install                            │
+│           ├── ESLint + tsc                            │
+│           ├── Vitest unit tests                       │
+│           └── Playwright E2E                          │
+│  All checks green → PR can be merged                 │
+└───────────────────────────────────────────────────────┘
+        │
+        │  Merge PR into develop
+        ▼
+┌───────────────────────────────────────────────────────┐
+│  deploy-staging.yml                                   │
+│  ├── Build Docker images                              │
+│  └── ArgoCD auto-sync                                 │
+└───────────────────────────────────────────────────────┘
+"""
+
+
+def test_K5_box_content_joined_with_br():
+    """單個大 box 的多行內容 → 合成 1 個 mermaid node 的 multi-line label。"""
+    box_only = """\
+┌────────────────────────┐
+│  Line A                │
+│  Line B                │
+│  Line C                │
+└────────────────────────┘
+"""
+    md = gh._ascii_to_mermaid_td(box_only)
+    assert md is not None
+    # 應該只 1 個 node
+    node_count = len(re.findall(r'^\s*N\d+\["', md, re.MULTILINE))
+    assert node_count == 1, f'expected 1 node for 1 box; got {node_count}\n{md}'
+    # label 應含 <br/> 連 3 行
+    m = re.search(r'N0\["([^"]+)"\]', md)
+    assert m, f'N0 missing; mermaid:\n{md}'
+    label = m.group(1)
+    assert 'Line A' in label and 'Line B' in label and 'Line C' in label
+    assert '<br' in label, f'multi-line label should use <br/>; got: {label!r}'
+
+
+def test_K5_linear_chain_three_boxes_in_pipeline():
+    """cicd L347 風格: text-node + 2 大 box，linear chain → 3 nodes + 2 edges。"""
+    md = gh._ascii_to_mermaid_td(CICD_PIPELINE_LINEAR)
+    assert md is not None
+    # 期望 3 個 node：Developer workstation + GitHub PR (multi-line) + deploy-staging (multi-line)
+    node_count = len(re.findall(r'^\s*N\d+\["', md, re.MULTILINE))
+    assert node_count == 3, f'expected 3 nodes; got {node_count}\n{md}'
+    # 應含內容：Developer / GitHub PR / deploy-staging
+    assert 'Developer workstation' in md
+    assert 'GitHub Pull Request' in md
+    assert 'deploy-staging' in md
+
+
+def test_K5_inline_tree_chars_preserved_in_label():
+    """box 內 `├── ESLint`、`└── E2E` 視覺裝飾字元保留進 multi-line label。"""
+    md = gh._ascii_to_mermaid_td(CICD_PIPELINE_LINEAR)
+    assert md is not None
+    # label 應保留 ├── 字元（user 拍板：保留視覺裝飾）
+    assert '├──' in md or 'ESLint' in md, \
+        f'tree chars / sub-list content missing; mermaid:\n{md}'
+
+
+def test_K5_text_before_first_box_becomes_node():
+    """大 box 前的 standalone text 行（"Developer workstation"）→ 自己一個 node。"""
+    md = gh._ascii_to_mermaid_td(CICD_PIPELINE_LINEAR)
+    assert md is not None
+    # "Developer workstation" 應成 N0 或某個 N\d+ 的單行 label
+    found = re.search(r'N\d+\["Developer workstation"\]', md)
+    assert found, f'"Developer workstation" missing as own node; mermaid:\n{md}'
+
+
+def test_K5_edge_annotation_between_boxes():
+    """`│  git push origin feature` 跟 `│  Merge PR into develop` 變 edge label。"""
+    md = gh._ascii_to_mermaid_td(CICD_PIPELINE_LINEAR)
+    assert md is not None
+    # annotations 不該變獨立 node
+    assert not re.search(r'N\d+\["git push origin feature"\]', md), \
+        f'annotation became node; mermaid:\n{md}'
+    assert not re.search(r'N\d+\["Merge PR into develop"\]', md), \
+        f'annotation became node; mermaid:\n{md}'
+    # annotation 應在 edge label 內
+    assert 'git push' in md, f'edge label "git push" missing; mermaid:\n{md}'
+
+
+def test_K5_no_pipe_in_box_node_labels():
+    """大 box 的 multi-line node label 內不含殘留 `│`。"""
+    md = gh._ascii_to_mermaid_td(CICD_PIPELINE_LINEAR)
+    assert md is not None
+    for m in re.finditer(r'N\d+\["([^"]*)"\]', md):
+        label = m.group(1)
+        assert '│' not in label, \
+            f'node label "{label}" contains `│` (linear-box bug); mermaid:\n{md}'
+
+
 # ─── Standalone runner ──────────────────────────────────────────────────
 
 def main() -> int:
@@ -443,6 +546,12 @@ def main() -> int:
         ('K4_fan_in_to_downstream', test_K4_fan_in_to_downstream),
         ('K4_https_label_on_edges', test_K4_https_label_on_edges),
         ('K4_pure_flow_still_works_no_multi_col', test_K4_pure_flow_still_works_no_multi_col),
+        ('K5_box_content_joined_with_br', test_K5_box_content_joined_with_br),
+        ('K5_linear_chain_three_boxes_in_pipeline', test_K5_linear_chain_three_boxes_in_pipeline),
+        ('K5_inline_tree_chars_preserved_in_label', test_K5_inline_tree_chars_preserved_in_label),
+        ('K5_text_before_first_box_becomes_node', test_K5_text_before_first_box_becomes_node),
+        ('K5_edge_annotation_between_boxes', test_K5_edge_annotation_between_boxes),
+        ('K5_no_pipe_in_box_node_labels', test_K5_no_pipe_in_box_node_labels),
     ]
     passed = failed = 0
     for name, fn in tests:
