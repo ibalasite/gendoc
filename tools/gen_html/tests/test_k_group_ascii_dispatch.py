@@ -101,6 +101,146 @@ def test_K1_no_wrapper_for_failed_f2_or_unknown():
         f'unknown ASCII should NOT become mermaid; html:\n{html[:600]}'
 
 
+# ─── K2: F1 加嚴 — 樹狀全留 ASCII（非 mermaid） ─────────────────────────
+
+# Real-world fixture: pet/docs/FRONTEND.md L70-... directory tree
+FILE_TREE = """\
+apps/player/
+├── index.html
+├── vite.config.ts
+├── tsconfig.json
+└── src/
+    ├── main.tsx
+    ├── App.tsx
+    └── components/
+        ├── layout/
+        │   ├── NavBar.tsx
+        │   └── Layout.tsx
+        ├── landing/
+        │   ├── LandingPage.tsx
+        │   └── ClaimCTA.tsx
+        └── pet/
+            ├── PetPage.tsx
+            └── StatsPanel.tsx
+"""
+
+# pet/docs/PDD.md §3.1 Sitemap (URL paths inside tree branches)
+SITEMAP_TREE = """\
+pixel-pet-arena.com
+│
+├── / (Landing Page — Guest Mode)
+│   ├── Canvas: Random pixel pet display
+│   ├── "Claim This Pet" CTA → /claim
+│   └── Nav: Leaderboard, [My Pet if URL known]
+│
+├── /claim (Claim Pet Page)
+│   ├── Email input form
+│   ├── Code entry screen
+│   └── URL reveal screen
+│
+├── /pet/:petId (My Pet Page)
+│   ├── Pet canvas
+│   └── Stats panel
+"""
+
+# Synthesized React component tree (matching pet/docs/FRONTEND.md §2.2 shape)
+COMPONENT_TREE = """\
+<App>
+├── <Layout>
+│   ├── <NavBar>
+│   └── <Outlet>
+│       ├── <LandingPage>
+│       ├── <ClaimPage>
+│       └── <PetPage>
+└── <Router>
+"""
+
+# pet/docs/IDEA.md §15 Traceability (uses └─►)
+TRACEABILITY_TREE = """\
+IDEA.md (本文件)
+  └─► BRD.md       ← /gendoc brd
+        └─► PRD.md      ← /gendoc prd
+              └─► PDD.md      ← /gendoc pdd
+                    └─► EDD.md      ← /gendoc edd
+"""
+
+# Negative case: pure single-column flow (should still be 'system', not tree)
+PURE_FLOW = """\
+Developer workstation
+        │
+        ▼
+GitHub Pull Request
+        │
+        ▼
+Merge to develop
+"""
+
+# Negative case: arch multi-column box (must still be 'system')
+ARCH_MULTI_COLUMN = """\
+┌────────────┐  ┌────────────┐
+│ Guest      │  │ Owner      │
+│ (no token) │  │ (URL token)│
+└─────┬──────┘  └─────┬──────┘
+      │                │
+      ▼                ▼
+┌──────────────────────────┐
+│  CDN / Edge              │
+└──────────────────────────┘
+"""
+
+
+def test_K2_file_tree_not_classified_system():
+    """File directory tree (含檔名 .ts/.tsx + dir/) 不應被判 'system' → 留 ASCII。"""
+    kind = gh._classify_ascii_block(FILE_TREE)
+    assert kind != 'system', f'file tree must not be system; got {kind!r}'
+
+
+def test_K2_sitemap_not_classified_system():
+    """Sitemap with URL paths in tree branches → not 'system'."""
+    kind = gh._classify_ascii_block(SITEMAP_TREE)
+    assert kind != 'system', f'sitemap must not be system; got {kind!r}'
+
+
+def test_K2_react_component_tree_not_system():
+    """React component tree (`<App>`, `<Layout>`) → not 'system'."""
+    kind = gh._classify_ascii_block(COMPONENT_TREE)
+    assert kind != 'system', f'component tree must not be system; got {kind!r}'
+
+
+def test_K2_traceability_tree_not_system():
+    """IDEA.md traceability `└─►` tree → not 'system'."""
+    kind = gh._classify_ascii_block(TRACEABILITY_TREE)
+    assert kind != 'system', f'traceability tree must not be system; got {kind!r}'
+
+
+def test_K2_pure_single_column_flow_still_system():
+    """純單欄流 (▼ 含內容行) 仍判 'system'（這個會留給 K3 改 mermaid）。"""
+    kind = gh._classify_ascii_block(PURE_FLOW)
+    assert kind == 'system', f'pure flow must remain system; got {kind!r}'
+
+
+def test_K2_multi_column_arch_still_system():
+    """多欄並排 box（同行 ≥ 2 個 ┌）仍判 'system'（K4 處理）。"""
+    kind = gh._classify_ascii_block(ARCH_MULTI_COLUMN)
+    assert kind == 'system', f'arch multi-column must remain system; got {kind!r}'
+
+
+def test_K2_md_to_html_file_tree_falls_through_to_pre():
+    """整合測試: md_to_html 遇到 file tree → emit `<pre>`，不該變 mermaid。"""
+    md = f'# T\n\n```\n{FILE_TREE}\n```\n'
+    html = gh.md_to_html(md)
+    assert '<pre class="mermaid">' not in html, \
+        f'file tree was wrongly converted to mermaid; html (first 600):\n{html[:600]}'
+
+
+def test_K2_md_to_html_sitemap_falls_through_to_pre():
+    """整合測試: sitemap → `<pre>`."""
+    md = f'# T\n\n```\n{SITEMAP_TREE}\n```\n'
+    html = gh.md_to_html(md)
+    assert '<pre class="mermaid">' not in html, \
+        f'sitemap was wrongly converted to mermaid; html (first 600):\n{html[:600]}'
+
+
 # ─── Standalone runner ──────────────────────────────────────────────────
 
 def main() -> int:
@@ -112,6 +252,14 @@ def main() -> int:
         ('K1_f2_emit_closes_wrapper_after_pre', test_K1_f2_emit_closes_wrapper_after_pre),
         ('K1_native_mermaid_path_unchanged', test_K1_native_mermaid_path_unchanged),
         ('K1_no_wrapper_for_failed_f2_or_unknown', test_K1_no_wrapper_for_failed_f2_or_unknown),
+        ('K2_file_tree_not_classified_system', test_K2_file_tree_not_classified_system),
+        ('K2_sitemap_not_classified_system', test_K2_sitemap_not_classified_system),
+        ('K2_react_component_tree_not_system', test_K2_react_component_tree_not_system),
+        ('K2_traceability_tree_not_system', test_K2_traceability_tree_not_system),
+        ('K2_pure_single_column_flow_still_system', test_K2_pure_single_column_flow_still_system),
+        ('K2_multi_column_arch_still_system', test_K2_multi_column_arch_still_system),
+        ('K2_md_to_html_file_tree_falls_through_to_pre', test_K2_md_to_html_file_tree_falls_through_to_pre),
+        ('K2_md_to_html_sitemap_falls_through_to_pre', test_K2_md_to_html_sitemap_falls_through_to_pre),
     ]
     passed = failed = 0
     for name, fn in tests:

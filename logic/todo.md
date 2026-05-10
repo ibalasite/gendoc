@@ -666,7 +666,7 @@ H 群無新 fix 工作。
 | **Test case** | 1. `test_K2_file_tree_classified_as_tree`（assets/sprites/ + .png 檔名 → tree）<br>2. `test_K2_react_component_tree_as_tree`（含 `<App>` `<Layout>` → tree）<br>3. `test_K2_sitemap_classified_as_tree`（URL paths `/admin/login` → tree）<br>4. `test_K2_pure_flow_still_system`（單欄 `▼` 流不誤判為 tree）<br>5. `test_K2_multi_column_still_system`（同行 ≥3 個 ┌ 不誤判為 tree） |
 | **不影響其他 case** | 11 個純單欄流仍判 'system'；arch L379 多欄並排仍判 'system' |
 | **驗收對應** | pet 重跑 gen-html，20 個樹狀 block 渲染成 `<pre>` ASCII（保留原視覺）；admin_impl/anim/audio/cicd k8s/clinet_impl/frontend directory 等檔案樹回到乾淨等寬字體 |
-| **Status** | review |
+| **Status** | **done** ✅（8 test 全綠，323/323 全綠） |
 
 ---
 

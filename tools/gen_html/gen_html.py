@@ -1913,10 +1913,48 @@ def _um_ascii_segments_to_layered_arch(segments: list):
     return {'type': 'root', 'attrs': {}, 'value': None, 'children': [arch]}
 
 
-def _classify_ascii_block(text: str) -> str:
-    """F1 — classify a fenced ASCII code block as 'system' | 'ui' | 'unknown'.
+def _looks_like_tree(text: str) -> bool:
+    """K2 — detect tree-shaped ASCII (file dir / component tree / sitemap / IA tree).
 
-    Strategy: strong system signals first (any one → system); then UI signals.
+    Such content's semantic intent is "hierarchy", not "flow", and forcing it
+    through F2 graph-TD conversion flattens the structure (parents collapse
+    to the same level). Better to preserve as `<pre>` ASCII.
+
+    Rules (all required):
+      1. Has ≥ 2 lines with ├── / └── / ├─► / └─► tree-branch markers
+      2. No box-only corners (┌ ┐ ┘) — those signal box-frame.
+         (└ is excluded from the box check because trees use └── as
+         "last child" marker; only └ + ─ + ┘ closes a box.)
+      3. No standalone vertical-arrow lines (▼ / ▲ alone) — that signals flow
+
+    Free-standing tree shapes (file dir / sitemap / IA / component) all match.
+    Box-flow architectures (arch §1.2 multi-column / cicd L347 box-stack)
+    fail rule 2. Single-column flows (developer-guide §2.1) fail rule 1
+    (not enough tree markers) or rule 3 (standalone ▼).
+    """
+    lines = [ln for ln in text.split('\n') if ln.strip()]
+    if not lines:
+        return False
+    # Rule 2: any box-only corner (┌/┐/┘) → not a tree.
+    # `└` excluded from this check (used in trees: └── last-child marker).
+    if any(c in line for line in lines for c in '┌┐┘'):
+        return False
+    # Rule 3: standalone vertical arrow → not a tree
+    if any(line.strip() in ('▼', '▲') for line in lines):
+        return False
+    # Rule 1: at least 2 tree-branch markers
+    branch_re = re.compile(r'(├──|└──|├─►|└─►)')
+    branch_count = sum(1 for line in lines if branch_re.search(line))
+    return branch_count >= 2
+
+
+def _classify_ascii_block(text: str) -> str:
+    """F1 — classify a fenced ASCII code block as 'system' | 'ui' | 'tree' | 'unknown'.
+
+    K2: 'tree' is returned for hierarchical structures (file/component/sitemap/IA)
+        that should be preserved as `<pre>` rather than forced through F2.
+
+    Strategy: tree first; then strong system signals; then UI signals.
 
     System signals (any → 'system'):
       - Unicode arrows: → ← ↑ ↓ ► ◄
@@ -1935,6 +1973,12 @@ def _classify_ascii_block(text: str) -> str:
 
     Else → 'unknown' (caller should fall back to <pre>).
     """
+    # ── K2: tree-shaped content (file dir / component / sitemap / IA) ──
+    # Detected before system signals so that traceability trees (`└─►`)
+    # and other hierarchies don't trip the arrow rules below.
+    if _looks_like_tree(text):
+        return 'tree'
+
     # ── Strong system signals ──────────────────────────────────────
     # Vertical / triangular arrows are unambiguous flow direction markers,
     # but ONLY when they appear OUTSIDE square brackets (inside [label ▼]

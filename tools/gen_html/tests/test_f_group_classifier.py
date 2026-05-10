@@ -151,10 +151,10 @@ def test_F1_classify_ui_modal_form_as_ui():
 
 
 def test_F1_classify_directory_tree_unknown_or_system():
-    """Directory tree has └── ├── characters - classify as system or unknown,
-    NOT as ui (no buttons / inputs)."""
+    """Directory tree has └── ├── characters — classify as 'tree' (K2 added),
+    'system' (legacy), or 'unknown'. Must NOT be 'ui' (no buttons / inputs)."""
     result = gh._classify_ascii_block(DIRECTORY_TREE)
-    assert result in ('system', 'unknown'), f'unexpected: {result}'
+    assert result in ('tree', 'system', 'unknown'), f'unexpected: {result}'
 
 
 def test_F1_classify_simple_box_text_unknown():
