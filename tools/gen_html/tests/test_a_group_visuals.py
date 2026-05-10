@@ -117,6 +117,50 @@ def test_A3_no_residual_cbd5e1_on_card_or_modal_or_page():
             f'{sel} should not retain old #cbd5e1; body:\n{body}'
 
 
+# ─── A4: table 行間距 / 分隔線 / hover ──────────────────────────────
+
+def test_A4_table_cell_padding_relaxed():
+    """`.umock__table th, .umock__table td` padding 0.75rem 0.875rem。"""
+    css = _read()
+    body = _find_rule(css, '.umock__table th, .umock__table td')
+    assert body is not None, '.umock__table th, td rule not found'
+    assert '0.75rem 0.875rem' in body, \
+        f'cell padding should be 0.75rem 0.875rem; body:\n{body}'
+
+
+def test_A4_table_row_separator_uses_cbd5e1():
+    """`.umock__table th, .umock__table td` border-bottom 1px solid #cbd5e1。"""
+    css = _read()
+    body = _find_rule(css, '.umock__table th, .umock__table td')
+    assert body is not None, '.umock__table th, td rule not found'
+    assert '#cbd5e1' in body, \
+        f'row separator should use #cbd5e1; body:\n{body}'
+
+
+def test_A4_table_no_residual_e2e8f0_in_cell_rule():
+    """A4 改完，table 行 rule body 不殘留 #e2e8f0（避免回退到太淡）。"""
+    css = _read()
+    body = _find_rule(css, '.umock__table th, .umock__table td')
+    assert body is not None, '.umock__table th, td rule not found'
+    assert '#e2e8f0' not in body, \
+        f'cell rule should not retain old #e2e8f0; body:\n{body}'
+
+
+def test_A4_table_hover_row_highlight_present():
+    """`.umock__table tbody tr:hover` 行高亮存在。"""
+    css = _read()
+    # Match the hover rule head loosely (may be on one or two lines)
+    pat = re.compile(
+        r'\.umock__table\s+tbody\s+tr:hover\s*\{([^{}]*)\}',
+        re.DOTALL,
+    )
+    m = pat.search(css)
+    assert m is not None, '.umock__table tbody tr:hover rule missing'
+    body = m.group(1)
+    assert 'background' in body, \
+        f'hover rule should set background color; body:\n{body}'
+
+
 # ─── Standalone runner ────────────────────────────────────────────────
 
 def main():
@@ -132,6 +176,10 @@ def main():
         ('A3_modal_titlebar_border_bottom_94a3b8', test_A3_modal_titlebar_border_bottom_94a3b8),
         ('A3_input_border_94a3b8', test_A3_input_border_94a3b8),
         ('A3_no_residual_cbd5e1_on_card_or_modal_or_page', test_A3_no_residual_cbd5e1_on_card_or_modal_or_page),
+        ('A4_table_cell_padding_relaxed', test_A4_table_cell_padding_relaxed),
+        ('A4_table_row_separator_uses_cbd5e1', test_A4_table_row_separator_uses_cbd5e1),
+        ('A4_table_no_residual_e2e8f0_in_cell_rule', test_A4_table_no_residual_e2e8f0_in_cell_rule),
+        ('A4_table_hover_row_highlight_present', test_A4_table_hover_row_highlight_present),
     ]
     passed = failed = 0
     for name, fn in tests:
