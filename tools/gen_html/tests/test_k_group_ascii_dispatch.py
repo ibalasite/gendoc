@@ -241,6 +241,97 @@ def test_K2_md_to_html_sitemap_falls_through_to_pre():
         f'sitemap was wrongly converted to mermaid; html (first 600):\n{html[:600]}'
 
 
+# ─── K3: F2 單欄流 mermaid 轉換修對 ─────────────────────────────────────
+
+# Real-world fixture: developer-guide.html L575 Request Lifecycle pattern
+# (含 box 邊界以觸發 F2 dispatch entry condition)
+SINGLE_COL_FLOW_PURE = """\
+┌──────────────────┐
+│ Player browser   │
+└──────────────────┘
+        │
+        ▼
+┌──────────────────────────┐
+│ Vite dev server          │
+└──────────────────────────┘
+        │
+        ▼
+┌──────────────────────────┐
+│ Fastify API              │
+└──────────────────────────┘
+"""
+
+# Single-column flow with edge annotations (cicd L347 pattern)
+SINGLE_COL_FLOW_WITH_LABELS = """\
+┌──────────────────┐
+│ Developer        │
+└──────────────────┘
+        │
+        │  git push origin feature
+        ▼
+┌──────────────────────────┐
+│ GitHub PR                │
+└──────────────────────────┘
+        │
+        │  Merge to develop
+        ▼
+┌──────────────────────────┐
+│ deploy-staging           │
+└──────────────────────────┘
+"""
+
+
+def test_K3_triangle_arrow_not_a_node():
+    """`▼` 行不該變成 mermaid node label。"""
+    md = gh._ascii_to_mermaid_td(SINGLE_COL_FLOW_PURE)
+    assert md is not None, 'F2 should produce mermaid for single-col flow with boxes'
+    # 不應該有 N\d+["▼"] 這種 node
+    assert not re.search(r'N\d+\["▼"\]', md), \
+        f'▼ should NOT become a node; got mermaid:\n{md}'
+    assert not re.search(r'N\d+\["▲"\]', md), \
+        f'▲ should NOT become a node; got mermaid:\n{md}'
+
+
+def test_K3_chain_three_boxes():
+    """A ▼ B ▼ C → 3 個 node 各一個 box，edges A→B, B→C。"""
+    md = gh._ascii_to_mermaid_td(SINGLE_COL_FLOW_PURE)
+    assert md is not None
+    # 3 個 box content 應出現
+    assert 'Player browser' in md
+    assert 'Vite dev server' in md
+    assert 'Fastify API' in md
+    # 應有兩條 edge（不要求嚴格 syntax，至少 mermaid 內 -- 或 --> 出現 ≥ 2 次）
+    arrow_count = md.count('-->')
+    assert arrow_count >= 2, \
+        f'expected ≥2 edges between 3 boxes; arrow_count={arrow_count}\nmermaid:\n{md}'
+
+
+def test_K3_edge_annotation_becomes_label():
+    """`│  git push origin feature` 形式的 annotation 變 edge label。"""
+    md = gh._ascii_to_mermaid_td(SINGLE_COL_FLOW_WITH_LABELS)
+    assert md is not None
+    # annotation 文字不該變成獨立 node
+    assert not re.search(r'N\d+\["git push origin feature"\]', md), \
+        f'edge annotation should NOT be a node; got:\n{md}'
+    assert not re.search(r'N\d+\["Merge to develop"\]', md), \
+        f'edge annotation should NOT be a node; got:\n{md}'
+    # annotation 應在 edge label 內（mermaid syntax: -->|"label"|）
+    assert 'git push origin feature' in md, \
+        f'annotation text "git push origin feature" should appear (as edge label):\n{md}'
+    assert 'Merge to develop' in md, \
+        f'annotation text "Merge to develop" should appear (as edge label):\n{md}'
+
+
+def test_K3_pure_flow_no_label_no_extra_nodes():
+    """純 flow（無 annotation）→ edges 沒 label，nodes 數 = 內容 box 數。"""
+    md = gh._ascii_to_mermaid_td(SINGLE_COL_FLOW_PURE)
+    assert md is not None
+    # 應該剛好 3 個 N\d+
+    node_count = len(re.findall(r'^\s*N\d+\["', md, re.MULTILINE))
+    assert node_count == 3, \
+        f'expected 3 nodes for 3 boxes; got {node_count}\nmermaid:\n{md}'
+
+
 # ─── Standalone runner ──────────────────────────────────────────────────
 
 def main() -> int:
@@ -260,6 +351,10 @@ def main() -> int:
         ('K2_multi_column_arch_still_system', test_K2_multi_column_arch_still_system),
         ('K2_md_to_html_file_tree_falls_through_to_pre', test_K2_md_to_html_file_tree_falls_through_to_pre),
         ('K2_md_to_html_sitemap_falls_through_to_pre', test_K2_md_to_html_sitemap_falls_through_to_pre),
+        ('K3_triangle_arrow_not_a_node', test_K3_triangle_arrow_not_a_node),
+        ('K3_chain_three_boxes', test_K3_chain_three_boxes),
+        ('K3_edge_annotation_becomes_label', test_K3_edge_annotation_becomes_label),
+        ('K3_pure_flow_no_label_no_extra_nodes', test_K3_pure_flow_no_label_no_extra_nodes),
     ]
     passed = failed = 0
     for name, fn in tests:

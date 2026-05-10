@@ -681,7 +681,7 @@ H 群無新 fix 工作。
 | **Test case** | 1. `test_K3_triangle_arrow_becomes_edge_not_node`（▼ 不出現在 N0~Nn label）<br>2. `test_K3_inline_arrow_text_becomes_edge_label`（`A` `▼` `git push` `▼` `B` → `A -->\|"git push"\| B`）<br>3. `test_K3_pure_flow_no_text`（A `▼` B → 純 edge 無 label）<br>4. `test_K3_chain_three_nodes`（A `▼` B `▼` C → A→B→C） |
 | **不影響其他 case** | K2 樹狀繼續走 'tree' path；K1 wrapper 不變；多欄/UML 留待 K4/K6 |
 | **驗收對應** | pet 重跑 gen-html，11 個單欄流 block 結構正確、▼ 不再變獨立 node；developer_guide L575/L592 兩個 Request Lifecycle 圖完整 |
-| **Status** | review |
+| **Status** | **done** ✅（4 test 全綠，327/327 全綠） |
 
 ---
 

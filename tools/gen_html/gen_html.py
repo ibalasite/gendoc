@@ -2060,15 +2060,6 @@ def _ascii_to_mermaid_td(text: str) -> 'str | None':
         return None
 
     lines = text.split('\n')
-    # Strip outer frame characters from each line for easier parsing
-    cleaned = []
-    for line in lines:
-        s = line
-        # Remove leading and trailing │ and outer ┌/└/├ characters at line edges
-        s = re.sub(r'^[\s│┃]+', '', s)
-        s = re.sub(r'[\s│┃]+$', '', s)
-        if s and not re.match(r'^[─┌┐└┘├┤┬┴┼━]+$', s):
-            cleaned.append(s)
 
     nodes = []  # list of (id, label) preserving order
     seen_labels = {}
@@ -2078,7 +2069,7 @@ def _ascii_to_mermaid_td(text: str) -> 'str | None':
         # Strip leading tree chars
         label = re.sub(r'^[├└─\s]+', '', label).strip()
         # Strip trailing arrows etc.
-        label = re.sub(r'[─→↓>]+$', '', label).strip()
+        label = re.sub(r'[─→↓>▼▲]+$', '', label).strip()
         if not label:
             return ''
         # De-duplicate
@@ -2089,47 +2080,96 @@ def _ascii_to_mermaid_td(text: str) -> 'str | None':
         seen_labels[label] = nid
         return nid
 
-    edges = []  # list of (src_id, dst_id)
+    # K3: edges now carry an optional label — list of (src_id, dst_id, label_or_'')
+    edges = []
 
-    # Pass 1: extract box-content as nodes (anything on a non-frame line)
-    for line in cleaned:
-        # Skip pure tree-character lines
-        if re.fullmatch(r'[└├─┐┌┘┤┬┴┼─\s]*', line):
+    # K3: classify each raw line as one of:
+    #   ('node', text)       — a content node
+    #   ('arrow', None)      — a standalone vertical arrow (▼/▲/↓/↑)
+    #   ('annot', text)      — edge annotation: indent + │ + text (arrow-side note)
+    # Frame-only / blank lines are skipped.
+    events = []
+    arrow_only_re = re.compile(r'^\s*[▼▲↓↑]+\s*$')
+    frame_only_re = re.compile(r'^[─┌┐└┘├┤┬┴┼━│┃▼▲↓↑\s]*$')
+    annot_re = re.compile(r'^\s*[│┃]\s+([^│┃]+?)\s*$')
+
+    for raw in lines:
+        if not raw.strip():
             continue
-        # Strip arrow tokens for label extraction
-        text_part = re.sub(r'──+>|<──+|[→←↑↓►◄]', '', line).strip()
-        if text_part:
-            _add_node(text_part)
-
-    # Pass 2: detect sequential connections via vertical-arrow flow
-    # (TEXT_FLOW pattern: A \n ↓ \n B \n ↓ \n C → chain A->B->C)
-    if re.search(r'[↓→]', text):
-        prev = None
-        for line in cleaned:
-            if line.strip() in ('↓', '→', '|', '│'):
+        # Standalone arrow line → 'arrow' event (advances flow but doesn't create node)
+        if arrow_only_re.match(raw):
+            events.append(('arrow', None))
+            continue
+        # Edge annotation: starts with whitespace + │, then text (no other │/┃ on line)
+        m = annot_re.match(raw)
+        if m:
+            annot_text = m.group(1).strip()
+            # Annotation must be substantive text (not empty, not all frame chars)
+            if annot_text and not frame_only_re.match(annot_text):
+                events.append(('annot', annot_text))
                 continue
-            text_part = re.sub(r'──+>|<──+|[→←↑↓►◄]', '', line).strip()
-            label = re.sub(r'^[├└─\s]+', '', text_part).strip()
-            label = re.sub(r'[─→↓>]+$', '', label).strip()
-            if not label:
-                continue
-            cur = seen_labels.get(label)
-            if prev and cur and prev != cur:
-                if (prev, cur) not in edges:
-                    edges.append((prev, cur))
-            prev = cur
+        # Strip frame chars (│ at edges, top/bottom borders) for cleaning
+        s = re.sub(r'^[\s│┃]+', '', raw)
+        s = re.sub(r'[\s│┃]+$', '', s)
+        if not s:
+            continue
+        # Pure frame line (top/bottom border like ┌────┐)?
+        if re.fullmatch(r'[─┌┐└┘├┤┬┴┼━]+', s):
+            continue
+        # Strip arrow tokens before deciding if substantive
+        text_part = re.sub(r'──+>|<──+|[→←↑↓►◄▼▲◀▶]', '', s).strip()
+        if not text_part:
+            # Was just arrows / frame chars
+            if re.search(r'[▼▲↓↑]', raw):
+                events.append(('arrow', None))
+            continue
+        events.append(('node', text_part))
 
-    # Pass 3: tree-branch connections
-    # Find a parent line followed by ├── child lines belonging to it
+    # Build nodes + linear-flow edges from event stream
+    prev_node_id = None
+    pending_label_parts = []
+    saw_arrow_since_prev = False
+
+    for typ, val in events:
+        if typ == 'arrow':
+            saw_arrow_since_prev = True
+            continue
+        if typ == 'annot':
+            pending_label_parts.append(val)
+            saw_arrow_since_prev = True  # annotation implies a flow direction
+            continue
+        # typ == 'node'
+        cur_id = _add_node(val)
+        if not cur_id:
+            continue
+        if prev_node_id and saw_arrow_since_prev and prev_node_id != cur_id:
+            label = ' '.join(pending_label_parts).strip()
+            if (prev_node_id, cur_id, label) not in edges:
+                edges.append((prev_node_id, cur_id, label))
+        prev_node_id = cur_id
+        pending_label_parts = []
+        saw_arrow_since_prev = False
+
+    # Pass 3 (legacy): tree-branch connections — kept for non-tree mixed cases
+    # (note: K2 'tree' kind already early-exits before reaching F2 for free-standing trees;
+    #  this pass remains for in-frame ├── still inside system-classified blocks)
+    cleaned = []
+    for raw in lines:
+        s = re.sub(r'^[\s│┃]+', '', raw)
+        s = re.sub(r'[\s│┃]+$', '', s)
+        if s and not re.match(r'^[─┌┐└┘├┤┬┴┼━]+$', s):
+            cleaned.append(s)
     parent_id = None
+    existing_pairs = {(s, d) for s, d, _ in edges}
     for line in cleaned:
         if re.match(r'^[├└]──', line.strip()):
             child_label = re.sub(r'^[├└]──+\s*', '', line.strip())
             child_label = re.sub(r'[─→↓>]+$', '', child_label).strip()
             cid = seen_labels.get(child_label)
             if parent_id and cid and parent_id != cid:
-                if (parent_id, cid) not in edges:
-                    edges.append((parent_id, cid))
+                if (parent_id, cid) not in existing_pairs:
+                    edges.append((parent_id, cid, ''))
+                    existing_pairs.add((parent_id, cid))
         else:
             text_part = re.sub(r'──+>|<──+|[→←↑↓►◄]', '', line).strip()
             label = text_part
@@ -2145,8 +2185,12 @@ def _ascii_to_mermaid_td(text: str) -> 'str | None':
         # Sanitise label: escape quotes
         safe = label.replace('"', "'")
         md.append(f'  {nid}["{safe}"]')
-    for src, dst in edges:
-        md.append(f'  {src} --> {dst}')
+    for src, dst, edge_label in edges:
+        if edge_label:
+            safe_label = edge_label.replace('"', "'")
+            md.append(f'  {src} -->|"{safe_label}"| {dst}')
+        else:
+            md.append(f'  {src} --> {dst}')
     return '\n'.join(md)
 
 
