@@ -307,7 +307,7 @@
 <hr>
 <h2 id="9-k7k8--ui-mock-螢幕設計含-emoji變-umock可放大">§9. K7+K8 — UI mock 螢幕設計（含 emoji，變 umock，可放大）</h2>
 <div class="diagram-container diagram-container--umock"><div class="umock__card"><div class="umock__card-title">🏆  BLAZEKIN WINS!</div><pre class="umock__code"><code class="">  Phaser victory anim
-  (confetti + sparkles)</code></pre><div class="umock__info">XP Gained:    +120 New Rank:     #39  (was #43  ↑ +4) Total XP:     4,820 / 6,000 to Lv 13</div><div class="umock__actions"><button type="button" tabindex="-1" class="umock__btn umock__btn--default">Fight Again</button><button type="button" tabindex="-1" class="umock__btn umock__btn--default">Back to Pet View</button></div></div></div>
+  (confetti + sparkles)</code></pre><div class="umock__info">XP Gained:    +120</div><div class="umock__info">New Rank:     #39  (was #43  ↑ +4)</div><div class="umock__info">Total XP:     4,820 / 6,000 to Lv 13</div><div class="umock__actions"><button type="button" tabindex="-1" class="umock__btn umock__btn--default">Fight Again</button><button type="button" tabindex="-1" class="umock__btn umock__btn--default">Back to Pet View</button></div></div></div>
 <p>預期：渲染成 umock UI 線圖（<code>&lt;div class=&quot;umock__card&quot;&gt;</code> 等），包在</p>
 <p><code>&lt;div class=&quot;diagram-container diagram-container--umock&quot;&gt;</code> 內，可點</p>
 <p>放大顯示完整內容。</p>
@@ -320,7 +320,15 @@
 <div class="diagram-container"><pre class="mermaid">graph TD
   A[&quot;Native Start&quot;] --&gt; B[&quot;Native Middle&quot;]
   B --&gt; C[&quot;Native End&quot;]</pre></div>
-<p>預期：原生 mermaid 路徑不變，包 <code>.diagram-container</code>，可點放大。</p></main>
+<p>預期：原生 mermaid 路徑不變，包 <code>.diagram-container</code>，可點放大。</p>
+<hr>
+<h2 id="12-k9-generic-fix-驗證--battle-animation-螢幕新案例多行-stats">§12. K9 generic fix 驗證 — Battle Animation 螢幕（新案例，多行 stats）</h2>
+<div class="diagram-container diagram-container--umock"><div class="umock__card"><div class="umock__card-title">SUMO BATTLE  ·  Round 1 of 3</div><div class="umock__info">Blazekin               vs          Voltclaw</div><div class="umock__field"><label class="umock__field-label">HP: ████████░░          HP: █████░░░░░</label><div class="umock__field-body"><pre class="umock__code"><code class="">         Phaser 3 Battle Canvas
+           480 × 320 px
+
+   [pet A sprite]     [pet B sprite]</code></pre></div></div><div class="umock__info">⚡ Voltclaw uses Static Shock!</div><div class="umock__info">Blazekin takes 18 damage.</div></div></div>
+<p>預期（K9 generic fix 驗證）：</p>
+<ul><li>title <code>SUMO BATTLE · Round 1 of 3</code> 置中（K9-e）</li><li>「Blazekin vs Voltclaw」與「HP: bars」<strong>分兩行</strong>（K9 generic：每行各自一個 info node，不再 space-join）</li><li>內框 Phaser Canvas + 尺寸 + 內框 sprite 標示作為 code-block / inner box</li><li>攻擊訊息「⚡ Voltclaw uses Static Shock!」與「Blazekin takes 18 damage.」<strong>分兩行</strong></li><li>整段在 lightbox 內可放大；3 張截圖（.md / .html inline / lightbox）結構元素一致</li></ul></main>
   </div>
   <script type="module">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';

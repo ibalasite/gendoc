@@ -246,3 +246,35 @@ graph TD
 ```
 
 預期：原生 mermaid 路徑不變，包 `.diagram-container`，可點放大。
+
+---
+
+## §12. K9 generic fix 驗證 — Battle Animation 螢幕（新案例，多行 stats）
+
+```
+┌───────────────────────────────────────────────┐
+│  SUMO BATTLE  ·  Round 1 of 3                 │
+│                                               │
+│  Blazekin               vs          Voltclaw  │
+│  HP: ████████░░          HP: █████░░░░░       │
+│                                               │
+│  ┌─────────────────────────────────────────┐  │
+│  │                                         │  │
+│  │         Phaser 3 Battle Canvas          │  │
+│  │           480 × 320 px                  │  │
+│  │                                         │  │
+│  │   [pet A sprite]     [pet B sprite]     │  │
+│  │                                         │  │
+│  └─────────────────────────────────────────┘  │
+│                                               │
+│  ⚡ Voltclaw uses Static Shock!               │
+│  Blazekin takes 18 damage.                    │
+└───────────────────────────────────────────────┘
+```
+
+預期（K9 generic fix 驗證）：
+- title `SUMO BATTLE · Round 1 of 3` 置中（K9-e）
+- 「Blazekin vs Voltclaw」與「HP: bars」**分兩行**（K9 generic：每行各自一個 info node，不再 space-join）
+- 內框 Phaser Canvas + 尺寸 + 內框 sprite 標示作為 code-block / inner box
+- 攻擊訊息「⚡ Voltclaw uses Static Shock!」與「Blazekin takes 18 damage.」**分兩行**
+- 整段在 lightbox 內可放大；3 張截圖（.md / .html inline / lightbox）結構元素一致

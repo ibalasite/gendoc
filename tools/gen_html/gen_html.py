@@ -1700,29 +1700,28 @@ def _um_ascii_parse_segment_content(segment_lines: list, taken_title_text: str =
     text_parts = []
 
     def flush_text():
+        # Generic rule: each non-blank line in `text_parts` becomes its own
+        # node (hint / info), preserving the line structure of source ASCII.
+        # Joining lines with spaces collapses semantically distinct rows into
+        # one, which mismatches the .md visual.
         if not text_parts:
             return
-        text = ' '.join(text_parts).strip()
-        if not text:
-            text_parts.clear()
-            return
-        # `helper：...` → hint
-        m = _re.match(r'^\s*helper\s*[：:]\s*(.+)$', text, _re.IGNORECASE)
-        if m:
-            children.append({'type': 'hint', 'attrs': {},
-                             'value': m.group(1).strip(), 'children': []})
-            text_parts.clear()
-            return
-        # `ⓘ ...` → info
-        m = _re.match(r'^\s*ⓘ\s*(.+)$', text)
-        if m:
+        for raw in text_parts:
+            line = raw.strip()
+            if not line:
+                continue
+            m = _re.match(r'^\s*helper\s*[：:]\s*(.+)$', line, _re.IGNORECASE)
+            if m:
+                children.append({'type': 'hint', 'attrs': {},
+                                 'value': m.group(1).strip(), 'children': []})
+                continue
+            m = _re.match(r'^\s*ⓘ\s*(.+)$', line)
+            if m:
+                children.append({'type': 'info', 'attrs': {},
+                                 'value': m.group(1).strip(), 'children': []})
+                continue
             children.append({'type': 'info', 'attrs': {},
-                             'value': m.group(1).strip(), 'children': []})
-            text_parts.clear()
-            return
-        # default → info
-        children.append({'type': 'info', 'attrs': {},
-                         'value': text, 'children': []})
+                             'value': line, 'children': []})
         text_parts.clear()
 
     i = 0
