@@ -3921,9 +3921,32 @@ def req_section():
         '</ul></section>'
     )
 
+def _deploy_canonical_assets(pages_dir):
+    """Sync `pages/assets/{app.js,style.css}` from gendoc canonical source.
+
+    Source resolution: `<gendoc>/docs/pages/assets/`, located two directory
+    levels up from this script (works for both dev path
+    `~/projects/gendoc/tools/gen_html/gen_html.py` and runtime path
+    `~/.claude/skills/gendoc/tools/bin/gen_html.py`).
+
+    Always overwrites — target dirs may have stale copies from prior runs
+    that pre-date current sidebar/tab handlers (실機 erp/pet 上的 N1 sidebar
+    壞掉 root cause).
+    """
+    src_dir = Path(__file__).resolve().parent.parent.parent / 'docs' / 'pages' / 'assets'
+    if not src_dir.is_dir():
+        return  # silent — running outside the gendoc tree (rare)
+    target_dir = pages_dir / 'assets'
+    target_dir.mkdir(exist_ok=True)
+    for name in ('app.js', 'style.css'):
+        src = src_dir / name
+        if src.is_file():
+            (target_dir / name).write_bytes(src.read_bytes())
+
+
 def main():
     PAGES_DIR.mkdir(parents=True, exist_ok=True)
-    (PAGES_DIR / "assets").mkdir(exist_ok=True)
+    _deploy_canonical_assets(PAGES_DIR)
 
     doc_pages = [('index', '首頁', '🏠')]
     known_order = ['IDEA', 'BRD', 'PRD', 'PDD', 'VDD', 'EDD', 'ARCH', 'API', 'SCHEMA',
