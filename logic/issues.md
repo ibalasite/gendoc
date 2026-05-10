@@ -25,42 +25,41 @@
 
 ---
 
-## A. HTML 渲染瑕疵
+## A. HTML 渲染瑕疵  ✅ DONE
 
-### A1. erp/index.html 出現 nested `<a><a>` 巢狀標籤
+### ~~A1.~~ erp/index.html 出現 nested `<a><a>` 巢狀標籤  ✅ DONE
 
-- **事實**：UI Prototype + API Explorer 兩列的連結 HTML5 invalid，瀏覽器會吞 content。
-- **證據**：`grep <a><a>` 在 erp/index.html 找到 2 處：
-  ```html
-  <a href="prototype/index.html" target="_blank" rel="noopener">
-    <a href="prototype/index.html">docs/pages/prototype/index.html</a>
-  </a>
-  ```
-- **根因**：`gen_html.py` 第 1957 行 `_code_to_link` 的 regex `<code>([^<]+)</code>` 不檢查 `<code>` 是否已在 `<a>` 內。
-- **觸發來源**：erp/README.md line 421-422 用 `` [`X`](X) `` 寫法（連結文字為 backtick code）→ 產生 `<code>` → 被 R1 二次包 `<a>`。
+- **原**：`gen_html.py` `_code_to_link` 不檢查 `<code>` 是否已在 `<a>` 內 → 產生 invalid `<a><a>`。
+- **修法**：`_code_to_link` 加守衛跳過 `<code>` 已在 `<a>` 內的 case（gen_html.py L3034 + L3060）。
+- **驗收**：pet/index.html 0 處 nested、erp/index.html 0 處 nested。
 
-### A2. sidenav items 顯示前綴 `│` 殘留
+### ~~A2.~~ sidenav items 顯示前綴 `│` 殘留  ✅ DONE
 
-- **事實**：截圖中 erp/PDD 的 sidenav 顯示「| ERP Side」「| Nav」「|」。
-- **證據**：3 個檔案受影響：
-  - `pet/admin_impl.html`
-  - `pet/prototype__admin-moderation-prototype.html`
-  - `erp/pdd.html`
-- **根因**：`gen_html.py` 第 1200 行 `_um_ascii_strip_pipes`，當 line 中只有單一 `│` 時，`first == last`，函式直接 return line 不剝。
+- **原**：`_um_ascii_strip_pipes` 對單一 `│` line（first == last）直接 return 不剝。
+- **修法**：UI Mock parser stage 5-8 重構期間順帶修對。
+- **驗收**：pet 9 個 sidenav / 0 殘留；erp 65 個 .html sidenav / 0 殘留。
 
-### A3. card / page / modal 邊界線淡
+### ~~A3.~~ card / page / modal 邊界線淡  ✅ DONE
 
-- **事實**：視覺上邊界不明顯。
-- **證據**：CSS 設定值 `border: 1px solid #cbd5e1`（淺灰）。
-- **根因**：CSS 設計選擇。
+- **原**：CSS `border: 1px solid #cbd5e1`（淺灰）+ header / body 分隔線同色，整個區塊邊界跟內部分隔糊在一起。
+- **修法**：
+  - card / page / modal 外框 → `1.5px solid #94a3b8`（K9 期間順帶改）
+  - card-title / page-title / modal-titlebar 底線 → `1.5px solid #94a3b8`（K9 期間順帶改）
+  - **input / search border → `1px solid #94a3b8`**（commit `b1dbde5`）
+- **驗收**：8/8 test PASS（`test_a_group_visuals.py` A3 區段）。
+- **demo**：`tools/gen_html/preview/a-group-demo/A3-card-borders.png`。
 
-### A4. table 看起來小、列分隔線淡
+### ~~A4.~~ table 看起來小、列分隔線淡  ✅ DONE
 
-- **事實**：表格內距小、行間分隔線不明顯。
-- **證據**：CSS `padding: 0.5rem 0.625rem`、`border-bottom: 1px solid #e2e8f0`（淺灰）。
-- **根因**：CSS 設計選擇。
+- **原**：CSS `padding 0.5rem 0.625rem`（緊）+ `border-bottom 1px solid #e2e8f0`（極淡）→ 列擠在一起。
+- **修法**：
+  - cell padding → `0.75rem 0.875rem`（行間距 +50%；K9 期間順帶改）
+  - 行分隔線 → `1px solid #cbd5e1`（深一階；K9 期間順帶改）
+  - **新增 `tbody tr:hover { background: #f8fafc }` 行高亮**（commit `6cae549`）
+- **驗收**：4/4 test PASS（`test_a_group_visuals.py` A4 區段）。
+- **demo**：`tools/gen_html/preview/a-group-demo/A4-tables.png`。
 
-### A5. mock 元件 focus 時讓讀者誤會語義（已實查 + 已拍板採 P4）
+### ~~A5.~~ mock 元件 focus 時讓讀者誤會語義（P4 拍板）  ✅ DONE
 
 - **事實**：截圖中 erp/PDD 的「套用」按鈕有藍框，「重設」沒有。讀者會誤以為「套用」是 primary 按鈕。
 - **證據**：Playwright 跑 erp/pdd.html，對「套用」按鈕（class=`umock__btn umock__btn--default`）取 computed style：
@@ -79,7 +78,7 @@
 
 ---
 
-## B. 目錄結構違反 source 1:1 mirror
+## B. 目錄結構違反 source 1:1 mirror  ✅ DONE
 
 ### B1. `docs/diagrams/X.md` 應產出 `pages/diagrams/X.html`
 
@@ -135,7 +134,7 @@
 
 ---
 
-## D. Prototype 曝光降級
+## D. Prototype 曝光降級  ✅ DONE BY M 群
 
 ### D1. 12 天前 erp/index.html body 有 prominent index-cards
 
@@ -208,7 +207,7 @@
 
 ---
 
-## G. doc_cards_section（首頁卡片格）
+## G. doc_cards_section（首頁卡片格）  ✅ DONE（G2 用 prototype_cards_section 另起 section）
 
 ### ~~G1~~
 
@@ -242,7 +241,7 @@
 
 ---
 
-## I. SCHEMA / EDD 資料表呈現格式不一致（PostgreSQL vs Redis 寫法不對齊）
+## I. SCHEMA / EDD 資料表呈現格式不一致（PostgreSQL vs Redis 寫法不對齊）  ✅ DONE
 
 ### I1. PostgreSQL 資料表只給 SQL，沒有欄位說明表
 
@@ -351,7 +350,7 @@ EDD 文件中若引用 schema-style 內容（如 §3.4 BC Schema Ownership table
 
 ---
 
-## K. workflow / 目錄樹被誤判為「系統圖」+ F2 mermaid 缺 lightbox
+## K. workflow / 目錄樹被誤判為「系統圖」+ F2 mermaid 缺 lightbox  ✅ DONE
 
 > **2026-05-10 user 在 pet 真實專案發現**：跑完 gen-html 後，arch.html / frontend.html / admin-impl.html / client-impl.html 多處原本可讀的 ASCII workflow、容器拓撲、目錄樹，全部被 F2 ascii→mermaid 轉成無 edge 或 label 含 `│` 的破壞版，且不能點開放大。
 
@@ -446,7 +445,7 @@ EDD 文件中若引用 schema-style 內容（如 §3.4 BC Schema Ownership table
 
 ---
 
-## L. subdir HTML 的 CSS / nav-brand / breadcrumb 路徑全壞 → style 盡失
+## L. subdir HTML 的 CSS / nav-brand / breadcrumb 路徑全壞 → style 盡失  ✅ DONE
 
 > **2026-05-10 user 在 pet 真實專案發現**：所有 subdir 下的 `.html`（diagrams/、contracts/、prototype/、blueprint/mock/、req/）打開**完全沒有 CSS 樣式**，看起來像純文字頁。
 
@@ -517,7 +516,7 @@ EDD 文件中若引用 schema-style 內容（如 §3.4 BC Schema Ownership table
 
 ---
 
-## M. prototype 回 docs 的 link 全部失效
+## M. prototype 回 docs 的 link 全部失效  ✅ DONE
 
 > **2026-05-10 user 反映**：prototype 目錄底下的 HTML 已有，但「原本可以回文件的 link 都失效了」。需 gen-prototype 寫對、gen-html 驗錯修正。
 
@@ -582,7 +581,7 @@ EDD 文件中若引用 schema-style 內容（如 §3.4 BC Schema Ownership table
 
 ---
 
-## N. TOC（Table of Contents）— 新需求：每個 HTML 都要標配
+## N. TOC（Table of Contents）— 新需求：每個 HTML 都要標配  ✅ DONE
 
 > **2026-05-10 user 新增需求**：「不是每一個 HTML，有 table of contents，對於這個我想 gen-html 要把每一個 html 都有這個標配」。
 
