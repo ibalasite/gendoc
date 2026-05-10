@@ -306,11 +306,21 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       overflow: hidden;
     }
     .umock__card-title { padding: 0.625rem 1rem; font-weight: 600; font-size: 0.95rem;
-      background: #f8fafc; border-bottom: 1.5px solid #94a3b8; color: #1e293b;
-      text-align: center; }
+      background: #f8fafc; border-bottom: 1.5px solid #94a3b8; color: #1e293b; }
     .umock__page-title { padding: 0.75rem 1rem; font-weight: 600; font-size: 1.05rem;
-      background: #f8fafc; border-bottom: 1.5px solid #94a3b8;
-      text-align: center; }
+      background: #f8fafc; border-bottom: 1.5px solid #94a3b8; }
+    /* `.diagram-container` (assets/style.css) defaults to text-align: center
+       which is right for SVG/mermaid but wrong for umock body text. Reset
+       to start so individual umock elements decide their own alignment. */
+    .diagram-container--umock { text-align: start; }
+    /* Outer-alignment modifiers — applied via attrs.align detected from
+       the source ASCII's leading/trailing whitespace within `│ ... │`. */
+    .umock__card-title--center, .umock__page-title--center,
+    .umock__text--center, .umock__info--center, .umock__hint--center,
+    .umock__actions--center { text-align: center; }
+    .umock__card-title--right, .umock__page-title--right,
+    .umock__text--right, .umock__info--right, .umock__hint--right,
+    .umock__actions--right { text-align: right; }
     .umock__modal { max-width: 540px; }
     .umock__modal-titlebar { display: flex; justify-content: space-between; align-items: center;
       padding: 0.75rem 1rem; background: #f1f5f9; border-bottom: 1.5px solid #94a3b8; }
@@ -347,7 +357,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     .umock__btn--primary { background: #2563eb; color: #fff; }
     .umock__btn--secondary { background: #fff; color: #475569; border-color: #cbd5e1; }
     .umock__btn--danger { background: #dc2626; color: #fff; }
-    .umock__actions { padding: 0.5rem 0; text-align: center;
+    .umock__actions { padding: 0.5rem 0;
       border-top: 1px solid #f1f5f9; }
     .umock__badge { display: inline-block; padding: 0.125rem 0.5rem;
       border-radius: 999px; font-size: 0.75rem; font-weight: 500;
@@ -358,7 +368,16 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     .umock__hint { color: #64748b; font-size: 0.8rem; margin: 0.25rem 0 0.5rem 0; }
     .umock__info { background: #eff6ff; border-left: 3px solid #3b82f6;
       padding: 0.5rem 0.75rem; margin: 0.5rem 0; color: #1e3a8a; font-size: 0.875rem; }
-    .umock__code { background: #1e293b; color: #f1f5f9; padding: 0.75rem;
+    /* Plain body text row in UI mock: monospace, preserve whitespace,
+       left-aligned, no background. Maps to ASCII content rows that aren't
+       semantic markers (ⓘ / helper:). */
+    .umock__text { padding: 0.125rem 1rem; margin: 0; color: #1e293b;
+      font-family: 'Menlo','Consolas','Courier New',monospace;
+      font-size: 0.85rem; white-space: pre; }
+    /* Higher specificity than `.doc-content pre` (assets/style.css) so the
+       umock dark-canvas background isn't overridden by the generic `pre`
+       rule when umock is rendered inside `.doc-content`. */
+    .doc-content pre.umock__code, pre.umock__code { background: #1e293b; color: #f1f5f9; padding: 0.75rem;
       border-radius: 4px; overflow-x: auto; font-size: 0.8rem;
       font-family: ui-monospace, "SF Mono", Consolas, monospace; }
     .umock__code code { background: none; color: inherit; padding: 0; }
@@ -1006,22 +1025,52 @@ def _um_r_input(n):
 def _um_r_code_block(n):
     lang = _um_esc(_um_attr(n, 'language', ''))
     inner = _um_value_text(n) or _um_render_children(n)
-    cls = f'language-{lang}' if lang else ''
-    return f'<pre class="umock__code"><code class="{cls}">{inner}</code></pre>'
+    if lang:
+        # With language: let Prism syntax-highlight via class="language-X"
+        return (
+            f'<pre class="umock__code">'
+            f'<code class="language-{lang}">{inner}</code>'
+            '</pre>'
+        )
+    # No language: skip <code class=""> wrapper to avoid Prism interference
+    # that fades inline rendering (Prism's tomorrow theme + empty class
+    # triggers text-shadow + transparent token color on plain text).
+    return f'<pre class="umock__code">{inner}</pre>'
 
 
 def _um_r_hint(n):
-    return f'<div class="umock__hint">{_um_value_text(n)}</div>'
+    cls = _um_align_class(n, 'umock__hint')
+    return f'<div class="{cls}">{_um_value_text(n)}</div>'
 
 
 # ─── utility/container renderers ─────────────────────────────────────────
 
 def _um_r_actions(n):
-    return f'<div class="umock__actions">{_um_render_children(n)}</div>'
+    cls = _um_align_class(n, 'umock__actions')
+    return f'<div class="{cls}">{_um_render_children(n)}</div>'
+
+
+def _um_align_class(node, base: str) -> str:
+    """Return 'base' or 'base base--center' / 'base base--right' depending
+    on node's `align` attr (default 'left' = no modifier)."""
+    align = _um_attr(node, 'align', '')
+    if align in ('center', 'right'):
+        return f'{base} {base}--{align}'
+    return base
 
 
 def _um_r_info(n):
-    return f'<div class="umock__info">{_um_value_text(n)}</div>'
+    cls = _um_align_class(n, 'umock__info')
+    return f'<div class="{cls}">{_um_value_text(n)}</div>'
+
+
+def _um_r_text(n):
+    """Plain body text row inside a UI mock (no decoration, monospace,
+    preserve whitespace). Used for ASCII screen lines that don't carry
+    semantic markers like `ⓘ` or `helper:`. Outer alignment via
+    `align` attr (default left)."""
+    cls = _um_align_class(n, 'umock__text')
+    return f'<div class="{cls}">{_um_value_text(n)}</div>'
 
 
 def _um_r_spacer(n):
@@ -1050,7 +1099,11 @@ def _um_r_search(n):
 
 def _um_r_card(n):
     title = _um_esc(_um_attr(n, 'title'))
-    title_html = f'<div class="umock__card-title">{title}</div>' if title else ''
+    title_align = _um_attr(n, 'title_align', '')
+    title_cls = 'umock__card-title'
+    if title_align in ('center', 'right'):
+        title_cls = f'umock__card-title umock__card-title--{title_align}'
+    title_html = f'<div class="{title_cls}">{title}</div>' if title else ''
     return f'<div class="umock__card">{title_html}{_um_render_children(n)}</div>'
 
 
@@ -1302,6 +1355,7 @@ _UM_DISPATCH = {
     # utilities
     'actions': _um_r_actions,
     'info': _um_r_info,
+    'text': _um_r_text,
     'spacer': _um_r_spacer,
     'avatar': _um_r_avatar,
     'tabs': _um_r_tabs,
@@ -1348,6 +1402,42 @@ def _ui_mock_render(ast) -> str:
 # arch and pyramid detection.
 
 _UM_BOX_CHARS = set('┌┐└┘├┤┬┴┼─│┏┓┗┛┃━')
+
+
+def _um_ascii_outer_align(line: str) -> str:
+    """Detect a text line's outer alignment within its `│ ... │` borders.
+
+    Returns 'center' / 'left' / 'right' based on leading vs trailing
+    whitespace inside the outer pipe boundary:
+      - L (leading spaces) >= 4 AND R (trailing) >= 4 → 'center'
+      - L >= 4 AND R == 0 → 'right'
+      - else → 'left'
+
+    A line without `│` boundaries is treated as having the whole line as
+    its inner content (no surrounding frame).
+    """
+    first = line.find('│')
+    if first == -1:
+        first = line.find('┃')
+    last = line.rfind('│')
+    if last <= first:
+        last2 = line.rfind('┃')
+        if last2 > first:
+            last = last2
+    if first == -1 or last <= first:
+        inner = line
+    else:
+        inner = line[first + 1:last]
+    stripped = inner.strip()
+    if not stripped:
+        return 'left'
+    leading = len(inner) - len(inner.lstrip(' '))
+    trailing = len(inner) - len(inner.rstrip(' '))
+    if leading >= 4 and trailing >= 4:
+        return 'center'
+    if leading >= 4 and trailing == 0:
+        return 'right'
+    return 'left'
 
 
 def _um_ascii_strip_pipes(line: str) -> str:
@@ -1566,8 +1656,14 @@ def _um_ascii_extract_inner_boxes(segment_lines: list, taken_title_text: str = '
                         'type': 'button', 'attrs': {},
                         'value': label, 'children': [],
                     })
+                # K9 align: detect row's outer alignment from the top
+                # border line's leading/trailing whitespace
+                row_align = _um_ascii_outer_align(line)
+                actions_attrs = {}
+                if row_align != 'left':
+                    actions_attrs['align'] = row_align
                 node = {
-                    'type': 'actions', 'attrs': {}, 'value': None,
+                    'type': 'actions', 'attrs': actions_attrs, 'value': None,
                     'children': children,
                 }
                 out.append((i, box_end, node))
@@ -1701,26 +1797,29 @@ def _um_ascii_parse_segment_content(segment_lines: list, taken_title_text: str =
 
     def flush_text():
         # Generic rule: each non-blank line in `text_parts` becomes its own
-        # node (hint / info), preserving the line structure of source ASCII.
-        # Joining lines with spaces collapses semantically distinct rows into
-        # one, which mismatches the .md visual.
+        # node, preserving line structure + outer alignment from source ASCII.
+        # text_parts holds (text, align) tuples where `align` is the outer
+        # alignment detected from leading/trailing whitespace within `│ ... │`.
+        # Plain lines → 'text' node (monospace, no decoration).
+        # `helper:` / `ⓘ` markers → 'hint' / 'info' (intentional banners).
         if not text_parts:
             return
-        for raw in text_parts:
+        for raw, align in text_parts:
             line = raw.strip()
             if not line:
                 continue
+            attrs = {'align': align} if align != 'left' else {}
             m = _re.match(r'^\s*helper\s*[：:]\s*(.+)$', line, _re.IGNORECASE)
             if m:
-                children.append({'type': 'hint', 'attrs': {},
+                children.append({'type': 'hint', 'attrs': attrs,
                                  'value': m.group(1).strip(), 'children': []})
                 continue
             m = _re.match(r'^\s*ⓘ\s*(.+)$', line)
             if m:
-                children.append({'type': 'info', 'attrs': {},
+                children.append({'type': 'info', 'attrs': attrs,
                                  'value': m.group(1).strip(), 'children': []})
                 continue
-            children.append({'type': 'info', 'attrs': {},
+            children.append({'type': 'text', 'attrs': attrs,
                              'value': line, 'children': []})
         text_parts.clear()
 
@@ -1736,7 +1835,9 @@ def _um_ascii_parse_segment_content(segment_lines: list, taken_title_text: str =
         if i in consumed:
             i += 1
             continue
-        line = segment_lines[i].strip()
+        raw_line = segment_lines[i]
+        align = _um_ascii_outer_align(raw_line)
+        line = raw_line.strip()
         if not line:
             flush_text()
             i += 1
@@ -1756,7 +1857,7 @@ def _um_ascii_parse_segment_content(segment_lines: list, taken_title_text: str =
                              'value': label, 'children': []})
             line = (line[:m.start()] + line[m.end():]).strip()
         if line:
-            text_parts.append(line)
+            text_parts.append((line, align))
         i += 1
     flush_text()
     if trailing_actions:
@@ -2645,13 +2746,17 @@ def _ui_mock_ascii_parse(text: str):
     # Determine outer type: modal if `[X]` or `[x]` anywhere in frame
     raw_text = '\n'.join(frame)
     is_modal = bool(_re.search(r'\[\s*[Xx]\s*\]', raw_text))
-    # Title = first non-empty line of first segment; strip [X] markers
+    # Title = first non-empty line of first segment; strip [X] markers.
+    # Also detect outer align (center/left/right) from leading/trailing
+    # whitespace of the title line within `│ ... │` borders.
     title = ''
+    title_align = 'left'
     if segments and segments[0]:
         for line in segments[0]:
             s = line.strip()
             if s:
                 title = s
+                title_align = _um_ascii_outer_align(line)
                 break
     title = _re.sub(r'\s*\[\s*[Xx]\s*\]\s*', ' ', title).strip()
     # Body segments
@@ -2684,6 +2789,8 @@ def _ui_mock_ascii_parse(text: str):
     outer_attrs = {}
     if title:
         outer_attrs['title'] = title
+        if title_align != 'left':
+            outer_attrs['title_align'] = title_align
     if is_modal:
         outer_attrs['closable'] = True
     outer = {

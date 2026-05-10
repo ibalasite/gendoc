@@ -92,11 +92,21 @@
       overflow: hidden;
     }
     .umock__card-title { padding: 0.625rem 1rem; font-weight: 600; font-size: 0.95rem;
-      background: #f8fafc; border-bottom: 1.5px solid #94a3b8; color: #1e293b;
-      text-align: center; }
+      background: #f8fafc; border-bottom: 1.5px solid #94a3b8; color: #1e293b; }
     .umock__page-title { padding: 0.75rem 1rem; font-weight: 600; font-size: 1.05rem;
-      background: #f8fafc; border-bottom: 1.5px solid #94a3b8;
-      text-align: center; }
+      background: #f8fafc; border-bottom: 1.5px solid #94a3b8; }
+    /* `.diagram-container` (assets/style.css) defaults to text-align: center
+       which is right for SVG/mermaid but wrong for umock body text. Reset
+       to start so individual umock elements decide their own alignment. */
+    .diagram-container--umock { text-align: start; }
+    /* Outer-alignment modifiers — applied via attrs.align detected from
+       the source ASCII's leading/trailing whitespace within `│ ... │`. */
+    .umock__card-title--center, .umock__page-title--center,
+    .umock__text--center, .umock__info--center, .umock__hint--center,
+    .umock__actions--center { text-align: center; }
+    .umock__card-title--right, .umock__page-title--right,
+    .umock__text--right, .umock__info--right, .umock__hint--right,
+    .umock__actions--right { text-align: right; }
     .umock__modal { max-width: 540px; }
     .umock__modal-titlebar { display: flex; justify-content: space-between; align-items: center;
       padding: 0.75rem 1rem; background: #f1f5f9; border-bottom: 1.5px solid #94a3b8; }
@@ -133,7 +143,7 @@
     .umock__btn--primary { background: #2563eb; color: #fff; }
     .umock__btn--secondary { background: #fff; color: #475569; border-color: #cbd5e1; }
     .umock__btn--danger { background: #dc2626; color: #fff; }
-    .umock__actions { padding: 0.5rem 0; text-align: center;
+    .umock__actions { padding: 0.5rem 0;
       border-top: 1px solid #f1f5f9; }
     .umock__badge { display: inline-block; padding: 0.125rem 0.5rem;
       border-radius: 999px; font-size: 0.75rem; font-weight: 500;
@@ -144,7 +154,16 @@
     .umock__hint { color: #64748b; font-size: 0.8rem; margin: 0.25rem 0 0.5rem 0; }
     .umock__info { background: #eff6ff; border-left: 3px solid #3b82f6;
       padding: 0.5rem 0.75rem; margin: 0.5rem 0; color: #1e3a8a; font-size: 0.875rem; }
-    .umock__code { background: #1e293b; color: #f1f5f9; padding: 0.75rem;
+    /* Plain body text row in UI mock: monospace, preserve whitespace,
+       left-aligned, no background. Maps to ASCII content rows that aren't
+       semantic markers (ⓘ / helper:). */
+    .umock__text { padding: 0.125rem 1rem; margin: 0; color: #1e293b;
+      font-family: 'Menlo','Consolas','Courier New',monospace;
+      font-size: 0.85rem; white-space: pre; }
+    /* Higher specificity than `.doc-content pre` (assets/style.css) so the
+       umock dark-canvas background isn't overridden by the generic `pre`
+       rule when umock is rendered inside `.doc-content`. */
+    .doc-content pre.umock__code, pre.umock__code { background: #1e293b; color: #f1f5f9; padding: 0.75rem;
       border-radius: 4px; overflow-x: auto; font-size: 0.8rem;
       font-family: ui-monospace, "SF Mono", Consolas, monospace; }
     .umock__code code { background: none; color: inherit; padding: 0; }
@@ -306,8 +325,8 @@
 <p>初始 arrow，可點放大。</p>
 <hr>
 <h2 id="9-k7k8--ui-mock-螢幕設計含-emoji變-umock可放大">§9. K7+K8 — UI mock 螢幕設計（含 emoji，變 umock，可放大）</h2>
-<div class="diagram-container diagram-container--umock"><div class="umock__card"><div class="umock__card-title">🏆  BLAZEKIN WINS!</div><pre class="umock__code"><code class="">  Phaser victory anim
-  (confetti + sparkles)</code></pre><div class="umock__info">XP Gained:    +120</div><div class="umock__info">New Rank:     #39  (was #43  ↑ +4)</div><div class="umock__info">Total XP:     4,820 / 6,000 to Lv 13</div><div class="umock__actions"><button type="button" tabindex="-1" class="umock__btn umock__btn--default">Fight Again</button><button type="button" tabindex="-1" class="umock__btn umock__btn--default">Back to Pet View</button></div></div></div>
+<div class="diagram-container diagram-container--umock"><div class="umock__card"><div class="umock__card-title umock__card-title--center">🏆  BLAZEKIN WINS!</div><pre class="umock__code">  Phaser victory anim
+  (confetti + sparkles)</pre><div class="umock__text">XP Gained:    +120</div><div class="umock__text">New Rank:     #39  (was #43  ↑ +4)</div><div class="umock__text">Total XP:     4,820 / 6,000 to Lv 13</div><div class="umock__actions"><button type="button" tabindex="-1" class="umock__btn umock__btn--default">Fight Again</button><button type="button" tabindex="-1" class="umock__btn umock__btn--default">Back to Pet View</button></div></div></div>
 <p>預期：渲染成 umock UI 線圖（<code>&lt;div class=&quot;umock__card&quot;&gt;</code> 等），包在</p>
 <p><code>&lt;div class=&quot;diagram-container diagram-container--umock&quot;&gt;</code> 內，可點</p>
 <p>放大顯示完整內容。</p>
@@ -323,10 +342,10 @@
 <p>預期：原生 mermaid 路徑不變，包 <code>.diagram-container</code>，可點放大。</p>
 <hr>
 <h2 id="12-k9-generic-fix-驗證--battle-animation-螢幕新案例多行-stats">§12. K9 generic fix 驗證 — Battle Animation 螢幕（新案例，多行 stats）</h2>
-<div class="diagram-container diagram-container--umock"><div class="umock__card"><div class="umock__card-title">SUMO BATTLE  ·  Round 1 of 3</div><div class="umock__info">Blazekin               vs          Voltclaw</div><div class="umock__field"><label class="umock__field-label">HP: ████████░░          HP: █████░░░░░</label><div class="umock__field-body"><pre class="umock__code"><code class="">         Phaser 3 Battle Canvas
+<div class="diagram-container diagram-container--umock"><div class="umock__card"><div class="umock__card-title">SUMO BATTLE  ·  Round 1 of 3</div><div class="umock__text">Blazekin               vs          Voltclaw</div><div class="umock__field"><label class="umock__field-label">HP: ████████░░          HP: █████░░░░░</label><div class="umock__field-body"><pre class="umock__code">         Phaser 3 Battle Canvas
            480 × 320 px
 
-   [pet A sprite]     [pet B sprite]</code></pre></div></div><div class="umock__info">⚡ Voltclaw uses Static Shock!</div><div class="umock__info">Blazekin takes 18 damage.</div></div></div>
+   [pet A sprite]     [pet B sprite]</pre></div></div><div class="umock__text">⚡ Voltclaw uses Static Shock!</div><div class="umock__text">Blazekin takes 18 damage.</div></div></div>
 <p>預期（K9 generic fix 驗證）：</p>
 <ul><li>title <code>SUMO BATTLE · Round 1 of 3</code> 置中（K9-e）</li><li>「Blazekin vs Voltclaw」與「HP: bars」<strong>分兩行</strong>（K9 generic：每行各自一個 info node，不再 space-join）</li><li>內框 Phaser Canvas + 尺寸 + 內框 sprite 標示作為 code-block / inner box</li><li>攻擊訊息「⚡ Voltclaw uses Static Shock!」與「Blazekin takes 18 damage.」<strong>分兩行</strong></li><li>整段在 lightbox 內可放大；3 張截圖（.md / .html inline / lightbox）結構元素一致</li></ul></main>
   </div>

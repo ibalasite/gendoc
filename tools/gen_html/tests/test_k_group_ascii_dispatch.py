@@ -785,12 +785,12 @@ def test_K9a_title_not_duplicated_in_field_label():
     """outer card-title 文字不該再出現在內部 field label。"""
     md = f'# T\n\n```\n{POST_BATTLE_SCREEN}\n```\n'
     html = gh.md_to_html(md)
-    # 抓 card-title 的內容
-    title_match = re.search(r'<div class="umock__card-title">([^<]+)</div>', html)
+    # 抓 card-title 的內容（class 可能含 align modifier 如 umock__card-title--center）
+    title_match = re.search(r'<div class="umock__card-title[^"]*">([^<]+)</div>', html)
     assert title_match, f'umock__card-title missing; html:\n{html[:600]}'
     title_text = title_match.group(1).strip()
     # 同樣文字不該出現在 field-label
-    field_labels = re.findall(r'<label class="umock__field-label">([^<]+)</label>', html)
+    field_labels = re.findall(r'<label class="umock__field-label[^"]*">([^<]+)</label>', html)
     for lbl in field_labels:
         assert lbl.strip() != title_text, \
             f'title "{title_text}" duplicated as field-label; field labels: {field_labels}'
@@ -838,50 +838,36 @@ def test_K9_single_inner_box_regression():
 
 # ─── K9-e: CSS 置中 ─────────────────────────────────────────────────────
 
-def test_K9e_card_title_centered_in_css():
-    """gen_html 內聯 `<style>` 含 `.umock__card-title { ... text-align: center }`。"""
-    md = '# T\n\n```ui-mock\ncard title:"Hi" { }\n```\n'
+def test_K9e_align_modifier_classes_in_css():
+    """CSS 有 `--center` / `--right` modifier classes 對齊 ASCII 偵測結果。
+    （K9 改 ASCII-driven alignment，不再強制全部置中）"""
+    with open(GEN_HTML) as f:
+        full = f.read()
+    # Center modifier 規則應存在
+    m_center = re.search(r'\.umock__card-title--center[^{]*\{[^}]*text-align:\s*center', full)
+    assert m_center, 'card-title--center modifier CSS missing'
+    m_text_center = re.search(r'\.umock__text--center[^{]*\{[^}]*text-align:\s*center', full)
+    assert m_text_center, 'text--center modifier CSS missing'
+    m_actions_center = re.search(r'\.umock__actions--center[^{]*\{[^}]*text-align:\s*center', full)
+    assert m_actions_center, 'actions--center modifier CSS missing'
+
+
+def test_K9e_ascii_centered_title_renders_with_center_modifier():
+    """ASCII 視覺置中的 title (`│   🏆  WINS!   │` leading+trailing 空白)
+    渲染後 `umock__card-title` class 含 `--center` modifier。"""
+    md = f'# T\n\n```\n{POST_BATTLE_SCREEN}\n```\n'
     html = gh.md_to_html(md)
-    # 從整頁 HTML 抓 <style> 區塊內 .umock__card-title 規則
-    style_match = re.search(r'<style[^>]*>(.+?)</style>', html, re.DOTALL)
-    if not style_match:
-        # md_to_html 不含 style block 時，用整檔 page generator 的 STYLE 常數驗證
-        # gen_html.py L308 直接 grep 即可（test_K9e_* 主要驗證 CSS 改了）
-        with open(GEN_HTML) as f:
-            full = f.read()
-        m = re.search(r'\.umock__card-title\s*\{[^}]*\}', full)
-        assert m, '.umock__card-title CSS rule missing'
-        assert 'text-align' in m.group(0) and 'center' in m.group(0), \
-            f'.umock__card-title not centered: {m.group(0)}'
-    else:
-        css = style_match.group(1)
-        m = re.search(r'\.umock__card-title\s*\{[^}]*\}', css)
-        assert m, f'.umock__card-title rule missing in CSS'
-        assert 'text-align' in m.group(0) and 'center' in m.group(0), \
-            f'.umock__card-title not centered: {m.group(0)}'
+    assert re.search(r'class="umock__card-title\s+umock__card-title--center"', html), \
+        f'centered ASCII title should have --center modifier; html:\n{html[:800]}'
 
 
-def test_K9e_page_title_centered_in_css():
-    """`.umock__page-title` 加 `text-align: center`."""
-    with open(GEN_HTML) as f:
-        full = f.read()
-    m = re.search(r'\.umock__page-title\s*\{[^}]*\}', full)
-    assert m, '.umock__page-title CSS rule missing'
-    assert 'text-align' in m.group(0) and 'center' in m.group(0), \
-        f'.umock__page-title not centered: {m.group(0)}'
-
-
-def test_K9e_actions_centered_not_right():
-    """`.umock__actions` 從 `text-align: right` 改為 `text-align: center`."""
-    with open(GEN_HTML) as f:
-        full = f.read()
-    m = re.search(r'\.umock__actions\s*\{[^}]*\}', full)
-    assert m, '.umock__actions CSS rule missing'
-    rule = m.group(0)
-    assert 'text-align: center' in rule, \
-        f'.umock__actions should be center-aligned; got: {rule}'
-    assert 'text-align: right' not in rule, \
-        f'.umock__actions should not be right-aligned; got: {rule}'
+def test_K9e_default_left_aligned_no_modifier():
+    """無視覺置中的 DSL title 預設不帶 modifier（左對齊）。"""
+    md = '# T\n\n```ui-mock\ncard title:"Plain Title" { }\n```\n'
+    html = gh.md_to_html(md)
+    # DSL title 沒 ASCII 空白資訊 → 沒 align modifier
+    assert 'umock__card-title--center' not in html or re.search(r'umock__card-title">Plain Title', html), \
+        f'DSL title should not have center modifier (left default); html:\n{html[:600]}'
 
 
 # ─── Standalone runner ──────────────────────────────────────────────────
@@ -938,9 +924,9 @@ def main() -> int:
         ('K9a_title_not_duplicated_in_field_label', test_K9a_title_not_duplicated_in_field_label),
         ('K9_md_to_html_post_battle_clean', test_K9_md_to_html_post_battle_clean),
         ('K9_single_inner_box_regression', test_K9_single_inner_box_regression),
-        ('K9e_card_title_centered_in_css', test_K9e_card_title_centered_in_css),
-        ('K9e_page_title_centered_in_css', test_K9e_page_title_centered_in_css),
-        ('K9e_actions_centered_not_right', test_K9e_actions_centered_not_right),
+        ('K9e_align_modifier_classes_in_css', test_K9e_align_modifier_classes_in_css),
+        ('K9e_ascii_centered_title_renders_with_center_modifier', test_K9e_ascii_centered_title_renders_with_center_modifier),
+        ('K9e_default_left_aligned_no_modifier', test_K9e_default_left_aligned_no_modifier),
     ]
     passed = failed = 0
     for name, fn in tests:
