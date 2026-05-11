@@ -266,14 +266,20 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       display: flex; align-items: center; border-top: none; }
     .banner-title { font-size: 1.25rem; font-weight: 700;
       line-height: 1; margin: 0; }
+    /* R-group: main 上方留白縮減（從 style.css 預設 2.5rem 改 1rem，
+       讓 main content 緊接 banner，跟 sidebar 視覺對齊）*/
+    .doc-content { padding-top: 1rem; }
 
-    /* ─── N1: sidebar tab switcher (📁 文件 / 📑 本頁目錄) ─── */
+    /* ─── N1 + Q + R: sidebar tab switcher (📁 文件 / 📑 本頁目錄) ─── */
     /* `padding: 0` overrides style.css `.sidebar { padding: 1.5rem 0 }`.
        `top: 0` overrides style.css `.sidebar { top: var(--nav-h) }` —
        N1 changed `position: sticky` → `relative` but the stale `top: 56px`
-       silently pushed sidebar 56px down → Q-group white gap. */
+       silently pushed sidebar 56px down → Q-group white gap.
+       R-group: `height: auto` + `overflow: visible` cancel style.css fixed
+       viewport height + scrollbar. sidebar grows with grid row to full
+       content height; page-level scroll handles overflow naturally. */
     .sidebar { position: relative; top: 0; display: flex; flex-direction: column;
-      overflow: hidden; padding: 0; }
+      overflow: visible; padding: 0; height: auto; }
     .sidebar__toggle { position: absolute; top: 6px; right: 6px;
       background: #f1f5f9; border: 1px solid #cbd5e1;
       padding: 2px 6px; border-radius: 4px;
@@ -291,7 +297,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     .sidebar__tab:hover { color: #1e293b; background: #f1f5f9; }
     .sidebar__tab.active { background: #fff; color: #1e3a8a;
       border-color: #e2e8f0; font-weight: 600; margin-bottom: -1px; }
-    .sidebar__panel { display: none; flex: 1; overflow-y: auto;
+    .sidebar__panel { display: none; flex: 1; overflow: visible;
       padding: 0.5rem 0; font-size: 0.875rem; }
     .sidebar__panel.active { display: block; }
     /* TOC list rendering inside the toc panel */
@@ -3726,8 +3732,9 @@ def make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, curren
         return '\n'.join(out)
 
     # ── Main docs ──────────────────────────────────────────
+    # R-group: 不寫 `<div class="sidebar__label">文件</div>` — 已由 tab
+    # `📁 文件` 表示，重複 label 拿掉。其他 subdir label（diagrams 等）保留。
     sections.append('<div class="sidebar__section">')
-    sections.append('<div class="sidebar__label">文件</div>')
     for slug, label, icon in doc_pages:
         sections.append(link(slug, label, icon))
     sections.append('</div>')
