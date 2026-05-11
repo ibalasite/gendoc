@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>A4 demo — table 行間距 / 分隔線（現況 vs 改進）</title>
+<style>
+  body { font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    background: #f8fafc; color: #1e293b; line-height: 1.6;
+    margin: 0; padding: 2rem; }
+  h1 { font-size: 1.4rem; margin: 0 0 0.5rem 0; }
+  .lead { color: #64748b; margin-bottom: 1.5rem; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+  .col h2 { font-size: 0.95rem; font-weight: 600;
+    color: #475569; text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 0.75rem; padding-bottom: 0.25rem;
+    border-bottom: 1px solid #e2e8f0; }
+  .col p.note { font-size: 0.8rem; color: #64748b;
+    margin: -0.5rem 0 1rem 0; font-family: monospace; }
+  .legend { display: flex; gap: 0.75rem; font-size: 0.75rem;
+    color: #64748b; padding: 0.5rem 0; }
+  .legend span { display: inline-flex; align-items: center; gap: 0.25rem; }
+  .legend i { display: inline-block; width: 12px; height: 12px;
+    border-radius: 2px; }
+  .legend i.cur { background: #e2e8f0; }
+  .legend i.new { background: #cbd5e1; }
+  .badge { display: inline-block; padding: 0.125rem 0.5rem;
+    border-radius: 999px; font-size: 0.75rem; font-weight: 500; }
+  .b-active { background: #dcfce7; color: #166534; }
+  .b-inactive { background: #fee2e2; color: #991b1b; }
+
+  /* ─── 現況（before）─── */
+  .before .umock__table { width: 100%; border-collapse: collapse;
+    margin: 0.5rem 0; font-size: 0.9rem; }
+  .before .umock__table th,
+  .before .umock__table td {
+    padding: 0.5rem 0.625rem;          /* 緊 */
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;  /* 太淡（內容跟分隔線同調）*/
+  }
+  .before .umock__table th {
+    background: #f8fafc;
+    font-weight: 600; color: #334155;
+    border-bottom: 2px solid #94a3b8;
+  }
+
+  /* ─── 改進（after）─── */
+  .after .umock__table { width: 100%; border-collapse: collapse;
+    margin: 0.5rem 0; font-size: 0.9rem; }
+  .after .umock__table th,
+  .after .umock__table td {
+    padding: 0.75rem 0.875rem;         /* 行間距 +50%（看起來不擠）*/
+    text-align: left;
+    border-bottom: 1px solid #cbd5e1;  /* 深一階分隔線（行邊界看得清）*/
+  }
+  .after .umock__table th {
+    background: #f8fafc;
+    font-weight: 600; color: #334155;
+    border-bottom: 2px solid #94a3b8;
+  }
+  .after .umock__table tbody tr:hover {
+    background: #f8fafc;               /* 加 hover 提示（reading aid）*/
+  }
+</style>
+</head>
+<body>
+
+<h1>A4 — table 行間距 / 分隔線（現況 vs 改進）</h1>
+<p class="lead">現況用 <code>padding 0.5rem 0.625rem</code>（緊）+ <code>border-bottom #e2e8f0</code>（極淡）→ 列擠在一起、看起來像連續的字塊。改進放大 padding 到 <code>0.75rem 0.875rem</code>，分隔線改 <code>#cbd5e1</code>（深一階）→ 一眼看得出每列邊界，閱讀順序清楚。</p>
+
+<div class="legend">
+  <span><i class="cur"></i> #e2e8f0 / 0.5–0.625rem（現況）</span>
+  <span><i class="new"></i> #cbd5e1 / 0.75–0.875rem（改進）</span>
+</div>
+
+<div class="grid">
+  <div class="col before">
+    <h2>❌ 現況：行擠 + 分隔線淡</h2>
+    <p class="note">padding 0.5rem 0.625rem · border #e2e8f0</p>
+    <table class="umock__table">
+      <thead>
+        <tr>
+          <th>Token ID</th>
+          <th>使用者</th>
+          <th>狀態</th>
+          <th>建立時間</th>
+          <th>最後使用</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>tk_a1b2c3d4</td><td>alice@example.com</td><td><span class="badge b-active">active</span></td><td>2026-01-15 10:30</td><td>2026-05-09 22:01</td></tr>
+        <tr><td>tk_e5f6g7h8</td><td>bob@example.com</td><td><span class="badge b-active">active</span></td><td>2026-02-20 14:15</td><td>2026-05-10 08:45</td></tr>
+        <tr><td>tk_i9j0k1l2</td><td>charlie@example.com</td><td><span class="badge b-inactive">revoked</span></td><td>2026-03-05 09:00</td><td>2026-04-22 16:30</td></tr>
+        <tr><td>tk_m3n4o5p6</td><td>diana@example.com</td><td><span class="badge b-active">active</span></td><td>2026-04-10 11:20</td><td>2026-05-10 12:15</td></tr>
+        <tr><td>tk_q7r8s9t0</td><td>erik@example.com</td><td><span class="badge b-active">active</span></td><td>2026-04-25 16:00</td><td>2026-05-09 19:30</td></tr>
+        <tr><td>tk_u1v2w3x4</td><td>fiona@example.com</td><td><span class="badge b-inactive">revoked</span></td><td>2026-05-01 08:30</td><td>2026-05-05 14:00</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col after">
+    <h2>✅ 改進：列邊界清楚</h2>
+    <p class="note">padding 0.75rem 0.875rem · border #cbd5e1</p>
+    <table class="umock__table">
+      <thead>
+        <tr>
+          <th>Token ID</th>
+          <th>使用者</th>
+          <th>狀態</th>
+          <th>建立時間</th>
+          <th>最後使用</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>tk_a1b2c3d4</td><td>alice@example.com</td><td><span class="badge b-active">active</span></td><td>2026-01-15 10:30</td><td>2026-05-09 22:01</td></tr>
+        <tr><td>tk_e5f6g7h8</td><td>bob@example.com</td><td><span class="badge b-active">active</span></td><td>2026-02-20 14:15</td><td>2026-05-10 08:45</td></tr>
+        <tr><td>tk_i9j0k1l2</td><td>charlie@example.com</td><td><span class="badge b-inactive">revoked</span></td><td>2026-03-05 09:00</td><td>2026-04-22 16:30</td></tr>
+        <tr><td>tk_m3n4o5p6</td><td>diana@example.com</td><td><span class="badge b-active">active</span></td><td>2026-04-10 11:20</td><td>2026-05-10 12:15</td></tr>
+        <tr><td>tk_q7r8s9t0</td><td>erik@example.com</td><td><span class="badge b-active">active</span></td><td>2026-04-25 16:00</td><td>2026-05-09 19:30</td></tr>
+        <tr><td>tk_u1v2w3x4</td><td>fiona@example.com</td><td><span class="badge b-inactive">revoked</span></td><td>2026-05-01 08:30</td><td>2026-05-05 14:00</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</body>
+</html>

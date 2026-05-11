@@ -252,6 +252,46 @@ def test_ascii_to_mermaid_td_emit_quotes_edge_label_parens():
                 f'edge label with `(` must be quoted; got line:\n{ln}'
 
 
+# ─── 5: regression — already-quoted edge label 含字面 | 不應被切壞 ─────
+# Real-world bug（pet/frontend.html block 2 / block 5）：
+# F2 _ascii_to_mermaid_td emit 已 quote 包好的 label（內部含字面 `|`）：
+#   N4 -->|"text | text | text"| N5
+# 我加的 emit-time _mermaid_fix_block 套 quote_edge_label，regex
+# `\|([^|]*)\|` 把整段切成 N 個 `|...|` segment，每個 segment 各自被
+# quote_edge_label 處理 → segment 內含 `"` 但被當「未 quote」二次 wrap
+# → 引號錯位變 mermaid syntax error。
+
+def test_already_quoted_edge_label_with_pipe_not_corrupted():
+    """`|"text | text | text"|` 形式的 edge label 經 fix 後不應被切壞。
+
+    Regression: 我加的 emit-time fix 對 F2 emit 套 _mermaid_fix_block，
+    對含字面 `|` 的 already-quoted label 二次 wrap 造成破圖。
+    """
+    src = (
+        'graph TD\n'
+        '  N0["A"]\n'
+        '  N1["B"]\n'
+        '  N0 -->|"trainingType: \'RUN\' | \'STRENGTH\' | \'STAMINA\'"| N1\n'
+    )
+    fixed = '\n'.join(gh._mermaid_fix_block(src.split('\n')))
+    # The original quote pair must remain intact — no internal quote
+    # corruption like `"...|" ... |" ..."`.
+    assert '"trainingType: \'RUN\' | \'STRENGTH\' | \'STAMINA\'"' in fixed, \
+        f'quoted edge label with literal | should be preserved verbatim; got:\n{fixed}'
+
+
+def test_unquoted_edge_label_with_parens_still_quoted():
+    """regression test — 既有行為仍要：未 quote label 含 () 仍被 quote-wrap。"""
+    src = (
+        'graph TD\n'
+        '  A --> B\n'
+        '  A -->|calls (sync)| B\n'
+    )
+    fixed = '\n'.join(gh._mermaid_fix_block(src.split('\n')))
+    assert '|"calls (sync)"|' in fixed, \
+        f'unquoted edge label with () should still be quote-wrapped; got:\n{fixed}'
+
+
 # ─── Standalone runner ────────────────────────────────────────────────
 
 def main():

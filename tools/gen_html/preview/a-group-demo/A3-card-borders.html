@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>A3 demo — card / page / modal 邊界（現況 vs 改進）</title>
+<style>
+  body { font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    background: #f8fafc; color: #1e293b; line-height: 1.6;
+    margin: 0; padding: 2rem; }
+  h1 { font-size: 1.4rem; margin: 0 0 0.5rem 0; }
+  .lead { color: #64748b; margin-bottom: 1.5rem; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+  .col h2 { font-size: 0.95rem; font-weight: 600;
+    color: #475569; text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 0.75rem; padding-bottom: 0.25rem;
+    border-bottom: 1px solid #e2e8f0; }
+  .col p.note { font-size: 0.8rem; color: #64748b; margin: -0.5rem 0 1rem 0; }
+
+  /* ─── 共用 mock 內部 ─── */
+  .umock__card-title { padding: 0.625rem 1rem; font-weight: 600;
+    font-size: 0.95rem; background: #f8fafc; }
+  .umock__page-title { padding: 0.75rem 1rem; font-weight: 600;
+    font-size: 1.05rem; background: #f8fafc; }
+  .umock__modal-titlebar { display: flex; justify-content: space-between;
+    align-items: center; padding: 0.75rem 1rem; background: #f1f5f9; }
+  .umock__modal-title { font-weight: 600; font-size: 1rem; }
+  .umock__modal-close { color: #94a3b8; font-size: 1.1rem; }
+  .umock__btn { display: inline-block; padding: 0.4rem 0.9rem;
+    margin: 0.125rem; font-size: 0.875rem; border-radius: 4px;
+    background: #e2e8f0; color: #334155; }
+  .umock__btn--primary { background: #2563eb; color: #fff; }
+  .umock__field { margin: 0.5rem 0; }
+  .umock__field-label { display: block; font-size: 0.85rem;
+    color: #334155; margin-bottom: 0.25rem; }
+  .umock__input { display: block; width: 100%; padding: 0.5rem 0.625rem;
+    font-size: 0.9rem; border-radius: 4px; background: #fff;
+    color: #475569; box-sizing: border-box; }
+  .umock__hint { color: #64748b; font-size: 0.8rem; margin: 0.25rem 0; }
+
+  /* ─── 現況（before）─── */
+  .before .umock__page,
+  .before .umock__modal,
+  .before .umock__card {
+    border: 1px solid #cbd5e1;
+    border-radius: 8px; background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    margin: 1rem 0;
+    overflow: hidden;
+  }
+  .before .umock__card-title {
+    border-bottom: 1px solid #cbd5e1;  /* 同色淺灰 → 跟外框疊一起看不出 */
+  }
+  .before .umock__page-title {
+    border-bottom: 1px solid #cbd5e1;
+  }
+  .before .umock__modal-titlebar {
+    border-bottom: 1px solid #cbd5e1;
+  }
+  .before .umock__modal-body,
+  .before .umock__card-body { padding: 0.75rem 1rem; }
+  .before .umock__input { border: 1px solid #cbd5e1; }
+
+  /* ─── 改進（after）─── */
+  .after .umock__page,
+  .after .umock__modal,
+  .after .umock__card {
+    border: 1.5px solid #94a3b8;       /* 深一階 + 1.5px 加重 */
+    border-radius: 8px; background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    margin: 1rem 0;
+    overflow: hidden;
+  }
+  .after .umock__card-title {
+    border-bottom: 1.5px solid #94a3b8; /* 跟外框同調，明確分隔 header / body */
+  }
+  .after .umock__page-title {
+    border-bottom: 1.5px solid #94a3b8;
+  }
+  .after .umock__modal-titlebar {
+    border-bottom: 1.5px solid #94a3b8;
+  }
+  .after .umock__modal-body,
+  .after .umock__card-body { padding: 0.75rem 1rem; }
+  .after .umock__input { border: 1px solid #94a3b8; }
+
+  .legend { display: flex; gap: 0.75rem; font-size: 0.75rem;
+    color: #64748b; padding: 0.5rem 0; }
+  .legend span { display: inline-flex; align-items: center; gap: 0.25rem; }
+  .legend i { display: inline-block; width: 12px; height: 12px;
+    border-radius: 2px; }
+  .legend i.cur { background: #cbd5e1; }
+  .legend i.new { background: #94a3b8; }
+</style>
+</head>
+<body>
+
+<h1>A3 — card / page / modal 邊界線（現況 vs 改進）</h1>
+<p class="lead">現況用 <code>#cbd5e1</code>（很淺灰）+ 1px，header／body 分隔線同色 → 整個區塊邊界跟內部分隔一起糊掉，使用者要瞇眼才看得出邊界。改進改用 <code>#94a3b8</code>（中灰）+ 1.5px → 邊界清楚、header／body 視覺分得開。</p>
+
+<div class="legend">
+  <span><i class="cur"></i> #cbd5e1（現況）</span>
+  <span><i class="new"></i> #94a3b8（改進）</span>
+</div>
+
+<div class="grid">
+  <div class="col before">
+    <h2>❌ 現況：邊界淡（看不清）</h2>
+    <p class="note">border: 1px solid #cbd5e1</p>
+
+    <div class="umock__card">
+      <div class="umock__card-title">📋 使用者資料</div>
+      <div class="umock__card-body">
+        <div class="umock__field">
+          <span class="umock__field-label">姓名</span>
+          <input class="umock__input" placeholder="王小明" readonly tabindex="-1">
+        </div>
+        <div class="umock__field">
+          <span class="umock__field-label">Email</span>
+          <input class="umock__input" placeholder="user@example.com" readonly tabindex="-1">
+        </div>
+        <div style="padding-top:0.5rem">
+          <button class="umock__btn umock__btn--primary" tabindex="-1">儲存</button>
+          <button class="umock__btn" tabindex="-1">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="umock__modal">
+      <div class="umock__modal-titlebar">
+        <span class="umock__modal-title">確認刪除</span>
+        <span class="umock__modal-close">×</span>
+      </div>
+      <div class="umock__modal-body">
+        <p>此操作不可復原，確認刪除？</p>
+        <p class="umock__hint">系統會發信通知擁有者。</p>
+        <div style="padding-top:0.5rem">
+          <button class="umock__btn umock__btn--primary" tabindex="-1">確認</button>
+          <button class="umock__btn" tabindex="-1">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="umock__page">
+      <div class="umock__page-title">🎨 PDD — 主頁配置</div>
+      <div class="umock__card-body">
+        <p>內容區塊，邊界跟外框 8px 圓角融在一起。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col after">
+    <h2>✅ 改進：邊界明確（看得清）</h2>
+    <p class="note">border: 1.5px solid #94a3b8</p>
+
+    <div class="umock__card">
+      <div class="umock__card-title">📋 使用者資料</div>
+      <div class="umock__card-body">
+        <div class="umock__field">
+          <span class="umock__field-label">姓名</span>
+          <input class="umock__input" placeholder="王小明" readonly tabindex="-1">
+        </div>
+        <div class="umock__field">
+          <span class="umock__field-label">Email</span>
+          <input class="umock__input" placeholder="user@example.com" readonly tabindex="-1">
+        </div>
+        <div style="padding-top:0.5rem">
+          <button class="umock__btn umock__btn--primary" tabindex="-1">儲存</button>
+          <button class="umock__btn" tabindex="-1">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="umock__modal">
+      <div class="umock__modal-titlebar">
+        <span class="umock__modal-title">確認刪除</span>
+        <span class="umock__modal-close">×</span>
+      </div>
+      <div class="umock__modal-body">
+        <p>此操作不可復原，確認刪除？</p>
+        <p class="umock__hint">系統會發信通知擁有者。</p>
+        <div style="padding-top:0.5rem">
+          <button class="umock__btn umock__btn--primary" tabindex="-1">確認</button>
+          <button class="umock__btn" tabindex="-1">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="umock__page">
+      <div class="umock__page-title">🎨 PDD — 主頁配置</div>
+      <div class="umock__card-body">
+        <p>內容區塊，邊界跟 header 分隔都看得出來。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
