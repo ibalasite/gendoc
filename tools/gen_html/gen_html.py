@@ -3302,6 +3302,17 @@ def md_to_html(text, src_dir=None):
             r'\1\n',
             text, count=1, flags=re.MULTILINE,
         )
+    # W-group: SDLC title-block pattern — `# H1\n## H2-subtitle\n\n---\n` at
+    # the very start of the document. The `---` is a cosmetic separator
+    # between the title block and content, not an inline hr. Strip only the
+    # first occurrence; later `---` (author intent dividers) stay.
+    # Safety: H1 alone (no H2 subtitle) followed by `---` is user intent hr
+    # and must be preserved — S-group baseline.
+    text = re.sub(
+        r'(\A#\s+[^\n]+\n##\s+[^\n]+\n)\s*---+\s*\n',
+        r'\1\n',
+        text, count=1,
+    )
     # Collapse 3+ consecutive newlines (left from stripped comments) into 2,
     # so we don't produce a chain of empty <p> tags.
     text = re.sub(r'\n{3,}', '\n\n', text)
