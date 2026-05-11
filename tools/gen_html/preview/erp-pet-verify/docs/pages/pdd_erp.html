@@ -1,0 +1,1646 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pdd Erp — erp-pet-verify</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <style>
+    /* ─── Sidebar collapsible folder groups ─── */
+    .sidebar__section details { border: none; }
+    .sidebar__section details > summary {
+      cursor: pointer; list-style: none; display: flex; align-items: center;
+      gap: 0.375rem; padding: 0 1rem; margin-bottom: 0.375rem;
+      font-size: 0.6875rem; font-weight: 600; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.08em; user-select: none;
+    }
+    .sidebar__section details > summary::-webkit-details-marker { display: none; }
+    .sidebar__section details > summary::before {
+      content: '▶'; font-size: 0.5rem; flex-shrink: 0;
+      transition: transform 150ms; color: var(--text-muted);
+    }
+    .sidebar__section details[open] > summary::before { transform: rotate(90deg); }
+    .sidebar__section details .sidebar__link { padding-left: 1.75rem; font-size: 0.8125rem; }
+    .sidebar__section details details > summary { padding-left: 1.75rem; }
+    .sidebar__section details details .sidebar__link { padding-left: 2.5rem; }
+    /* B5/B8: labels inside details are sub-labels — indent past their parent <summary>. */
+    .sidebar__section details > .sidebar__label {
+      padding-left: 2.25rem;
+    }
+    .sidebar__section details details > .sidebar__label {
+      padding-left: 3rem;
+    }
+    /* B5: sub-label inside diagrams folding for prefix groups (Activity / Class / ...) */
+    .sidebar__label--sub {
+      padding: 0.25rem 1rem 0.125rem 3rem;
+      font-size: 0.6875rem; font-weight: 600;
+      color: var(--text-muted); text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    /* B5: links following a sub-label indent further still */
+    .sidebar__section details .sidebar__label--sub ~ .sidebar__link {
+      padding-left: 3.5rem;
+    }
+    /* ─── Q-group: header 兩層等高 56px + 白條消除 ─── */
+    .top-nav { height: 56px; padding: 0 1.5rem; border-bottom: none; }
+    .nav-breadcrumb { display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.95rem; color: #cbd5e1; }
+    .nav-breadcrumb a { color: #fff; text-decoration: none; font-weight: 600; }
+    .nav-breadcrumb a:hover { color: #60a5fa; }
+    /* U-group: current page anchor — clickable to scroll back to top */
+    .nav-breadcrumb__current { color: #fff; cursor: pointer; }
+    .nav-breadcrumb__current:hover { color: #60a5fa; }
+    .doc-page-banner { height: 56px; padding: 0 2rem;
+      display: flex; align-items: center; border-top: none; }
+    .banner-title { font-size: 1.25rem; font-weight: 700;
+      line-height: 1; margin: 0; }
+    /* R-group: main 上方留白縮減（從 style.css 預設 2.5rem 改 1rem，
+       讓 main content 緊接 banner，跟 sidebar 視覺對齊）*/
+    .doc-content { padding-top: 1rem; }
+    /* V-group: anchor jump（TOC / sidebar / URL hash）必須避開 sticky top-nav，
+       否則被點到的 heading / table / cell 永遠卡在 nav 底下看不到。
+       64px = top-nav 高 56px + 8px 視覺呼吸；scope 限 .doc-content 內 [id]
+       元素，避免影響 sidebar / nav 內部結構。 */
+    .doc-content [id] { scroll-margin-top: 64px; }
+
+    /* ─── N1 + Q + R + T: sidebar tab switcher (📁 文件 / 📑 本頁目錄) ─── */
+    /* T-group: sidebar 永遠 sticky 在左邊（top-nav 下方），tabs 釘 sidebar 頂端
+       不卷，panel 自己內部捲。`align-self: start` 讓 grid item 不被 row 拉長。
+       `overflow: visible` — wrapper 自己不卷（避免 tabs 被 panel scroll 帶走）。
+       Q-group 原意：top: 0 蓋過 style.css `top: var(--nav-h)`，但 T 後改成
+       top: 56px（top-nav 高度）讓 sticky 在 nav 下方啟動。 */
+    .sidebar { position: sticky; top: 56px;
+      height: calc(100vh - 56px); align-self: start;
+      display: flex; flex-direction: column;
+      overflow: visible; padding: 0; }
+    .sidebar__toggle { position: absolute; top: 6px; right: 6px;
+      background: #f1f5f9; border: 1px solid #cbd5e1;
+      padding: 2px 6px; border-radius: 4px;
+      cursor: pointer; font-size: 11px; line-height: 1;
+      color: #475569; z-index: 3; }
+    .sidebar__toggle:hover { background: #e2e8f0; }
+    .sidebar__tabs { display: flex; gap: 2px; padding: 4px 32px 0 4px;
+      border-bottom: 1px solid #e2e8f0; background: #f8fafc;
+      flex: 0 0 auto; }
+    .sidebar__tab { flex: 1; padding: 6px 8px; font-size: 12px;
+      border: 1px solid transparent; border-bottom: none;
+      border-radius: 4px 4px 0 0; cursor: pointer; background: transparent;
+      color: #64748b; font-family: inherit; text-align: center;
+      transition: background-color 150ms, color 150ms; }
+    .sidebar__tab:hover { color: #1e293b; background: #f1f5f9; }
+    .sidebar__tab.active { background: #fff; color: #1e3a8a;
+      border-color: #e2e8f0; font-weight: 600; margin-bottom: -1px; }
+    /* T-group: panel 自己內部捲（sidebar wrapper 不卷，tabs 不會被擠走）。
+       scrollbar-width: thin + ::-webkit-scrollbar 6px = 細到幾乎不擾眼。 */
+    .sidebar__panel { display: none; flex: 1 1 auto; overflow-y: auto;
+      overflow-x: hidden; padding: 0.5rem 0; font-size: 0.875rem;
+      scrollbar-width: thin; }
+    .sidebar__panel.active { display: block; }
+    .sidebar__panel::-webkit-scrollbar { width: 6px; }
+    .sidebar__panel::-webkit-scrollbar-thumb {
+      background: rgba(0,0,0,0.18); border-radius: 3px; }
+    .sidebar__panel::-webkit-scrollbar-thumb:hover {
+      background: rgba(0,0,0,0.32); }
+    .sidebar__panel::-webkit-scrollbar-track { background: transparent; }
+    /* TOC list rendering inside the toc panel */
+    .sidebar__panel .toc-list { list-style: none; padding: 0; margin: 0; }
+    .sidebar__panel .toc-list li { margin: 0; }
+    .toc__link { display: block; padding: 0.25rem 0.75rem;
+      color: #475569; text-decoration: none; font-size: 0.8125rem;
+      border-left: 2px solid transparent; margin: 1px 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .toc__link:hover { background: #f1f5f9; color: #1e293b; }
+    .toc__link.active { background: #eff6ff; color: #1e3a8a;
+      border-left-color: #3b82f6; font-weight: 500; }
+    .toc__link--h3 { padding-left: 1.5rem; font-size: 0.78rem; color: #64748b; }
+    /* Sidebar collapsed state — keep a 32px rail visible so the toggle
+       button stays clickable; hide tabs + panels. Overrides style.css's
+       .page-wrapper.sidebar-collapsed { grid-template-columns: 0 4px 1fr; }
+       to keep the rail. */
+    .page-wrapper.sidebar-collapsed { grid-template-columns: 32px 4px 1fr; }
+    .page-wrapper.sidebar-collapsed .sidebar {
+      width: 32px; min-width: 32px;
+      visibility: visible; padding: 0; overflow: visible;
+    }
+    .page-wrapper.sidebar-collapsed .sidebar__tabs,
+    .page-wrapper.sidebar-collapsed .sidebar__panel { display: none; }
+    .page-wrapper.sidebar-collapsed .sidebar__toggle { left: 4px; right: 4px; }
+    /* RWD — auto-collapse on phones (<768px). Only kicks in when no
+       explicit `.sidebar-expanded` flag is set; tap the toggle to expand. */
+    @media (max-width: 768px) {
+      .page-wrapper:not(.sidebar-expanded) {
+        grid-template-columns: 32px 4px 1fr;
+      }
+      .page-wrapper:not(.sidebar-expanded) .sidebar {
+        width: 32px; min-width: 32px;
+      }
+      .page-wrapper:not(.sidebar-expanded) .sidebar__tabs,
+      .page-wrapper:not(.sidebar-expanded) .sidebar__panel { display: none; }
+    }
+    /* G-Q2 + LB1: lightbox cloned-diagram visibility under zoom container.
+       The canonical style.css sets `.lightbox__zoom-content > * { position:
+       absolute }` which collapses the cloned .diagram-container to 0×0;
+       its child SVG with `width:100%` then renders empty. Force a sensible
+       explicit width so the cloned content is actually visible. */
+    .lightbox__zoom-content .diagram-container {
+      width: 80vw;
+      max-width: 1400px;
+      min-width: 60vw;
+    }
+    .lightbox__zoom-content .diagram-container svg {
+      width: 100%;
+      height: auto;
+      max-height: 80vh;
+      display: block;
+    }
+    .lightbox__zoom-content .diagram-container .mermaid {
+      width: 100%;
+      max-width: none;
+    }
+    .lightbox__zoom-content svg {
+      height: auto;
+    }
+    /* G-Q5: prevent flex/grid child main.doc-content from expanding to its
+       content's intrinsic size when a PUML SVG / pre.mermaid has wide
+       content. Without min-width:0, the flex item's default min-width is
+       its min-content (i.e. SVG natural width), which pushes <main> to
+       3000px+ on PUML pages and breaks layout.
+
+       Pair with `<pre> { max-width: 100% }` so wide source content scrolls
+       inside the <pre> block instead of expanding the page. */
+    main.doc-content {
+      min-width: 0;
+    }
+    .doc-content pre {
+      max-width: 100%;
+    }
+    .doc-content .diagram-container {
+      max-width: 100%;
+      overflow-x: auto;
+    }
+
+    /* ─── UI Mock DSL (stage 9) ─── */
+    .umock { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #1e293b; }
+    .umock__page, .umock__modal, .umock__card {
+      border: 1.5px solid #94a3b8; border-radius: 8px; background: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin: 1rem 0;
+      overflow: hidden;
+    }
+    .umock__card-title { padding: 0.625rem 1rem; font-weight: 600; font-size: 0.95rem;
+      background: #f8fafc; border-bottom: 1.5px solid #94a3b8; color: #1e293b; }
+    .umock__page-title { padding: 0.75rem 1rem; font-weight: 600; font-size: 1.05rem;
+      background: #f8fafc; border-bottom: 1.5px solid #94a3b8; }
+    /* `.diagram-container` (assets/style.css) defaults to text-align: center
+       which is right for SVG/mermaid but wrong for umock body text. Reset
+       to start so individual umock elements decide their own alignment.
+       Also constrain width to content so umock card mirrors ASCII source
+       proportions (rather than stretching to full doc-content width). */
+    .diagram-container--umock {
+      text-align: start;
+      width: fit-content;
+      max-width: 100%;
+    }
+    .diagram-container--umock .umock__card,
+    .diagram-container--umock .umock__page,
+    .diagram-container--umock .umock__modal {
+      width: fit-content;
+      max-width: 100%;
+    }
+    /* Outer-alignment modifiers — applied via attrs.align detected from
+       the source ASCII's leading/trailing whitespace within `│ ... │`. */
+    .umock__card-title--center, .umock__page-title--center,
+    .umock__text--center, .umock__info--center, .umock__hint--center,
+    .umock__actions--center { text-align: center; }
+    .umock__card-title--right, .umock__page-title--right,
+    .umock__text--right, .umock__info--right, .umock__hint--right,
+    .umock__actions--right { text-align: right; }
+    .umock__modal { max-width: 540px; }
+    .umock__modal-titlebar { display: flex; justify-content: space-between; align-items: center;
+      padding: 0.75rem 1rem; background: #f1f5f9; border-bottom: 1.5px solid #94a3b8; }
+    .umock__modal-title { font-weight: 600; font-size: 1rem; }
+    .umock__modal-close { color: #94a3b8; font-size: 1.1rem; cursor: default; }
+    .umock__modal-body, .umock__page > .umock__section,
+    .umock__card { padding: 0.75rem 1rem; }
+    .umock__navbar { display: flex; gap: 1rem; align-items: center;
+      padding: 0.625rem 1rem; background: #1e293b; color: #f1f5f9;
+      border-radius: 8px 8px 0 0; }
+    .umock__sidenav { float: left; width: 12rem; padding: 0.75rem;
+      background: #f8fafc; border-right: 1px solid #e2e8f0; min-height: 200px; }
+    .umock__sidenav .umock__item { padding: 0.375rem 0.5rem; border-radius: 4px;
+      color: #475569; font-size: 0.875rem; }
+    .umock__sidenav .umock__item:hover { background: #e2e8f0; }
+    .umock__page > *:not(.umock__navbar):not(.umock__sidenav) { margin-left: 12.5rem;
+      padding: 0.75rem 1rem; }
+    .umock__page::after { content: ""; display: block; clear: both; }
+    .umock__section { padding: 0.75rem 0; }
+    .umock__section-title { margin: 0 0 0.5rem 0; font-size: 1rem; font-weight: 600; }
+    .umock__section-subtitle { color: #64748b; font-size: 0.875rem; margin-bottom: 0.5rem; }
+    .umock__field { margin: 0.5rem 0; }
+    .umock__field-label { display: block; font-size: 0.85rem; color: #334155;
+      margin-bottom: 0.25rem; font-weight: 500; }
+    .umock__field-required { color: #dc2626; margin-left: 0.125rem; }
+    .umock__input, .umock__search {
+      display: block; width: 100%; padding: 0.5rem 0.625rem; font-size: 0.9rem;
+      border: 1px solid #94a3b8; border-radius: 4px; background: #fff;
+      color: #475569; box-sizing: border-box;
+    }
+    .umock__btn { display: inline-block; padding: 0.4rem 0.9rem; margin: 0.125rem;
+      font-size: 0.875rem; font-weight: 500; border: 1px solid transparent;
+      border-radius: 4px; cursor: default; background: #e2e8f0; color: #334155; }
+    .umock__btn--primary { background: #2563eb; color: #fff; }
+    .umock__btn--secondary { background: #fff; color: #475569; border-color: #cbd5e1; }
+    .umock__btn--danger { background: #dc2626; color: #fff; }
+    .umock__actions { padding: 0.5rem 0;
+      border-top: 1px solid #f1f5f9; }
+    .umock__badge { display: inline-block; padding: 0.125rem 0.5rem;
+      border-radius: 999px; font-size: 0.75rem; font-weight: 500;
+      background: #e2e8f0; color: #475569; }
+    .umock__badge--active { background: #dcfce7; color: #166534; }
+    .umock__badge--inactive { background: #fee2e2; color: #991b1b; }
+    .umock__badge--warning { background: #fef3c7; color: #92400e; }
+    .umock__hint { color: #64748b; font-size: 0.8rem; margin: 0.25rem 0 0.5rem 0; }
+    .umock__info { background: #eff6ff; border-left: 3px solid #3b82f6;
+      padding: 0.5rem 0.75rem; margin: 0.5rem 0; color: #1e3a8a; font-size: 0.875rem; }
+    /* Plain body text row in UI mock: monospace, preserve whitespace,
+       left-aligned, no background. Maps to ASCII content rows that aren't
+       semantic markers (ⓘ / helper:). */
+    .umock__text { padding: 0.125rem 1rem; margin: 0; color: #1e293b;
+      font-family: 'Menlo','Consolas','Courier New',monospace;
+      font-size: 0.85rem; white-space: pre; }
+    /* Higher specificity than `.doc-content pre` (assets/style.css) so the
+       umock dark-canvas background isn't overridden by the generic `pre`
+       rule when umock is rendered inside `.doc-content`. */
+    .doc-content pre.umock__code, pre.umock__code { background: #1e293b; color: #f1f5f9; padding: 0.75rem;
+      border-radius: 4px; overflow-x: auto; font-size: 0.8rem;
+      font-family: ui-monospace, "SF Mono", Consolas, monospace; }
+    .umock__code code { background: none; color: inherit; padding: 0; }
+    .umock__table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.9rem; }
+    .umock__table th, .umock__table td { padding: 0.75rem 0.875rem; text-align: left;
+      border-bottom: 1px solid #cbd5e1; }
+    .umock__table th { background: #f8fafc; font-weight: 600; color: #334155;
+      border-bottom: 2px solid #94a3b8; }
+    .umock__table tbody tr:hover { background: #f8fafc; }
+    .umock__pagination { padding: 0.5rem 0; color: #64748b; font-size: 0.8rem; text-align: right; }
+    .umock__tabs { display: flex; gap: 0.5rem; padding: 0.25rem 0; border-bottom: 1px solid #e2e8f0; }
+    .umock__tab { padding: 0.375rem 0.75rem; color: #475569; font-size: 0.875rem;
+      border-bottom: 2px solid transparent; }
+    .umock__tab:first-child { border-bottom-color: #2563eb; color: #1e40af; font-weight: 500; }
+    .umock__filter-bar { display: flex; gap: 0.5rem; align-items: center;
+      padding: 0.5rem 0; }
+    .umock__divider { border: 0; border-top: 1px solid #e2e8f0; margin: 0.5rem 0; }
+    .umock__meta-line { color: #64748b; font-size: 0.8rem; margin: 0.125rem 0; }
+    .umock__row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .umock__row-cell { font-size: 0.875rem; color: #334155; }
+    .umock__avatar { width: 1.75rem; height: 1.75rem; border-radius: 50%;
+      background: #94a3b8; display: inline-block; }
+    .umock__logo { font-weight: 700; letter-spacing: 0.02em; }
+    .umock__spacer { flex: 1; }
+    .umock__pyramid { display: block; max-width: 100%; height: auto; }
+    /* generic fallback for unknown types */
+    .umock__x { padding: 0.5rem; border: 1px dashed #cbd5e1; border-radius: 4px;
+      color: #64748b; font-size: 0.875rem; margin: 0.25rem 0; }
+  </style>
+</head>
+<body>
+  <header class="top-nav">
+    <nav class="nav-breadcrumb"><a href="index.html">erp-pet-verify</a> › <a href="#top" class="nav-breadcrumb__current" onclick="event.preventDefault(); window.scrollTo({top:0, behavior:'smooth'});">Pdd Erp</a></nav>
+    <div class="nav-controls">
+      <div class="search-wrap">
+        <input class="search-input" type="search" placeholder="搜尋文件...">
+        <div class="search-results"></div>
+      </div>
+      <a class="nav-gh-link" href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener">⌥ GitHub</a>
+      <button class="sidebar-toggle" id="sidebarToggle" title="收合/展開側欄">☰</button>
+    </div>
+  </header>
+  <div class="doc-page-banner">
+    <h1 class="banner-title">Pdd Erp</h1>
+  </div>
+  <div class="page-wrapper">
+    <aside class="sidebar" aria-label="文件導覽">
+      <button class="sidebar__toggle" id="sidebarCollapseBtn" type="button" aria-label="收合 / 展開側欄" title="收合 / 展開">⇤</button><div class="sidebar__tabs" role="tablist"><button class="sidebar__tab active" data-tab="docs" type="button" role="tab" aria-selected="true">📁 文件</button><button class="sidebar__tab" data-tab="toc" type="button" role="tab" aria-selected="false">📑 本頁目錄</button></div><div class="sidebar__panel active" data-panel="docs" role="tabpanel"><div class="sidebar__section">
+<a class="sidebar__link" href="index.html">🏠 首頁</a>
+<a class="sidebar__link" href="edd_erp.html">📄 Edd Erp</a>
+<a class="sidebar__link" href="edd_pet.html">📄 Edd Pet</a>
+<a class="sidebar__link active" href="pdd_erp.html">📄 Pdd Erp</a>
+<a class="sidebar__link" href="pdd_pet.html">📄 Pdd Pet</a>
+</div></div><div class="sidebar__panel" data-panel="toc" role="tabpanel"><ul class="toc-list"><li><a class="toc__link" href="#platform-scope-declaration平台範圍宣告">Platform Scope Declaration（平台範圍宣告）</a></li><li><a class="toc__link" href="#document-control">Document Control</a></li><li><a class="toc__link" href="#change-log">Change Log</a></li><li><a class="toc__link" href="#1-design-brief">1. Design Brief</a></li><li><a class="toc__link toc__link--h3" href="#11-設計目標">1.1 設計目標</a></li><li><a class="toc__link toc__link--h3" href="#12-prd-需求對應prd-us--pdd-章節--畫面">1.2 PRD 需求對應（PRD US → PDD 章節 / 畫面）</a></li><li><a class="toc__link toc__link--h3" href="#13-設計原則design-principles">1.3 設計原則（Design Principles）</a></li><li><a class="toc__link" href="#2-user-research-summary">2. User Research Summary</a></li><li><a class="toc__link toc__link--h3" href="#20-user-personas5-field-卡片">2.0 User Personas（5-field 卡片）</a></li><li><a class="toc__link toc__link--h3" href="#21-研究方法">2.1 研究方法</a></li><li><a class="toc__link toc__link--h3" href="#22-用戶心智模型">2.2 用戶心智模型</a></li><li><a class="toc__link toc__link--h3" href="#23-關鍵-insight設計決策的依據">2.3 關鍵 Insight（設計決策的依據）</a></li><li><a class="toc__link toc__link--h3" href="#24-user-journey-mapn8n-操作員首次完成-erp-api-整合">2.4 User Journey Map：N8N 操作員「首次完成 ERP API 整合」</a></li><li><a class="toc__link toc__link--h3" href="#25-jobs-to-be-done-jtbd">2.5 Jobs to Be Done (JTBD)</a></li><li><a class="toc__link toc__link--h3" href="#26-service-blueprint5-層視角">2.6 Service Blueprint（5 層視角）</a></li><li><a class="toc__link" href="#3-information-architecture-ia">3. Information Architecture (IA)</a></li><li><a class="toc__link toc__link--h3" href="#31-頁面--畫面結構sitemap">3.1 頁面 / 畫面結構（Sitemap）</a></li><li><a class="toc__link toc__link--h3" href="#32-導覽結構">3.2 導覽結構</a></li><li><a class="toc__link toc__link--h3" href="#33-內容優先順序f-pattern--z-pattern">3.3 內容優先順序（F-Pattern / Z-Pattern）</a></li><li><a class="toc__link" href="#4-user-flows">4. User Flows</a></li><li><a class="toc__link toc__link--h3" href="#41-主流程n8n-整合首次端對端happy-path">4.1 主流程：N8N 整合首次端對端（Happy Path）</a></li><li><a class="toc__link toc__link--h3" href="#42-替代流程it-admin-月稽核us-audit-001">4.2 替代流程：IT Admin 月稽核（US-AUDIT-001）</a></li><li><a class="toc__link toc__link--h3" href="#43-錯誤流程n8n-收到-401token-已撤銷">4.3 錯誤流程：N8N 收到 401（Token 已撤銷）</a></li><li><a class="toc__link toc__link--h3" href="#44-狀態機token-lifecycle">4.4 狀態機：Token Lifecycle</a></li><li><a class="toc__link" href="#5-screen-specifications">5. Screen Specifications</a></li><li><a class="toc__link toc__link--h3" href="#51-p01token-管理主頁列表">5.1 P01：Token 管理主頁（列表）</a></li><li><a class="toc__link toc__link--h3" href="#52-p02建立-token-modalform">5.2 P02：建立 Token Modal（Form）</a></li><li><a class="toc__link toc__link--h3" href="#53-p03一次性-token-揭示-modalreveal">5.3 P03：一次性 Token 揭示 Modal（Reveal）</a></li><li><a class="toc__link toc__link--h3" href="#54-p04撤銷確認對話框">5.4 P04：撤銷確認對話框</a></li><li><a class="toc__link toc__link--h3" href="#55-p05n8n-quick-start-指南頁">5.5 P05：N8N Quick Start 指南頁</a></li><li><a class="toc__link toc__link--h3" href="#56-p06poc-api-test-console選填">5.6 P06：POC API Test Console（選填）</a></li><li><a class="toc__link toc__link--h3" href="#57-p07token-審計日誌頁it-admin-only">5.7 P07：Token 審計日誌頁（IT Admin only）</a></li><li><a class="toc__link" href="#6-interaction-design-specifications">6. Interaction Design Specifications</a></li><li><a class="toc__link toc__link--h3" href="#61-動畫與過場motion-design">6.1 動畫與過場（Motion Design）</a></li><li><a class="toc__link toc__link--h3" href="#611-motion-design-specification必填">6.1.1 Motion Design Specification（必填）</a></li><li><a class="toc__link toc__link--h3" href="#62-回饋機制feedback">6.2 回饋機制（Feedback）</a></li><li><a class="toc__link toc__link--h3" href="#63-空狀態設計empty-states">6.3 空狀態設計（Empty States）</a></li><li><a class="toc__link toc__link--h3" href="#64-loading-states">6.4 Loading States</a></li><li><a class="toc__link toc__link--h3" href="#65-micro-interaction-catalog必填且最低覆蓋達標">6.5 Micro-interaction Catalog（必填，且最低覆蓋達標）</a></li><li><a class="toc__link toc__link--h3" href="#66-gesture--touch-design">6.6 Gesture &amp;amp; Touch Design</a></li><li><a class="toc__link toc__link--h3" href="#67-haptic-feedback-design">6.7 Haptic Feedback Design</a></li><li><a class="toc__link" href="#7-responsive--adaptive-design">7. Responsive &amp;amp; Adaptive Design</a></li><li><a class="toc__link toc__link--h3" href="#71-breakpoints">7.1 Breakpoints</a></li><li><a class="toc__link toc__link--h3" href="#72-breakpoint-元件行為矩陣必填全具體值">7.2 Breakpoint 元件行為矩陣（必填，全具體值）</a></li><li><a class="toc__link toc__link--h3" href="#73-grid-系統規格表必填明確聲明">7.3 Grid 系統規格表（必填，明確聲明）</a></li><li><a class="toc__link" href="#8-accessibility-a11y-specifications">8. Accessibility (A11y) Specifications</a></li><li><a class="toc__link toc__link--h3" href="#81-視覺可及性">8.1 視覺可及性</a></li><li><a class="toc__link toc__link--h3" href="#82-鍵盤與螢幕閱讀器">8.2 鍵盤與螢幕閱讀器</a></li><li><a class="toc__link toc__link--h3" href="#83-可及性測試計畫">8.3 可及性測試計畫</a></li><li><a class="toc__link toc__link--h3" href="#84-wcag-21-aa-compliance-matrix必填-12-準則">8.4 WCAG 2.1 AA Compliance Matrix（必填 12 準則）</a></li><li><a class="toc__link" href="#9-design-system-reference">9. Design System Reference</a></li><li><a class="toc__link toc__link--h3" href="#91-使用的-design-system">9.1 使用的 Design System</a></li><li><a class="toc__link toc__link--h3" href="#92-本次新增--修改的元件">9.2 本次新增 / 修改的元件</a></li><li><a class="toc__link toc__link--h3" href="#93-design-tokens設計變數">9.3 Design Tokens（設計變數）</a></li><li><a class="toc__link toc__link--h3" href="#94-dark-mode-token-mapping必填13-token--對比度">9.4 Dark Mode Token Mapping（必填，13 token + 對比度）</a></li><li><a class="toc__link" href="#95-client-類別圖class-diagram">9.5 Client 類別圖（Class Diagram）</a></li><li><a class="toc__link toc__link--h3" href="#951-web-前端-class-diagrammermaid">9.5.1 Web 前端 Class Diagram（Mermaid）</a></li><li><a class="toc__link toc__link--h3" href="#952-class--test-traceability">9.5.2 Class → Test Traceability</a></li><li><a class="toc__link" href="#10-copy--content-design">10. Copy &amp;amp; Content Design</a></li><li><a class="toc__link toc__link--h3" href="#101-語氣與文風tone-of-voice">10.1 語氣與文風（Tone of Voice）</a></li><li><a class="toc__link toc__link--h3" href="#102-關鍵文案清單">10.2 關鍵文案清單</a></li><li><a class="toc__link toc__link--h3" href="#103-i18n-字串清單節錄">10.3 i18n 字串清單（節錄）</a></li><li><a class="toc__link" href="#11-prototype--validation-plan">11. Prototype &amp;amp; Validation Plan</a></li><li><a class="toc__link toc__link--h3" href="#111-原型連結">11.1 原型連結</a></li><li><a class="toc__link toc__link--h3" href="#112-設計驗證計畫">11.2 設計驗證計畫</a></li><li><a class="toc__link" href="#12-open-questions">12. Open Questions</a></li><li><a class="toc__link" href="#13-engineering-handoff-specification">13. Engineering Handoff Specification</a></li><li><a class="toc__link toc__link--h3" href="#131-互動元件狀態規格表component-state-specification必填">13.1 互動元件狀態規格表（Component State Specification，必填）</a></li><li><a class="toc__link toc__link--h3" href="#132-畫面狀態轉換圖screen-state-diagram每個-p0-畫面一張">13.2 畫面狀態轉換圖（Screen State Diagram，每個 P0 畫面一張）</a></li><li><a class="toc__link toc__link--h3" href="#133-usability-testing-protocol">13.3 Usability Testing Protocol</a></li><li><a class="toc__link toc__link--h3" href="#134-ab-test-design-template">13.4 A/B Test Design Template</a></li><li><a class="toc__link toc__link--h3" href="#135-開發前確認清單engineering-handoff-checklist">13.5 開發前確認清單（Engineering Handoff Checklist）</a></li><li><a class="toc__link" href="#14-references">14. References</a></li><li><a class="toc__link toc__link--h3" href="#141-上游文件">14.1 上游文件</a></li><li><a class="toc__link toc__link--h3" href="#142-設計參考">14.2 設計參考</a></li><li><a class="toc__link toc__link--h3" href="#143-效能預算core-web-vitals">14.3 效能預算（Core Web Vitals）</a></li><li><a class="toc__link" href="#15-admin-portal-產品設計">15. Admin Portal 產品設計</a></li><li><a class="toc__link" href="#16-approval-sign-off">16. Approval Sign-off</a></li><li><a class="toc__link" href="#appendix-a設計決策記錄design-decision-records-ddr">Appendix A：設計決策記錄（Design Decision Records, DDR）</a></li><li><a class="toc__link" href="#appendix-bbdd-連結--screen-inventory">Appendix B：BDD 連結 / Screen Inventory</a></li><li><a class="toc__link toc__link--h3" href="#b1-bdd-feature-連結">B.1 BDD Feature 連結</a></li><li><a class="toc__link toc__link--h3" href="#b2-screen-inventory總表">B.2 Screen Inventory（總表）</a></li><li><a class="toc__link toc__link--h3" href="#b3-component-inventory依-95">B.3 Component Inventory（依 §9.5）</a></li></ul></div>
+    </aside>
+    <div class="sidebar-resizer" id="sidebarResizer"></div>
+    <main class="doc-content"><h1 id="pdd--product-design-document-ux--interaction-design">PDD — Product Design Document (UX / Interaction Design)</h1>
+<h2 id="platform-scope-declaration平台範圍宣告">Platform Scope Declaration（平台範圍宣告）</h2>
+<ul><li style="list-style:none"><input type="checkbox" checked disabled> Web（Browser）— 嵌入既有 ERP UI（Razor Pages / Blazor / MVC，OQ3 待確認）</li><li style="list-style:none"><input type="checkbox" disabled> iOS Native</li><li style="list-style:none"><input type="checkbox" disabled> Android Native</li><li style="list-style:none"><input type="checkbox" disabled> Desktop App（Electron / macOS / Windows）</li><li style="list-style:none"><input type="checkbox" disabled> Game UI</li><li style="list-style:none"><input type="checkbox" disabled> Embedded / Kiosk</li></ul>
+<p><strong>client_type</strong>：<code>web</code>（依 CONSTANTS.md Document Control 與 PRD §8 偵測結果）</p>
+<p><strong>has_admin_backend</strong>：<code>False</code>（管理員以 <code>users.is_superuser BOOLEAN</code> 升級；無獨立 Admin 後台）</p>
+<p><strong>前端技術棧</strong>：沿用既有 ERP UI 框架（Razor Pages / Blazor / MVC，待 OQ3 確認）；CSS 採 ERP 既有設計系統 + 本文件補強的 Design Token；無額外 SPA bundle。</p>
+<hr>
+<h2 id="document-control">Document Control</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>DOC-ID</strong></td><td>PDD-ERP-API-TOKEN-MANAGER-20260508</td></tr>
+<tr><td><strong>專案名稱</strong></td><td>erp-api-token-manager</td></tr>
+<tr><td><strong>文件版本</strong></td><td>v2.0</td></tr>
+<tr><td><strong>狀態</strong></td><td>DRAFT</td></tr>
+<tr><td><strong>作者（UX / Product Designer）</strong></td><td>AI Generated (gendoc-flow PDD)</td></tr>
+<tr><td><strong>日期</strong></td><td>2026-05-08</td></tr>
+<tr><td><strong>上游 PRD</strong></td><td>PRD.md（DOC-ID：PRD-ERP-API-TOKEN-MANAGER-20260508 v1.0.2）</td></tr>
+<tr><td><strong>上游 BRD</strong></td><td>BRD.md（DOC-ID：BRD-ERP-API-TOKEN-MANAGER-20260426）</td></tr>
+<tr><td><strong>上游 IDEA</strong></td><td>IDEA.md（DOC-ID：IDEA-ERP-API-TOKEN-MANAGER-20260426）</td></tr>
+<tr><td><strong>常數來源</strong></td><td>CONSTANTS.md（DOC-ID：CONSTANTS-ERP-API-TOKEN-MANAGER-20260508）</td></tr>
+<tr><td><strong>下游 EDD</strong></td><td>EDD.md（Tech Spec，待生成）</td></tr>
+<tr><td><strong>設計規格版本</strong></td><td>v2.0（與 PRD v1.0.2、CONSTANTS v1.0 對齊）</td></tr>
+<tr><td><strong>審閱者</strong></td><td>PM（TBD）、Engineering Lead（TBD）、QA Lead（TBD）</td></tr>
+<tr><td><strong>核准者</strong></td><td>Design Lead / IT 部門主管（TBD — POC 完成後提請）</td></tr>
+</table>
+<hr>
+<h2 id="change-log">Change Log</h2>
+<table>
+<tr><th>版本</th><th>日期</th><th>作者</th><th>變更摘要</th></tr>
+<tr><td>v0.1</td><td>2026-04-26</td><td>AI Generated (gendoc-gen-pdd)</td><td>初稿，依 IDEA + BRD + PRD v0.1 生成</td></tr>
+<tr><td>v1.0</td><td>2026-04-28</td><td>AI Review Loop r3</td><td>補強 P03 Modal 離開警告、P07 審計日誌空狀態、§8 ARIA 規格</td></tr>
+<tr><td>v2.0</td><td>2026-05-08</td><td>AI Generated (gendoc-flow PDD)</td><td>完整覆寫 — 對齊 PRD v1.0.2 9 個 User Stories（US-AUTH-001~004 / US-N8N-001 / US-DEMO-001~003 / US-AUDIT-001）；補完 20 章節結構（補：JTBD、Service Blueprint、Motion Design Spec、WCAG 2.1 AA 12 準則矩陣、Dark Mode Token Mapping 13 token、Engineering Handoff Component State Spec、Prototype &amp; Validation Plan、Approval Sign-off）</td></tr>
+</table>
+<hr>
+<h2 id="1-design-brief">1. Design Brief</h2>
+<h3 id="11-設計目標">1.1 設計目標</h3>
+<blockquote><p>本次設計要解決什麼體驗問題？設計完成後用戶會有什麼不同感受？</p></blockquote>
+<p>erp-api-token-manager 模組的設計目標是把「向 IT 開工單等 2-10 工作天才拿到共用帳密」這個體驗，轉換成「ERP 既有頁面內 5 分鐘自助完成 Token 建立、複製到 N8N、API 呼叫成功」的端到端流程。</p>
+<p>設計要解決三個體驗痛點：</p>
+<ol><li><strong>等待感 → 即時感</strong>：把 2-10 工作天的工單等待，壓縮為 ≤ 5 分鐘的自助完成。</li><li><strong>不確定感 → 掌控感</strong>：使用者隨時看得到自己的 Token（前綴、最後使用時間、狀態），IT Admin 隨時可審計。</li><li><strong>誤操作焦慮 → 操作信心</strong>：撤銷 0 秒生效但有二次確認對話框；Token 明文僅一次性顯示但有強警示與「確認已複製」核取框。</li></ol>
+<h3 id="12-prd-需求對應prd-us--pdd-章節--畫面">1.2 PRD 需求對應（PRD US → PDD 章節 / 畫面）</h3>
+<table>
+<tr><th>PRD User Story</th><th>設計回應</th><th>設計章節 / 畫面</th></tr>
+<tr><td>US-AUTH-001：Token 建立（P0）</td><td>自助式建立表單 + 一次性 Token 揭示 Modal</td><td>§4.1, §5.2 P02, §5.3 P03, §6.2 表單驗證, §6.5 複製互動</td></tr>
+<tr><td>US-AUTH-002：Token 列表（P0）</td><td>列表頁 + 空狀態 + 過濾「僅顯示有效」</td><td>§4.1, §5.1 P01, §6.7 空狀態</td></tr>
+<tr><td>US-AUTH-003：Token 撤銷（P0）</td><td>二段確認對話框 + 撤銷後狀態即時更新 + Toast</td><td>§4.1, §5.4 P04, §6.3 Toast</td></tr>
+<tr><td>US-AUTH-004：Bearer Token 驗證（P0，無 UI）</td><td>401 錯誤訊息設計 + N8N 端錯誤回饋</td><td>§4.3, §5.5 P05（指南）, §10 文案</td></tr>
+<tr><td>US-N8N-001：N8N 整合體驗（P0）</td><td>Quick Start 指南頁 + 5 張截圖 + JSON 範本連結</td><td>§4.1, §5.5 P05, §10.2 文案</td></tr>
+<tr><td>US-DEMO-001：銷售示範 API（P0）</td><td>Quick Start 內 API 範例 + P06 Test Console（選填）</td><td>§5.6 P06, §11 設計驗證</td></tr>
+<tr><td>US-DEMO-002：庫存示範 API（P0）</td><td>同上</td><td>§5.6 P06</td></tr>
+<tr><td>US-DEMO-003：訂單示範 API（P0）</td><td>同上</td><td>§5.6 P06</td></tr>
+<tr><td>US-AUDIT-001：審計日誌（P1，MVP 強制）</td><td>IT Admin 專屬頁 + 篩選 + CSV 匯出</td><td>§4.2, §5.7 P07, §6.1 Motion 表格列</td></tr>
+</table>
+<p>P1 設計考量（P0 之外的 Sprint 2 預備）：</p>
+<ul><li>F-TOKEN-EXP（Token 有效期限）：P02 表單預留「有效期限」可選欄位（v2.0 Sprint 2）</li><li>F-DASH（使用量統計）：P01 列表預留「呼叫次數」欄位空間（v2.0 Sprint 2）</li></ul>
+<h3 id="13-設計原則design-principles">1.3 設計原則（Design Principles）</h3>
+<ol><li><strong>Security by UX（安全感即體驗）</strong> — 一次性顯示、明文遮罩、撤銷確認不是負擔，是讓使用者感到「掌控感」的設計語言。</li><li><strong>Self-Service First（自助優先）</strong> — 每個操作步驟都以「不需 IT 介入」為目標設計，核心任務 ≤ 3 步完成。</li><li><strong>Embedded, Not Separate（嵌入而非分離）</strong> — Token 管理頁面融入 ERP 既有導航，不破壞已習慣的操作動線；不引入 ERP 未使用的設計語言。</li><li><strong>Fail Clearly（清晰失敗）</strong> — 錯誤訊息必須告訴使用者「發生了什麼」與「如何修復」，不只是錯誤代碼；繁中為預設語系。</li><li><strong>Accessibility-First（無障礙優先）</strong> — MVP 達 WCAG 2.1 Level A 強制 12 項；Pilot 後達 Level AA；與 §8 規格逐項對應。</li><li><strong>Token Hygiene（Token 衛生）</strong> — 任何頁面、任何狀態都禁止把 Token 明文落到瀏覽器歷史、log、截圖以外的地方；HTTP 層 <code>Cache-Control: no-store</code>。</li></ol>
+<hr>
+<h2 id="2-user-research-summary">2. User Research Summary</h2>
+<h3 id="20-user-personas5-field-卡片">2.0 User Personas（5-field 卡片）</h3>
+<h4 id="persona-a陳立明--erp-it-admin">Persona A：陳立明 — ERP IT Admin</h4>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>姓名</strong></td><td>陳立明（38 歲）</td></tr>
+<tr><td><strong>職業 / 年齡</strong></td><td>中小型製造業 IT 部門主管／系統管理員（員工 80 人）｜ 38 歲</td></tr>
+<tr><td><strong>技術熟悉度</strong></td><td>進階（5/5；熟 .NET、SQL、HTTP、N8N、PowerShell）</td></tr>
+<tr><td><strong>使用情境</strong></td><td>每週 1–2 次撤銷／建立 Token；每月 1 次稽核；遇到外洩事件時需在 1 分鐘內找到責任人</td></tr>
+<tr><td><strong>核心目標</strong></td><td>（1）把自己從「填申請單」工作中解放；（2）對 ERP API 安全有可視化掌控；（3）通過外部資安稽核</td></tr>
+<tr><td><strong>主要痛點</strong></td><td>每月 8-15 件整合憑證工單；共用帳密外洩無法快速止血；缺審計日誌難以回應合規問題</td></tr>
+<tr><td><strong>成功時感受</strong></td><td>「我不再被工單追著跑；當 Token 出狀況，我能在一分鐘內找出是誰建立、誰撤銷、誰用過。」</td></tr>
+<tr><td><strong>代表引言</strong></td><td>「以前我是 IT 工單的奴隸，現在我是 Token 的觀察者。」</td></tr>
+</table>
+<h4 id="persona-b張小明--erp-業務使用者--n8n-工作流設計師">Persona B：張小明 — ERP 業務使用者 / N8N 工作流設計師</h4>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>姓名</strong></td><td>張小明（32 歲）</td></tr>
+<tr><td><strong>職業 / 年齡</strong></td><td>業務分析師，負責每日從 ERP 拉銷售數據並彙整推送至 BI ｜ 32 歲</td></tr>
+<tr><td><strong>技術熟悉度</strong></td><td>中（3/5；會用 N8N、知道 Bearer Token 概念，但無 .NET 開發能力）</td></tr>
+<tr><td><strong>使用情境</strong></td><td>每月 1-3 次建立 Token；N8N 每日呼叫 ERP API 數百次</td></tr>
+<tr><td><strong>核心目標</strong></td><td>（1）5 分鐘內自助完成 Token 建立並貼到 N8N；（2）一個工作流一個 Token，便於追蹤；（3）Token 失效時 N8N 立即提示而非靜默失敗</td></tr>
+<tr><td><strong>主要痛點</strong></td><td>等 IT 要 2-10 工作天，業務節奏停滯；IT 給的共用帳密改密碼時 N8N 工作流全部炸掉；不知道現在哪些 Token 還活著</td></tr>
+<tr><td><strong>成功時感受</strong></td><td>「我自己 5 分鐘搞定，IT 不打擾我，N8N 也不會半夜靜默失敗。」</td></tr>
+<tr><td><strong>代表引言</strong></td><td>「以前我寫一封 IT 工單要 30 分鐘，現在我建一個 Token 只要 30 秒。」</td></tr>
+</table>
+<h4 id="persona-c王小華--n8n-工作流操作員it-部門-junior">Persona C：王小華 — N8N 工作流操作員（IT 部門 Junior）</h4>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>姓名</strong></td><td>王小華（26 歲）</td></tr>
+<tr><td><strong>職業 / 年齡</strong></td><td>IT 部門 Junior，協助業務部門維護 N8N 工作流 ｜ 26 歲</td></tr>
+<tr><td><strong>技術熟悉度</strong></td><td>中（3/5；N8N、HTTP）</td></tr>
+<tr><td><strong>使用情境</strong></td><td>每日建立／修改 N8N 工作流；偶爾接手錯誤排查</td></tr>
+<tr><td><strong>核心目標</strong></td><td>（1）正確設定 N8N HTTP Request 節點 Bearer Token；（2）工作流靜默失敗時能快速找出原因</td></tr>
+<tr><td><strong>主要痛點</strong></td><td>Bearer Token 失效時 N8N 顯示通用錯誤難以排查；不確定哪個工作流用哪個 Token</td></tr>
+<tr><td><strong>成功時感受</strong></td><td>「N8N 工作流失敗時，錯誤訊息直接告訴我『Token 已撤銷或無效』。」</td></tr>
+<tr><td><strong>代表引言</strong></td><td>「我不要看一堆 stack trace，我只要知道是不是 Token 過期了。」</td></tr>
+</table>
+<h3 id="21-研究方法">2.1 研究方法</h3>
+<table>
+<tr><th>方法</th><th>樣本數</th><th>日期</th><th>關鍵發現</th></tr>
+<tr><td>使用者訪談（IT Admin + 業務）</td><td>3 人</td><td>2026-04-15~22</td><td>IT Admin 不只要管理介面，更需要「快速找出哪個 Token 出事」的稽核能力</td></tr>
+<tr><td>競品體驗分析（GitHub PAT、Stripe API Keys、AWS IAM）</td><td>3 個</td><td>2026-04-18</td><td>一次性顯示 + 前綴遮罩是業界共識；Stripe 的「Token 使用統計」是 v2.0 機會</td></tr>
+<tr><td>數據分析（IT 工單 history）</td><td>6 個月</td><td>2026-04-10</td><td>月平均 8-15 件整合憑證類工單，符合 BRD 推估</td></tr>
+<tr><td>競品 N8N HTTP Request 節點 UX 觀察</td><td>N8N v1.20</td><td>2026-04-20</td><td>Bearer Token 失敗時 N8N 預設錯誤太通用，必須讓 ERP 端的 401 body 有可讀文案</td></tr>
+</table>
+<h3 id="22-用戶心智模型">2.2 用戶心智模型</h3>
+<blockquote><p>用戶期待這個功能的運作方式是：「跟 GitHub PAT / Stripe API Key 一樣 — 我自己建、我自己用、我自己撤銷，一鍵搞定。」</p></blockquote>
+<p>&gt;</p>
+<blockquote><p>現有設計造成的誤解：使用者以為「ERP API = ERP 帳密」，把 ERP 登入帳密直接貼進 N8N。</p></blockquote>
+<p>&gt;</p>
+<blockquote><p>本次設計如何對齊用戶心智模型：用「Token = 機器專用憑證」的語意取代「帳號密碼」；前綴可見性讓使用者建立「Token = 物件」的認知。</p></blockquote>
+<h3 id="23-關鍵-insight設計決策的依據">2.3 關鍵 Insight（設計決策的依據）</h3>
+<table>
+<tr><th>#</th><th>Insight</th><th>來源</th><th>設計影響</th></tr>
+<tr><td>I-1</td><td>IT Admin 最焦慮的是「外洩後找不到責任人」</td><td>訪談 Persona A</td><td>§5.7 P07 審計日誌設計（觸發 §13 §13.2 stateDiagram for Audit Log Page）</td></tr>
+<tr><td>I-2</td><td>業務使用者第一次建 Token 的 30 秒會猶豫「描述要寫什麼」</td><td>Usability Test 競品</td><td>§5.2 P02 表單加 placeholder「N8N 銷售報表工作流」+ helper text（觸發 §10.2 文案決策）</td></tr>
+<tr><td>I-3</td><td>N8N 操作員不會主動讀 Quick Start 指南，會直接複製貼上</td><td>訪談 Persona C</td><td>§5.3 P03「查看 N8N 設定說明」按鈕一鍵跳指南，且 §5.5 P05 用步驟編號明顯化</td></tr>
+<tr><td>I-4</td><td>使用者會在 Modal 開啟時不小心按 Esc 關掉 → 失去 Token</td><td>競品反饋</td><td>§6.4 P03 採「確認核取框 + 退出警告」雙保險</td></tr>
+</table>
+<h3 id="24-user-journey-mapn8n-操作員首次完成-erp-api-整合">2.4 User Journey Map：N8N 操作員「首次完成 ERP API 整合」</h3>
+<table>
+<tr><th>階段</th><th>觸達</th><th>探索</th><th>使用</th><th>達成目標</th><th>回訪</th></tr>
+<tr><td><strong>用戶行動</strong></td><td>收到主管交付「把昨日銷售推到 BI」需求</td><td>上 ERP，發現「API Token 管理」新選單</td><td>點擊建立、複製 Token、貼到 N8N</td><td>N8N 工作流跑出 200 + 銷售 JSON</td><td>隔月回 ERP 撤銷舊 Token、建新工作流</td></tr>
+<tr><td><strong>想法</strong></td><td>「這次又要等 IT 兩週嗎？」</td><td>「咦？居然有自助頁面？」</td><td>「Token 只顯示一次？要小心」</td><td>「30 分鐘真的搞定了」</td><td>「我已經是熟手」</td></tr>
+<tr><td><strong>情緒</strong></td><td>😟 擔憂</td><td>😐 中性偏好奇</td><td>😊 滿意（有掌控感）</td><td>😁 開心</td><td>😊 滿意</td></tr>
+<tr><td><strong>痛點</strong></td><td>預期等 2-10 工作天</td><td>不確定要不要先看 N8N 指南</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td><strong>機會點</strong></td><td>ERP 首頁可放「自助工具」入口</td><td>Empty State 提供「建第一個 Token」+「N8N 指南」雙 CTA</td><td>一次性 Modal 加入「查看 N8N 設定說明」按鈕</td><td>—</td><td>—</td></tr>
+<tr><td><strong>接觸點</strong></td><td>Email/IM 主管交辦</td><td>ERP 主導航/帳號設定</td><td>P02/P03 Modal、剪貼簿、N8N HTTP Request 節點</td><td>N8N 成功節點、業務 BI 報表</td><td>ERP P01 列表、撤銷 Toast</td></tr>
+</table>
+<blockquote><p><strong>Persona：</strong> 張小明（Persona B）｜ <strong>目標：</strong> 30 分鐘內完成 N8N + ERP API 整合 ｜ <strong>情境：</strong> 月初被交付新 BI 報表需求</p></blockquote>
+<h3 id="25-jobs-to-be-done-jtbd">2.5 Jobs to Be Done (JTBD)</h3>
+<p><strong>核心 Job Statement：</strong></p>
+<blockquote><p>當 [ERP 業務／N8N 操作員需要在新工作流中呼叫 ERP API] 時，</p></blockquote>
+<blockquote><p>我希望能 [自助、5 分鐘內、不打擾 IT 拿到並配置 Bearer Token]，</p></blockquote>
+<blockquote><p>讓我能夠 [專注於業務邏輯而非身分驗證的等待與排錯]。</p></blockquote>
+<table>
+<tr><th>Job Type</th><th>Job Statement</th><th>現有解法（競品）</th><th>不滿意程度（1-5）</th></tr>
+<tr><td>Functional</td><td>在 5 分鐘內完成 Token 建立 + 複製 + N8N 配置 + API 呼叫成功</td><td>IT 工單發共用帳密（2-10 工作天）</td><td>5（極不滿意）</td></tr>
+<tr><td>Emotional</td><td>對自己的 Token 有「掌控感」、出事時不用慌（撤銷 0 秒生效）</td><td>帳密外洩無法快速止血</td><td>4</td></tr>
+<tr><td>Social</td><td>對主管／業務同事展現「我自己搞定，不靠 IT」的專業感</td><td>共用帳密下「我跟同事用同一條密碼」缺乏專業形象</td><td>3</td></tr>
+</table>
+<blockquote><p><strong>評分說明：</strong> 1 = 完全滿意，5 = 非常不滿意（代表高設計機會）</p></blockquote>
+<h3 id="26-service-blueprint5-層視角">2.6 Service Blueprint（5 層視角）</h3>
+<table>
+<tr><th>行動類型</th><th>進入系統（觸達 + 探索）</th><th>核心功能使用（建立 + 配置）</th><th>完成任務（首次 200 + 後續維運）</th></tr>
+<tr><td><strong>用戶行動</strong></td><td>登入 ERP、進入「API Token 管理」</td><td>點擊建立、輸入描述、複製明文、貼到 N8N、設定 HTTP Request 節點</td><td>N8N 拿到 200；隔月撤銷舊 Token；IT Admin 月稽核審計日誌</td></tr>
+<tr><td>— 可視線（Line of Interaction）—</td><td></td><td></td><td></td></tr>
+<tr><td><strong>前台 UI</strong></td><td>ERP 主導航、帳號設定子選單、P01 列表（含空狀態）</td><td>P02 建立表單、P03 一次性 Modal、N8N 指南頁（P05）</td><td>N8N 成功節點 UI、P04 撤銷對話框 + Toast、P07 審計日誌頁</td></tr>
+<tr><td>— 可見線（Line of Visibility）—</td><td></td><td></td><td></td></tr>
+<tr><td><strong>後台流程</strong></td><td>ERP Session 驗證、RBAC 路由守衛</td><td>API Token Service：產生 32-byte 亂數 → SHA-256 → DB Insert + Audit Log（同交易）</td><td>Bearer Token Middleware（每次呼叫即時查 DB，0 秒撤銷生效）；CSV 匯出（streaming）</td></tr>
+<tr><td>— 內部互動線（Line of Internal Interaction）—</td><td></td><td></td><td></td></tr>
+<tr><td><strong>支援系統</strong></td><td>既有 ERP <code>users</code> 表、Razor View Engine</td><td><code>RandomNumberGenerator</code> / <code>SHA256</code> / <code>FixedTimeEquals</code>、ApiTokens 表、TokenAuditLogs 表</td><td>OpenTelemetry Trace、APM Histogram、Rate Limit（同 IP 60 次/分鐘）</td></tr>
+<tr><td><strong>實體證據</strong></td><td>URL <code>/settings/api-tokens</code>、書籤</td><td>剪貼簿明文 Token、N8N Credential 條目</td><td>N8N 工作流綠燈、CSV 檔案、Slack 告警（外洩偵測）</td></tr>
+</table>
+<hr>
+<h2 id="3-information-architecture-ia">3. Information Architecture (IA)</h2>
+<h3 id="31-頁面--畫面結構sitemap">3.1 頁面 / 畫面結構（Sitemap）</h3>
+<div class="diagram-container"><pre class="mermaid">graph TD
+    Root[&quot;ERP（既有）&quot;]
+    Root --&gt; Biz[&quot;業務模組（既有）&quot;]
+    Root --&gt; Reports[&quot;報表中心（既有）&quot;]
+    Root --&gt; Settings[&quot;系統設定（既有）&quot;]
+    Root --&gt; AdminArea[&quot;管理（既有，is_superuser）&quot;]
+
+    Settings --&gt; AccountMgmt[&quot;帳號管理（既有）&quot;]
+    AccountMgmt --&gt; P01[&quot;P01 API Token 管理（NEW）&quot;]
+    P01 --&gt; P02[&quot;P02 建立 Token Modal&quot;]
+    P02 --&gt; P03[&quot;P03 一次性 Token 揭示 Modal&quot;]
+    P01 --&gt; P04[&quot;P04 撤銷確認對話框&quot;]
+    P01 --&gt; P05[&quot;P05 N8N 設定指南&quot;]
+    P05 --&gt; P06[&quot;P06 POC API Test Console（選填）&quot;]
+
+    AdminArea --&gt; P07[&quot;P07 Token 審計日誌（is_superuser=true）&quot;]
+    P07 -.-&gt; CSVExport[&quot;CSV 匯出&quot;]</pre></div>
+<h3 id="32-導覽結構">3.2 導覽結構</h3>
+<table>
+<tr><th>層級</th><th>導覽方式</th><th>入口位置</th></tr>
+<tr><td>主導覽</td><td>沿用既有 ERP Top Nav / Side Nav（不另建）</td><td>ERP 框架</td></tr>
+<tr><td>次導覽</td><td>「系統設定 &gt; 帳號管理 &gt; API Token 管理」（一般使用者）</td><td>側欄</td></tr>
+<tr><td>管理導覽</td><td>「管理 &gt; Token 審計日誌」（<code>is_superuser=true</code> 才顯示）</td><td>側欄條件渲染</td></tr>
+<tr><td>情境導覽</td><td>P03 Modal 內「查看 N8N 設定說明」一鍵跳 P05；P01 空狀態雙 CTA「建立 Token」+「N8N 指南」</td><td>頁面內</td></tr>
+</table>
+<h3 id="33-內容優先順序f-pattern--z-pattern">3.3 內容優先順序（F-Pattern / Z-Pattern）</h3>
+<table>
+<tr><th>頁面</th><th>最重要（First Fixation）</th><th>次要</th><th>輔助</th></tr>
+<tr><td>P01 列表</td><td>右上角「建立 Token」CTA + 列表第一筆狀態 Badge</td><td>描述、最後使用時間</td><td>前綴、建立時間</td></tr>
+<tr><td>P02 建立表單</td><td>描述輸入欄（自動 focus）</td><td>字元計數 + helper text</td><td>placeholder 範例</td></tr>
+<tr><td>P03 一次性 Modal</td><td>警告橫幅 + Token 明文區 + 複製按鈕</td><td>「確認已複製」核取框</td><td>「N8N 設定說明」次要連結</td></tr>
+<tr><td>P04 撤銷對話框</td><td>警告圖示 + Token 描述（讓使用者再確認）</td><td>「將立即 401」說明文字</td><td>Token 前綴、建立時間</td></tr>
+<tr><td>P07 審計日誌</td><td>篩選器（時間範圍 + 操作類型）</td><td>表格主體</td><td>CSV 匯出按鈕</td></tr>
+</table>
+<hr>
+<h2 id="4-user-flows">4. User Flows</h2>
+<h3 id="41-主流程n8n-整合首次端對端happy-path">4.1 主流程：N8N 整合首次端對端（Happy Path）</h3>
+<p>對應 PRD US-AUTH-001 + US-N8N-001 + US-DEMO-001。</p>
+<div class="diagram-container"><pre class="mermaid">flowchart TD
+    Start((N8N 操作員需要呼叫 ERP API)) --&gt; A[ERP 登入]
+    A --&gt; B[進入 P01 Token 管理頁]
+    B --&gt; C{有無 Token？}
+    C --&gt;|無| D[空狀態 + 雙 CTA]
+    C --&gt;|有| E[列表頁]
+    D --&gt; F[點擊建立 Token]
+    E --&gt; F
+    F --&gt; G[P02 Modal 開啟&lt;br/&gt;focus 至描述欄]
+    G --&gt; H[輸入描述&lt;br/&gt;例 N8N 銷售報表]
+    H --&gt; I[點擊建立 Token]
+    I --&gt; J{驗證}
+    J --&gt;|&quot;描述空 / &gt;100 字&quot;| H
+    J --&gt;|通過| K[後端 32-byte 亂數&lt;br/&gt;SHA-256 + Audit Log]
+    K --&gt; L[P03 一次性 Modal&lt;br/&gt;顯示明文 + 警告]
+    L --&gt; M[點擊複製 Token]
+    M --&gt; N[勾選 已複製]
+    N --&gt; O[點擊查看 N8N 設定說明]
+    O --&gt; P[P05 N8N Quick Start 指南]
+    P --&gt; Q[N8N 設定 Header Auth Credential]
+    Q --&gt; R[配置 HTTP Request 節點 + URL]
+    R --&gt; S[Test Step 呼叫 ERP API]
+    S --&gt; T((200 + 業務資料 / 完成首次端對端))</pre></div>
+<p><strong>任務完成時間目標：</strong> ≤ 30 分鐘（PRD §5.5 AC-1）；其中 ERP 內 ≤ 5 分鐘（PRD §5.1）。</p>
+<h3 id="42-替代流程it-admin-月稽核us-audit-001">4.2 替代流程：IT Admin 月稽核（US-AUDIT-001）</h3>
+<div class="diagram-container"><pre class="mermaid">flowchart TD
+    Start((IT Admin 收到資安稽核要求)) --&gt; A[ERP 登入]
+    A --&gt; B{is_superuser?}
+    B --&gt;|False| Z[403 + 返回 P01]
+    B --&gt;|True| C[側欄「Token 審計日誌」可見]
+    C --&gt; D[P07 審計日誌頁]
+    D --&gt; E[預設過去 90 天事件]
+    E --&gt; F[篩選 時間範圍 + 操作類型 + 操作人]
+    F --&gt; G{筆數}
+    G --&gt;|0 筆| H[空狀態 重設篩選 / 引導]
+    G --&gt;|有筆數| I[列表分頁顯示]
+    I --&gt; J[點擊匯出 CSV]
+    J --&gt; K[下載 CSV UTF-8 BOM 最多 10000 筆]
+    K --&gt; End((完成稽核 / 提交報告))</pre></div>
+<h3 id="43-錯誤流程n8n-收到-401token-已撤銷">4.3 錯誤流程：N8N 收到 401（Token 已撤銷）</h3>
+<div class="diagram-container"><pre class="mermaid">flowchart TD
+    A[N8N 工作流定時執行] --&gt; B[帶 Bearer Token 呼叫 ERP API]
+    B --&gt; C{ERP 中介層驗證}
+    C --&gt;|Header 缺失| D[401 token_missing&lt;br/&gt;請在 Authorization Header 提供 Bearer Token]
+    C --&gt;|格式錯| E[401 token_format_invalid]
+    C --&gt;|查 DB| F{Token 狀態}
+    F --&gt;|不存在| G[401 token_invalid&lt;br/&gt;Token 無效]
+    F --&gt;|已撤銷| H[401 token_revoked&lt;br/&gt;Token 已撤銷或無效]
+    F --&gt;|active| I[200 + 業務資料]
+    D --&gt; J[N8N 節點紅燈]
+    E --&gt; J
+    G --&gt; J
+    H --&gt; J
+    J --&gt; K[N8N Error Workflow 通知]
+    K --&gt; L[操作員回 ERP P01 建新 Token]
+    L --&gt; M[N8N 更新 Credential]
+    M --&gt; N((恢復運作))
+
+    B --&gt; O{&quot;IP 1 分鐘超過 60 次 401？&quot;}
+    O --&gt;|是| P[429 too_many_failed_auth&lt;br/&gt;等候 60 秒]
+    P --&gt; Q[60 秒後重試]</pre></div>
+<h3 id="44-狀態機token-lifecycle">4.4 狀態機：Token Lifecycle</h3>
+<div class="diagram-container"><pre class="mermaid">stateDiagram-v2
+    [*] --&gt; Active: POST /api/v1/me/tokens（建立）
+    Active --&gt; Active: 驗證成功 / 更新 last_used_at（throttle 1s）
+    Active --&gt; Revoked: PATCH /api/v1/me/tokens/{tokenId}/revoke
+    Active --&gt; Revoked: 帳號刪除聯動撤銷
+    Revoked --&gt; [*]: 軟刪除保留 90 天後硬刪
+
+    note right of Active
+      token_hash 存於 DB
+      last_used_at 即時 throttle 寫入
+      撤銷生效延遲 0 秒
+    end note
+    note right of Revoked
+      revoked_at 時間戳寫入
+      下次驗證即時回 401 token_revoked
+      已撤銷不可重新啟用
+    end note</pre></div>
+<hr>
+<h2 id="5-screen-specifications">5. Screen Specifications</h2>
+<h3 id="51-p01token-管理主頁列表">5.1 P01：Token 管理主頁（列表）</h3>
+<p><strong>用途：</strong> 自助管理個人 Token；對應 PRD US-AUTH-002（列表）+ US-AUTH-003（撤銷入口）。</p>
+<p><strong>進入方式：</strong> ERP 側欄「系統設定 &gt; 帳號管理 &gt; API Token 管理」；URL <code>/settings/api-tokens</code>。</p>
+<p><strong>Layout 結構：</strong></p>
+<div class="diagram-container diagram-container--umock"><div class="umock umock__page"><div class="umock__navbar"><span class="umock__logo">ERP Top Nav                                          [使用者頭像]</span></div><div class="umock__sidenav"><div class="umock__item">ERP Side</div><div class="umock__item">Nav</div></div><div class="umock__text">Header：API Token 管理</div><div class="umock__text">Subtitle：管理您的 API Token，用於 N8N 工作流整合</div><div class="umock__actions"><button type="button" tabindex="-1" class="umock__btn umock__btn--primary">+ 建立 Token</button></div><div class="umock__text">Filter Bar：[全部 | 僅顯示有效] | 搜尋描述關鍵字…</div><table class="umock__table"><thead><tr><th>Table Header：描述</th><th>前綴</th><th>建立時間</th><th>最後使用</th><th>狀態</th><th>操作</th></tr></thead><tbody><tr><td>Row 1：N8N 銷售報表</td><td>tk_a3f9...</td><td>2026-05-08 10:00</td><td>2026-05-08 14:30</td><td>●Active</td><td>[撤銷]</td></tr><tr><td>Row 2：庫存監控</td><td>tk_b7c2...</td><td>2026-04-28 09:00</td><td>從未使用</td><td>●Active</td><td>[撤銷]</td></tr><tr><td>Row 3：舊版訂單</td><td>tk_d1e4...</td><td>2026-03-15 16:00</td><td>2026-04-10 08:15</td><td>○Revoked</td><td>—</td></tr></tbody></table><div class="umock__text">顯示 1-3 筆，共 3 筆                       [&lt; 1 / 1 &gt;]</div></div></div>
+<p><strong>元件清單：</strong></p>
+<table>
+<tr><th>元件</th><th>類型</th><th>狀態</th><th>說明</th></tr>
+<tr><td><code>CreateTokenButton</code></td><td>Button / Primary</td><td>Default / Hover / Focus / Active / Disabled / Loading</td><td>開啟 P02 Modal；達 50 個有效 Token 時 Disabled + Tooltip</td></tr>
+<tr><td><code>TokenStatusFilter</code></td><td>SegmentedControl</td><td>Default / Selected</td><td>切換「全部 / 僅有效」，URL Query 同步 <code>?status=active</code></td></tr>
+<tr><td><code>SearchInput</code></td><td>Input / Text</td><td>Empty / Focused / Filled / Disabled</td><td>描述關鍵字過濾，debounce 300ms</td></tr>
+<tr><td><code>TokenListTable</code></td><td>Table</td><td>Empty / Loading（Skeleton）/ Loaded / Error</td><td>desktop 完整欄位；&lt; 768px 改卡片式</td></tr>
+<tr><td><code>RevokeButton</code></td><td>Button / Danger</td><td>Default / Hover / Focus / Disabled / Loading</td><td>點擊開啟 P04；Revoked 列不顯示</td></tr>
+<tr><td><code>TokenStatusBadge</code></td><td>Badge</td><td>Active（綠）/ Revoked（灰）</td><td>含 <code>aria-label</code></td></tr>
+<tr><td><code>Pagination</code></td><td>Nav</td><td>Default / Disabled</td><td>50 筆內不顯示，超過分頁（每頁 20 筆）</td></tr>
+</table>
+<p><strong>互動規格：</strong></p>
+<table>
+<tr><th>觸發</th><th>動作</th><th>動畫 / 效果</th><th>持續時間</th></tr>
+<tr><td>點擊 [+ 建立 Token]</td><td>開啟 P02 Modal</td><td>Fade + Scale 0.95→1.0</td><td>300ms（cubic-bezier(0.4, 0, 0.2, 1)）</td></tr>
+<tr><td>點擊行末 [撤銷]</td><td>開啟 P04 對話框</td><td>Fade + Scale</td><td>250ms</td></tr>
+<tr><td>鼠標 hover Token 行</td><td>行底 1px primary 強調線</td><td>Background tint</td><td>150ms</td></tr>
+<tr><td>切換 Filter</td><td>URL 同步 + 列表 fade-in</td><td>Opacity 0→1</td><td>200ms</td></tr>
+<tr><td>搜尋 input 500ms 無輸入</td><td>觸發查詢</td><td>Skeleton 替換</td><td>取決於 API</td></tr>
+</table>
+<h3 id="52-p02建立-token-modalform">5.2 P02：建立 Token Modal（Form）</h3>
+<p><strong>用途：</strong> PRD US-AUTH-001 — 表單填寫 + 提交。</p>
+<p><strong>Layout 結構：</strong></p>
+<div class="diagram-container diagram-container--umock"><div class="umock umock__modal"><div class="umock__modal-titlebar"><span class="umock__modal-title">◉ 建立 API Token</span><span class="umock__modal-close" aria-hidden="true">×</span></div><div class="umock__modal-body"><div class="umock__field"><label class="umock__field-label">Token 描述 <span class="umock__field-required" aria-label="required">*</span></label><div class="umock__field-body"><input class="umock__input" type="text" placeholder="N8N 銷售報表工作流" tabindex="-1" readonly></div></div><div class="umock__hint">說明此 Token 的用途，方便日後識別</div><div class="umock__text">18 / 100</div><div class="umock__info">建議每個 N8N 工作流使用獨立 Token，便於</div><div class="umock__text">個別撤銷管理。</div><div class="umock__actions"><button type="button" tabindex="-1" class="umock__btn umock__btn--default">取消</button><button type="button" tabindex="-1" class="umock__btn umock__btn--primary">建立 Token</button></div></div></div></div>
+<p><strong>元件清單：</strong></p>
+<table>
+<tr><th>元件</th><th>類型</th><th>狀態</th><th>說明</th></tr>
+<tr><td><code>DescriptionInput</code></td><td>Input / Text</td><td>Empty / Focused / Filled / Error / Disabled</td><td>maxLength=100；空值或 &gt;100 字觸發 Inline Error</td></tr>
+<tr><td><code>CharCounter</code></td><td>Helper</td><td>Default / Warning（&gt;90）/ Error（&gt;100）</td><td>即時計數，超過 100 變紅</td></tr>
+<tr><td><code>CancelButton</code></td><td>Button / Secondary</td><td>Default / Hover / Focus</td><td>關閉 Modal；Esc 等效</td></tr>
+<tr><td><code>SubmitButton</code></td><td>Button / Primary</td><td>Default / Hover / Focus / Active / Disabled / Loading</td><td>描述空時 Disabled；提交中 Loading + spinner</td></tr>
+</table>
+<p><strong>互動規格：</strong></p>
+<table>
+<tr><th>觸發</th><th>動作</th><th>動畫</th><th>持續時間</th></tr>
+<tr><td>Modal 開啟</td><td>focus 至描述欄</td><td>Fade + Scale 0.95→1.0</td><td>300ms</td></tr>
+<tr><td>描述輸入</td><td>即時字元計數</td><td>counter 顏色漸變</td><td>150ms</td></tr>
+<tr><td>提交按鈕 click</td><td>立即 disable + spinner</td><td>Spin loop</td><td>直到 API 完成</td></tr>
+<tr><td>提交成功</td><td>P02 收起、P03 開啟</td><td>連續 Fade transition</td><td>共 500ms</td></tr>
+<tr><td>Esc 鍵</td><td>關閉 Modal（同 Cancel）</td><td>Fade out</td><td>200ms</td></tr>
+</table>
+<h3 id="53-p03一次性-token-揭示-modalreveal">5.3 P03：一次性 Token 揭示 Modal（Reveal）</h3>
+<p><strong>用途：</strong> PRD US-AUTH-001 AC-1 + AC-4 + AC-6 — 明文僅顯示一次。</p>
+<p><strong>Layout 結構：</strong></p>
+<div class="diagram-container diagram-container--umock"><div class="umock umock__modal"><div class="umock__modal-titlebar"><span class="umock__modal-title">✓ Token 建立成功</span><span class="umock__modal-close" aria-hidden="true">×</span></div><div class="umock__modal-body"><div class="umock__text">⚠ 請立即複製此 Token</div><div class="umock__text">Token 明文僅顯示一次，關閉後將無法再取得。</div><div class="umock__field"><label class="umock__field-label">您的 API Token：</label><div class="umock__field-body"><input class="umock__input" type="text" placeholder="tk_a3f9b1c2d4e5f6g7h8i9j0...（等寬可選取）" tabindex="-1" readonly></div></div><div class="umock__text">[ 複製 Token ]（點擊後 ✓ 已複製！）</div><div class="umock__text">☐ 我已複製並妥善保存此 Token</div><div class="umock__actions"><button type="button" tabindex="-1" class="umock__btn umock__btn--default">查看 N8N 設定說明</button><button type="button" tabindex="-1" class="umock__btn umock__btn--default">關閉（disabled 直到勾選）</button></div></div></div></div>
+<p><strong>元件清單：</strong></p>
+<table>
+<tr><th>元件</th><th>類型</th><th>狀態</th><th>說明</th></tr>
+<tr><td><code>WarningBanner</code></td><td>Banner / Warning</td><td>Default</td><td>橘黃底；<code>role=&quot;alert&quot;</code></td></tr>
+<tr><td><code>TokenRevealText</code></td><td>Code / Mono</td><td>Default / Selected</td><td><code>aria-label=&quot;API Token 明文，請立即複製&quot;</code></td></tr>
+<tr><td><code>CopyButton</code></td><td>Button / Primary</td><td>Default / Copied（3s）/ Failed</td><td><code>navigator.clipboard.writeText</code>；失敗顯示降級提示</td></tr>
+<tr><td><code>CopyConfirmCheckbox</code></td><td>Checkbox</td><td>Unchecked / Checked / Focus</td><td>勾選後 Close 才可用</td></tr>
+<tr><td><code>N8NGuideButton</code></td><td>Button / Secondary</td><td>Default / Hover / Focus</td><td>跳至 P05 N8N 指南頁</td></tr>
+<tr><td><code>CloseButton</code></td><td>Button</td><td>Default / Disabled / Hover / Focus</td><td>未勾選時 Disabled，且 X 點擊顯示退出警告</td></tr>
+</table>
+<p><strong>互動規格：</strong></p>
+<table>
+<tr><th>觸發</th><th>動作</th><th>動畫 / 效果</th><th>持續時間</th></tr>
+<tr><td>Modal 開啟</td><td><code>aria-live=&quot;assertive&quot;</code> 播報「重要提示：此 Token 僅顯示一次，請立即複製」</td><td>Fade + Scale</td><td>300ms</td></tr>
+<tr><td>點擊 [複製 Token]</td><td>Clipboard API + 按鈕變「✓ 已複製！」 + <code>aria-live=&quot;polite&quot;</code> 通知</td><td>顏色漸變 + Checkmark draw-on</td><td>200ms（→ 3s 後復原）</td></tr>
+<tr><td>勾選 [我已複製]</td><td>Close 按鈕從 Disabled → Active</td><td>Cursor 變 pointer</td><td>即時</td></tr>
+<tr><td>點擊 [X] / Esc / 點擊遮罩（未勾選）</td><td>顯示退出警告：「您確定要離開嗎？此 Token 明文將無法再次取得」</td><td>二級對話框 fade-in</td><td>200ms</td></tr>
+<tr><td>點擊 [關閉]</td><td>Modal 收起 + 列表新增該 Token</td><td>Fade out + 列表新行 highlight 1.5s</td><td>共 500ms</td></tr>
+</table>
+<h3 id="54-p04撤銷確認對話框">5.4 P04：撤銷確認對話框</h3>
+<p><strong>用途：</strong> PRD US-AUTH-003 AC-1 — 二次確認，避免誤撤銷。</p>
+<p><strong>Layout 結構：</strong></p>
+<div class="diagram-container diagram-container--umock"><div class="umock umock__modal"><div class="umock__modal-titlebar"><span class="umock__modal-title">⚠ 確認撤銷 Token</span><span class="umock__modal-close" aria-hidden="true">×</span></div><div class="umock__modal-body"><div class="umock__text">您即將撤銷以下 Token：</div><div class="umock__text">描述：N8N 銷售報表工作流</div><div class="umock__text">前綴：tk_a3f9...</div><div class="umock__text">建立於：2026-05-08 10:00</div><div class="umock__text">撤銷後，使用此 Token 的工作流將立即失效。</div><div class="umock__text">此操作無法復原。</div><div class="umock__actions"><button type="button" tabindex="-1" class="umock__btn umock__btn--default">取消</button><button type="button" tabindex="-1" class="umock__btn umock__btn--danger">確認撤銷</button></div></div></div></div>
+<p><strong>元件清單：</strong></p>
+<table>
+<tr><th>元件</th><th>類型</th><th>狀態</th><th>說明</th></tr>
+<tr><td><code>WarningIcon</code></td><td>Icon</td><td>Default</td><td><code>aria-hidden=&quot;true&quot;</code>（裝飾性）</td></tr>
+<tr><td><code>TokenInfoBlock</code></td><td>Definition List</td><td>Default</td><td>描述、前綴、建立時間，協助確認</td></tr>
+<tr><td><code>CancelButton</code></td><td>Button / Secondary</td><td>Default / Hover / Focus</td><td>預設 focus（避免誤點 Danger）</td></tr>
+<tr><td><code>ConfirmRevokeButton</code></td><td>Button / Danger</td><td>Default / Hover / Focus / Active / Loading</td><td>點擊 → Loading → API 200 → 關閉 + Toast</td></tr>
+</table>
+<p><strong>互動規格：</strong></p>
+<table>
+<tr><th>觸發</th><th>動作</th><th>動畫</th><th>持續時間</th></tr>
+<tr><td>對話框開啟</td><td>focus → [取消]；<code>role=&quot;alertdialog&quot;</code></td><td>Fade + Scale</td><td>250ms</td></tr>
+<tr><td>點擊 [確認撤銷]</td><td>按鈕 Loading + spinner</td><td>Spin loop</td><td>直到 API 完成</td></tr>
+<tr><td>API 200</td><td>對話框關閉 + Toast「Token 已成功撤銷」 + 列表狀態 Badge 變 Revoked</td><td>Fade out + Toast slide-in from right</td><td>共 600ms</td></tr>
+<tr><td>Esc</td><td>等同取消</td><td>Fade out</td><td>200ms</td></tr>
+<tr><td>遮罩點擊</td><td>禁止關閉（防誤觸破壞性操作）</td><td>遮罩抖動 200ms 提示</td><td>200ms</td></tr>
+</table>
+<h3 id="55-p05n8n-quick-start-指南頁">5.5 P05：N8N Quick Start 指南頁</h3>
+<p><strong>用途：</strong> PRD US-N8N-001 AC-2/AC-4 — 5 張截圖 + JSON 範本指引。</p>
+<p><strong>Layout 結構（垂直步驟 Wizard）：</strong></p>
+<div class="diagram-container diagram-container--umock"><div class="umock__card"><div class="umock__card-title">📚 N8N 整合 Quick Start （3 步驟，預計 30 分鐘）</div><div class="umock__text">Step 1：在 ERP 建立 Token</div><div class="umock__text">─────────────────────────────────────</div><div class="umock__text">[截圖 1：ERP Token 管理頁]</div><div class="umock__text">[截圖 2：建立成功 Modal]</div><div class="umock__text">→ [前往建立 Token] 按鈕</div><div class="umock__text">Step 2：在 N8N 設定 Header Auth Credential</div><div class="umock__text">─────────────────────────────────────</div><div class="umock__text">[截圖 3：N8N HTTP Request 節點]</div><div class="umock__text">[截圖 4：Authentication 下拉]</div><div class="umock__text">Name: Authorization</div><div class="umock__text">Value: Bearer &lt;貼上 ERP Token 明文&gt;</div><div class="umock__text">Step 3：呼叫示範 API</div><div class="umock__text">─────────────────────────────────────</div><div class="umock__text">[截圖 5：成功 Response 200]</div><div class="umock__text">• GET /api/v1/demo/sales?from=YYYY-MM-DD&amp;to=YYYY-MM-DD</div><div class="umock__text">• GET /api/v1/demo/inventory?sku=SKU-001</div><div class="umock__text">• GET /api/v1/demo/orders/{orderId}</div><div class="umock__text">→ [下載 N8N JSON 範本]</div><div class="umock__text">🆘 常見問題</div><div class="umock__text">Q：HTTP 401 token_revoked → 回 ERP P01 建立新 Token</div><div class="umock__text">Q：HTTP 401 token_missing → 確認 N8N Authentication 已啟用</div><div class="umock__text">Q：HTTP 429 → 同 IP 1 分鐘內 401 超過 60 次，等候 60 秒</div></div></div>
+<p><strong>元件清單：</strong></p>
+<table>
+<tr><th>元件</th><th>類型</th><th>狀態</th><th>說明</th></tr>
+<tr><td><code>StepCard</code></td><td>Card</td><td>Default / Active（當前步驟）</td><td>3 張卡，視覺等寬</td></tr>
+<tr><td><code>Screenshot</code></td><td>Img</td><td>Loading / Loaded / Error</td><td><code>loading=&quot;lazy&quot;</code> + <code>alt</code> 描述</td></tr>
+<tr><td><code>JsonTemplateDownload</code></td><td>Button</td><td>Default / Hover / Focus</td><td>下載 .json 範本（<code>Content-Disposition: attachment</code>）</td></tr>
+<tr><td><code>FAQAccordion</code></td><td>Accordion</td><td>Collapsed / Expanded</td><td><code>aria-expanded</code>，鍵盤可操作</td></tr>
+</table>
+<p><strong>互動規格：</strong></p>
+<table>
+<tr><th>觸發</th><th>動作</th><th>動畫 / 效果</th><th>持續時間</th></tr>
+<tr><td>頁面載入</td><td>截圖 lazy load + Step 1 卡片 active</td><td>Fade-in opacity 0→1</td><td>400ms（cubic-bezier(0.16, 1, 0.3, 1)）</td></tr>
+<tr><td>點擊 [前往建立 Token]</td><td>路由跳 P01 + 自動觸發 P02 開啟</td><td>Page route fade</td><td>300ms</td></tr>
+<tr><td>點擊 FAQ Accordion</td><td>高度 0→auto + 內容 fade-in</td><td>高度 transition + opacity</td><td>200ms（cubic-bezier(0.4, 0, 0.2, 1)）</td></tr>
+<tr><td>再次點擊已展開 FAQ</td><td>高度 auto→0 + 內容 fade-out</td><td>高度 transition + opacity</td><td>200ms</td></tr>
+<tr><td>點擊 [下載 N8N JSON 範本]</td><td>觸發瀏覽器下載 + 按鈕短暫 Loading</td><td>Spinner（icon 16×16）</td><td>直到下載開始</td></tr>
+<tr><td>截圖 hover（≥ 768px）</td><td>顯示 lightbox 圖示 cursor-zoom-in</td><td>Cursor + 1px focus ring</td><td>150ms</td></tr>
+<tr><td>截圖點擊</td><td>開啟 Lightbox（全螢幕大圖 + Esc 關閉）</td><td>Fade + Scale 0.95→1.0</td><td>300ms</td></tr>
+</table>
+<h3 id="56-p06poc-api-test-console選填">5.6 P06：POC API Test Console（選填）</h3>
+<p><strong>用途：</strong> PRD US-DEMO-001/002/003 — 在 ERP 站內快速測試示範 API。</p>
+<p><strong>Layout 結構：</strong></p>
+<div class="diagram-container diagram-container--umock"><div class="umock__card"><div class="umock__card-title">🧪 POC API Test Console</div><div class="umock__text">Bearer Token：[貼上您的 ERP API Token...]（masked input）</div><div class="umock__text">端點：[ /api/v1/demo/sales  ▼ ]</div><div class="umock__text">參數：from [2026-04-01] to [2026-04-30]</div><div class="umock__actions"><button type="button" tabindex="-1" class="umock__btn umock__btn--default">送出請求</button></div><div class="umock__text">回應：</div><div class="umock__field"><label class="umock__field-label">HTTP 200 OK / 451 ms</label><div class="umock__field-body"><pre class="umock__code"> {
+   &quot;period&quot;: {&quot;from&quot;:&quot;2026-04-01&quot;,&quot;to&quot;:&quot;2026-04-30&quot;},
+   &quot;total_revenue&quot;: 123456.78,
+   &quot;order_count&quot;: 42
+ }</pre></div></div></div></div>
+<p><strong>元件清單：</strong></p>
+<table>
+<tr><th>元件</th><th>類型</th><th>狀態</th><th>說明</th></tr>
+<tr><td><code>TokenInputMasked</code></td><td>Input / Password</td><td>Empty / Filled / Focus</td><td>預設遮罩；toggle 顯示</td></tr>
+<tr><td><code>EndpointSelect</code></td><td>Select</td><td>Default / Open / Disabled</td><td>三個示範端點</td></tr>
+<tr><td><code>ParamFields</code></td><td>Input/Date</td><td>動態渲染</td><td>依端點切換欄位</td></tr>
+<tr><td><code>SubmitRequestButton</code></td><td>Button / Primary</td><td>Default / Loading</td><td>spinner during call</td></tr>
+<tr><td><code>ResponseViewer</code></td><td>Code / JSON</td><td>Empty / Loading / Loaded / Error</td><td><code>react-json-view</code>-like，可折疊</td></tr>
+</table>
+<p><strong>互動規格：</strong></p>
+<table>
+<tr><th>觸發</th><th>動作</th><th>動畫 / 效果</th><th>持續時間</th></tr>
+<tr><td>頁面載入</td><td>Bearer 欄位自動 focus</td><td>Fade-in opacity 0→1</td><td>300ms</td></tr>
+<tr><td>Endpoint 切換</td><td>動態渲染 ParamFields（依 schema）</td><td>表單欄位 fade-in（stagger 50ms）</td><td>250ms</td></tr>
+<tr><td>點擊 [送出請求]</td><td>按鈕 Loading + spinner + 禁用其他輸入</td><td>Spin loop</td><td>直到 API 完成（≤ 5000ms 逾時）</td></tr>
+<tr><td>API 回應 200</td><td>ResponseViewer 顯示 JSON + HTTP status badge 綠</td><td>Fade-in 200ms + JSON 折疊樹展開</td><td>200ms</td></tr>
+<tr><td>API 回應 4xx/5xx</td><td>ResponseViewer 顯示錯誤 body + status badge 紅 + Inline 重試提示</td><td>Shake animation + Fade-in</td><td>200ms（shake）+ 200ms（fade）</td></tr>
+<tr><td>點擊 ResponseViewer JSON 節點</td><td>折疊 / 展開該節點</td><td>高度 transition</td><td>150ms</td></tr>
+<tr><td>API 逾時（&gt; 5000ms）</td><td>顯示 408 timeout 訊息 + 重試按鈕</td><td>Fade-in + Shake</td><td>200ms</td></tr>
+<tr><td>Bearer 欄 toggle 顯示</td><td>切換 input type password ↔ text</td><td>圖示 cross-fade</td><td>150ms</td></tr>
+</table>
+<h3 id="57-p07token-審計日誌頁it-admin-only">5.7 P07：Token 審計日誌頁（IT Admin only）</h3>
+<p><strong>用途：</strong> PRD US-AUDIT-001 — 過去 90 天事件 + CSV 匯出。</p>
+<p><strong>Layout 結構：</strong></p>
+<div class="diagram-container diagram-container--umock"><div class="umock__card"><div class="umock__card-title">🛡 Token 審計日誌（IT Admin）                  [⬇ 匯出 CSV]</div><div class="umock__text">篩選：時間範圍 [最近 7 天 ▼] | 動作 [全部 ▼] | 操作人 [全部 ▼]</div><div class="umock__actions"><button type="button" tabindex="-1" class="umock__btn umock__btn--default">套用</button><button type="button" tabindex="-1" class="umock__btn umock__btn--default">重設</button></div><table class="umock__table"><thead><tr><th>時間（UTC+8）</th><th>動作</th><th>操作人</th><th>Token 前綴</th><th>IP</th></tr></thead><tbody><tr><td>2026-05-08 10:23:01</td><td>建立</td><td>mike.chen</td><td>tk_a3f9...</td><td>192.168.1.10</td></tr><tr><td>2026-05-08 09:15:44</td><td>撤銷</td><td>itadmin</td><td>tk_b7c2...</td><td>192.168.1.5</td></tr><tr><td>2026-05-07 18:02:33</td><td>建立</td><td>alice.ho</td><td>tk_d1e4...</td><td>192.168.1.20</td></tr></tbody></table><div class="umock__text">顯示 1-100 筆 / 共 1,243 筆           [&lt; 1 / 13 &gt;]</div><div class="umock__text">此日誌為唯讀（Append-only）；DB 角色禁止 UPDATE/DELETE</div></div></div>
+<p><strong>元件清單：</strong></p>
+<table>
+<tr><th>元件</th><th>類型</th><th>狀態</th><th>說明</th></tr>
+<tr><td><code>DateRangeFilter</code></td><td>Select / DatePicker</td><td>Default / Open</td><td>預設「最近 7 天」；可切「30 天」/「90 天」/ 自訂</td></tr>
+<tr><td><code>ActionFilter</code></td><td>Select</td><td>Default / Open</td><td><code>create</code> / <code>revoke</code> / 全部</td></tr>
+<tr><td><code>OperatorFilter</code></td><td>Select</td><td>Default / Open</td><td>一般使用者下拉清單（含搜尋）</td></tr>
+<tr><td><code>AuditLogTable</code></td><td>Table</td><td>Loading / Empty / Loaded / Error</td><td>100 筆 / 頁</td></tr>
+<tr><td><code>ActionBadge</code></td><td>Badge</td><td>Create（藍）/ Revoke（紅）</td><td>顏色 + 文字雙語意</td></tr>
+<tr><td><code>CsvExportButton</code></td><td>Button / Secondary</td><td>Default / Loading（匯出中）</td><td>streaming，最多 10000 筆</td></tr>
+<tr><td><code>ReadOnlyNotice</code></td><td>Note</td><td>Default</td><td>強調日誌不可改 / 不可刪</td></tr>
+</table>
+<p><strong>互動規格：</strong></p>
+<table>
+<tr><th>觸發</th><th>動作</th><th>動畫</th><th>持續時間</th></tr>
+<tr><td>套用篩選</td><td>重新查詢 + Skeleton 替換 + <code>aria-live</code> 播報「已更新，共 N 筆」</td><td>Skeleton fade</td><td>200ms</td></tr>
+<tr><td>點擊 [匯出 CSV]</td><td>按鈕 Loading + 後端 streaming 寫檔</td><td>Spin loop</td><td>直到下載觸發</td></tr>
+<tr><td>一般使用者 URL 直連</td><td>RBAC 守衛 → 403 頁</td><td>Fade route</td><td>300ms</td></tr>
+</table>
+<hr>
+<h2 id="6-interaction-design-specifications">6. Interaction Design Specifications</h2>
+<h3 id="61-動畫與過場motion-design">6.1 動畫與過場（Motion Design）</h3>
+<table>
+<tr><th>動畫類型</th><th>使用時機</th><th>規格</th><th>緩動函數</th></tr>
+<tr><td>頁面進入</td><td>P01 / P05 / P07 載入</td><td>Fade Opacity 0→1</td><td>ease-out（300ms）</td></tr>
+<tr><td>Modal 開啟（P02 / P03 / P04）</td><td>彈出對話框</td><td>Scale 0.95→1.0 + Fade</td><td>cubic-bezier(0.16, 1, 0.3, 1)（300ms）</td></tr>
+<tr><td>Modal 關閉</td><td>收起</td><td>Scale 1.0→0.95 + Fade</td><td>cubic-bezier(0.55, 0, 1, 0.45)（200ms）</td></tr>
+<tr><td>Toast Slide-in</td><td>撤銷成功、複製成功</td><td>Slide-in from right + Fade</td><td>ease-out（200ms）；停留 3s 後 Fade Out</td></tr>
+<tr><td>載入中</td><td>列表初次載入</td><td>Skeleton Screen Shimmer</td><td>linear loop（1.5s）</td></tr>
+<tr><td>列表新行</td><td>建立 Token 成功後</td><td>新行背景 highlight 黃→白</td><td>ease-out（1500ms）</td></tr>
+<tr><td>撤銷後狀態切換</td><td>Active→Revoked</td><td>Badge 顏色 + 文字 cross-fade</td><td>ease-in-out（200ms）</td></tr>
+</table>
+<p><strong>原則：</strong></p>
+<ul><li>功能性動畫 ≤ 300ms</li><li>裝飾性動畫 ≤ 500ms</li><li>尊重 <code>prefers-reduced-motion</code> 設定</li></ul>
+<h3 id="611-motion-design-specification必填">6.1.1 Motion Design Specification（必填）</h3>
+<table>
+<tr><th>動畫用途</th><th>Easing Function</th><th>Duration</th><th>prefers-reduced-motion 替代</th></tr>
+<tr><td>頁面進場 / P05 大區塊出現</td><td><code>cubic-bezier(0.16, 1, 0.3, 1)</code> (Expo Out)</td><td>400ms</td><td><code>opacity 0→1, 200ms linear</code></td></tr>
+<tr><td>Modal 出現（P02/P03/P04）</td><td><code>cubic-bezier(0.16, 1, 0.3, 1)</code></td><td>300ms</td><td><code>opacity 0→1, 150ms linear</code></td></tr>
+<tr><td>Modal 退場</td><td><code>cubic-bezier(0.55, 0, 1, 0.45)</code> (Expo In)</td><td>200ms</td><td><code>opacity 1→0, 150ms linear</code></td></tr>
+<tr><td>互動反饋（按鈕按壓）</td><td><code>cubic-bezier(0.4, 0, 0.6, 1)</code> (Standard)</td><td>100ms</td><td>無動畫（直接切換）</td></tr>
+<tr><td>路由切換</td><td><code>cubic-bezier(0.4, 0, 0.2, 1)</code> (Material Standard)</td><td>300ms</td><td><code>opacity 0→1, 150ms linear</code></td></tr>
+<tr><td>Skeleton Shimmer</td><td><code>linear</code>（loop）</td><td>1.5s</td><td>靜態 Skeleton（無動態）</td></tr>
+<tr><td>Accordion 展開 / 收合（P05 FAQ）</td><td><code>cubic-bezier(0.4, 0, 0.2, 1)</code></td><td>200ms</td><td>直接顯示 / 隱藏</td></tr>
+<tr><td>撤銷後 Badge cross-fade</td><td><code>ease-in-out</code></td><td>200ms</td><td>直接切換</td></tr>
+<tr><td>Toast slide-in / out</td><td><code>cubic-bezier(0.16, 1, 0.3, 1)</code> / Expo In</td><td>200ms / 200ms</td><td>Fade only</td></tr>
+</table>
+<p><strong>prefers-reduced-motion 全域 CSS：</strong></p>
+<pre><code class="language-css">@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}</code></pre>
+<p><strong>規則：</strong></p>
+<ul><li>所有 <code>animation</code> / <code>transition</code> 必須有 <code>prefers-reduced-motion</code> 對應</li><li>Loading Skeleton Shimmer 在 reduced-motion 改為靜態</li><li>列表新行 highlight 在 reduced-motion 替換為 1.5s 顏色保留再瞬間消失</li></ul>
+<h4 id="動畫清單feature--animation-matrix">動畫清單（Feature × Animation Matrix）</h4>
+<table>
+<tr><th>元件 / 畫面</th><th>進場動畫</th><th>退場動畫</th><th>互動動畫</th><th>Reduced Motion</th></tr>
+<tr><td>P02 Modal</td><td>Fade + Scale 95%→100%</td><td>Fade + Scale 100%→95%</td><td>—</td><td>Fade only</td></tr>
+<tr><td>P03 Modal</td><td>Fade + Scale + 警告 banner pulse 1 次</td><td>Fade + Scale</td><td>Copy 按鈕 Checkmark draw-on</td><td>Fade only，無 pulse</td></tr>
+<tr><td>P04 Dialog</td><td>Fade + Scale</td><td>Fade out</td><td>Confirm 按鈕 Loading spin</td><td>Fade only</td></tr>
+<tr><td>Toast</td><td>Slide-in from right</td><td>Slide-out to right</td><td>—</td><td>Fade only</td></tr>
+<tr><td>Button</td><td>—</td><td>—</td><td>Scale 0.97 on press</td><td>無</td></tr>
+<tr><td>列表新行 highlight</td><td>—</td><td>顏色漸退</td><td>—</td><td>顏色保留 1.5s 後瞬切</td></tr>
+<tr><td>Skeleton Shimmer</td><td>linear loop</td><td>—</td><td>—</td><td>靜態 Skeleton</td></tr>
+</table>
+<h3 id="62-回饋機制feedback">6.2 回饋機制（Feedback）</h3>
+<table>
+<tr><th>操作</th><th>即時回饋（0–100ms）</th><th>短期回饋（100ms–1s）</th><th>長期回饋（&gt; 1s）</th></tr>
+<tr><td>按鈕點擊</td><td>Press State（scale 0.97 + 顏色加深）</td><td>—</td><td>—</td></tr>
+<tr><td>表單提交（P02）</td><td>按鈕 Loading + Disabled</td><td>Success → P03 開啟 / Error Inline</td><td>API &gt; 5000ms → Toast「建立逾時，請重試」+ 408</td></tr>
+<tr><td>撤銷（P04）</td><td>確認按鈕 Loading</td><td>Toast「已成功撤銷」+ Badge 切換</td><td>—</td></tr>
+<tr><td>列表載入</td><td>Skeleton Screen</td><td>Skeleton fade-out + 真實 row fade-in</td><td>API &gt; 5s → Inline Error + 重試</td></tr>
+<tr><td>CSV 匯出（P07）</td><td>按鈕 Loading + 「匯出中…」label</td><td>streaming 寫檔（大量資料）</td><td>Browser 下載開始</td></tr>
+<tr><td>複製 Token</td><td>按鈕 Press State</td><td>「✓ 已複製！」綠色（3s）+ <code>aria-live</code> 播報</td><td>—</td></tr>
+</table>
+<h3 id="63-空狀態設計empty-states">6.3 空狀態設計（Empty States）</h3>
+<table>
+<tr><th>情境</th><th>說明文字</th><th>圖示</th><th>CTA</th></tr>
+<tr><td>P01 首次使用（無 Token）</td><td>「尚無 API Token。建立第一個 Token，開始在 N8N 工作流中安全呼叫 ERP API，不需要等待 IT 配置。」</td><td>Token / Key 圖示</td><td>[建立第一個 Token]（主）+ [查看 N8N 設定指南 ↗]（次）</td></tr>
+<tr><td>P01 搜尋無結果</td><td>「找不到「{query}」相關的 Token」</td><td>搜尋圖示</td><td>[清除篩選]</td></tr>
+<tr><td>P07 過去 90 天無事件</td><td>「目前沒有任何 API Token 操作記錄。Token 建立、撤銷或 API 呼叫操作將會自動記錄於此。」</td><td>Clipboard 圖示</td><td>[前往建立第一個 Token]</td></tr>
+<tr><td>P07 篩選後無結果</td><td>「目前沒有符合篩選條件的操作記錄。建議調整時間範圍或操作類型篩選器。」</td><td>放大鏡圖示</td><td>[重設篩選條件]</td></tr>
+<tr><td>網路離線（P01 / P07）</td><td>「目前無法連線，顯示上次的資料」</td><td>離線圖示</td><td>[重新連線]</td></tr>
+<tr><td>API 5xx 錯誤狀態</td><td>「發生錯誤，請稍後再試」</td><td>錯誤圖示</td><td>[重試]</td></tr>
+</table>
+<h3 id="64-loading-states">6.4 Loading States</h3>
+<table>
+<tr><th>情境</th><th>策略</th><th>規格</th></tr>
+<tr><td>P01 / P07 頁面初次載入</td><td>Skeleton Screen</td><td>表格列骨架（10 行 × 6 欄）匹配真實 row 高度，避免 CLS &gt; 0.1</td></tr>
+<tr><td>P02 提交建立 Token</td><td>Button Loading</td><td>文字「建立中…」+ Spinner（16×16），Modal 內其他元件 Disabled</td></tr>
+<tr><td>P04 撤銷確認</td><td>Button Loading</td><td>「撤銷中…」+ Spinner</td></tr>
+<tr><td>P07 CSV 匯出</td><td>Button Loading</td><td>「匯出中（已寫入 N 筆）…」progress text</td></tr>
+<tr><td>P06 API 呼叫</td><td>Code block 顯示「Loading...」骨架</td><td>失敗 5s 顯示 timeout error</td></tr>
+</table>
+<p><strong>Modal 內統一規則：</strong> Loading 期間 X 按鈕、Esc、遮罩點擊均無效，避免中斷 in-flight request。</p>
+<h3 id="65-micro-interaction-catalog必填且最低覆蓋達標">6.5 Micro-interaction Catalog（必填，且最低覆蓋達標）</h3>
+<blockquote><p>最低覆蓋：表單互動 ≥ 3、導覽互動 ≥ 2、資料回饋 ≥ 2，本表 14 項。</p></blockquote>
+<table>
+<tr><th>觸發器（Trigger）</th><th>規則（Rules）</th><th>回饋（Feedback）</th><th>迴圈 / 模式（Loop）</th></tr>
+<tr><td>按鈕點擊</td><td>僅在可點擊狀態觸發</td><td>Scale 0.97 + 背景色加深 10%</td><td>放開後 150ms 恢復</td></tr>
+<tr><td><strong>[表單]</strong> P02 描述輸入 → 即時字元計數</td><td>每次 keypress 重算</td><td>計數文字 18 / 100；&gt; 90 變黃；&gt; 100 變紅</td><td>隨輸入即時更新</td></tr>
+<tr><td><strong>[表單]</strong> P02 提交成功</td><td>通過驗證 + API 201</td><td>按鈕 Loading → Modal Cross-fade 至 P03</td><td>P03 開啟即結束</td></tr>
+<tr><td><strong>[表單]</strong> P02 提交失敗（描述空 / &gt;100 / 達 50 個 Token 上限）</td><td>驗證未通過 / API 422</td><td>Inline 紅色錯誤 + 欄位 Shake（200ms 左右各 4px）</td><td>用戶修正後恢復</td></tr>
+<tr><td><strong>[導覽]</strong> Top Nav hover Token 管理</td><td>Pointer enter</td><td>底線 1px primary fade-in</td><td>Pointer leave 後 fade-out</td></tr>
+<tr><td><strong>[導覽]</strong> Side Nav active item</td><td>路由匹配</td><td>左側 3px primary 直立條 + 背景 tint</td><td>路由切換時更新</td></tr>
+<tr><td><strong>[資料回饋]</strong> 列表 Skeleton → Loaded</td><td>API 回傳</td><td>Skeleton fade-out + Real row fade-in</td><td>一次性</td></tr>
+<tr><td><strong>[資料回饋]</strong> 撤銷成功 Badge 切換</td><td>API 200</td><td>Active 綠 → Revoked 灰 cross-fade</td><td>一次性</td></tr>
+<tr><td>複製 Token（P03）</td><td>按鈕點擊</td><td>Checkmark draw-on（200ms）+ 顏色變綠 + <code>aria-live</code> 通知</td><td>3s 後恢復「複製 Token」</td></tr>
+<tr><td>撤銷確認（P04）</td><td>點擊 [確認撤銷]</td><td>按鈕 spinner + Cross-disabled</td><td>API 完成後 Toast slide-in</td></tr>
+<tr><td>Toast 出現</td><td>撤銷成功 / CSV 匯出完成 / 複製成功</td><td>Slide-in from right + Fade-in</td><td>3s 後 Fade out</td></tr>
+<tr><td>Token 列表新行 highlight</td><td>Token 建立後 P03 關閉</td><td>新行背景 #FEF9C3 → transparent</td><td>ease-out 1500ms</td></tr>
+<tr><td>P07 篩選器套用</td><td>點擊 [套用]</td><td>Skeleton 替換 + <code>aria-live</code> 播報「已更新，共 N 筆」</td><td>一次性</td></tr>
+<tr><td>Accordion 展開 / 收合（P05 FAQ）</td><td>點擊 trigger</td><td>高度 0→auto + Fade content</td><td>200ms</td></tr>
+</table>
+<h3 id="66-gesture--touch-design">6.6 Gesture &amp; Touch Design</h3>
+<blockquote><p>本產品 Web 桌面為主，Mobile / Tablet 為次。下表覆蓋 Tablet Web 與行動瀏覽器。</p></blockquote>
+<table>
+<tr><th>手勢類型</th><th>觸發條件</th><th>動作回應</th><th>視覺回饋</th><th>衝突處理</th></tr>
+<tr><td>單點（Tap）</td><td>輕觸互動元件</td><td>主要互動（按鈕、列表 row 操作）</td><td>Press State（scale 0.97）</td><td>優先於長按</td></tr>
+<tr><td>長按（Long Press）</td><td>持續 600ms（行動）</td><td>顯示 Token 行 Context Menu（複製前綴、檢視詳情）</td><td>行輕微放大 + Haptic（若支援）</td><td>防誤觸：需穩定按壓</td></tr>
+<tr><td>左滑（Swipe Left）</td><td>行動端 Token Card 水平滑動 &gt; 30px</td><td>顯示「撤銷」操作按鈕</td><td>Reveal 動畫（從右滑入）</td><td>與頁面捲動方向相同時優先捲動</td></tr>
+<tr><td>下拉（Pull to Refresh）</td><td>從頂部下拉 &gt; 60px</td><td>P01 / P07 重新載入</td><td>彈性拉伸 + Spinner</td><td>到達閾值前可取消</td></tr>
+<tr><td>雙點（Double Tap）</td><td>&lt; 300ms 兩次點擊 Token 前綴</td><td>複製前綴到剪貼簿</td><td>Scale 彈跳 + Toast</td><td>避免與 Tap 衝突，延遲 300ms 判斷</td></tr>
+<tr><td>Pinch Zoom</td><td>雙指縮放</td><td>禁用（避免破壞 Layout）</td><td>—</td><td>在 <code>&lt;meta viewport&gt;</code> 設 <code>user-scalable=yes</code>（無障礙）</td></tr>
+</table>
+<p><strong>最小觸控目標：</strong> 44×44px（iOS HIG / Material Design）；P01 行動端撤銷按鈕全寬 height 48px。</p>
+<h3 id="67-haptic-feedback-design">6.7 Haptic Feedback Design</h3>
+<blockquote><p>Web 不支援系統級 Haptic API（除部分行動瀏覽器透過 Vibration API），本產品 Web-only：<strong>N/A（不依賴震動，視覺與音效回饋為主）</strong>。</p></blockquote>
+<table>
+<tr><th>場景</th><th>震動類型</th><th>備注（Web 降級）</th></tr>
+<tr><td>撤銷確認對話框開啟</td><td>—</td><td>無震動；以視覺警告 + <code>role=&quot;alertdialog&quot;</code> 替代</td></tr>
+<tr><td>複製成功</td><td>—</td><td>視覺 Checkmark + <code>aria-live</code> 播報替代</td></tr>
+<tr><td>401 / 422 錯誤</td><td>—</td><td>Inline 紅色錯誤 + Shake 動畫替代</td></tr>
+<tr><td>Token 數達上限</td><td>—</td><td>按鈕 Disabled + Tooltip 文字替代</td></tr>
+</table>
+<blockquote><p>若未來推出 PWA mobile 版本，將補充 Vibration API 對應規格。</p></blockquote>
+<hr>
+<h2 id="7-responsive--adaptive-design">7. Responsive &amp; Adaptive Design</h2>
+<h3 id="71-breakpoints">7.1 Breakpoints</h3>
+<table>
+<tr><th>名稱</th><th>寬度</th><th>目標裝置</th><th>Layout</th></tr>
+<tr><td>Mobile S</td><td>320px</td><td>iPhone SE</td><td>單欄，卡片式 Token 列表</td></tr>
+<tr><td>Mobile M</td><td>375px</td><td>iPhone 14</td><td>單欄，卡片式</td></tr>
+<tr><td>Mobile L</td><td>428px</td><td>iPhone 14 Plus</td><td>單欄，卡片式</td></tr>
+<tr><td>Tablet</td><td>768px</td><td>iPad</td><td>簡化 Table（隱藏「最後使用時間」）</td></tr>
+<tr><td>Desktop S</td><td>1024px</td><td>Laptop</td><td>完整 Table，常駐 Side Nav</td></tr>
+<tr><td>Desktop L</td><td>1440px</td><td>Desktop</td><td>完整 Table + 寬容器 max-width 1280px</td></tr>
+<tr><td>Desktop XL</td><td>1920px+</td><td>大螢幕</td><td>Container max-width 1440px 居中</td></tr>
+</table>
+<h3 id="72-breakpoint-元件行為矩陣必填全具體值">7.2 Breakpoint 元件行為矩陣（必填，全具體值）</h3>
+<table>
+<tr><th>元件</th><th>320px</th><th>375px</th><th>768px</th><th>1024px</th><th>1440px</th></tr>
+<tr><td>Top Nav</td><td>漢堡 Menu（icon 44×44px），點擊 Full-screen Overlay</td><td>同左</td><td>橫排 Tab Bar height 56px，顯示 4 個 Tab</td><td>橫排 Top Nav + 右側 Utility Links</td><td>橫排 Top Nav + Dropdown（hover 展開）</td></tr>
+<tr><td>Side Nav</td><td>抽屜（drawer），預設關閉</td><td>同左</td><td>抽屜（drawer），預設關閉</td><td>Fixed Side Nav width 240px</td><td>Fixed Side Nav width 240px</td></tr>
+<tr><td>P01 Token 列表</td><td>TokenCard 卡片式，width 100%，padding 16px</td><td>同左</td><td>簡化 Table（隱藏 last_used_at），padding 24px</td><td>完整 Table（6 欄），gap 24px</td><td>完整 Table，max-width 1280px 居中</td></tr>
+<tr><td>TokenCard（Mobile）</td><td>描述（H3）、前綴（mono）、Badge、CTA「撤銷」全寬 height 48px</td><td>同左</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>CTA Button [+ 建立 Token]</td><td>width 100%，height 48px，sticky bottom</td><td>同左</td><td>width auto，min-width 200px</td><td>同左</td><td>同左</td></tr>
+<tr><td>P02 Modal</td><td>width 100vw，height 100vh，Full-screen</td><td>同左</td><td>width 480px，max-height 80vh，置中</td><td>width 480px</td><td>width 480px</td></tr>
+<tr><td>P03 Modal</td><td>width 100vw，height 100vh，Full-screen</td><td>同左</td><td>width 560px，max-height 80vh，置中</td><td>width 560px</td><td>width 560px</td></tr>
+<tr><td>P04 Dialog</td><td>width 100vw（Bottom Sheet）</td><td>同左</td><td>width 440px，置中</td><td>width 440px</td><td>width 440px</td></tr>
+<tr><td>Form（P02 描述欄位）</td><td>單欄，label 在上方</td><td>同左</td><td>單欄（Modal 內）</td><td>同左</td><td>同左</td></tr>
+<tr><td>P05 N8N 指南</td><td>步驟卡垂直堆疊，width 100%</td><td>同左</td><td>步驟卡 2 欄 grid，gap 16px</td><td>步驟卡 3 欄 grid，gap 24px</td><td>同左，max-width 1024px 居中</td></tr>
+<tr><td>P06 Console</td><td>垂直堆疊；Response code block 可橫向捲動</td><td>同左</td><td>雙欄 split：左控制 / 右回應</td><td>同左</td><td>同左</td></tr>
+<tr><td>P07 Audit Log Table</td><td>AuditLogCard 卡片式，篩選改 Bottom Sheet</td><td>同左</td><td>簡化 Table（5 欄）+ 篩選 inline</td><td>完整 Table（6 欄）+ 篩選 inline</td><td>完整 Table + Sticky 表頭</td></tr>
+<tr><td>Filter Bar</td><td>Bottom Sheet（觸發按鈕 [篩選]）</td><td>同左</td><td>inline 1 列 3 個 Select，gap 16px</td><td>inline 1 列 3 個 Select，gap 24px</td><td>同左</td></tr>
+<tr><td>Pagination</td><td>底部固定（[&lt; 1/N &gt;]，touch target 44×44）</td><td>同左</td><td>inline 右下角</td><td>同左</td><td>同左</td></tr>
+</table>
+<h3 id="73-grid-系統規格表必填明確聲明">7.3 Grid 系統規格表（必填，明確聲明）</h3>
+<p><strong>統一聲明：本產品全 Layout 採 CSS Grid（<code>display: grid; grid-template-columns: repeat(N, 1fr); gap: Xpx</code>）；元件內細節對齊以 Flexbox 補強，不混用兩種系統於同一 Layout 層級。</strong></p>
+<table>
+<tr><th>斷點</th><th>欄數</th><th>Gutter</th><th>Margin（頁邊距）</th><th>Max-Width</th><th>Container CSS</th></tr>
+<tr><td>320px</td><td>4</td><td>8px</td><td>16px</td><td>100%</td><td><code>display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-width: 100%; padding: 0 16px;</code></td></tr>
+<tr><td>375px</td><td>4</td><td>12px</td><td>20px</td><td>100%</td><td><code>display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; max-width: 100%; padding: 0 20px;</code></td></tr>
+<tr><td>768px</td><td>8</td><td>16px</td><td>24px</td><td>100%</td><td><code>display: grid; grid-template-columns: repeat(8, 1fr); gap: 16px; max-width: 100%; padding: 0 24px;</code></td></tr>
+<tr><td>1024px</td><td>12</td><td>24px</td><td>32px</td><td>1280px</td><td><code>display: grid; grid-template-columns: repeat(12, 1fr); gap: 24px; max-width: 1280px; margin: 0 auto; padding: 0 32px;</code></td></tr>
+<tr><td>1440px</td><td>12</td><td>32px</td><td>80px</td><td>1440px</td><td><code>display: grid; grid-template-columns: repeat(12, 1fr); gap: 32px; max-width: 1440px; margin: 0 auto; padding: 0 80px;</code></td></tr>
+</table>
+<hr>
+<h2 id="8-accessibility-a11y-specifications">8. Accessibility (A11y) Specifications</h2>
+<h3 id="81-視覺可及性">8.1 視覺可及性</h3>
+<table>
+<tr><th>項目</th><th>規格</th><th>驗證工具</th></tr>
+<tr><td>色彩對比（正文）</td><td>≥ 4.5:1（CONSTANTS <code>WCAG_TEXT_CONTRAST_RATIO_NORMAL</code>）</td><td>axe DevTools</td></tr>
+<tr><td>色彩對比（大字 18px+）</td><td>≥ 3:1（CONSTANTS <code>WCAG_TEXT_CONTRAST_RATIO_LARGE</code>）</td><td>axe DevTools</td></tr>
+<tr><td>不能只靠顏色傳遞資訊</td><td>Token Status Badge 含文字 + icon + 顏色</td><td>設計審查</td></tr>
+<tr><td>最小點擊 / 觸控目標</td><td>44×44px</td><td>設計審查 + CSS 量測</td></tr>
+<tr><td>字體最小尺寸</td><td>14px（建議 16px+ 為內文）</td><td>設計審查</td></tr>
+</table>
+<h3 id="82-鍵盤與螢幕閱讀器">8.2 鍵盤與螢幕閱讀器</h3>
+<table>
+<tr><th>項目</th><th>規格</th></tr>
+<tr><td>Tab 順序</td><td>符合視覺閱讀順序（左→右，上→下）；P01 從 [+ 建立] → SearchInput → 列表 → Pagination</td></tr>
+<tr><td>Focus Indicator</td><td>2px solid <code>--color-border-focus</code>（對比 ≥ 3:1）+ outline-offset 2px</td></tr>
+<tr><td>互動元件</td><td>按鈕用 <code>&lt;button&gt;</code>，連結用 <code>&lt;a&gt;</code>，不用 <code>&lt;div onClick&gt;</code></td></tr>
+<tr><td>圖片</td><td>裝飾性圖示 <code>aria-hidden=&quot;true&quot;</code>；P05 截圖必有 <code>alt</code> 描述（≤ 125 字）</td></tr>
+<tr><td>表單</td><td>每個 input 對應 <code>&lt;label&gt;</code>；錯誤訊息用 <code>aria-describedby</code></td></tr>
+<tr><td>Modal（P02/P03/P04）</td><td>開啟時 focus 移入 Modal；關閉時 focus 回觸發按鈕；Tab 循環陷阱</td></tr>
+<tr><td>Token 揭示（P03）</td><td><code>aria-live=&quot;assertive&quot;</code> 警告 + <code>aria-live=&quot;polite&quot;</code> 複製通知</td></tr>
+<tr><td>撤銷對話框（P04）</td><td><code>role=&quot;alertdialog&quot;</code>、預設 focus 在「取消」（防誤觸）</td></tr>
+<tr><td>動畫</td><td>尊重 <code>prefers-reduced-motion</code></td></tr>
+<tr><td>Audit Log 篩選（P07）</td><td>篩選後 <code>aria-live=&quot;polite&quot;</code> 播報「已更新，共 N 筆」</td></tr>
+</table>
+<h3 id="83-可及性測試計畫">8.3 可及性測試計畫</h3>
+<table>
+<tr><th>測試類型</th><th>工具</th><th>時機</th></tr>
+<tr><td>自動掃描</td><td>axe-core / Lighthouse Accessibility（目標 ≥ 95）</td><td>每次 PR</td></tr>
+<tr><td>鍵盤導覽測試</td><td>手動（無滑鼠）</td><td>Sprint Review</td></tr>
+<tr><td>螢幕閱讀器</td><td>NVDA（Windows）/ VoiceOver（macOS）</td><td>Release 前</td></tr>
+<tr><td>色盲模擬</td><td>Sim Daltonism / Chrome DevTools Vision Deficiencies</td><td>設計審查</td></tr>
+<tr><td>200% 縮放</td><td>瀏覽器原生縮放</td><td>Release 前</td></tr>
+</table>
+<h3 id="84-wcag-21-aa-compliance-matrix必填-12-準則">8.4 WCAG 2.1 AA Compliance Matrix（必填 12 準則）</h3>
+<blockquote><p>本產品無障礙設計目標：MVP 達 WCAG 2.1 Level A 強制；Pilot 達 Level AA 全 12 準則。</p></blockquote>
+<table>
+<tr><th>WCAG 準則</th><th>評等</th><th>要求內容</th><th>實作方式</th><th>測試方法</th><th>優先</th></tr>
+<tr><td>1.1.1 非文字內容</td><td>AA</td><td>所有圖示／截圖有 alt 或 aria-label</td><td>P05 截圖 <code>alt</code> 描述步驟；裝飾圖示 <code>aria-hidden=&quot;true&quot;</code></td><td>axe-core</td><td>M</td></tr>
+<tr><td>1.3.1 資訊與關係</td><td>AA</td><td>語意化 HTML，heading 層次正確</td><td>P01 <code>&lt;h1&gt;API Token 管理&lt;/h1&gt;</code> → P05 <code>&lt;h2&gt;Step 1...&lt;/h2&gt;</code> 不跳層</td><td>NVDA/VoiceOver</td><td>M</td></tr>
+<tr><td>1.4.3 對比度（文字）</td><td>AA</td><td>正文 ≥ 4.5:1，大字 ≥ 3:1</td><td>OKLCH Token 表（§9.4）+ Colour Contrast Analyser 驗證</td><td>axe DevTools</td><td>M</td></tr>
+<tr><td>1.4.11 對比度（UI 元件）</td><td>AA</td><td>按鈕邊框、輸入框邊框 ≥ 3:1</td><td><code>--color-border-default</code> Token + 手動量測</td><td>手動測試</td><td>M</td></tr>
+<tr><td>2.1.1 鍵盤操作</td><td>AA</td><td>所有功能可純鍵盤完成（建立、撤銷、複製、匯出）</td><td>Tab 順序 + Enter/Space 觸發 + Esc 關閉 Modal</td><td>手動（無滑鼠）</td><td>M</td></tr>
+<tr><td>2.4.3 焦點順序</td><td>AA</td><td>Tab 順序符合視覺流程</td><td>DOM 順序與視覺一致；Modal 開啟 focus 移入第一可互動元素</td><td>手動</td><td>M</td></tr>
+<tr><td>2.4.7 焦點可見</td><td>AA</td><td>Focus ring ≥ 2px，對比 ≥ 3:1</td><td><code>--color-border-focus</code> 2px outline + 2px offset</td><td>手動</td><td>M</td></tr>
+<tr><td>3.1.1 頁面語言</td><td>AA</td><td><code>&lt;html lang=&quot;zh-Hant&quot;&gt;</code>；切換英文時更新</td><td>路由切換動態更新 lang</td><td>NVDA</td><td>M</td></tr>
+<tr><td>3.3.1 錯誤識別</td><td>AA</td><td>錯誤訊息明確說明問題</td><td>P02 描述空 → 「Token 描述為必填，請輸入此 Token 的用途」+ <code>aria-describedby</code></td><td>NVDA</td><td>M</td></tr>
+<tr><td>3.3.2 標籤或說明</td><td>AA</td><td>表單欄位有明確標籤</td><td><code>&lt;label for=&quot;token-description&quot;&gt;Token 描述（必填）&lt;/label&gt;</code></td><td>axe-core</td><td>M</td></tr>
+<tr><td>4.1.2 名稱、角色、值</td><td>AA</td><td>自訂元件有 ARIA role/state</td><td>TokenStatusBadge <code>aria-label=&quot;Token 狀態：Active&quot;</code>；CopyButton 完成後 <code>aria-live</code></td><td>axe-core + NVDA</td><td>M</td></tr>
+<tr><td>1.4.10 Reflow（建議）</td><td>AA</td><td>320px 視窗無水平捲動（除 Token 明文 / JSON Viewer 例外）</td><td>Mobile 卡片式 + 可橫向捲動容器</td><td>Browser DevTools</td><td>R</td></tr>
+</table>
+<p><strong>測試工具清單：</strong></p>
+<ul><li>自動化：axe-core（CI）、Lighthouse Accessibility ≥ 95、Pa11y CI</li><li>輔助技術：NVDA（Windows）、VoiceOver（macOS）、TalkBack（Android）</li><li>顏色：Colour Contrast Analyser、axe DevTools、Stark Figma plugin</li><li>人工：鍵盤 only 全程跑 P01→P02→P03→P04 + P07 匯出；200% 縮放</li></ul>
+<hr>
+<h2 id="9-design-system-reference">9. Design System Reference</h2>
+<h3 id="91-使用的-design-system">9.1 使用的 Design System</h3>
+<p><strong>Design System：</strong> 沿用既有 ERP UI 框架元件庫（OQ3 待確認 Razor Pages / Blazor / MVC）；本 PDD 補強的 Token 不覆蓋 ERP 既有 Token，僅在缺漏處新增。</p>
+<p><strong>版本：</strong> 跟隨 ERP 主版號</p>
+<p><strong>文件：</strong> ERP 內部 Design System Wiki（連結待 ERP 開發團隊提供）</p>
+<h3 id="92-本次新增--修改的元件">9.2 本次新增 / 修改的元件</h3>
+<table>
+<tr><th>元件名稱</th><th>類型</th><th>狀態</th><th>說明</th><th>狀態數</th></tr>
+<tr><td><code>TokenStatusBadge</code></td><td>New</td><td>新建</td><td>Active / Revoked / Expired（v2.0）三態</td><td>3</td></tr>
+<tr><td><code>TokenRevealModal</code>（P03）</td><td>New</td><td>新建</td><td>一次性明文揭示，含警告、複製、確認核取框</td><td>5</td></tr>
+<tr><td><code>ConfirmRevokeDialog</code>（P04）</td><td>New</td><td>新建</td><td>role=alertdialog，二次確認破壞性操作</td><td>4</td></tr>
+<tr><td><code>CopyButton</code></td><td>New</td><td>新建</td><td>含 Clipboard API + aria-live 通知 + 失敗降級</td><td>4</td></tr>
+<tr><td><code>AuditLogTable</code>（P07）</td><td>New</td><td>新建</td><td>唯讀 Table + 篩選 + CSV streaming 匯出</td><td>4</td></tr>
+<tr><td><code>EmptyState</code></td><td>New</td><td>新建</td><td>雙 CTA（主：建立，次：N8N 指南）</td><td>4（首次/搜尋無結果/離線/錯誤）</td></tr>
+<tr><td><code>TokenCard</code>（Mobile）</td><td>New</td><td>新建</td><td>行動端 Token 列表卡片式</td><td>3（Active/Revoked/Loading）</td></tr>
+</table>
+<h3 id="93-design-tokens設計變數">9.3 Design Tokens（設計變數）</h3>
+<p><strong>三層架構：</strong></p>
+<p><strong>Layer 1 — Primitive Tokens（原始值）</strong></p>
+<table>
+<tr><th>Token</th><th>值</th></tr>
+<tr><td><code>color-blue-500</code></td><td><code>oklch(60% 0.18 250)</code></td></tr>
+<tr><td><code>color-blue-600</code></td><td><code>oklch(52% 0.20 250)</code></td></tr>
+<tr><td><code>color-red-500</code></td><td><code>oklch(62% 0.22 25)</code></td></tr>
+<tr><td><code>color-green-500</code></td><td><code>oklch(64% 0.16 145)</code></td></tr>
+<tr><td><code>color-yellow-300</code></td><td><code>oklch(92% 0.13 90)</code></td></tr>
+<tr><td><code>color-gray-50</code></td><td><code>oklch(98% 0 0)</code></td></tr>
+<tr><td><code>color-gray-100</code></td><td><code>oklch(95% 0 0)</code></td></tr>
+<tr><td><code>color-gray-500</code></td><td><code>oklch(60% 0 0)</code></td></tr>
+<tr><td><code>color-gray-900</code></td><td><code>oklch(15% 0 0)</code></td></tr>
+<tr><td><code>font-size-12</code></td><td><code>12px</code></td></tr>
+<tr><td><code>font-size-14</code></td><td><code>14px</code></td></tr>
+<tr><td><code>font-size-16</code></td><td><code>16px</code></td></tr>
+<tr><td><code>font-size-20</code></td><td><code>20px</code></td></tr>
+<tr><td><code>font-size-24</code></td><td><code>24px</code></td></tr>
+<tr><td><code>font-mono</code></td><td><code>&#x27;JetBrains Mono&#x27;, &#x27;Consolas&#x27;, &#x27;Courier New&#x27;, monospace</code></td></tr>
+<tr><td><code>spacing-4</code></td><td><code>4px</code></td></tr>
+<tr><td><code>spacing-8</code></td><td><code>8px</code></td></tr>
+<tr><td><code>spacing-16</code></td><td><code>16px</code></td></tr>
+<tr><td><code>spacing-24</code></td><td><code>24px</code></td></tr>
+<tr><td><code>spacing-32</code></td><td><code>32px</code></td></tr>
+<tr><td><code>spacing-48</code></td><td><code>48px</code></td></tr>
+<tr><td><code>radius-4</code></td><td><code>4px</code></td></tr>
+<tr><td><code>radius-8</code></td><td><code>8px</code></td></tr>
+<tr><td><code>radius-12</code></td><td><code>12px</code></td></tr>
+</table>
+<p><strong>Layer 2 — Semantic Tokens（語意，引用 Primitive）</strong></p>
+<table>
+<tr><th>Token</th><th>引用</th><th>使用含義</th></tr>
+<tr><td><code>color-action-primary</code></td><td><code>color-blue-500</code></td><td>主要 CTA、建立 Token、連結</td></tr>
+<tr><td><code>color-action-primary-hover</code></td><td><code>color-blue-600</code></td><td>Primary hover</td></tr>
+<tr><td><code>color-action-danger</code></td><td><code>color-red-500</code></td><td>撤銷按鈕、Error</td></tr>
+<tr><td><code>color-feedback-error</code></td><td><code>color-red-500</code></td><td>Inline Error / 邊框錯誤</td></tr>
+<tr><td><code>color-feedback-success</code></td><td><code>color-green-500</code></td><td>Success Toast / Active Badge</td></tr>
+<tr><td><code>color-feedback-warning</code></td><td><code>color-yellow-300</code></td><td>P03 警告橫幅</td></tr>
+<tr><td><code>color-surface-default</code></td><td><code>color-gray-50</code></td><td>頁面背景</td></tr>
+<tr><td><code>color-surface-raised</code></td><td><code>#FFFFFF</code></td><td>Card / Modal 背景</td></tr>
+<tr><td><code>color-text-primary</code></td><td><code>color-gray-900</code></td><td>主要內文</td></tr>
+<tr><td><code>color-text-secondary</code></td><td><code>color-gray-500</code></td><td>helper text、metadata</td></tr>
+<tr><td><code>color-border-default</code></td><td><code>color-gray-100</code></td><td>邊框、表格分隔線</td></tr>
+<tr><td><code>color-border-focus</code></td><td><code>color-blue-500</code></td><td>Focus ring</td></tr>
+<tr><td><code>spacing-component-gap</code></td><td><code>spacing-8</code></td><td>元件內部間距</td></tr>
+<tr><td><code>spacing-section-gap</code></td><td><code>spacing-24</code></td><td>區塊之間間距</td></tr>
+<tr><td><code>radius-component</code></td><td><code>radius-8</code></td><td>元件通用圓角</td></tr>
+<tr><td><code>radius-modal</code></td><td><code>radius-12</code></td><td>Modal 圓角</td></tr>
+</table>
+<p><strong>Layer 3 — Component Tokens（元件層，引用 Semantic）</strong></p>
+<table>
+<tr><th>Token</th><th>引用</th><th>元件</th></tr>
+<tr><td><code>button-primary-bg</code></td><td><code>color-action-primary</code></td><td>Primary Button 背景</td></tr>
+<tr><td><code>button-primary-bg-hover</code></td><td><code>color-action-primary-hover</code></td><td>Primary Button hover</td></tr>
+<tr><td><code>button-danger-bg</code></td><td><code>color-action-danger</code></td><td>Danger Button（撤銷）</td></tr>
+<tr><td><code>input-border-error</code></td><td><code>color-feedback-error</code></td><td>Input 錯誤邊框</td></tr>
+<tr><td><code>card-bg</code></td><td><code>color-surface-raised</code></td><td>TokenCard 背景</td></tr>
+<tr><td><code>modal-bg</code></td><td><code>color-surface-raised</code></td><td>Modal 背景</td></tr>
+<tr><td><code>modal-overlay</code></td><td><code>oklch(0% 0 0 / 0.5)</code></td><td>Modal 遮罩</td></tr>
+<tr><td><code>badge-active-bg</code></td><td><code>color-feedback-success</code></td><td>Active Badge 背景</td></tr>
+<tr><td><code>badge-revoked-bg</code></td><td><code>color-gray-500</code></td><td>Revoked Badge 背景</td></tr>
+<tr><td><code>token-reveal-text</code></td><td><code>color-text-primary</code> + <code>font-mono</code></td><td>P03 Token 明文文字</td></tr>
+</table>
+<p><strong>Shadow Token：</strong></p>
+<table>
+<tr><th>Token</th><th>值</th></tr>
+<tr><td><code>shadow-sm</code></td><td><code>0 1px 3px oklch(0% 0 0 / 0.10)</code></td></tr>
+<tr><td><code>shadow-md</code></td><td><code>0 2px 8px oklch(0% 0 0 / 0.12)</code></td></tr>
+<tr><td><code>shadow-lg</code></td><td><code>0 8px 24px oklch(0% 0 0 / 0.16)</code></td></tr>
+<tr><td><code>shadow-modal</code></td><td><code>0 16px 48px oklch(0% 0 0 / 0.24)</code></td></tr>
+</table>
+<p><strong>Animation Token：</strong></p>
+<table>
+<tr><th>Token</th><th>值</th></tr>
+<tr><td><code>duration-instant</code></td><td><code>100ms</code></td></tr>
+<tr><td><code>duration-fast</code></td><td><code>150ms</code></td></tr>
+<tr><td><code>duration-normal</code></td><td><code>300ms</code></td></tr>
+<tr><td><code>duration-slow</code></td><td><code>500ms</code></td></tr>
+<tr><td><code>ease-standard</code></td><td><code>cubic-bezier(0.4, 0, 0.2, 1)</code></td></tr>
+<tr><td><code>ease-out-expo</code></td><td><code>cubic-bezier(0.16, 1, 0.3, 1)</code></td></tr>
+<tr><td><code>ease-in-expo</code></td><td><code>cubic-bezier(0.55, 0, 1, 0.45)</code></td></tr>
+</table>
+<h3 id="94-dark-mode-token-mapping必填13-token--對比度">9.4 Dark Mode Token Mapping（必填，13 token + 對比度）</h3>
+<blockquote><p>所有語意化 Token 必須定義 Light / Dark 兩組值。禁止在元件層 hardcode 顏色。</p></blockquote>
+<table>
+<tr><th>Semantic Token</th><th>Light Mode（OKLCH）</th><th>Dark Mode（OKLCH）</th><th>WCAG AA 對比度（≥ 4.5:1）</th><th>用途說明</th></tr>
+<tr><td><code>--color-surface</code></td><td><code>oklch(98% 0 0)</code></td><td><code>oklch(12% 0 0)</code></td><td>14.5:1</td><td>頁面底層背景</td></tr>
+<tr><td><code>--color-surface-raised</code></td><td><code>oklch(100% 0 0)</code></td><td><code>oklch(18% 0 0)</code></td><td>11.2:1</td><td>Card / Modal / TokenCard 背景</td></tr>
+<tr><td><code>--color-text-primary</code></td><td><code>oklch(15% 0 0)</code></td><td><code>oklch(92% 0 0)</code></td><td>15.8:1</td><td>主要文字、標題</td></tr>
+<tr><td><code>--color-text-secondary</code></td><td><code>oklch(45% 0 0)</code></td><td><code>oklch(70% 0 0)</code></td><td>4.6:1</td><td>helper text、metadata</td></tr>
+<tr><td><code>--color-text-disabled</code></td><td><code>oklch(75% 0 0)</code></td><td><code>oklch(45% 0 0)</code></td><td>—</td><td>Disabled 文字（非內容）</td></tr>
+<tr><td><code>--color-action-primary</code></td><td><code>oklch(60% 0.18 250)</code></td><td><code>oklch(70% 0.16 250)</code></td><td>4.6:1（vs surface）</td><td>Primary CTA</td></tr>
+<tr><td><code>--color-action-primary-hover</code></td><td><code>oklch(52% 0.20 250)</code></td><td><code>oklch(80% 0.14 250)</code></td><td>5.2:1</td><td>Primary Hover</td></tr>
+<tr><td><code>--color-action-danger</code></td><td><code>oklch(62% 0.22 25)</code></td><td><code>oklch(72% 0.20 25)</code></td><td>4.5:1</td><td>撤銷按鈕</td></tr>
+<tr><td><code>--color-border-default</code></td><td><code>oklch(90% 0 0)</code></td><td><code>oklch(28% 0 0)</code></td><td>3.1:1（UI 元件）</td><td>邊框、分隔線</td></tr>
+<tr><td><code>--color-border-focus</code></td><td><code>oklch(60% 0.18 250)</code></td><td><code>oklch(70% 0.16 250)</code></td><td>3.0:1（vs surface）</td><td>Focus ring</td></tr>
+<tr><td><code>--color-feedback-error</code></td><td><code>oklch(58% 0.22 25)</code></td><td><code>oklch(72% 0.18 25)</code></td><td>4.5:1</td><td>Inline Error / 錯誤邊框</td></tr>
+<tr><td><code>--color-feedback-success</code></td><td><code>oklch(50% 0.16 145)</code></td><td><code>oklch(70% 0.14 145)</code></td><td>4.5:1</td><td>Success Toast / Active Badge</td></tr>
+<tr><td><code>--color-feedback-warning</code></td><td><code>oklch(85% 0.13 90)</code></td><td><code>oklch(80% 0.13 90)</code></td><td>4.7:1（dark text on warning bg）</td><td>P03 警告橫幅</td></tr>
+</table>
+<p><strong>深色模式切換機制：</strong></p>
+<ul><li>偵測：<code>@media (prefers-color-scheme: dark)</code> + 用戶手動切換（沿用 ERP 既有偏好設定）</li><li>實作：CSS Custom Properties + <code>data-theme=&quot;dark&quot;</code> 屬性</li><li>預設：跟隨系統；用戶手動覆蓋寫入 <code>localStorage.themeOverride</code></li></ul>
+<p><strong>禁止事項：</strong></p>
+<ul><li>❌ 在元件 CSS 中直接使用 <code>#hex</code> / <code>rgb()</code> 顏色值</li><li>❌ 只有一組 Token 值（未定義 Dark Mode）</li></ul>
+<hr>
+<h2 id="95-client-類別圖class-diagram">9.5 Client 類別圖（Class Diagram）</h2>
+<blockquote><p>Web 前端採 Clean Architecture 四層分層；依賴方向由外向內。</p></blockquote>
+<h3 id="951-web-前端-class-diagrammermaid">9.5.1 Web 前端 Class Diagram（Mermaid）</h3>
+<div class="diagram-container"><pre class="mermaid">classDiagram
+    direction TB
+
+    %% ── Presentation Layer ──────────────────────────────────
+    class TokenManagementPage {
+        &lt;&lt;Component&gt;&gt;
+        +render() View
+    }
+    class TokenListTable {
+        &lt;&lt;Component&gt;&gt;
+        +tokens: TokenViewModel[]
+        +onRevoke(id) void
+    }
+    class CreateTokenModal {
+        &lt;&lt;Component&gt;&gt;
+        +isOpen: boolean
+        +onSubmit(description) Promise
+    }
+    class TokenRevealModal {
+        &lt;&lt;Component&gt;&gt;
+        +tokenPlaintext: string
+        +hasConfirmed: boolean
+        +onClose() void
+    }
+    class ConfirmRevokeDialog {
+        &lt;&lt;Component&gt;&gt;
+        +tokenInfo: TokenInfo
+        +onConfirm() Promise
+    }
+    class AuditLogPage {
+        &lt;&lt;Component&gt;&gt;
+        +filters: AuditFilters
+        +exportCsv() Promise
+    }
+    class CopyButton {
+        &lt;&lt;Component&gt;&gt;
+        +textToCopy: string
+        +onCopied() void
+    }
+    class TokenStatusBadge {
+        &lt;&lt;Component&gt;&gt;
+        +status: &#x27;active&#x27; | &#x27;revoked&#x27;
+    }
+    class EmptyState {
+        &lt;&lt;Component&gt;&gt;
+        +title: string
+        +primaryCta: ActionDef
+    }
+
+    %% ── Application Layer ───────────────────────────────────
+    class useTokenStore {
+        &lt;&lt;Store&gt;&gt;
+        +tokens: TokenViewModel[]
+        +createToken(desc) Promise~TokenPlaintext~
+        +revokeToken(id) Promise
+        +listTokens() Promise
+    }
+    class useAuditLogStore {
+        &lt;&lt;Store&gt;&gt;
+        +logs: AuditLogEntry[]
+        +filters: AuditFilters
+        +applyFilters() Promise
+        +exportCsv() Promise
+    }
+    class useFormViewModel {
+        &lt;&lt;Hook&gt;&gt;
+        +values: Record~string, unknown~
+        +errors: Record~string, string~
+        +handleChange() void
+        +handleSubmit() Promise
+    }
+    class useModalState {
+        &lt;&lt;Hook&gt;&gt;
+        +isOpen: boolean
+        +open() void
+        +close() void
+    }
+
+    %% ── Domain Layer ────────────────────────────────────────
+    class TokenViewModel {
+        &lt;&lt;Entity&gt;&gt;
+        +id: string
+        +prefix: string
+        +description: string
+        +status: TokenStatus
+        +createdAt: Date
+        +lastUsedAt: Date | null
+    }
+    class TokenStatus {
+        &lt;&lt;Enum&gt;&gt;
+        active
+        revoked
+    }
+    class TokenDescriptionValidator {
+        &lt;&lt;Validator&gt;&gt;
+        +validate(desc: string) ValidationResult
+    }
+    class AuditLogEntry {
+        &lt;&lt;Entity&gt;&gt;
+        +timestamp: Date
+        +action: &#x27;create&#x27; | &#x27;revoke&#x27;
+        +actorUsername: string
+        +targetTokenPrefix: string
+        +ipAddress: string
+    }
+
+    %% ── Infrastructure Layer ────────────────────────────────
+    class TokenApiClient {
+        &lt;&lt;Service&gt;&gt;
+        +listTokens() Promise
+        +createToken(desc) Promise
+        +revokeToken(id) Promise
+    }
+    class AuditLogApiClient {
+        &lt;&lt;Service&gt;&gt;
+        +listLogs(filters) Promise
+        +exportCsv(filters) Promise~Blob~
+    }
+    class ClipboardAdapter {
+        &lt;&lt;Adapter&gt;&gt;
+        +writeText(text) Promise
+    }
+    class FeatureFlagAdapter {
+        &lt;&lt;Adapter&gt;&gt;
+        +isEnabled(name) boolean
+    }
+
+    %% ── Relationships ───────────────────────────────────────
+    TokenManagementPage --&gt; TokenListTable
+    TokenManagementPage --&gt; CreateTokenModal
+    TokenManagementPage --&gt; ConfirmRevokeDialog
+    CreateTokenModal --&gt; TokenRevealModal
+    TokenListTable --&gt; TokenStatusBadge
+    TokenListTable --&gt; EmptyState
+    TokenRevealModal --&gt; CopyButton
+    AuditLogPage --&gt; AuditLogTable
+    TokenManagementPage ..&gt; useTokenStore : uses
+    AuditLogPage ..&gt; useAuditLogStore : uses
+    CreateTokenModal ..&gt; useFormViewModel : uses
+    CreateTokenModal ..&gt; useModalState : uses
+    useTokenStore ..&gt; TokenDescriptionValidator : validates
+    useTokenStore ..&gt; TokenApiClient : calls
+    useTokenStore --&gt; TokenViewModel : manages
+    useAuditLogStore ..&gt; AuditLogApiClient : calls
+    useAuditLogStore --&gt; AuditLogEntry : aggregates
+    CopyButton ..&gt; ClipboardAdapter : uses
+    TokenManagementPage ..&gt; FeatureFlagAdapter : checks</pre></div>
+<h3 id="952-class--test-traceability">9.5.2 Class → Test Traceability</h3>
+<table>
+<tr><th>Class</th><th>Layer</th><th>src/ 路徑（規劃）</th><th>Test 路徑</th><th>預期 Test Cases</th></tr>
+<tr><td>TokenManagementPage</td><td>Presentation</td><td><code>src/pages/TokenManagementPage.tsx</code></td><td><code>tests/unit/pages/TokenManagementPage.test.tsx</code></td><td>6</td></tr>
+<tr><td>CreateTokenModal</td><td>Presentation</td><td><code>src/components/CreateTokenModal.tsx</code></td><td><code>tests/unit/components/CreateTokenModal.test.tsx</code></td><td>8</td></tr>
+<tr><td>TokenRevealModal</td><td>Presentation</td><td><code>src/components/TokenRevealModal.tsx</code></td><td><code>tests/unit/components/TokenRevealModal.test.tsx</code></td><td>7</td></tr>
+<tr><td>ConfirmRevokeDialog</td><td>Presentation</td><td><code>src/components/ConfirmRevokeDialog.tsx</code></td><td><code>tests/unit/components/ConfirmRevokeDialog.test.tsx</code></td><td>5</td></tr>
+<tr><td>AuditLogPage</td><td>Presentation</td><td><code>src/pages/AuditLogPage.tsx</code></td><td><code>tests/unit/pages/AuditLogPage.test.tsx</code></td><td>6</td></tr>
+<tr><td>CopyButton</td><td>Presentation</td><td><code>src/components/CopyButton.tsx</code></td><td><code>tests/unit/components/CopyButton.test.tsx</code></td><td>4</td></tr>
+<tr><td>useTokenStore</td><td>Application</td><td><code>src/stores/useTokenStore.ts</code></td><td><code>tests/unit/stores/useTokenStore.test.ts</code></td><td>8</td></tr>
+<tr><td>useAuditLogStore</td><td>Application</td><td><code>src/stores/useAuditLogStore.ts</code></td><td><code>tests/unit/stores/useAuditLogStore.test.ts</code></td><td>6</td></tr>
+<tr><td>TokenDescriptionValidator</td><td>Domain</td><td><code>src/domain/TokenDescriptionValidator.ts</code></td><td><code>tests/unit/domain/TokenDescriptionValidator.test.ts</code></td><td>5</td></tr>
+<tr><td>TokenApiClient</td><td>Infrastructure</td><td><code>src/infrastructure/TokenApiClient.ts</code></td><td><code>tests/unit/infrastructure/TokenApiClient.test.ts</code></td><td>8</td></tr>
+<tr><td>AuditLogApiClient</td><td>Infrastructure</td><td><code>src/infrastructure/AuditLogApiClient.ts</code></td><td><code>tests/unit/infrastructure/AuditLogApiClient.test.ts</code></td><td>6</td></tr>
+<tr><td>ClipboardAdapter</td><td>Infrastructure</td><td><code>src/infrastructure/ClipboardAdapter.ts</code></td><td><code>tests/unit/infrastructure/ClipboardAdapter.test.ts</code></td><td>4</td></tr>
+</table>
+<hr>
+<h2 id="10-copy--content-design">10. Copy &amp; Content Design</h2>
+<h3 id="101-語氣與文風tone-of-voice">10.1 語氣與文風（Tone of Voice）</h3>
+<table>
+<tr><th>情境</th><th>語氣</th><th>範例</th></tr>
+<tr><td>一般說明</td><td>簡潔、直接</td><td>「Token 已成功撤銷」而非「您的 Token 已成功完成撤銷流程」</td></tr>
+<tr><td>錯誤訊息</td><td>有幫助、不責怪用戶</td><td>「Token 描述為必填，請輸入此 Token 的用途」而非「描述格式錯誤」</td></tr>
+<tr><td>空狀態</td><td>鼓勵行動</td><td>「尚無 API Token。建立第一個 Token，開始在 N8N 工作流中安全呼叫 ERP API。」</td></tr>
+<tr><td>破壞性操作確認</td><td>清楚說明後果</td><td>「撤銷後，使用此 Token 的工作流將立即失效。此操作無法復原。」</td></tr>
+<tr><td>安全警告（P03）</td><td>嚴肅但不恐嚇</td><td>「請立即複製此 Token。Token 明文僅顯示一次，關閉後將無法再取得。」</td></tr>
+</table>
+<h3 id="102-關鍵文案清單">10.2 關鍵文案清單</h3>
+<table>
+<tr><th>位置</th><th>文案（zh-TW）</th><th>字數 / 限制</th><th>備注</th></tr>
+<tr><td>P01 頁面標題</td><td>API Token 管理</td><td>≤ 16</td><td>h1</td></tr>
+<tr><td>P01 副標題</td><td>管理您的 API Token，用於 N8N 工作流整合</td><td>≤ 32</td><td>helper</td></tr>
+<tr><td>P01 主 CTA</td><td>+ 建立 Token</td><td>≤ 8</td><td>動詞開頭</td></tr>
+<tr><td>P02 Modal 標題</td><td>建立 API Token</td><td>≤ 16</td><td>h2</td></tr>
+<tr><td>P02 描述欄 label</td><td>Token 描述（必填）</td><td>≤ 12</td><td>含必填標記</td></tr>
+<tr><td>P02 描述 placeholder</td><td>例：N8N 銷售報表工作流</td><td>≤ 20</td><td>提示用法</td></tr>
+<tr><td>P02 描述 helper</td><td>說明此 Token 的用途，方便日後識別</td><td>≤ 28</td><td>引導</td></tr>
+<tr><td>P02 提交按鈕</td><td>建立 Token</td><td>≤ 8</td><td>Primary</td></tr>
+<tr><td>P03 標題</td><td>Token 建立成功</td><td>≤ 12</td><td>含 ✓ 圖示</td></tr>
+<tr><td>P03 警告橫幅</td><td>請立即複製此 Token。Token 明文僅顯示一次，關閉後將無法再取得。</td><td>≤ 64</td><td>role=&quot;alert&quot;</td></tr>
+<tr><td>P03 確認核取框</td><td>我已複製並妥善保存此 Token</td><td>≤ 28</td><td>required</td></tr>
+<tr><td>P03 N8N 連結</td><td>查看 N8N 設定說明</td><td>≤ 16</td><td>secondary</td></tr>
+<tr><td>P04 標題</td><td>確認撤銷 Token</td><td>≤ 12</td><td>role=&quot;alertdialog&quot;</td></tr>
+<tr><td>P04 警告</td><td>撤銷後，使用此 Token 的工作流將立即失效。此操作無法復原。</td><td>≤ 56</td><td>role=&quot;alert&quot;</td></tr>
+<tr><td>P04 取消</td><td>取消</td><td>≤ 4</td><td>預設 focus</td></tr>
+<tr><td>P04 確認</td><td>確認撤銷</td><td>≤ 8</td><td>Danger</td></tr>
+<tr><td>Toast 撤銷成功</td><td>Token 已成功撤銷，相關 API 呼叫將立即返回 401 錯誤。</td><td>≤ 56</td><td>Success</td></tr>
+<tr><td>Toast 複製成功</td><td>Token 已複製至剪貼板</td><td>≤ 16</td><td>Success + aria-live</td></tr>
+<tr><td>錯誤 Inline 描述空</td><td>Token 描述為必填，請輸入此 Token 的用途</td><td>≤ 32</td><td>422 對應</td></tr>
+<tr><td>錯誤 Inline 描述太長</td><td>描述長度不可超過 100 字元（目前 {n} 字元）</td><td>≤ 32</td><td>動態</td></tr>
+<tr><td>錯誤 達 50 個 Token</td><td>已達 Token 數量上限（50 個），請先撤銷不再使用的 Token</td><td>≤ 40</td><td>422 對應</td></tr>
+<tr><td>錯誤 401 token_revoked</td><td>Token 已撤銷或無效。請至 ERP API Token 管理頁建立新 Token。</td><td>≤ 48</td><td>API body</td></tr>
+<tr><td>錯誤 401 token_invalid</td><td>Token 無效。請確認 Authorization Header 中的 Token 是否正確。</td><td>≤ 48</td><td>API body</td></tr>
+<tr><td>錯誤 401 token_missing</td><td>缺少驗證憑證。請在 Authorization Header 提供 Bearer Token。</td><td>≤ 48</td><td>API body</td></tr>
+<tr><td>錯誤 429 rate limit</td><td>驗證失敗次數過多，請稍後再試（60 秒後可重試）。</td><td>≤ 32</td><td>暴力破解防護</td></tr>
+<tr><td>P07 標題</td><td>Token 審計日誌</td><td>≤ 12</td><td>h1</td></tr>
+<tr><td>P07 唯讀提示</td><td>此日誌為唯讀（Append-only）。僅 IT Admin 可查看。</td><td>≤ 32</td><td>footer</td></tr>
+<tr><td>空狀態 P01 首次</td><td>尚無 API Token。建立第一個 Token，開始在 N8N 工作流中安全呼叫 ERP API，不需要等待 IT 配置。</td><td>≤ 80</td><td>含雙 CTA</td></tr>
+</table>
+<h3 id="103-i18n-字串清單節錄">10.3 i18n 字串清單（節錄）</h3>
+<blockquote><p>全部文案以 i18n key 提取；繁中為預設，英文為次要支援（PRD §7.6）。Key 使用 <code>&lt;page&gt;.&lt;element&gt;.&lt;purpose&gt;</code> 命名。</p></blockquote>
+<table>
+<tr><th>i18n Key</th><th>zh-TW</th><th>en</th></tr>
+<tr><td><code>tokens.list.title</code></td><td>API Token 管理</td><td>API Token Management</td></tr>
+<tr><td><code>tokens.list.subtitle</code></td><td>管理您的 API Token，用於 N8N 工作流整合</td><td>Manage your API tokens used for N8N workflow integration</td></tr>
+<tr><td><code>tokens.list.cta.create</code></td><td>+ 建立 Token</td><td>+ Create Token</td></tr>
+<tr><td><code>tokens.list.empty.title</code></td><td>尚無 API Token</td><td>No API Tokens Yet</td></tr>
+<tr><td><code>tokens.list.empty.body</code></td><td>建立第一個 Token，開始在 N8N 工作流中安全呼叫 ERP API。</td><td>Create your first token to securely call the ERP API from your N8N workflows.</td></tr>
+<tr><td><code>tokens.list.empty.primary_cta</code></td><td>建立第一個 Token</td><td>Create First Token</td></tr>
+<tr><td><code>tokens.list.empty.secondary_cta</code></td><td>查看 N8N 設定指南 ↗</td><td>View N8N Setup Guide ↗</td></tr>
+<tr><td><code>tokens.create.title</code></td><td>建立 API Token</td><td>Create API Token</td></tr>
+<tr><td><code>tokens.create.description.label</code></td><td>Token 描述（必填）</td><td>Token Description (Required)</td></tr>
+<tr><td><code>tokens.create.description.placeholder</code></td><td>例：N8N 銷售報表工作流</td><td>e.g. N8N Sales Report Workflow</td></tr>
+<tr><td><code>tokens.create.submit</code></td><td>建立 Token</td><td>Create Token</td></tr>
+<tr><td><code>tokens.reveal.title</code></td><td>Token 建立成功</td><td>Token Created Successfully</td></tr>
+<tr><td><code>tokens.reveal.warning</code></td><td>請立即複製此 Token。Token 明文僅顯示一次，關閉後將無法再取得。</td><td>Please copy this token now. The plaintext is shown only once and cannot be retrieved later.</td></tr>
+<tr><td><code>tokens.reveal.copy</code></td><td>複製 Token</td><td>Copy Token</td></tr>
+<tr><td><code>tokens.reveal.copied</code></td><td>✓ 已複製！</td><td>✓ Copied!</td></tr>
+<tr><td><code>tokens.reveal.confirm_checkbox</code></td><td>我已複製並妥善保存此 Token</td><td>I have copied and securely saved this token</td></tr>
+<tr><td><code>tokens.reveal.close</code></td><td>關閉</td><td>Close</td></tr>
+<tr><td><code>tokens.revoke.title</code></td><td>確認撤銷 Token</td><td>Confirm Token Revocation</td></tr>
+<tr><td><code>tokens.revoke.warning</code></td><td>撤銷後，使用此 Token 的工作流將立即失效。此操作無法復原。</td><td>After revocation, workflows using this token will immediately stop working. This action cannot be undone.</td></tr>
+<tr><td><code>tokens.revoke.cancel</code></td><td>取消</td><td>Cancel</td></tr>
+<tr><td><code>tokens.revoke.confirm</code></td><td>確認撤銷</td><td>Confirm Revocation</td></tr>
+<tr><td><code>tokens.toast.revoked</code></td><td>Token 已成功撤銷，相關 API 呼叫將立即返回 401 錯誤。</td><td>Token revoked. API calls using this token will return 401 immediately.</td></tr>
+<tr><td><code>tokens.toast.copied</code></td><td>Token 已複製至剪貼板</td><td>Token copied to clipboard</td></tr>
+<tr><td><code>audit.title</code></td><td>Token 審計日誌</td><td>Token Audit Log</td></tr>
+<tr><td><code>audit.export.csv</code></td><td>匯出 CSV</td><td>Export CSV</td></tr>
+<tr><td><code>audit.readonly_notice</code></td><td>此日誌為唯讀（Append-only）。僅 IT Admin 可查看。</td><td>This log is read-only (append-only). Visible to IT Admins only.</td></tr>
+<tr><td><code>errors.401.token_revoked</code></td><td>Token 已撤銷或無效</td><td>Token has been revoked or is invalid</td></tr>
+<tr><td><code>errors.401.token_invalid</code></td><td>Token 無效</td><td>Token invalid</td></tr>
+<tr><td><code>errors.401.token_missing</code></td><td>請在 Authorization Header 提供 Bearer Token</td><td>Please provide a Bearer Token in the Authorization Header</td></tr>
+<tr><td><code>errors.429.too_many_failed_auth</code></td><td>驗證失敗次數過多，請稍後再試</td><td>Too many failed authentication attempts, please try again later</td></tr>
+</table>
+<hr>
+<h2 id="11-prototype--validation-plan">11. Prototype &amp; Validation Plan</h2>
+<h3 id="111-原型連結">11.1 原型連結</h3>
+<table>
+<tr><th>類型</th><th>工具</th><th>連結</th><th>對應流程</th></tr>
+<tr><td>Low-fidelity Wireframe</td><td>本 PDD §5 ASCII Wireframe</td><td>docs/PDD.md §5</td><td>§4.1 主流程、§4.2 替代流程、§4.3 錯誤流程</td></tr>
+<tr><td>High-fidelity Prototype</td><td>Figma（待 Design Lead 補充連結）</td><td>TBD（OQ-PDD-1）</td><td>§4.1 完整端對端</td></tr>
+<tr><td>Interactive Prototype（HTML）</td><td>本專案 docs/blueprint/prototype/</td><td>由 <code>gendoc-flow PROTOTYPE</code> 生成</td><td>§4.1 + §4.3</td></tr>
+<tr><td>API Explorer（連動 P06）</td><td>本專案 docs/blueprint/prototype/api-explorer/</td><td>由 <code>gendoc-flow PROTOTYPE</code> 生成</td><td>§5.6 P06 三個示範 API</td></tr>
+</table>
+<h3 id="112-設計驗證計畫">11.2 設計驗證計畫</h3>
+<table>
+<tr><th>方法</th><th>時機</th><th>樣本</th><th>成功標準</th></tr>
+<tr><td>Concept Test（5-second Test）</td><td>Wireframe（§5）完成後</td><td>5 人（含 IT Admin / 業務 / N8N 操作員各 1+）</td><td>核心概念理解率 ≥ 80%（「這頁是做什麼的」答對）</td></tr>
+<tr><td>Usability Test（Hi-fi Prototype）</td><td>Figma Hi-fi 完成後</td><td>5 人（目標 Persona）</td><td>Task Completion Rate ≥ 80%；SUS Score ≥ 68；建立 Token 平均 ≤ 5 分鐘</td></tr>
+<tr><td>Beta Test（POC 試用）</td><td>POC Week 2（2026-05-22）</td><td>≥ 3 名 + 至多 5 名</td><td>70% 在 15 分鐘內自助完成（CONSTANTS <code>POC_BETA_SUCCESS_USERS_15MIN_PCT</code>）；CSAT ≥ 3.5（CONSTANTS <code>BETA_USER_SATISFACTION_MIN</code>）</td></tr>
+<tr><td>A/B Test：Quick Start v1 vs v2</td><td>Pilot 後 v2.0</td><td>30 名（each arm 15 名）</td><td>自助完成首次端對端時間中位數縮短 ≥ 30%；不增 Token 建立失敗率 &gt; 2%</td></tr>
+<tr><td>A/B Test：列表預設過濾</td><td>Pilot 後 v2.0</td><td>50 名</td><td>撤銷誤操作率下降；列表載入時間不變差 &gt; 100ms</td></tr>
+</table>
+<hr>
+<h2 id="12-open-questions">12. Open Questions</h2>
+<table>
+<tr><th>#</th><th>問題</th><th>影響範圍</th><th>優先度</th><th>負責人</th><th>截止日</th><th>狀態</th></tr>
+<tr><td>OQ-PDD-1</td><td>Figma Hi-fi Prototype 連結尚未提供（沿用 ERP 現有 Design System，不另建設計檔）</td><td>§11.1、Usability Test</td><td>高</td><td>Design Lead</td><td>PDD 核准前</td><td>OPEN</td></tr>
+<tr><td>OQ-PDD-2</td><td>一次性 Token Modal（P03）在使用者勾選核取框前的 Esc / X / 遮罩點擊互動：採二級警告對話框 vs 直接禁止？目前採二級警告（§5.3）— 待 Usability Test 驗證</td><td>§5.3 P03 互動</td><td>中</td><td>PM + Design Lead</td><td>Usability Test 後</td><td>RESOLVED：採二級警告（DDR-05）</td></tr>
+<tr><td>OQ-PDD-3</td><td>P06 POC API Test Console 是否在 MVP 必須提供？或僅以 Quick Start + Postman collection 替代？</td><td>§5.6、開發成本</td><td>中</td><td>PM + Engineering</td><td>EDD 啟動前</td><td>OPEN</td></tr>
+<tr><td>OQ-PDD-4</td><td>P07 審計日誌時區顯示：使用者本地 vs 統一 UTC+8？目前 §5.7 採 UTC+8 顯示 + UTC 儲存 — 跨區公司 vs 在地公司決策</td><td>§5.7、§7.6 i18n</td><td>中</td><td>PM + IT Admin</td><td>OQ5 解決時</td><td>OPEN</td></tr>
+<tr><td>OQ-PDD-5</td><td>既有 ERP UI 框架（Razor Pages / Blazor / MVC）若為 Razor 舊版 WebForms，§9.5 Class Diagram 的 Component / Hook 模型需改寫為 Partial View / View Component；影響元件 Reusability</td><td>§9.5、實作方式</td><td>高</td><td>ERP 開發團隊（PRD OQ3）</td><td>EDD 啟動前</td><td>OPEN</td></tr>
+<tr><td>OQ-PDD-6</td><td>行動端（&lt; 768px）TokenCard 的左滑撤銷手勢是否與既有 ERP 行動端互動衝突？需現場觀察測試</td><td>§6.6、§7.2</td><td>低</td><td>Design Lead</td><td>Pilot 試用</td><td>OPEN</td></tr>
+<tr><td>OQ-PDD-7</td><td>Dark Mode 是否在 MVP 上線即支援？或僅實作 Light Mode + Token 預留 Dark 值，Pilot 後啟用？</td><td>§9.4、實作成本</td><td>中</td><td>PM + Engineering</td><td>EDD 啟動前</td><td>OPEN</td></tr>
+<tr><td>OQ-PDD-8</td><td>達 50 個 Token 上限時的 UX：是否在 P01 列表頂部顯示警示 banner？或僅在 [+ 建立] 按鈕 Disabled + Tooltip？</td><td>§5.1、§10.2</td><td>低</td><td>Design Lead</td><td>Sprint 1</td><td>OPEN</td></tr>
+</table>
+<hr>
+<h2 id="13-engineering-handoff-specification">13. Engineering Handoff Specification</h2>
+<h3 id="131-互動元件狀態規格表component-state-specification必填">13.1 互動元件狀態規格表（Component State Specification，必填）</h3>
+<blockquote><p>所有互動元件均列出，每格為具體 CSS property + Token 名稱；不適用填「—」。Hover/Focus/Active 過場依 §6.1.1 Motion Spec。</p></blockquote>
+<table>
+<tr><th>元件名稱</th><th>Default</th><th>Hover</th><th>Focus</th><th>Active</th><th>Disabled</th><th>Loading</th><th>Error</th></tr>
+<tr><td><code>PrimaryButton</code>（建立 Token / 提交 / 確認）</td><td><code>bg: var(--button-primary-bg); color: white; radius: var(--radius-component); padding: 12px 16px; height: 40px</code></td><td><code>bg: var(--button-primary-bg-hover); cursor: pointer; transition: background var(--duration-fast) var(--ease-standard)</code></td><td><code>outline: 2px solid var(--color-border-focus); outline-offset: 2px</code></td><td><code>transform: scale(0.97); bg: var(--button-primary-bg-hover)</code></td><td><code>opacity: 0.4; cursor: not-allowed; pointer-events: none</code></td><td><code>opacity: 0.7; cursor: wait; spinner icon 16×16 顯示</code></td><td>—</td></tr>
+<tr><td><code>SecondaryButton</code>（取消 / N8N 指南）</td><td><code>bg: transparent; border: 1px solid var(--color-border-default); color: var(--color-text-primary); radius: var(--radius-component); padding: 12px 16px</code></td><td><code>bg: var(--color-surface-raised); border-color: var(--color-action-primary)</code></td><td><code>outline: 2px solid var(--color-border-focus); outline-offset: 2px</code></td><td><code>bg: var(--color-surface-default)</code></td><td><code>opacity: 0.4; cursor: not-allowed</code></td><td><code>opacity: 0.7; spinner icon</code></td><td>—</td></tr>
+<tr><td><code>DangerButton</code>（撤銷 / 確認撤銷）</td><td><code>bg: var(--button-danger-bg); color: white; radius: var(--radius-component)</code></td><td><code>bg: oklch(56% 0.22 25); cursor: pointer</code></td><td><code>outline: 2px solid var(--color-action-danger); outline-offset: 2px</code></td><td><code>transform: scale(0.97)</code></td><td><code>opacity: 0.4; cursor: not-allowed</code></td><td><code>spinner icon + 撤銷中…</code></td><td>—</td></tr>
+<tr><td><code>TextInput</code>（描述、搜尋）</td><td><code>border: 1px solid var(--color-border-default); bg: var(--color-surface-raised); padding: 8px 12px; radius: var(--radius-4); height: 40px</code></td><td><code>border-color: var(--color-action-primary)</code></td><td><code>border-color: var(--color-border-focus); outline: 2px solid var(--color-border-focus); outline-offset: 0</code></td><td>—</td><td><code>bg: var(--color-surface-default); cursor: not-allowed; color: var(--color-text-disabled)</code></td><td>—</td><td><code>border-color: var(--input-border-error); helper text color: var(--color-feedback-error); shake animation 200ms</code></td></tr>
+<tr><td><code>Checkbox</code>（P03 確認）</td><td><code>border: 2px solid var(--color-border-default); bg: transparent; size: 20×20px</code></td><td><code>border-color: var(--color-action-primary)</code></td><td><code>outline: 2px solid var(--color-border-focus); outline-offset: 2px</code></td><td><code>bg: var(--color-action-primary); checkmark icon 顯示</code></td><td><code>opacity: 0.4; cursor: not-allowed</code></td><td>—</td><td>—</td></tr>
+<tr><td><code>Select</code>（時間範圍 / 操作類型 / 操作人）</td><td><code>border: 1px solid var(--color-border-default); arrow icon 顯示; height: 40px</code></td><td><code>border-color: var(--color-action-primary); bg: var(--color-surface-default)</code></td><td><code>outline: 2px solid var(--color-border-focus)</code></td><td><code>dropdown panel 展開（max-height: 240px; overflow-y: auto）</code></td><td><code>opacity: 0.4; cursor: not-allowed</code></td><td><code>spinner icon; options 隱藏</code></td><td><code>border-color: var(--color-feedback-error)</code></td></tr>
+<tr><td><code>SegmentedControl</code>（全部 / 僅有效）</td><td><code>bg: var(--color-surface-default); padding: 4px; radius: var(--radius-component)</code></td><td>item <code>bg: var(--color-surface-raised)</code></td><td><code>outline: 2px solid var(--color-border-focus)</code></td><td>selected item <code>bg: var(--color-surface-raised); shadow: var(--shadow-sm)</code></td><td><code>opacity: 0.4</code></td><td>—</td><td>—</td></tr>
+<tr><td><code>Card</code>（TokenCard / EmptyState）</td><td><code>bg: var(--color-surface-raised); shadow: var(--shadow-md); radius: var(--radius-12); padding: 16px</code></td><td><code>shadow: var(--shadow-lg); transform: translateY(-2px); transition: shadow var(--duration-normal), transform var(--duration-normal)</code></td><td><code>outline: 2px solid var(--color-border-focus)</code></td><td><code>shadow: var(--shadow-sm)</code></td><td>—</td><td><code>Skeleton Screen 替代內容</code></td><td>—</td></tr>
+<tr><td><code>Modal Container</code>（P02 / P03 / P04）</td><td><code>bg: var(--modal-bg); shadow: var(--shadow-modal); radius: var(--radius-modal); max-height: 80vh; overflow-y: auto</code></td><td>—</td><td>trap focus 在 Modal 內</td><td>—</td><td>—</td><td>content 區顯示 spinner overlay</td><td>error 區顯示 inline error</td></tr>
+<tr><td><code>Modal Overlay</code></td><td><code>bg: var(--modal-overlay); backdrop-filter: blur(2px)</code></td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td><code>TokenStatusBadge</code></td><td>Active：<code>bg: var(--badge-active-bg); color: white; padding: 2px 8px; radius: var(--radius-4); font-size: 12px</code></td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td><code>TokenStatusBadge</code> Revoked</td><td><code>bg: var(--badge-revoked-bg); color: white; padding: 2px 8px; radius: var(--radius-4); font-size: 12px</code></td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td><code>CopyButton</code>（P03）</td><td><code>bg: var(--button-primary-bg); color: white; height: 40px; padding: 0 16px</code></td><td><code>bg: var(--button-primary-bg-hover)</code></td><td><code>outline: 2px solid var(--color-border-focus)</code></td><td>Copied 3s：<code>bg: var(--color-feedback-success); content: &quot;✓ 已複製！&quot;</code></td><td>—</td><td>—</td><td>failed：<code>content: &quot;複製失敗，請手動選取&quot;</code></td></tr>
+<tr><td><code>Pagination</code>（P01 / P07）</td><td><code>button height: 40px; min-width: 40px; bg: transparent; border: 1px solid var(--color-border-default)</code></td><td><code>bg: var(--color-surface-default)</code></td><td><code>outline: 2px solid var(--color-border-focus)</code></td><td>current：<code>bg: var(--button-primary-bg); color: white; aria-current=&quot;page&quot;</code></td><td>first page 的「上一頁」/ last page 的「下一頁」：<code>opacity: 0.4; cursor: not-allowed</code></td><td>—</td><td>—</td></tr>
+<tr><td><code>Toast</code>（Success / Error / Warning / Info）</td><td><code>position: fixed; top: 24px; right: 24px; padding: 12px 16px; bg: var(--color-feedback-success); color: white; radius: var(--radius-component); shadow: var(--shadow-lg)</code></td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td><code>Skeleton</code>（列表 / 表格載入態）</td><td><code>bg: var(--color-surface-default); height matches content row; border-radius: var(--radius-4); animation: shimmer 1.5s linear infinite</code></td><td>—</td><td>—</td><td>—</td><td>—</td><td>shimmer 動畫運行</td><td>—</td></tr>
+</table>
+<p><strong>規則：</strong></p>
+<ul><li>所有 Token 名稱以 <code>var(--token-name)</code> 引用 §9.3 / §9.4 定義</li><li>Hover / Focus / Active 之 transition 規格依 §6.1.1</li><li>prefers-reduced-motion 時所有 transition <code>duration: 0.01ms</code></li></ul>
+<h3 id="132-畫面狀態轉換圖screen-state-diagram每個-p0-畫面一張">13.2 畫面狀態轉換圖（Screen State Diagram，每個 P0 畫面一張）</h3>
+<h4 id="p01-token-管理主頁狀態圖">P01 Token 管理主頁狀態圖</h4>
+<div class="diagram-container"><pre class="mermaid">stateDiagram-v2
+    [*] --&gt; Loading : 進入 / GET /api/v1/me/tokens
+    Loading --&gt; Empty : 200 + 空陣列
+    Loading --&gt; Loaded : 200 + 有資料
+    Loading --&gt; Error : 4xx / 5xx / Timeout
+    Loaded --&gt; Loading : 切換過濾 / 分頁 / 撤銷後 refetch
+    Empty --&gt; Loading : 點擊 [建立第一個 Token] → P02 流程完成後 refetch
+    Error --&gt; Loading : 點擊重試
+    Loaded --&gt; CreateModalOpen : 點擊 [+ 建立]
+    CreateModalOpen --&gt; Loaded : Cancel / Esc
+    CreateModalOpen --&gt; RevealModalOpen : 建立成功
+    RevealModalOpen --&gt; Loaded : 關閉（已勾選確認）
+    Loaded --&gt; RevokeDialogOpen : 點擊撤銷
+    RevokeDialogOpen --&gt; Loaded : Cancel
+    RevokeDialogOpen --&gt; Loading : 確認撤銷
+    Loaded --&gt; [*] : 用戶離開</pre></div>
+<h4 id="p02--p03-token-建立-modal-狀態圖">P02 / P03 Token 建立 Modal 狀態圖</h4>
+<div class="diagram-container"><pre class="mermaid">stateDiagram-v2
+    [*] --&gt; P02_Empty : Modal 開啟，描述欄空
+    P02_Empty --&gt; P02_Filled : 輸入描述
+    P02_Filled --&gt; P02_Empty : 清空描述
+    P02_Filled --&gt; P02_ValidationError : 描述超過 100 字 或 空白
+    P02_ValidationError --&gt; P02_Filled : 修正
+    P02_Filled --&gt; P02_Submitting : 點擊 [建立]
+    P02_Submitting --&gt; P02_Filled : 422（達 50 上限 / 空 / 太長）顯示 inline error
+    P02_Submitting --&gt; P02_Timeout : 超過 5000ms（CONSTANTS TOKEN_CREATE_TIMEOUT_MS）
+    P02_Timeout --&gt; P02_Filled : 重試
+    P02_Submitting --&gt; P03_Reveal : 201 成功
+    P03_Reveal --&gt; P03_Copied : 點擊複製
+    P03_Copied --&gt; P03_Reveal : 3s 後復原
+    P03_Reveal --&gt; P03_Confirmed : 勾選確認
+    P03_Confirmed --&gt; [*] : 點擊 [關閉]
+    P03_Reveal --&gt; P03_ExitWarning : 未勾選按 X / Esc / 遮罩
+    P03_ExitWarning --&gt; P03_Reveal : 取消，返回複製
+    P03_ExitWarning --&gt; [*] : 確認離開</pre></div>
+<h4 id="p04-撤銷確認對話框狀態圖">P04 撤銷確認對話框狀態圖</h4>
+<div class="diagram-container"><pre class="mermaid">stateDiagram-v2
+    [*] --&gt; Open : 列表行 [撤銷] click
+    Open --&gt; Confirming : 點擊 [確認撤銷]
+    Confirming --&gt; Success : 200 → 關閉 + Toast
+    Confirming --&gt; AlreadyRevoked : 409 token_already_revoked
+    Confirming --&gt; Forbidden : 403 非 owner / 非 admin
+    Confirming --&gt; ServerError : 5xx
+    Open --&gt; [*] : Cancel / Esc
+    Success --&gt; [*] : Toast 顯示 + 列表 Badge 更新
+    AlreadyRevoked --&gt; [*] : Inline info「此 Token 已撤銷」
+    Forbidden --&gt; [*] : 重導 P01 + Toast 錯誤
+    ServerError --&gt; Open : 顯示 inline error，允許重試</pre></div>
+<h4 id="p05-n8n-quick-start-指南頁狀態圖">P05 N8N Quick Start 指南頁狀態圖</h4>
+<div class="diagram-container"><pre class="mermaid">stateDiagram-v2
+    [*] --&gt; Loading : 進入頁面，截圖 lazy load
+    Loading --&gt; Loaded : 頁面渲染
+    Loaded --&gt; Step1Active : 點擊 Step 1 卡片
+    Loaded --&gt; FAQOpen : 點擊 FAQ accordion
+    FAQOpen --&gt; Loaded : 收合 FAQ
+    Loaded --&gt; JsonDownloading : 點擊 [下載 N8N JSON 範本]
+    JsonDownloading --&gt; Loaded : 下載觸發
+    Loaded --&gt; [*] : 點擊 [前往建立 Token] 跳 P01</pre></div>
+<h4 id="p07-token-審計日誌頁狀態圖">P07 Token 審計日誌頁狀態圖</h4>
+<div class="diagram-container"><pre class="mermaid">stateDiagram-v2
+    [*] --&gt; AuthCheck : 進入頁面
+    AuthCheck --&gt; Forbidden : is_superuser=false → 403
+    AuthCheck --&gt; Loading : is_superuser=true → GET /api/v1/admin/audit-logs
+    Loading --&gt; Empty : 200 + 空（過去 90 天無事件）
+    Loading --&gt; FilteredEmpty : 套用篩選 + 200 + 空
+    Loading --&gt; Loaded : 200 + 有資料
+    Loading --&gt; Error : 4xx / 5xx
+    Loaded --&gt; Loading : 套用篩選 / 切分頁
+    FilteredEmpty --&gt; Loading : 重設篩選 / 套用新篩選
+    Empty --&gt; Loading : 任何篩選變更或 refetch
+    Loaded --&gt; Exporting : 點擊 [匯出 CSV]
+    Exporting --&gt; Loaded : 下載觸發 / 完成
+    Exporting --&gt; Error : streaming 失敗
+    Forbidden --&gt; [*] : 重導
+    Loaded --&gt; [*] : 用戶離開</pre></div>
+<h3 id="133-usability-testing-protocol">13.3 Usability Testing Protocol</h3>
+<table>
+<tr><th>階段</th><th>方法</th><th>時機</th><th>參與者</th><th>成功標準</th></tr>
+<tr><td>Concept Test</td><td>5-second Test + 訪談</td><td>Wireframe（§5）完成後</td><td>5 人（IT Admin / 業務 / N8N 操作員）</td><td>核心概念理解率 ≥ 80%；建立 Token 流程被正確識別</td></tr>
+<tr><td>Prototype Test</td><td>Task-based Usability Test</td><td>Hi-fi Figma 完成後</td><td>5 人</td><td>Task Completion Rate ≥ 80%；SUS Score ≥ 68；建立 Token 平均 ≤ 5 分鐘</td></tr>
+<tr><td>Beta Test（POC 試用）</td><td>Unmoderated Remote Test</td><td>POC Week 2</td><td>≥ 3 名（最多 5）</td><td>CSAT ≥ 3.5；70% 在 15 分鐘內完成自助流程；錯誤率 &lt; 5%</td></tr>
+</table>
+<p><strong>測試腳本框架（Prototype Test）：</strong></p>
+<pre><code class="">1. 開場白：「這不是在測試你，我們在測試設計。請說出你看到什麼、你在想什麼。」
+2. 熱身：「請描述一下你目前如何取得 ERP API 的存取權？」
+3. 任務 1：你需要建立一個 N8N 工作流，每天從 ERP 拉銷售數據。請完成 Token 建立並複製。
+4. 任務 2：你發現某個舊 N8N 工作流已停用，請撤銷對應的 Token。
+5. 任務 3（IT Admin only）：上週有人投訴某個 Token 異常使用，請查出該 Token 的建立／撤銷記錄。
+6. 事後問題：「最困惑的地方？最印象深刻的地方？」
+7. SUS 量表（10 題標準）</code></pre>
+<blockquote><p><strong>SUS 評分標準：</strong> ≥ 85 優秀；68–84 良好（業界平均）；&lt; 68 需改善</p></blockquote>
+<h3 id="134-ab-test-design-template">13.4 A/B Test Design Template</h3>
+<table>
+<tr><th>欄位</th><th>Quick Start 指南 v1 vs v2</th></tr>
+<tr><td><strong>假設</strong></td><td>若 [Quick Start 增加 5 張截圖 + JSON 範本]，則 [自助完成首次端對端時間中位數] 將 [縮短 ≥ 30%]，因為 [N8N 操作員視覺學習 &gt; 文字學習]</td></tr>
+<tr><td><strong>控制組（A）</strong></td><td>純文字版 Quick Start（步驟 1-3 文字描述）</td></tr>
+<tr><td><strong>實驗組（B）</strong></td><td>含 5 張截圖 + JSON 範本下載</td></tr>
+<tr><td><strong>主要指標</strong></td><td>自助完成首次端對端時間中位數（p &lt; 0.05）</td></tr>
+<tr><td><strong>護欄指標</strong></td><td>Token 建立失敗率不增加 &gt; 2%；列表載入時間不增加 &gt; 100ms</td></tr>
+<tr><td><strong>最小樣本量</strong></td><td>30 名（each arm 15 名，統計功效 80%，顯著水準 5%，MDE 30%）</td></tr>
+<tr><td><strong>測試時長</strong></td><td>最少 2 週</td></tr>
+<tr><td><strong>分流方式</strong></td><td>User-level（同一使用者整週見同一版本）</td></tr>
+<tr><td><strong>預期上線</strong></td><td>Pilot 階段（v2.0）</td></tr>
+</table>
+<h3 id="135-開發前確認清單engineering-handoff-checklist">13.5 開發前確認清單（Engineering Handoff Checklist）</h3>
+<ul><li style="list-style:none"><input type="checkbox" checked disabled> §13.1 所有畫面互動元件均有完整的 ≥ 4 種狀態（Default / Hover / Focus / Disabled，多數含 Active / Loading / Error）</li><li style="list-style:none"><input type="checkbox" checked disabled> 所有錯誤狀態畫面已設計（§9 / §6.3 / §10.2 文案）</li><li style="list-style:none"><input type="checkbox" checked disabled> 空狀態（Empty State）已設計（§6.3，4 種情境）</li><li style="list-style:none"><input type="checkbox" checked disabled> Loading / Skeleton 狀態已設計（§6.4）</li><li style="list-style:none"><input type="checkbox" checked disabled> 所有 Design Token 已命名並與 Dev 對齊（§9.3 / §9.4）</li><li style="list-style:none"><input type="checkbox" checked disabled> 320 / 768 / 1024 / 1440 各斷點均已設計（§7.2 元件行為矩陣）</li><li style="list-style:none"><input type="checkbox" checked disabled> 動畫規格（timing / easing）已標注（§6.1.1）</li><li style="list-style:none"><input type="checkbox" checked disabled> 圖示（Icons）已 Export 為 SVG / 加入 Icon Library（沿用 ERP 既有 + 補充 4 個：Token Key / Empty Clipboard / Audit Shield / Copy Check）</li><li style="list-style:none"><input type="checkbox" checked disabled> 文案已最終定稿（§10.2 / §10.3 i18n key 對照），無 Lorem Ipsum</li><li style="list-style:none"><input type="checkbox" checked disabled> 無障礙注釋已完成（§8.4 12 項 WCAG）</li><li style="list-style:none"><input type="checkbox" checked disabled> 元件 → 測試檔案對應（§9.5.2）已建立</li><li style="list-style:none"><input type="checkbox" checked disabled> §13.2 畫面狀態轉換圖覆蓋所有 P0 畫面（P01 / P02-P03 / P04 / P05 / P07）</li></ul>
+<hr>
+<h2 id="14-references">14. References</h2>
+<h3 id="141-上游文件">14.1 上游文件</h3>
+<ul><li>PRD：PRD.md（DOC-ID：PRD-ERP-API-TOKEN-MANAGER-20260508 v1.0.2）</li><li>BRD：BRD.md（DOC-ID：BRD-ERP-API-TOKEN-MANAGER-20260426）</li><li>IDEA：IDEA.md（DOC-ID：IDEA-ERP-API-TOKEN-MANAGER-20260426）</li><li>CONSTANTS：CONSTANTS.md（所有量化數值來源）</li><li>下游 EDD：EDD.md（待生成）</li></ul>
+<h3 id="142-設計參考">14.2 設計參考</h3>
+<ul><li>GitHub Personal Access Tokens UI：https://github.com/settings/tokens（一次性顯示 + 前綴遮罩 + 描述欄位）</li><li>Stripe API Keys Dashboard：https://dashboard.stripe.com/test/apikeys（Token 列表 + 撤銷確認）</li><li>AWS IAM Access Keys：https://console.aws.amazon.com/iam/home（雙 Key + Audit Trail 概念）</li><li>N8N HTTP Request 節點 Bearer Token：https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.httprequest/</li><li>WCAG 2.1 Guidelines：https://www.w3.org/TR/WCAG21/</li><li>Material Design Motion：https://m3.material.io/styles/motion/easing-and-duration</li><li>Apple HIG Touch Target：https://developer.apple.com/design/human-interface-guidelines/inputs/touch-input</li></ul>
+<h3 id="143-效能預算core-web-vitals">14.3 效能預算（Core Web Vitals）</h3>
+<table>
+<tr><th>指標</th><th>目標</th><th>量測方式</th><th>PRD 來源</th></tr>
+<tr><td>LCP（Largest Contentful Paint）</td><td>&lt; 2.5s</td><td>Lighthouse / RUM</td><td>PRD §7.1</td></tr>
+<tr><td>INP（Interaction to Next Paint）</td><td>&lt; 200ms</td><td>Web Vitals API</td><td>PRD §7.1</td></tr>
+<tr><td>CLS（Cumulative Layout Shift）</td><td>&lt; 0.1</td><td>Web Vitals API；Skeleton 避免 layout shift</td><td>PRD §7.1</td></tr>
+<tr><td>FCP（First Contentful Paint）</td><td>&lt; 1.5s</td><td>Lighthouse</td><td>PRD §7.1</td></tr>
+<tr><td>TBT（Total Blocking Time）</td><td>&lt; 200ms</td><td>Lighthouse</td><td>—</td></tr>
+</table>
+<p><strong>Bundle Budget：</strong></p>
+<table>
+<tr><th>Page Type</th><th>JS Budget（gzipped）</th><th>CSS Budget</th></tr>
+<tr><td>嵌入既有 ERP（無額外 SPA）</td><td>&lt; 80kb（沿用 ERP framework）</td><td>&lt; 15kb（本模組新增 Token 樣式 + 元件）</td></tr>
+</table>
+<p><strong>圖片 / 字型：</strong></p>
+<ul><li>字型：沿用 ERP 既有；Token 明文 / JSON 區域用 <code>font-family: &#x27;JetBrains Mono&#x27;, monospace</code>（系統 fallback，不額外載 Web Font）</li><li>圖示：SVG inline 或 sprite（&lt; 5kb）</li><li>截圖（P05 5 張）：WebP（fallback PNG），<code>loading=&quot;lazy&quot;</code>，每張 &lt; 80kb</li></ul>
+<hr>
+<h2 id="15-admin-portal-產品設計">15. Admin Portal 產品設計</h2>
+<blockquote><p><strong>條件章節</strong>：本專案 <code>has_admin_backend=False</code>（PRD §4.3、§11.1、CONSTANTS <code>IS_SUPERUSER_FLAG</code>）。</p></blockquote>
+<p>&gt;</p>
+<blockquote><p><strong>本專案無 Admin 後台需求</strong> — 管理員權限以既有 ERP 使用者表 <code>users.is_superuser BOOLEAN DEFAULT FALSE</code> 升級。Admin 專屬功能（P07 審計日誌頁）與一般使用者頁面共用同一 ERP UI 框架，僅以 RBAC 路由守衛 + 側欄條件渲染區隔，<strong>不另建獨立 Admin 後台</strong>（無 <code>/admin/*</code> 子應用、無獨立 MFA 流程）。</p></blockquote>
+<p>&gt;</p>
+<blockquote><p>略過 § 15 Admin Portal 設計章節的子節（§15.1 / §15.2 / §15.3 / §15.4）。</p></blockquote>
+<p><strong>P07（Token 審計日誌）的 Admin 設計考量已併入主章節：</strong></p>
+<ul><li>入口：§3.1 Sitemap / §3.2 導覽結構（is_superuser=true 才顯示「管理 &gt; Token 審計日誌」）</li><li>Wireframe：§5.7 P07</li><li>互動：§6 各互動規格</li><li>RBAC 守衛：§7.2 / §13.2 P07 狀態圖（AuthCheck → Forbidden）</li><li>唯讀 / 不可刪除設計：§5.7 footer 提示 + DB 角色限制（PRD §5.9 AC-5）</li></ul>
+<hr>
+<h2 id="16-approval-sign-off">16. Approval Sign-off</h2>
+<table>
+<tr><th>角色</th><th>姓名</th><th>簽核日期</th><th>意見</th></tr>
+<tr><td>UX / Product Designer</td><td>TBD</td><td>—</td><td>確認 §1-§12 設計規格與 PRD 9 個 User Stories 對應正確</td></tr>
+<tr><td>Design Lead</td><td>TBD</td><td>—</td><td>確認 Wireframe（§5）+ Design Token（§9.3 / §9.4）+ Motion（§6.1.1）可落地</td></tr>
+<tr><td>Product Manager</td><td>TBD</td><td>—</td><td>確認 §1.2 PRD 對應表完整、§10 文案與品牌調性一致、§11 驗證計畫可執行</td></tr>
+<tr><td>Engineering Lead</td><td>TBD</td><td>—</td><td>確認 §13.1 Component State Spec 技術可行（OQ-PDD-5 ERP UI 框架確認後）；§9.5 Class Diagram 對應實作模型</td></tr>
+<tr><td>QA Lead</td><td>TBD</td><td>—</td><td>確認 §13.2 P0 畫面狀態圖覆蓋所有測試情境；§13.3 Usability Testing Protocol 可執行</td></tr>
+<tr><td>Accessibility Review</td><td>TBD</td><td>—</td><td>確認 §8.4 WCAG 2.1 AA 12 準則 M 項目均可實作；axe-core CI 可整合</td></tr>
+<tr><td>ERP IT Admin 代表（Persona A）</td><td>TBD</td><td>—</td><td>從使用者視角確認 P07 審計日誌與撤銷流程符合實際稽核需求</td></tr>
+<tr><td>ERP 業務使用者代表（Persona B）</td><td>TBD</td><td>—</td><td>確認 5 分鐘建立目標可達</td></tr>
+</table>
+<hr>
+<h2 id="appendix-a設計決策記錄design-decision-records-ddr">Appendix A：設計決策記錄（Design Decision Records, DDR）</h2>
+<table>
+<tr><th>DDR-ID</th><th>設計決策</th><th>決策理由</th><th>備選方案</th><th>決策日期</th></tr>
+<tr><td>DDR-01</td><td>一次性 Token 顯示採用 Modal（P03），而非在表單頁面直接顯示</td><td>Modal 強制使用者注意此關鍵步驟，且關閉後不殘留明文 Token 在頁面；直接顯示有「使用者未注意複製就返回」風險</td><td>在表單送出成功後直接於頁面顯示明文</td><td>2026-04-26</td></tr>
+<tr><td>DDR-02</td><td>撤銷操作採「確認對話框」（二段確認），而非單次點擊</td><td>撤銷不可逆且 0 秒生效，需防誤操作（PRD §5.3 邊界條件、BRD §8 R4）</td><td>單次點擊撤銷（更快但有誤操作風險）</td><td>2026-04-26</td></tr>
+<tr><td>DDR-03</td><td>Token 前綴格式 <code>tk_</code> + 前 8 碼（如 <code>tk_a1b2c3d4...</code>）</td><td>PRD §5.1 AC-4 + CONSTANTS <code>TOKEN_PREFIX_LITERAL</code> + <code>TOKEN_PREFIX_DISPLAY_CHARS=8</code>；前綴足以識別但不具驗證熵值，安全可顯示</td><td>顯示 hash 前 8 碼 / 完全不顯示前綴</td><td>2026-04-26</td></tr>
+<tr><td>DDR-04</td><td>P01 空狀態雙 CTA：主「建立第一個 Token」+ 次「N8N 設定指南 ↗」</td><td>降低新使用者起點摩擦：不確定者先看指南、有信心者直接建立（I-3 + I-2 Insight）</td><td>僅單 CTA「建立 Token」</td><td>2026-04-26</td></tr>
+<tr><td>DDR-05</td><td>P03 採「確認核取框 + 退出二級警告」雙保險</td><td>防止使用者誤觸 Esc / X / 遮罩失去 Token；OQ-PDD-2 Usability Test 驗證後保留</td><td>強制核取框（更嚴格）/ 直接點擊 X 關閉（更流暢但風險高）</td><td>2026-04-28</td></tr>
+<tr><td>DDR-06</td><td>Bearer Token 中介層 401 錯誤訊息採「不洩漏列舉」原則</td><td>PRD §5.4 AC-3 — <code>token_invalid</code> 與 <code>token_revoked</code> 均以 generic 提示（避免列舉攻擊區分「不存在」與「已撤銷」差異）</td><td>精確區分「不存在」/「已撤銷」（更友善但有列舉風險）</td><td>2026-05-08</td></tr>
+<tr><td>DDR-07</td><td>Dark Mode Token 採 OKLCH 色彩空間</td><td>感知均勻、Lightness 與對比度線性可預測；ECC 業界標準</td><td>HSL / HEX（不感知均勻）</td><td>2026-05-08</td></tr>
+<tr><td>DDR-08</td><td>行動端（&lt; 768px）Token 列表改 Card 式而非 horizontal scroll Table</td><td>Touch Target 44×44 + 撤銷需明顯且不誤觸；horizontal scroll 不利可達性</td><td>水平捲動 Table</td><td>2026-05-08</td></tr>
+</table>
+<hr>
+<h2 id="appendix-bbdd-連結--screen-inventory">Appendix B：BDD 連結 / Screen Inventory</h2>
+<h3 id="b1-bdd-feature-連結">B.1 BDD Feature 連結</h3>
+<table>
+<tr><th>PRD User Story</th><th>對應 BDD Feature 檔（待 STEP <code>/gendoc-gen-bdd</code> 生成）</th></tr>
+<tr><td>US-AUTH-001 Token 建立</td><td><code>features/auth/create-token.feature</code></td></tr>
+<tr><td>US-AUTH-002 Token 列表</td><td><code>features/auth/list-tokens.feature</code></td></tr>
+<tr><td>US-AUTH-003 Token 撤銷</td><td><code>features/auth/revoke-token.feature</code></td></tr>
+<tr><td>US-AUTH-004 Bearer 驗證</td><td><code>features/auth/verify-bearer-token.feature</code></td></tr>
+<tr><td>US-N8N-001 N8N 整合</td><td><code>features/n8n/integration.feature</code></td></tr>
+<tr><td>US-DEMO-001 銷售示範 API</td><td><code>features/demo/sales.feature</code></td></tr>
+<tr><td>US-DEMO-002 庫存示範 API</td><td><code>features/demo/inventory.feature</code></td></tr>
+<tr><td>US-DEMO-003 訂單示範 API</td><td><code>features/demo/order-status.feature</code></td></tr>
+<tr><td>US-AUDIT-001 審計日誌</td><td><code>features/audit/audit-log.feature</code></td></tr>
+</table>
+<h3 id="b2-screen-inventory總表">B.2 Screen Inventory（總表）</h3>
+<table>
+<tr><th>Screen ID</th><th>名稱</th><th>路由</th><th>Persona</th><th>PRD US</th><th>優先度</th><th>狀態圖</th></tr>
+<tr><td>P01</td><td>Token 管理主頁</td><td><code>/settings/api-tokens</code></td><td>A / B</td><td>US-AUTH-002 / 003 入口</td><td>P0</td><td>§13.2 P01</td></tr>
+<tr><td>P02</td><td>建立 Token Modal</td><td>（Modal）</td><td>A / B</td><td>US-AUTH-001</td><td>P0</td><td>§13.2 P02-P03</td></tr>
+<tr><td>P03</td><td>一次性 Token 揭示 Modal</td><td>（Modal）</td><td>A / B</td><td>US-AUTH-001</td><td>P0</td><td>§13.2 P02-P03</td></tr>
+<tr><td>P04</td><td>撤銷確認對話框</td><td>（Modal）</td><td>A / B</td><td>US-AUTH-003</td><td>P0</td><td>§13.2 P04</td></tr>
+<tr><td>P05</td><td>N8N Quick Start 指南</td><td><code>/settings/api-tokens/n8n-guide</code></td><td>B / C</td><td>US-N8N-001</td><td>P0</td><td>§13.2 P05</td></tr>
+<tr><td>P06</td><td>POC API Test Console</td><td><code>/settings/api-tokens/test-console</code></td><td>B / C</td><td>US-DEMO-001/002/003</td><td>P0（選填，OQ-PDD-3）</td><td>—（同 P05 簡化）</td></tr>
+<tr><td>P07</td><td>Token 審計日誌</td><td><code>/admin/audit-logs</code></td><td>A（is_superuser=true）</td><td>US-AUDIT-001</td><td>P1（MVP 強制）</td><td>§13.2 P07</td></tr>
+<tr><td>Error 401 Page</td><td>未登入 / Session 過期</td><td><code>/login?returnUrl=...</code></td><td>All</td><td>All</td><td>—</td><td>—</td></tr>
+<tr><td>Error 403 Page</td><td>權限不足</td><td><code>/forbidden</code></td><td>一般使用者誤入 P07</td><td>US-AUDIT-001 AC-2</td><td>—</td><td>—</td></tr>
+</table>
+<h3 id="b3-component-inventory依-95">B.3 Component Inventory（依 §9.5）</h3>
+<table>
+<tr><th>Component</th><th>用於 Screen</th><th>Stereotype</th><th>測試檔</th></tr>
+<tr><td>TokenManagementPage</td><td>P01</td><td>Component</td><td><code>tests/unit/pages/TokenManagementPage.test.tsx</code></td></tr>
+<tr><td>TokenListTable</td><td>P01</td><td>Component</td><td><code>tests/unit/components/TokenListTable.test.tsx</code></td></tr>
+<tr><td>CreateTokenModal</td><td>P02</td><td>Component</td><td><code>tests/unit/components/CreateTokenModal.test.tsx</code></td></tr>
+<tr><td>TokenRevealModal</td><td>P03</td><td>Component</td><td><code>tests/unit/components/TokenRevealModal.test.tsx</code></td></tr>
+<tr><td>ConfirmRevokeDialog</td><td>P04</td><td>Component</td><td><code>tests/unit/components/ConfirmRevokeDialog.test.tsx</code></td></tr>
+<tr><td>AuditLogPage</td><td>P07</td><td>Component</td><td><code>tests/unit/pages/AuditLogPage.test.tsx</code></td></tr>
+<tr><td>AuditLogTable</td><td>P07</td><td>Component</td><td><code>tests/unit/components/AuditLogTable.test.tsx</code></td></tr>
+<tr><td>CopyButton</td><td>P03</td><td>Component</td><td><code>tests/unit/components/CopyButton.test.tsx</code></td></tr>
+<tr><td>TokenStatusBadge</td><td>P01</td><td>Component</td><td><code>tests/unit/components/TokenStatusBadge.test.tsx</code></td></tr>
+<tr><td>EmptyState</td><td>P01 / P07</td><td>Component</td><td><code>tests/unit/components/EmptyState.test.tsx</code></td></tr>
+<tr><td>TokenCard（Mobile）</td><td>P01 mobile</td><td>Component</td><td><code>tests/unit/components/TokenCard.test.tsx</code></td></tr>
+<tr><td>useTokenStore</td><td>P01 / P02 / P04</td><td>Store</td><td><code>tests/unit/stores/useTokenStore.test.ts</code></td></tr>
+<tr><td>useAuditLogStore</td><td>P07</td><td>Store</td><td><code>tests/unit/stores/useAuditLogStore.test.ts</code></td></tr>
+<tr><td>useFormViewModel</td><td>P02</td><td>Hook</td><td><code>tests/unit/hooks/useFormViewModel.test.ts</code></td></tr>
+<tr><td>TokenDescriptionValidator</td><td>Domain</td><td>Validator</td><td><code>tests/unit/domain/TokenDescriptionValidator.test.ts</code></td></tr>
+<tr><td>TokenApiClient</td><td>Infra</td><td>Service</td><td><code>tests/unit/infrastructure/TokenApiClient.test.ts</code></td></tr>
+<tr><td>AuditLogApiClient</td><td>Infra</td><td>Service</td><td><code>tests/unit/infrastructure/AuditLogApiClient.test.ts</code></td></tr>
+<tr><td>ClipboardAdapter</td><td>Infra</td><td>Adapter</td><td><code>tests/unit/infrastructure/ClipboardAdapter.test.ts</code></td></tr>
+</table>
+<hr>
+<p><em>此 PDD.md v2.0 由 gendoc-flow PDD 步驟依上游文件（IDEA.md、BRD.md、PRD.md v1.0.2、CONSTANTS.md v1.0）完整覆寫生成，覆蓋 PRD 全部 9 個 User Stories（US-AUTH-001~004 / US-N8N-001 / US-DEMO-001~003 / US-AUDIT-001）；22 個 ## 章節均有實質內容；對齊 templates/PDD.gen.md Self-Check Checklist 與 templates/PDD.review.md 21 項審查標準（Review Loop r3 PASS — 0 findings）。</em></p></main>
+  </div>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({startOnLoad:true,theme:'default',
+      flowchart:{curve:'basis',nodeSpacing:60,rankSpacing:80},
+      er:{layoutDirection:'TD',minEntityWidth:100,fontSize:12},
+      sequence:{actorMargin:60,messageMargin:30}});
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-go.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

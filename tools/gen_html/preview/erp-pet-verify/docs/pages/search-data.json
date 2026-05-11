@@ -1,0 +1,27 @@
+{
+  "index.html": {
+    "url": "index.html",
+    "title": "erp-pet-verify 文件中心",
+    "excerpt": "erp-pet-verify 文件中心請從左側導覽列選擇文件。文件導覽📄Edd Erp📄Edd Pet📄Pdd Erp📄Pdd Pet📊 專案健康狀態已完成 STEP0/20"
+  },
+  "edd_erp.html": {
+    "url": "edd_erp.html",
+    "title": "Edd Erp",
+    "excerpt": "Engineering Design Document (EDD)\nERP API Token Manager\n\nDocument Control\n\n欄位內容\nDOC-IDEDD-ERPAPIKEY-001\n專案名稱erp-api-token-manager\nProject Slugerp-api-"
+  },
+  "edd_pet.html": {
+    "url": "edd_pet.html",
+    "title": "Edd Pet",
+    "excerpt": "EDD — Engineering Design Document\nDocument Control\n\n欄位內容\nDOC-IDEDD-PIXEL-PET-ARENA-20260503\n產品名稱Pixel Pet Arena\n文件版本v2.0\n狀態DRAFT\n作者AI Generated (gendo"
+  },
+  "pdd_erp.html": {
+    "url": "pdd_erp.html",
+    "title": "Pdd Erp",
+    "excerpt": "PDD — Product Design Document (UX / Interaction Design)\nPlatform Scope Declaration（平台範圍宣告）\n Web（Browser）— 嵌入既有 ERP UI（Razor Pages / Blazor / MVC，OQ3 待"
+  },
+  "pdd_pet.html": {
+    "url": "pdd_pet.html",
+    "title": "Pdd Pet",
+    "excerpt": "PDD — Product Design Document\n\nPlatform Scope Declaration（平台範圍宣告）\n Web（Browser） iOS Native Android Native Desktop App（Electron / macOS / Windows） Game"
+  }
+}
