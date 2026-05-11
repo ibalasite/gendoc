@@ -1,0 +1,11 @@
+{
+  "id": "diagrams__state-machine-arena-match-block0",
+  "project": "pet",
+  "html_file": "diagrams/state-machine-arena-match.html",
+  "block_idx": 0,
+  "mode": "replay",
+  "source_kind": "md",
+  "source_file": "docs/diagrams/state-machine-arena-match.md",
+  "input_md": "---\ndiagram: state-machine-arena-match\numl-type: 狀態機圖 — Arena Match\nsource: docs/EDD.md §4.5.6\ngenerated: 2026-05-10T00:50:00Z\n---\n\n# State Machine Diagram — Arena Match\n\nArenaMatch entity 從 CREATED → FINDING_OPPONENT（最多 30 秒）→ READY → IN_PROGRESS → RESOLVED → ARCHIVED；超時無 AI fallback 則進入 CANCELLED；ARCHIVED 後可由 Admin 設為 FLAGGED 並還原。\n\n```mermaid\nstateDiagram-v2\n    [*] --> CREATED\n    CREATED --> FINDING_OPPONENT : enqueue\n    FINDING_OPPONENT --> READY : opponent found\n    FINDING_OPPONENT --> READY : 30s timeout AI fallback\n    FINDING_OPPONENT --> CANCELLED : timeout no AI\n    READY --> IN_PROGRESS : start_match\n    IN_PROGRESS --> RESOLVED : duration complete\n    RESOLVED --> ARCHIVED : completed_at set\n    ARCHIVED --> FLAGGED : admin flag\n    FLAGGED --> ARCHIVED : admin unflag\n    ARCHIVED --> [*]\n    CANCELLED --> [*]\n```\n\n> FLAGGED 狀態用於 Admin 將疑似不公或外掛比賽標註，但不刪除原始 record，以保留 audit trail。\n",
+  "expected_html": "<div class=\"diagram-container\"><pre class=\"mermaid\">stateDiagram-v2\n    [*] --&gt; CREATED\n    CREATED --&gt; FINDING_OPPONENT : enqueue\n    FINDING_OPPONENT --&gt; READY : opponent found\n    FINDING_OPPONENT --&gt; READY : 30s timeout AI fallback\n    FINDING_OPPONENT --&gt; CANCELLED : timeout no AI\n    READY --&gt; IN_PROGRESS : start_match\n    IN_PROGRESS --&gt; RESOLVED : duration complete\n    RESOLVED --&gt; ARCHIVED : completed_at set\n    ARCHIVED --&gt; FLAGGED : admin flag\n    FLAGGED --&gt; ARCHIVED : admin unflag\n    ARCHIVED --&gt; [*]\n    CANCELLED --&gt; [*]</pre></div>"
+}

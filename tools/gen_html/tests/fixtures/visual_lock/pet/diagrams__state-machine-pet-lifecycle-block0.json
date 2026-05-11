@@ -1,0 +1,11 @@
+{
+  "id": "diagrams__state-machine-pet-lifecycle-block0",
+  "project": "pet",
+  "html_file": "diagrams/state-machine-pet-lifecycle.html",
+  "block_idx": 0,
+  "mode": "replay",
+  "source_kind": "md",
+  "source_file": "docs/diagrams/state-machine-pet-lifecycle.md",
+  "input_md": "---\ndiagram: state-machine-pet-lifecycle\numl-type: 狀態機圖 — Pet Lifecycle\nsource: docs/EDD.md §4.5.6\ngenerated: 2026-05-10T00:50:00Z\n---\n\n# State Machine Diagram — Pet Lifecycle\n\n寵物從生成到刪除的完整生命週期：GENERATED → UNCLAIMED → CLAIMED（IDLE / TRAINING / BATTLING / RESTING 四個子狀態） → DELETED。CLAIMED 與 BANNED 之間可由 Admin 雙向切換；任意時點均可由 GDPR Erasure 直接進入 DELETED。\n\n```mermaid\nstateDiagram-v2\n    [*] --> GENERATED\n    GENERATED --> UNCLAIMED : reservedUntil set\n    UNCLAIMED --> CLAIMED : claim_code_verified\n    UNCLAIMED --> DELETED : reservation expired (24h)\n    CLAIMED --> IDLE : default\n    IDLE --> TRAINING : train action\n    IDLE --> BATTLING : enter arena\n    IDLE --> RESTING : 3+ days no training\n    TRAINING --> IDLE : action complete\n    BATTLING --> IDLE : match complete\n    RESTING --> IDLE : daily reset\n    CLAIMED --> BANNED : admin ban\n    BANNED --> CLAIMED : admin unban\n    CLAIMED --> DELETED : gdpr erasure\n    DELETED --> [*]\n```\n\n> 狀態轉換 label 不含 `<br/>`，符合 QG-UML-04（避免 Safari/Firefox 破圖）。\n",
+  "expected_html": "<div class=\"diagram-container\"><pre class=\"mermaid\">stateDiagram-v2\n    [*] --&gt; GENERATED\n    GENERATED --&gt; UNCLAIMED : reservedUntil set\n    UNCLAIMED --&gt; CLAIMED : claim_code_verified\n    UNCLAIMED --&gt; DELETED : reservation expired (24h)\n    CLAIMED --&gt; IDLE : default\n    IDLE --&gt; TRAINING : train action\n    IDLE --&gt; BATTLING : enter arena\n    IDLE --&gt; RESTING : 3+ days no training\n    TRAINING --&gt; IDLE : action complete\n    BATTLING --&gt; IDLE : match complete\n    RESTING --&gt; IDLE : daily reset\n    CLAIMED --&gt; BANNED : admin ban\n    BANNED --&gt; CLAIMED : admin unban\n    CLAIMED --&gt; DELETED : gdpr erasure\n    DELETED --&gt; [*]</pre></div>"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "diagrams__activity-arena-battle-block0",
+  "project": "pet",
+  "html_file": "diagrams/activity-arena-battle.html",
+  "block_idx": 0,
+  "mode": "replay",
+  "source_kind": "md",
+  "source_file": "docs/diagrams/activity-arena-battle.md",
+  "input_md": "---\ndiagram: activity-arena-battle\numl-type: 活動圖 — Arena Battle\nsource: docs/EDD.md §4.5.7\ngenerated: 2026-05-10T00:50:00Z\n---\n\n# Activity Diagram — Arena Battle\n\n進入競技場活動：選擇模式 → rate limit → ZADD 排隊 → 30 秒內配對（真人 / AI / timeout 三分支）→ 寫入 arena_match 與 leaderboard → 客戶端動畫展示 → 顯示結果。\n\n```mermaid\nflowchart TB\n    Start([Owner on arena page]) --> Mode[Select mode RACE/SUMO]\n    Mode --> Rate{Rate limit ≤ 10/hr?}\n    Rate -->|No| Err429[HTTP 429 Retry-After]\n    Rate -->|Yes| Enqueue[ZADD matchmaking:queue]\n    Enqueue --> Poll{Opponent found?}\n    Poll -->|&lt; 30s yes| Calc[BattleCalculator]\n    Poll -->|30s timeout AI accepted| AI[AI opponent calc]\n    Poll -->|30s timeout no AI| Err408[HTTP 408]\n    Calc --> Persist[INSERT arena_match]\n    AI --> Persist\n    Persist --> ZADD[ZADD leaderboard:global]\n    ZADD --> Animate[Play 5-15s animation client-side]\n    Animate --> Result[Show win/loss + share button]\n    Result --> End([User can share or rebattle])\n```\n\n> 動畫時長 5–15 秒於 client side 模擬，後端 BattleCalculator 即時結算（< 100ms），不阻塞 UI。\n",
+  "expected_html": "<div class=\"diagram-container\"><pre class=\"mermaid\">flowchart TB\n    Start([Owner on arena page]) --&gt; Mode[Select mode RACE/SUMO]\n    Mode --&gt; Rate{Rate limit ≤ 10/hr?}\n    Rate --&gt;|No| Err429[HTTP 429 Retry-After]\n    Rate --&gt;|Yes| Enqueue[ZADD matchmaking:queue]\n    Enqueue --&gt; Poll{Opponent found?}\n    Poll --&gt;|&quot;&amp;lt; 30s yes&quot;| Calc[BattleCalculator]\n    Poll --&gt;|30s timeout AI accepted| AI[AI opponent calc]\n    Poll --&gt;|30s timeout no AI| Err408[HTTP 408]\n    Calc --&gt; Persist[INSERT arena_match]\n    AI --&gt; Persist\n    Persist --&gt; ZADD[ZADD leaderboard:global]\n    ZADD --&gt; Animate[Play 5-15s animation client-side]\n    Animate --&gt; Result[Show win/loss + share button]\n    Result --&gt; End([User can share or rebattle])</pre></div>"
+}

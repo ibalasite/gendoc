@@ -1,0 +1,2089 @@
+{
+  "summary": {
+    "pass": 256,
+    "broken": 4,
+    "flagged": 0
+  },
+  "items": [
+    {
+      "project": "pet",
+      "file": "anim.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "arch.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "arch.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "brd.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "brd.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "cicd.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "cicd.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "developer_guide.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "developer_guide.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diag-cicd-deploy-production.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diag-cicd-deploy-production.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diag-cicd-deploy-staging.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diag-cicd-deploy-staging.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diag-cicd-pipeline-overview.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diag-cicd-pr-gate.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diag-cicd-pr-gate.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diag-cicd-secrets-rotation.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diag-cicd-secrets-rotation.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diag-cicd-secrets-rotation.html",
+      "idx": 2,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diag-class-services.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diag-component-architecture.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "❌ broken",
+      "reason": "render failed (svg=512x109, synErr=true)"
+    },
+    {
+      "project": "pet",
+      "file": "diag-state-arena-match.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diag-state-pet-lifecycle.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/activity-arena-battle.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/activity-claim-and-train.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/activity-claim-flow.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/activity-gdpr-erasure.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/cicd-pipeline-sequence.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/cicd-pr-gate-activity.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/cicd-secret-flow.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/class-application.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/class-domain.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/class-infra-presentation.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/communication.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/component.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/deployment.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/developer-workflow-activity.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/er-diagram.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/frontend-activity-gameplay.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/frontend-activity-init.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/frontend-activity-ui.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/frontend-class-component.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/frontend-class-scene.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/frontend-class-services.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/frontend-communication.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/frontend-component.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/frontend-deployment.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/frontend-object-snapshot.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/frontend-sequence-scene.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/frontend-sequence-shoot.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/frontend-sequence-ws.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/frontend-state-scene.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/frontend-state-ui.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/frontend-use-case.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/infra-local-topology.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/object-snapshot.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/sequence-arena-battle.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/sequence-arena-enter-error.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/sequence-claim-flow-error.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/sequence-claim-flow.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/sequence-gdpr-erasure.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/sequence-training.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/state-machine-arena-match.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/state-machine-pet-lifecycle.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "diagrams/use-case.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 2,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 3,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 4,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 5,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 6,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 7,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 8,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 9,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 10,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 11,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 12,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 13,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 14,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 15,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 16,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 17,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 18,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 19,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 20,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 21,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 22,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 23,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 24,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 25,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "edd.html",
+      "idx": 26,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "frontend.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "frontend.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "frontend.html",
+      "idx": 2,
+      "kind": "mermaid",
+      "status": "❌ broken",
+      "reason": "render failed (svg=512x109, synErr=true)"
+    },
+    {
+      "project": "pet",
+      "file": "frontend.html",
+      "idx": 3,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "frontend.html",
+      "idx": 4,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "frontend.html",
+      "idx": 5,
+      "kind": "mermaid",
+      "status": "❌ broken",
+      "reason": "render failed (svg=512x109, synErr=true)"
+    },
+    {
+      "project": "pet",
+      "file": "index.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "pdd.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "pdd.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "pdd.html",
+      "idx": 2,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "prd.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "prd.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "prd.html",
+      "idx": 2,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "prd.html",
+      "idx": 3,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "prd.html",
+      "idx": 4,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "prd.html",
+      "idx": 5,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "prd.html",
+      "idx": 6,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "prd.html",
+      "idx": 7,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "puml--diagrams-puml-class-diagram.html",
+      "idx": 0,
+      "kind": "other",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "puml--diagrams-puml-component-diagram.html",
+      "idx": 0,
+      "kind": "other",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "puml--diagrams-puml-dataflow-diagram.html",
+      "idx": 0,
+      "kind": "other",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "puml--diagrams-puml-deployment.html",
+      "idx": 0,
+      "kind": "other",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "puml--diagrams-puml-sequence-auth.html",
+      "idx": 0,
+      "kind": "other",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "puml--diagrams-puml-sequence-battle.html",
+      "idx": 0,
+      "kind": "other",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "puml--diagrams-puml-state-battle.html",
+      "idx": 0,
+      "kind": "other",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "puml--diagrams-puml-state-pet.html",
+      "idx": 0,
+      "kind": "other",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "puml--diagrams-puml-usecase-diagram.html",
+      "idx": 0,
+      "kind": "other",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "pet",
+      "file": "schema.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "api.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "api.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "api.html",
+      "idx": 2,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "api.html",
+      "idx": 3,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "api.html",
+      "idx": 4,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "api.html",
+      "idx": 5,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "api.html",
+      "idx": 6,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "api.html",
+      "idx": 7,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "api.html",
+      "idx": 8,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "arch.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "arch.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "arch.html",
+      "idx": 2,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "arch.html",
+      "idx": 3,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "arch.html",
+      "idx": 4,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "arch.html",
+      "idx": 5,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "arch.html",
+      "idx": 6,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "arch.html",
+      "idx": 7,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "arch.html",
+      "idx": 8,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "arch.html",
+      "idx": 9,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "arch.html",
+      "idx": 10,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "arch.html",
+      "idx": 11,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "brd.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "brd.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "cicd.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "cicd.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "cicd.html",
+      "idx": 2,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "cicd.html",
+      "idx": 3,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "client_impl.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/activity-create-token.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/activity-n8n-flow.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/activity-revoke-error-flow.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/cicd-pipeline-sequence.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/cicd-pr-gate-activity.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/cicd-secret-flow.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/class-application.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/class-domain.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/class-infra-presentation.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/communication.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/component.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/deployment.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/developer-workflow-activity.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/er-diagram.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/frontend-activity-gameplay.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/frontend-activity-init.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/frontend-activity-ui.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/frontend-class-component.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/frontend-class-scene.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/frontend-class-services.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/frontend-communication.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/frontend-component.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/frontend-deployment.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/frontend-object-snapshot.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/frontend-sequence-scene.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/frontend-sequence-shoot.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/frontend-sequence-ws.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/frontend-state-scene.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/frontend-state-ui.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/frontend-state-ui.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/frontend-use-case.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/infra-local-topology.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/object-snapshot.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/object-snapshot.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/sequence-create-token.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/sequence-poc-api.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/sequence-revoke-token.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/sequence-update-description.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/state-machine-api-token.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "diagrams/use-case.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 2,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 3,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 4,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 5,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 6,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 7,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 8,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 9,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 10,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 11,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 12,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 13,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 14,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 15,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 16,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 17,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 18,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 19,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 20,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 21,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 22,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 23,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 24,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 25,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 26,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "edd.html",
+      "idx": 27,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "frontend.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "frontend.html",
+      "idx": 1,
+      "kind": "umock",
+      "status": "❌ broken",
+      "reason": "umock svg render failed (svg=0x0)"
+    },
+    {
+      "project": "erp",
+      "file": "frontend.html",
+      "idx": 2,
+      "kind": "other",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "index.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "local_deploy.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "local_deploy.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "local_deploy.html",
+      "idx": 2,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "pdd.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "pdd.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "pdd.html",
+      "idx": 2,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "pdd.html",
+      "idx": 3,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "pdd.html",
+      "idx": 4,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "pdd.html",
+      "idx": 5,
+      "kind": "umock",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "pdd.html",
+      "idx": 6,
+      "kind": "umock",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "pdd.html",
+      "idx": 7,
+      "kind": "umock",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "pdd.html",
+      "idx": 8,
+      "kind": "umock",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "pdd.html",
+      "idx": 9,
+      "kind": "umock",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "pdd.html",
+      "idx": 10,
+      "kind": "umock",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "pdd.html",
+      "idx": 11,
+      "kind": "umock",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "pdd.html",
+      "idx": 12,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "pdd.html",
+      "idx": 13,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "pdd.html",
+      "idx": 14,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "pdd.html",
+      "idx": 15,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "pdd.html",
+      "idx": 16,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "pdd.html",
+      "idx": 17,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "prd.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "prd.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "prd.html",
+      "idx": 2,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "prd.html",
+      "idx": 3,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "rtm.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "rtm.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "rtm.html",
+      "idx": 2,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "runbook.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "runbook.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "runbook.html",
+      "idx": 2,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "runbook.html",
+      "idx": 3,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "runbook.html",
+      "idx": 4,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "runbook.html",
+      "idx": 5,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "schema.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "test-plan.html",
+      "idx": 0,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "test-plan.html",
+      "idx": 1,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "test-plan.html",
+      "idx": 2,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "test-plan.html",
+      "idx": 3,
+      "kind": "mermaid",
+      "status": "✅ pass",
+      "reason": ""
+    },
+    {
+      "project": "erp",
+      "file": "vdd.html",
+      "idx": 0,
+      "kind": "umock",
+      "status": "✅ pass",
+      "reason": ""
+    }
+  ]
+}

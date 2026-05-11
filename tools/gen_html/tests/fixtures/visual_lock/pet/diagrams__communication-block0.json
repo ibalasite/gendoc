@@ -1,0 +1,11 @@
+{
+  "id": "diagrams__communication-block0",
+  "project": "pet",
+  "html_file": "diagrams/communication.html",
+  "block_idx": 0,
+  "mode": "replay",
+  "source_kind": "md",
+  "source_file": "docs/diagrams/communication.md",
+  "input_md": "---\ndiagram: communication\numl-type: 通訊圖（Communication Diagram）\nsource: docs/EDD.md §4.5.5\ngenerated: 2026-05-10T00:50:00Z\n---\n\n# Communication Diagram — Claim Pet Flow\n\n以 Communication Diagram 形式呈現 Claim Pet UseCase 的物件協作與訊息順序（編號 1–7、5.1–5.3）。Player 透過 ClaimController 觸發 ClaimPetUseCase；UseCase 委派 ClaimCodeService 建立 OTP 並寫入 PostgresClaimCodeRepo，再以 EmailDeliveryPort（SendGridAdapter 實作）寄送驗證信。\n\n```mermaid\nflowchart LR\n    P[\"Player\"]\n    CC[\"ClaimController\"]\n    CUC[\"ClaimPetUseCase\"]\n    CCS[\"ClaimCodeService\"]\n    EDP[\"EmailDeliveryPort\"]\n    PR[\"PostgresClaimCodeRepo\"]\n    SG[\"SendGridAdapter\"]\n\n    P -->|\"1: POST /claim\"| CC\n    CC -->|\"2: execute(input)\"| CUC\n    CUC -->|\"3: issue(email, petId)\"| CCS\n    CCS -->|\"4: insertCode\"| PR\n    CUC -->|\"5: send(email, otp)\"| EDP\n    EDP -->|\"5.1: deliver\"| SG\n    SG -->|\"5.2: 202 OK\"| EDP\n    EDP -->|\"5.3: success\"| CUC\n    CUC -->|\"6: result\"| CC\n    CC -->|\"7: HTTP 200\"| P\n```\n\n> 訊息順序以「主步驟.子步驟」標註，與 Sequence Diagram 對應但更強調物件協作關係。\n",
+  "expected_html": "<div class=\"diagram-container\"><pre class=\"mermaid\">flowchart TD\n    P[&quot;Player&quot;]\n    CC[&quot;ClaimController&quot;]\n    CUC[&quot;ClaimPetUseCase&quot;]\n    CCS[&quot;ClaimCodeService&quot;]\n    EDP[&quot;EmailDeliveryPort&quot;]\n    PR[&quot;PostgresClaimCodeRepo&quot;]\n    SG[&quot;SendGridAdapter&quot;]\n\n    P --&gt;|&quot;1: POST /claim&quot;| CC\n    CC --&gt;|&quot;2: execute(input)&quot;| CUC\n    CUC --&gt;|&quot;3: issue(email, petId)&quot;| CCS\n    CCS --&gt;|&quot;4: insertCode&quot;| PR\n    CUC --&gt;|&quot;5: send(email, otp)&quot;| EDP\n    EDP --&gt;|&quot;5.1: deliver&quot;| SG\n    SG --&gt;|&quot;5.2: 202 OK&quot;| EDP\n    EDP --&gt;|&quot;5.3: success&quot;| CUC\n    CUC --&gt;|&quot;6: result&quot;| CC\n    CC --&gt;|&quot;7: HTTP 200&quot;| P</pre></div>"
+}
