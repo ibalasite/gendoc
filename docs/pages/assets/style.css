@@ -376,14 +376,60 @@ body {
   padding: 2rem;
 }
 .lightbox.active { display: flex; }
-.lightbox__content {
+/* Zoom/pan container — transform-based zoom on first child */
+.lightbox__zoom-content {
+  width: 95vw;
+  height: 90vh;
+  overflow: hidden;
+  position: relative;
   background: var(--content-bg);
   border-radius: 8px;
-  padding: 2rem;
-  max-width: 95vw;
-  max-height: 90vh;
-  overflow: auto;
+  cursor: grab;
 }
+.lightbox__zoom-content.dragging { cursor: grabbing; }
+.lightbox__zoom-content > * {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+/* Operation hint — top center */
+.lightbox__hint {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.6);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  z-index: 1010;
+  pointer-events: none;
+}
+/* Zoom controls — bottom center: [+] [−] [⤺] */
+.lightbox__controls {
+  position: absolute;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.5rem;
+  z-index: 1010;
+}
+.lightbox__controls button {
+  background: rgba(0,0,0,0.6);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 4px;
+  width: 2.5rem;
+  height: 2.5rem;
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+.lightbox__controls button:hover { background: rgba(255,255,255,0.2); }
 .lightbox__close {
   position: absolute;
   top: 1rem;
@@ -392,6 +438,7 @@ body {
   color: white;
   cursor: pointer;
   line-height: 1;
+  z-index: 1010;
 }
 
 /* Index grid */

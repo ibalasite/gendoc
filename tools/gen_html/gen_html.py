@@ -352,27 +352,27 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       .page-wrapper:not(.sidebar-expanded) .sidebar__tabs,
       .page-wrapper:not(.sidebar-expanded) .sidebar__panel { display: none; }
     }
-    /* G-Q2: lightbox cloned-diagram visibility.
-       The lightbox sets `.lightbox__content > * { position:absolute }`
-       which collapses the cloned .diagram-container to 0×0; its child SVG
-       with `width:100%` then renders empty. Force a sensible explicit
-       width so the cloned content is actually visible. */
-    .lightbox__content .diagram-container {
+    /* G-Q2 + LB1: lightbox cloned-diagram visibility under zoom container.
+       The canonical style.css sets `.lightbox__zoom-content > * { position:
+       absolute }` which collapses the cloned .diagram-container to 0×0;
+       its child SVG with `width:100%` then renders empty. Force a sensible
+       explicit width so the cloned content is actually visible. */
+    .lightbox__zoom-content .diagram-container {
       width: 80vw;
       max-width: 1400px;
       min-width: 60vw;
     }
-    .lightbox__content .diagram-container svg {
+    .lightbox__zoom-content .diagram-container svg {
       width: 100%;
       height: auto;
       max-height: 80vh;
       display: block;
     }
-    .lightbox__content .diagram-container .mermaid {
+    .lightbox__zoom-content .diagram-container .mermaid {
       width: 100%;
       max-width: none;
     }
-    .lightbox__content svg {
+    .lightbox__zoom-content svg {
       height: auto;
     }
     /* G-Q5: prevent flex/grid child main.doc-content from expanding to its

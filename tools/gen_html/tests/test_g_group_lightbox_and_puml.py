@@ -56,19 +56,18 @@ def _temp_project(layout: dict):
 
 def test_GQ2_inline_style_has_lightbox_zoom_content_diagram_rule():
     """gen_html inline <style> must contain a CSS rule that gives cloned
-    .diagram-container inside .lightbox__content an explicit, non-zero
-    width so the SVG inside renders."""
+    .diagram-container inside .lightbox__zoom-content an explicit, non-zero
+    width so the SVG inside renders. (LB1 restored zoom-content; G-Q2 fix
+    follows the new class name.)"""
     src = GEN_HTML.read_text(encoding='utf-8')
-    # Find inline <style>...</style> block(s)
     styles = re.findall(r'<style>(.*?)</style>', src, re.DOTALL)
     inline = '\n'.join(styles)
-    # Must mention .lightbox__content with .diagram-container or svg
     has_rule = (
-        re.search(r'\.lightbox__content\s+\.diagram-container', inline) is not None
-        or re.search(r'\.lightbox__content\s+svg', inline) is not None
+        re.search(r'\.lightbox__zoom-content\s+\.diagram-container', inline) is not None
+        or re.search(r'\.lightbox__zoom-content\s+svg', inline) is not None
     )
     assert has_rule, (
-        'inline <style> missing G-Q2 fix: rule for .lightbox__content + '
+        'inline <style> missing G-Q2 fix: rule for .lightbox__zoom-content + '
         '.diagram-container / svg with explicit width'
     )
 
@@ -76,16 +75,15 @@ def test_GQ2_inline_style_has_lightbox_zoom_content_diagram_rule():
 def test_GQ2_lightbox_diagram_explicit_width():
     """The fix must give cloned diagram-container an explicit width (vw / px /
     fixed value) — otherwise it collapses to 0 because of position:absolute
-    in the parent .lightbox__content > * rule."""
+    in the parent `.lightbox__zoom-content > *` rule (canonical style.css)."""
     src = GEN_HTML.read_text(encoding='utf-8')
     styles = '\n'.join(re.findall(r'<style>(.*?)</style>', src, re.DOTALL))
-    # Find the lightbox-zoom-content scoped block(s)
     block_match = re.search(
-        r'\.lightbox__content[^{]*\{[^}]*?(?:width|min-width)\s*:\s*[0-9]+\s*(?:vw|px|%)',
+        r'\.lightbox__zoom-content[^{]*\{[^}]*?(?:width|min-width)\s*:\s*[0-9]+\s*(?:vw|px|%)',
         styles, re.DOTALL,
     )
     assert block_match is not None, (
-        '.lightbox__content scoped rule with explicit width:'
+        '.lightbox__zoom-content scoped rule with explicit width missing in:'
         f'{styles[:200]}'
     )
 
@@ -94,12 +92,11 @@ def test_GQ2_lightbox_svg_has_height_auto():
     """SVG inside lightbox should keep aspect ratio (height:auto)."""
     src = GEN_HTML.read_text(encoding='utf-8')
     styles = '\n'.join(re.findall(r'<style>(.*?)</style>', src, re.DOTALL))
-    # The fix block should include svg height:auto for aspect-ratio preservation
     has_height_auto = re.search(
-        r'\.lightbox__content[^}]*?svg[^}]*?height\s*:\s*auto',
+        r'\.lightbox__zoom-content[^}]*?svg[^}]*?height\s*:\s*auto',
         styles, re.DOTALL,
     ) is not None or re.search(
-        r'\.lightbox__content\s+svg\s*\{[^}]*?height\s*:\s*auto',
+        r'\.lightbox__zoom-content\s+svg\s*\{[^}]*?height\s*:\s*auto',
         styles, re.DOTALL,
     ) is not None
     assert has_height_auto, 'svg inside lightbox should set height:auto'
