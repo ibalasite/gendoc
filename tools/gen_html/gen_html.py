@@ -262,6 +262,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       font-size: 0.95rem; color: #cbd5e1; }
     .nav-breadcrumb a { color: #fff; text-decoration: none; font-weight: 600; }
     .nav-breadcrumb a:hover { color: #60a5fa; }
+    /* U-group: current page anchor — clickable to scroll back to top */
+    .nav-breadcrumb__current { color: #fff; cursor: pointer; }
+    .nav-breadcrumb__current:hover { color: #60a5fa; }
     .doc-page-banner { height: 56px; padding: 0 2rem;
       display: flex; align-items: center; border-top: none; }
     .banner-title { font-size: 1.25rem; font-weight: 700;
@@ -3852,7 +3855,16 @@ def render_page(content, title, banner, doc_pages, server_diagrams, frontend_dia
                    f'<a href="{GITHUB_REPO}" target="_blank" rel="noopener" style="color:var(--banner-link)">⌥ GitHub ↗</a>'
                    f'</span>')
     else:
-        bc = f'<a href="index.html">{APP_NAME}</a> › {banner}'
+        # U-group: current page name is a clickable anchor that smooth-scrolls
+        # back to the top of the page (useful once the doc is long and the user
+        # has scrolled far down).
+        current_anchor = (
+            f'<a href="#top" class="nav-breadcrumb__current" '
+            f'onclick="event.preventDefault(); '
+            f"window.scrollTo({{top:0, behavior:'smooth'}});"
+            f'">{banner}</a>'
+        )
+        bc = f'<a href="index.html">{APP_NAME}</a> › {current_anchor}'
     toc_html = _build_toc(content)
     sidebar_html = make_sidebar(doc_pages, server_diagrams, frontend_diagrams, sub_docs, current, has_req=has_req, puml_files=puml_files, toc_html=toc_html)
     return (HTML_TEMPLATE
