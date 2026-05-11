@@ -135,18 +135,20 @@ def test_Q1_banner_title_font_size_compact():
 
 # ─── 3: sidebar 白條 root cause 修法 ────────────────────────────────
 
-def test_Q1_inline_sidebar_top_zero_to_kill_whitespace():
-    """inline `.sidebar` rule 加 `top: 0` 覆蓋 style.css 的 `top: var(--nav-h)`。
+def test_Q1_inline_sidebar_top_aligned_with_top_nav():
+    """inline `.sidebar` rule 必含 `top: 56px` 對齊 top-nav 高度。
 
     Root cause（實機驗證）：style.css `.sidebar { position: sticky; top: var(--nav-h) }`
     被 N1 修法改 `position: relative`，但**沒清 `top: 56px`** → sidebar 被
     relative 偏移 56px 下推 → banner 跟 sidebar 之間 56px 白條 gap。
+    T 群升級後改回 `position: sticky; top: 56px`（明確值取代 var），
+    sticky 在 top-nav 下方啟動；白條 gap 一樣被消除（沒有 relative 偏移）。
     """
     style = _inline_style(_read())
-    rule = re.search(r'\.sidebar\s*\{[^}]*position\s*:\s*relative[^}]*\}', style)
-    assert rule, 'N1 inline .sidebar (position: relative) rule not found'
-    assert re.search(r'top\s*:\s*0', rule.group(0)), \
-        f'N1 inline .sidebar must include `top: 0` to kill 56px whitespace gap'
+    rule = re.search(r'\.sidebar\s*\{[^}]*position\s*:\s*sticky[^}]*\}', style)
+    assert rule, 'T-group inline .sidebar (position: sticky) rule not found'
+    assert re.search(r'top\s*:\s*56px', rule.group(0)), \
+        f'T-group inline .sidebar must include `top: 56px` to dock below top-nav'
 
 
 # ─── Standalone runner ────────────────────────────────────────────────
@@ -165,7 +167,7 @@ def main():
         ('Q1_banner_height_56px_match_top_nav', test_Q1_banner_height_56px_match_top_nav),
         ('Q1_banner_uses_flex_center_layout', test_Q1_banner_uses_flex_center_layout),
         ('Q1_banner_title_font_size_compact', test_Q1_banner_title_font_size_compact),
-        ('Q1_inline_sidebar_top_zero_to_kill_whitespace', test_Q1_inline_sidebar_top_zero_to_kill_whitespace),
+        ('Q1_inline_sidebar_top_aligned_with_top_nav', test_Q1_inline_sidebar_top_aligned_with_top_nav),
     ]
     passed = failed = 0
     for name, fn in tests:

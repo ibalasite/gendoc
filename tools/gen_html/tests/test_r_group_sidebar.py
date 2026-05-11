@@ -85,32 +85,35 @@ def test_R1_sidebar_overflow_visible():
         f'.sidebar must NOT use overflow: hidden; body:\n{body}'
 
 
-def test_R1_sidebar_height_auto():
-    """inline `<style>` `.sidebar` 加 `height: auto`（覆蓋 style.css 的固定 viewport 高）。"""
+def test_R1_sidebar_height_viewport_fit():
+    """inline `<style>` `.sidebar` 加 `height: calc(100vh - 56px)`
+    — T 群升級後 sidebar sticky 占 viewport 下方剩餘空間（取代 R 群原
+    `height: auto` 設計）。R 群「全展開無 scrollbar」spirit 由 T 群
+    `scrollbar-width: thin` + 6px webkit scrollbar 接手。"""
     style = _inline_style(_read())
     rule = re.search(r'\.sidebar\s*\{[^}]*display\s*:\s*flex[^}]*\}', style)
-    assert rule, 'N1 inline .sidebar rule not found'
+    assert rule, 'T-group inline .sidebar rule not found'
     body = rule.group(0)
-    assert re.search(r'height\s*:\s*auto', body), \
-        f'.sidebar must use height: auto to disable viewport-fixed height; body:\n{body}'
+    assert re.search(r'height\s*:\s*calc\(\s*100vh\s*-\s*56px\s*\)', body), \
+        f'.sidebar must use height: calc(100vh - 56px) for T-group sticky fit; body:\n{body}'
 
 
 # ─── 3: sidebar__panel overflow visible ─────────────────────────────
 
-def test_R1_sidebar_panel_overflow_visible():
-    """inline `<style>` `.sidebar__panel` 改 `overflow: visible`（取消 overflow-y: auto）。"""
+def test_R1_sidebar_panel_internal_scroll():
+    """inline `<style>` `.sidebar__panel` 改 `overflow-y: auto` + scrollbar-width: thin
+    — T 群升級後 panel 自己內部捲，scrollbar 細到 6px 幾乎不擾眼（取代 R 群原
+    `overflow: visible` 設計）。Tabs 因此能釘 sidebar 頂端不被 panel scroll 帶走。"""
     style = _inline_style(_read())
-    # find the .sidebar__panel rule (the one with `display: none; flex: 1` body)
     rule = re.search(
-        r'\.sidebar__panel\s*\{[^}]*flex\s*:\s*1[^}]*\}',
-        style,
+        r'\.sidebar__panel\s*\{[^}]*flex\s*:\s*1\s+1\s+auto[^}]*\}', style,
     )
-    assert rule, '.sidebar__panel rule not found'
+    assert rule, 'T-group .sidebar__panel rule (flex: 1 1 auto) not found'
     body = rule.group(0)
-    assert 'overflow: visible' in body or 'overflow:visible' in body, \
-        f'.sidebar__panel must use overflow: visible; body:\n{body}'
-    assert 'overflow-y: auto' not in body and 'overflow-y:auto' not in body, \
-        f'.sidebar__panel must NOT use overflow-y: auto; body:\n{body}'
+    assert 'overflow-y: auto' in body or 'overflow-y:auto' in body, \
+        f'.sidebar__panel must use overflow-y: auto (T-group internal scroll); body:\n{body}'
+    assert 'scrollbar-width: thin' in body or 'scrollbar-width:thin' in body, \
+        f'.sidebar__panel must use scrollbar-width: thin to keep R-group "no visual scrollbar" spirit; body:\n{body}'
 
 
 # ─── 4: main 上方留白縮減 ────────────────────────────────────────────
@@ -132,8 +135,8 @@ def main():
         ('R1_sidebar_docs_panel_no_redundant_label', test_R1_sidebar_docs_panel_no_redundant_label),
         ('R1_sidebar_subdir_labels_still_present', test_R1_sidebar_subdir_labels_still_present),
         ('R1_sidebar_overflow_visible', test_R1_sidebar_overflow_visible),
-        ('R1_sidebar_height_auto', test_R1_sidebar_height_auto),
-        ('R1_sidebar_panel_overflow_visible', test_R1_sidebar_panel_overflow_visible),
+        ('R1_sidebar_height_viewport_fit', test_R1_sidebar_height_viewport_fit),
+        ('R1_sidebar_panel_internal_scroll', test_R1_sidebar_panel_internal_scroll),
         ('R1_doc_content_padding_top_reduced', test_R1_doc_content_padding_top_reduced),
     ]
     passed = failed = 0
