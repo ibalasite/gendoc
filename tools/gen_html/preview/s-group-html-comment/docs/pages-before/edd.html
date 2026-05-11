@@ -1,0 +1,2331 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>工程設計文件 (EDD) — s-group-html-comment</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <style>
+    /* ─── Sidebar collapsible folder groups ─── */
+    .sidebar__section details { border: none; }
+    .sidebar__section details > summary {
+      cursor: pointer; list-style: none; display: flex; align-items: center;
+      gap: 0.375rem; padding: 0 1rem; margin-bottom: 0.375rem;
+      font-size: 0.6875rem; font-weight: 600; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.08em; user-select: none;
+    }
+    .sidebar__section details > summary::-webkit-details-marker { display: none; }
+    .sidebar__section details > summary::before {
+      content: '▶'; font-size: 0.5rem; flex-shrink: 0;
+      transition: transform 150ms; color: var(--text-muted);
+    }
+    .sidebar__section details[open] > summary::before { transform: rotate(90deg); }
+    .sidebar__section details .sidebar__link { padding-left: 1.75rem; font-size: 0.8125rem; }
+    .sidebar__section details details > summary { padding-left: 1.75rem; }
+    .sidebar__section details details .sidebar__link { padding-left: 2.5rem; }
+    /* B5/B8: labels inside details are sub-labels — indent past their parent <summary>. */
+    .sidebar__section details > .sidebar__label {
+      padding-left: 2.25rem;
+    }
+    .sidebar__section details details > .sidebar__label {
+      padding-left: 3rem;
+    }
+    /* B5: sub-label inside diagrams folding for prefix groups (Activity / Class / ...) */
+    .sidebar__label--sub {
+      padding: 0.25rem 1rem 0.125rem 3rem;
+      font-size: 0.6875rem; font-weight: 600;
+      color: var(--text-muted); text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    /* B5: links following a sub-label indent further still */
+    .sidebar__section details .sidebar__label--sub ~ .sidebar__link {
+      padding-left: 3.5rem;
+    }
+    /* ─── Q-group: header 兩層等高 56px + 白條消除 ─── */
+    .top-nav { height: 56px; padding: 0 1.5rem; border-bottom: none; }
+    .nav-breadcrumb { display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.95rem; color: #cbd5e1; }
+    .nav-breadcrumb a { color: #fff; text-decoration: none; font-weight: 600; }
+    .nav-breadcrumb a:hover { color: #60a5fa; }
+    .doc-page-banner { height: 56px; padding: 0 2rem;
+      display: flex; align-items: center; border-top: none; }
+    .banner-title { font-size: 1.25rem; font-weight: 700;
+      line-height: 1; margin: 0; }
+    /* R-group: main 上方留白縮減（從 style.css 預設 2.5rem 改 1rem，
+       讓 main content 緊接 banner，跟 sidebar 視覺對齊）*/
+    .doc-content { padding-top: 1rem; }
+
+    /* ─── N1 + Q + R: sidebar tab switcher (📁 文件 / 📑 本頁目錄) ─── */
+    /* `padding: 0` overrides style.css `.sidebar { padding: 1.5rem 0 }`.
+       `top: 0` overrides style.css `.sidebar { top: var(--nav-h) }` —
+       N1 changed `position: sticky` → `relative` but the stale `top: 56px`
+       silently pushed sidebar 56px down → Q-group white gap.
+       R-group: `height: auto` + `overflow: visible` cancel style.css fixed
+       viewport height + scrollbar. sidebar grows with grid row to full
+       content height; page-level scroll handles overflow naturally. */
+    .sidebar { position: relative; top: 0; display: flex; flex-direction: column;
+      overflow: visible; padding: 0; height: auto; }
+    .sidebar__toggle { position: absolute; top: 6px; right: 6px;
+      background: #f1f5f9; border: 1px solid #cbd5e1;
+      padding: 2px 6px; border-radius: 4px;
+      cursor: pointer; font-size: 11px; line-height: 1;
+      color: #475569; z-index: 3; }
+    .sidebar__toggle:hover { background: #e2e8f0; }
+    .sidebar__tabs { display: flex; gap: 2px; padding: 4px 32px 0 4px;
+      border-bottom: 1px solid #e2e8f0; background: #f8fafc;
+      flex-shrink: 0; }
+    .sidebar__tab { flex: 1; padding: 6px 8px; font-size: 12px;
+      border: 1px solid transparent; border-bottom: none;
+      border-radius: 4px 4px 0 0; cursor: pointer; background: transparent;
+      color: #64748b; font-family: inherit; text-align: center;
+      transition: background-color 150ms, color 150ms; }
+    .sidebar__tab:hover { color: #1e293b; background: #f1f5f9; }
+    .sidebar__tab.active { background: #fff; color: #1e3a8a;
+      border-color: #e2e8f0; font-weight: 600; margin-bottom: -1px; }
+    .sidebar__panel { display: none; flex: 1; overflow: visible;
+      padding: 0.5rem 0; font-size: 0.875rem; }
+    .sidebar__panel.active { display: block; }
+    /* TOC list rendering inside the toc panel */
+    .sidebar__panel .toc-list { list-style: none; padding: 0; margin: 0; }
+    .sidebar__panel .toc-list li { margin: 0; }
+    .toc__link { display: block; padding: 0.25rem 0.75rem;
+      color: #475569; text-decoration: none; font-size: 0.8125rem;
+      border-left: 2px solid transparent; margin: 1px 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .toc__link:hover { background: #f1f5f9; color: #1e293b; }
+    .toc__link.active { background: #eff6ff; color: #1e3a8a;
+      border-left-color: #3b82f6; font-weight: 500; }
+    .toc__link--h3 { padding-left: 1.5rem; font-size: 0.78rem; color: #64748b; }
+    /* Sidebar collapsed state — keep a 32px rail visible so the toggle
+       button stays clickable; hide tabs + panels. Overrides style.css's
+       .page-wrapper.sidebar-collapsed { grid-template-columns: 0 4px 1fr; }
+       to keep the rail. */
+    .page-wrapper.sidebar-collapsed { grid-template-columns: 32px 4px 1fr; }
+    .page-wrapper.sidebar-collapsed .sidebar {
+      width: 32px; min-width: 32px;
+      visibility: visible; padding: 0; overflow: visible;
+    }
+    .page-wrapper.sidebar-collapsed .sidebar__tabs,
+    .page-wrapper.sidebar-collapsed .sidebar__panel { display: none; }
+    .page-wrapper.sidebar-collapsed .sidebar__toggle { left: 4px; right: 4px; }
+    /* RWD — auto-collapse on phones (<768px). Only kicks in when no
+       explicit `.sidebar-expanded` flag is set; tap the toggle to expand. */
+    @media (max-width: 768px) {
+      .page-wrapper:not(.sidebar-expanded) {
+        grid-template-columns: 32px 4px 1fr;
+      }
+      .page-wrapper:not(.sidebar-expanded) .sidebar {
+        width: 32px; min-width: 32px;
+      }
+      .page-wrapper:not(.sidebar-expanded) .sidebar__tabs,
+      .page-wrapper:not(.sidebar-expanded) .sidebar__panel { display: none; }
+    }
+    /* G-Q2: lightbox cloned-diagram visibility.
+       The lightbox sets `.lightbox__content > * { position:absolute }`
+       which collapses the cloned .diagram-container to 0×0; its child SVG
+       with `width:100%` then renders empty. Force a sensible explicit
+       width so the cloned content is actually visible. */
+    .lightbox__content .diagram-container {
+      width: 80vw;
+      max-width: 1400px;
+      min-width: 60vw;
+    }
+    .lightbox__content .diagram-container svg {
+      width: 100%;
+      height: auto;
+      max-height: 80vh;
+      display: block;
+    }
+    .lightbox__content .diagram-container .mermaid {
+      width: 100%;
+      max-width: none;
+    }
+    .lightbox__content svg {
+      height: auto;
+    }
+    /* G-Q5: prevent flex/grid child main.doc-content from expanding to its
+       content's intrinsic size when a PUML SVG / pre.mermaid has wide
+       content. Without min-width:0, the flex item's default min-width is
+       its min-content (i.e. SVG natural width), which pushes <main> to
+       3000px+ on PUML pages and breaks layout.
+
+       Pair with `<pre> { max-width: 100% }` so wide source content scrolls
+       inside the <pre> block instead of expanding the page. */
+    main.doc-content {
+      min-width: 0;
+    }
+    .doc-content pre {
+      max-width: 100%;
+    }
+    .doc-content .diagram-container {
+      max-width: 100%;
+      overflow-x: auto;
+    }
+
+    /* ─── UI Mock DSL (stage 9) ─── */
+    .umock { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #1e293b; }
+    .umock__page, .umock__modal, .umock__card {
+      border: 1.5px solid #94a3b8; border-radius: 8px; background: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin: 1rem 0;
+      overflow: hidden;
+    }
+    .umock__card-title { padding: 0.625rem 1rem; font-weight: 600; font-size: 0.95rem;
+      background: #f8fafc; border-bottom: 1.5px solid #94a3b8; color: #1e293b; }
+    .umock__page-title { padding: 0.75rem 1rem; font-weight: 600; font-size: 1.05rem;
+      background: #f8fafc; border-bottom: 1.5px solid #94a3b8; }
+    /* `.diagram-container` (assets/style.css) defaults to text-align: center
+       which is right for SVG/mermaid but wrong for umock body text. Reset
+       to start so individual umock elements decide their own alignment.
+       Also constrain width to content so umock card mirrors ASCII source
+       proportions (rather than stretching to full doc-content width). */
+    .diagram-container--umock {
+      text-align: start;
+      width: fit-content;
+      max-width: 100%;
+    }
+    .diagram-container--umock .umock__card,
+    .diagram-container--umock .umock__page,
+    .diagram-container--umock .umock__modal {
+      width: fit-content;
+      max-width: 100%;
+    }
+    /* Outer-alignment modifiers — applied via attrs.align detected from
+       the source ASCII's leading/trailing whitespace within `│ ... │`. */
+    .umock__card-title--center, .umock__page-title--center,
+    .umock__text--center, .umock__info--center, .umock__hint--center,
+    .umock__actions--center { text-align: center; }
+    .umock__card-title--right, .umock__page-title--right,
+    .umock__text--right, .umock__info--right, .umock__hint--right,
+    .umock__actions--right { text-align: right; }
+    .umock__modal { max-width: 540px; }
+    .umock__modal-titlebar { display: flex; justify-content: space-between; align-items: center;
+      padding: 0.75rem 1rem; background: #f1f5f9; border-bottom: 1.5px solid #94a3b8; }
+    .umock__modal-title { font-weight: 600; font-size: 1rem; }
+    .umock__modal-close { color: #94a3b8; font-size: 1.1rem; cursor: default; }
+    .umock__modal-body, .umock__page > .umock__section,
+    .umock__card { padding: 0.75rem 1rem; }
+    .umock__navbar { display: flex; gap: 1rem; align-items: center;
+      padding: 0.625rem 1rem; background: #1e293b; color: #f1f5f9;
+      border-radius: 8px 8px 0 0; }
+    .umock__sidenav { float: left; width: 12rem; padding: 0.75rem;
+      background: #f8fafc; border-right: 1px solid #e2e8f0; min-height: 200px; }
+    .umock__sidenav .umock__item { padding: 0.375rem 0.5rem; border-radius: 4px;
+      color: #475569; font-size: 0.875rem; }
+    .umock__sidenav .umock__item:hover { background: #e2e8f0; }
+    .umock__page > *:not(.umock__navbar):not(.umock__sidenav) { margin-left: 12.5rem;
+      padding: 0.75rem 1rem; }
+    .umock__page::after { content: ""; display: block; clear: both; }
+    .umock__section { padding: 0.75rem 0; }
+    .umock__section-title { margin: 0 0 0.5rem 0; font-size: 1rem; font-weight: 600; }
+    .umock__section-subtitle { color: #64748b; font-size: 0.875rem; margin-bottom: 0.5rem; }
+    .umock__field { margin: 0.5rem 0; }
+    .umock__field-label { display: block; font-size: 0.85rem; color: #334155;
+      margin-bottom: 0.25rem; font-weight: 500; }
+    .umock__field-required { color: #dc2626; margin-left: 0.125rem; }
+    .umock__input, .umock__search {
+      display: block; width: 100%; padding: 0.5rem 0.625rem; font-size: 0.9rem;
+      border: 1px solid #94a3b8; border-radius: 4px; background: #fff;
+      color: #475569; box-sizing: border-box;
+    }
+    .umock__btn { display: inline-block; padding: 0.4rem 0.9rem; margin: 0.125rem;
+      font-size: 0.875rem; font-weight: 500; border: 1px solid transparent;
+      border-radius: 4px; cursor: default; background: #e2e8f0; color: #334155; }
+    .umock__btn--primary { background: #2563eb; color: #fff; }
+    .umock__btn--secondary { background: #fff; color: #475569; border-color: #cbd5e1; }
+    .umock__btn--danger { background: #dc2626; color: #fff; }
+    .umock__actions { padding: 0.5rem 0;
+      border-top: 1px solid #f1f5f9; }
+    .umock__badge { display: inline-block; padding: 0.125rem 0.5rem;
+      border-radius: 999px; font-size: 0.75rem; font-weight: 500;
+      background: #e2e8f0; color: #475569; }
+    .umock__badge--active { background: #dcfce7; color: #166534; }
+    .umock__badge--inactive { background: #fee2e2; color: #991b1b; }
+    .umock__badge--warning { background: #fef3c7; color: #92400e; }
+    .umock__hint { color: #64748b; font-size: 0.8rem; margin: 0.25rem 0 0.5rem 0; }
+    .umock__info { background: #eff6ff; border-left: 3px solid #3b82f6;
+      padding: 0.5rem 0.75rem; margin: 0.5rem 0; color: #1e3a8a; font-size: 0.875rem; }
+    /* Plain body text row in UI mock: monospace, preserve whitespace,
+       left-aligned, no background. Maps to ASCII content rows that aren't
+       semantic markers (ⓘ / helper:). */
+    .umock__text { padding: 0.125rem 1rem; margin: 0; color: #1e293b;
+      font-family: 'Menlo','Consolas','Courier New',monospace;
+      font-size: 0.85rem; white-space: pre; }
+    /* Higher specificity than `.doc-content pre` (assets/style.css) so the
+       umock dark-canvas background isn't overridden by the generic `pre`
+       rule when umock is rendered inside `.doc-content`. */
+    .doc-content pre.umock__code, pre.umock__code { background: #1e293b; color: #f1f5f9; padding: 0.75rem;
+      border-radius: 4px; overflow-x: auto; font-size: 0.8rem;
+      font-family: ui-monospace, "SF Mono", Consolas, monospace; }
+    .umock__code code { background: none; color: inherit; padding: 0; }
+    .umock__table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.9rem; }
+    .umock__table th, .umock__table td { padding: 0.75rem 0.875rem; text-align: left;
+      border-bottom: 1px solid #cbd5e1; }
+    .umock__table th { background: #f8fafc; font-weight: 600; color: #334155;
+      border-bottom: 2px solid #94a3b8; }
+    .umock__table tbody tr:hover { background: #f8fafc; }
+    .umock__pagination { padding: 0.5rem 0; color: #64748b; font-size: 0.8rem; text-align: right; }
+    .umock__tabs { display: flex; gap: 0.5rem; padding: 0.25rem 0; border-bottom: 1px solid #e2e8f0; }
+    .umock__tab { padding: 0.375rem 0.75rem; color: #475569; font-size: 0.875rem;
+      border-bottom: 2px solid transparent; }
+    .umock__tab:first-child { border-bottom-color: #2563eb; color: #1e40af; font-weight: 500; }
+    .umock__filter-bar { display: flex; gap: 0.5rem; align-items: center;
+      padding: 0.5rem 0; }
+    .umock__divider { border: 0; border-top: 1px solid #e2e8f0; margin: 0.5rem 0; }
+    .umock__meta-line { color: #64748b; font-size: 0.8rem; margin: 0.125rem 0; }
+    .umock__row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .umock__row-cell { font-size: 0.875rem; color: #334155; }
+    .umock__avatar { width: 1.75rem; height: 1.75rem; border-radius: 50%;
+      background: #94a3b8; display: inline-block; }
+    .umock__logo { font-weight: 700; letter-spacing: 0.02em; }
+    .umock__spacer { flex: 1; }
+    .umock__pyramid { display: block; max-width: 100%; height: auto; }
+    /* generic fallback for unknown types */
+    .umock__x { padding: 0.5rem; border: 1px dashed #cbd5e1; border-radius: 4px;
+      color: #64748b; font-size: 0.875rem; margin: 0.25rem 0; }
+  </style>
+</head>
+<body>
+  <header class="top-nav">
+    <nav class="nav-breadcrumb"><a href="index.html">s-group-html-comment</a> › 工程設計文件 (EDD)</nav>
+    <div class="nav-controls">
+      <div class="search-wrap">
+        <input class="search-input" type="search" placeholder="搜尋文件...">
+        <div class="search-results"></div>
+      </div>
+      <a class="nav-gh-link" href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener">⌥ GitHub</a>
+      <button class="sidebar-toggle" id="sidebarToggle" title="收合/展開側欄">☰</button>
+    </div>
+  </header>
+  <div class="doc-page-banner">
+    <h1 class="banner-title">工程設計文件 (EDD)</h1>
+  </div>
+  <div class="page-wrapper">
+    <aside class="sidebar" aria-label="文件導覽">
+      <button class="sidebar__toggle" id="sidebarCollapseBtn" type="button" aria-label="收合 / 展開側欄" title="收合 / 展開">⇤</button><div class="sidebar__tabs" role="tablist"><button class="sidebar__tab active" data-tab="docs" type="button" role="tab" aria-selected="true">📁 文件</button><button class="sidebar__tab" data-tab="toc" type="button" role="tab" aria-selected="false">📑 本頁目錄</button></div><div class="sidebar__panel active" data-panel="docs" role="tabpanel"><div class="sidebar__section">
+<a class="sidebar__link" href="index.html">🏠 首頁</a>
+<a class="sidebar__link" href="idea.html">💡 構想文件 (IDEA)</a>
+<a class="sidebar__link" href="brd.html">📋 商業需求文件 (BRD)</a>
+<a class="sidebar__link" href="prd.html">📝 產品需求文件 (PRD)</a>
+<a class="sidebar__link" href="pdd.html">🎨 產品設計文件 (PDD)</a>
+<a class="sidebar__link active" href="edd.html">🏗️ 工程設計文件 (EDD)</a>
+</div></div><div class="sidebar__panel" data-panel="toc" role="tabpanel"><ul class="toc-list"><li><a class="toc__link" href="#document-control">Document Control</a></li><li><a class="toc__link" href="#change-log">Change Log</a></li><li><a class="toc__link" href="#0-business-constants-key-values-from-constantsmd--constantsjson">§0. Business Constants (Key Values from CONSTANTS.md / constants.json)</a></li><li><a class="toc__link" href="#1-executive-summary">§1. Executive Summary</a></li><li><a class="toc__link toc__link--h3" href="#11-技術摘要">§1.1 技術摘要</a></li><li><a class="toc__link toc__link--h3" href="#12-設計原則">§1.2 設計原則</a></li><li><a class="toc__link toc__link--h3" href="#13-prd-需求追溯表">§1.3 PRD 需求追溯表</a></li><li><a class="toc__link" href="#2-system-architecture-overview">§2. System Architecture Overview</a></li><li><a class="toc__link toc__link--h3" href="#21-系統上下文圖c4-level-1">§2.1 系統上下文圖（C4 Level 1）</a></li><li><a class="toc__link toc__link--h3" href="#22-container-圖c4-level-2">§2.2 Container 圖（C4 Level 2）</a></li><li><a class="toc__link" href="#3-technology-stack--architecture-decisions">§3. Technology Stack &amp;amp; Architecture Decisions</a></li><li><a class="toc__link toc__link--h3" href="#31-架構模式architecture-pattern">§3.1 架構模式（Architecture Pattern）</a></li><li><a class="toc__link toc__link--h3" href="#31b-clean-architecture--solid">§3.1b Clean Architecture &amp;amp; SOLID</a></li><li><a class="toc__link toc__link--h3" href="#32-architecture-decision-records-adr">§3.2 Architecture Decision Records (ADR)</a></li><li><a class="toc__link toc__link--h3" href="#33-技術棧總覽表">§3.3 技術棧總覽表</a></li><li><a class="toc__link toc__link--h3" href="#34-bounded-context--context-mapddd">§3.4 Bounded Context &amp;amp; Context Map（DDD）</a></li><li><a class="toc__link toc__link--h3" href="#35-部署環境規格">§3.5 部署環境規格</a></li><li><a class="toc__link toc__link--h3" href="#36-ha--spof--scale--bcp-architecture-specification">§3.6 HA / SPOF / SCALE / BCP Architecture Specification</a></li><li><a class="toc__link toc__link--h3" href="#37-最小完整度架構圖minimum-viable-ha-architecture">§3.7 最小完整度架構圖（Minimum Viable HA Architecture）</a></li><li><a class="toc__link" href="#4-module--component-design">§4. Module / Component Design</a></li><li><a class="toc__link toc__link--h3" href="#41-模組按-bc">§4.1 模組（按 BC）</a></li><li><a class="toc__link toc__link--h3" href="#42-模組對應-prd-user-story">§4.2 模組對應 PRD User Story</a></li><li><a class="toc__link toc__link--h3" href="#43-跨模組依賴-dag-驗證hc-5">§4.3 跨模組依賴 DAG 驗證（HC-5）</a></li><li><a class="toc__link toc__link--h3" href="#44-domain-glossary">§4.4 Domain Glossary</a></li><li><a class="toc__link toc__link--h3" href="#45-uml-9-大圖全部-mermaid">§4.5 UML 9 大圖（全部 Mermaid）</a></li><li><a class="toc__link toc__link--h3" href="#46-domain-events">§4.6 Domain Events</a></li><li><a class="toc__link" href="#5-api-design">§5. API Design</a></li><li><a class="toc__link toc__link--h3" href="#51-auth--claim">§5.1 Auth / Claim</a></li><li><a class="toc__link toc__link--h3" href="#52-pet">§5.2 Pet</a></li><li><a class="toc__link toc__link--h3" href="#53-arena">§5.3 Arena</a></li><li><a class="toc__link toc__link--h3" href="#54-leaderboard">§5.4 Leaderboard</a></li><li><a class="toc__link toc__link--h3" href="#55-admin">§5.5 Admin</a></li><li><a class="toc__link toc__link--h3" href="#56-gdpr-self-service">§5.6 GDPR Self-Service</a></li><li><a class="toc__link toc__link--h3" href="#57-marketplaceff_marketplace">§5.7 Marketplace（FF_MARKETPLACE）</a></li><li><a class="toc__link" href="#6-data-model">§6. Data Model</a></li><li><a class="toc__link toc__link--h3" href="#61-erd">§6.1 ERD</a></li><li><a class="toc__link toc__link--h3" href="#62-indexing-strategy">§6.2 Indexing Strategy</a></li><li><a class="toc__link toc__link--h3" href="#63-資料生命週期">§6.3 資料生命週期</a></li><li><a class="toc__link" href="#7-key-sequence-flows">§7. Key Sequence Flows</a></li><li><a class="toc__link toc__link--h3" href="#71-claim-flow">§7.1 Claim Flow</a></li><li><a class="toc__link toc__link--h3" href="#72-arena-battle">§7.2 Arena Battle</a></li><li><a class="toc__link toc__link--h3" href="#73-gdpr-erasure">§7.3 GDPR Erasure</a></li><li><a class="toc__link toc__link--h3" href="#74-leaderboard-update-flow">§7.4 Leaderboard Update Flow</a></li><li><a class="toc__link" href="#8-error-handling--resilience">§8. Error Handling &amp;amp; Resilience</a></li><li><a class="toc__link toc__link--h3" href="#81-錯誤分類">§8.1 錯誤分類</a></li><li><a class="toc__link toc__link--h3" href="#82-retry-strategy">§8.2 Retry Strategy</a></li><li><a class="toc__link toc__link--h3" href="#83-circuit-breaker">§8.3 Circuit Breaker</a></li><li><a class="toc__link toc__link--h3" href="#84-idempotency">§8.4 Idempotency</a></li><li><a class="toc__link toc__link--h3" href="#85-graceful-degradation-strategy">§8.5 Graceful Degradation Strategy</a></li><li><a class="toc__link" href="#9-security-design">§9. Security Design</a></li><li><a class="toc__link toc__link--h3" href="#91-認證授權">§9.1 認證授權</a></li><li><a class="toc__link toc__link--h3" href="#92-輸入驗證">§9.2 輸入驗證</a></li><li><a class="toc__link toc__link--h3" href="#93-secrets-管理">§9.3 Secrets 管理</a></li><li><a class="toc__link toc__link--h3" href="#94-敏感資料處理">§9.4 敏感資料處理</a></li><li><a class="toc__link toc__link--h3" href="#95-stride-威脅模型--owasp-top-10">§9.5 STRIDE 威脅模型 + OWASP Top 10</a></li><li><a class="toc__link toc__link--h3" href="#96-rbac-資料模型">§9.6 RBAC 資料模型</a></li><li><a class="toc__link" href="#10-observability-design">§10. Observability Design</a></li><li><a class="toc__link toc__link--h3" href="#101-logging">§10.1 Logging</a></li><li><a class="toc__link toc__link--h3" href="#102-metrics">§10.2 Metrics</a></li><li><a class="toc__link toc__link--h3" href="#103-distributed-tracing">§10.3 Distributed Tracing</a></li><li><a class="toc__link toc__link--h3" href="#104-alerting">§10.4 Alerting</a></li><li><a class="toc__link toc__link--h3" href="#105-slo--sli--error-budget">§10.5 SLO / SLI / Error Budget</a></li><li><a class="toc__link toc__link--h3" href="#106-audit-log-design">§10.6 Audit Log Design</a></li><li><a class="toc__link toc__link--h3" href="#107-synthetic-monitoring--health-check">§10.7 Synthetic Monitoring &amp;amp; Health Check</a></li><li><a class="toc__link" href="#11-performance-design">§11. Performance Design</a></li><li><a class="toc__link toc__link--h3" href="#111-容量規劃基於-constants">§11.1 容量規劃（基於 CONSTANTS）</a></li><li><a class="toc__link toc__link--h3" href="#112-capacity-planning">§11.2 Capacity Planning</a></li><li><a class="toc__link toc__link--h3" href="#113-快取策略">§11.3 快取策略</a></li><li><a class="toc__link toc__link--h3" href="#114-資料庫優化">§11.4 資料庫優化</a></li><li><a class="toc__link" href="#12-testing-strategy">§12. Testing Strategy</a></li><li><a class="toc__link toc__link--h3" href="#121-unit-tests">§12.1 Unit Tests</a></li><li><a class="toc__link toc__link--h3" href="#122-integration-tests">§12.2 Integration Tests</a></li><li><a class="toc__link toc__link--h3" href="#123-e2e-tests">§12.3 E2E Tests</a></li><li><a class="toc__link toc__link--h3" href="#124-load--stress">§12.4 Load / Stress</a></li><li><a class="toc__link" href="#13-deployment--operations">§13. Deployment &amp;amp; Operations</a></li><li><a class="toc__link toc__link--h3" href="#131-部署架構">§13.1 部署架構</a></li><li><a class="toc__link toc__link--h3" href="#132-deployment-strategy">§13.2 Deployment Strategy</a></li><li><a class="toc__link toc__link--h3" href="#133-migration">§13.3 Migration</a></li><li><a class="toc__link toc__link--h3" href="#134-rollback">§13.4 Rollback</a></li><li><a class="toc__link toc__link--h3" href="#135-disaster-recovery-dr">§13.5 Disaster Recovery (DR)</a></li><li><a class="toc__link toc__link--h3" href="#136-cicd-pipeline">§13.6 CI/CD Pipeline</a></li><li><a class="toc__link toc__link--h3" href="#137-runbook-framework">§13.7 Runbook Framework</a></li><li><a class="toc__link" href="#14-risk-assessment">§14. Risk Assessment</a></li><li><a class="toc__link" href="#15-technical-debt--known-compromises">§15. Technical Debt &amp;amp; Known Compromises</a></li><li><a class="toc__link" href="#16-implementation-plan">§16. Implementation Plan</a></li><li><a class="toc__link toc__link--h3" href="#161-里程碑">§16.1 里程碑</a></li><li><a class="toc__link toc__link--h3" href="#162-實作順序依賴">§16.2 實作順序依賴</a></li><li><a class="toc__link" href="#17-open-questions">§17. Open Questions</a></li><li><a class="toc__link" href="#18-references">§18. References</a></li><li><a class="toc__link" href="#19-approval-sign-off">§19. Approval Sign-off</a></li><li><a class="toc__link" href="#20-feature-flag-engineering">§20. Feature Flag Engineering</a></li><li><a class="toc__link toc__link--h3" href="#201-五種類型評估表">§20.1 五種類型評估表</a></li><li><a class="toc__link toc__link--h3" href="#202-flag-清單">§20.2 Flag 清單</a></li><li><a class="toc__link toc__link--h3" href="#203-flag-生命週期清單">§20.3 Flag 生命週期清單</a></li><li><a class="toc__link toc__link--h3" href="#204-緊急回滾程序">§20.4 緊急回滾程序</a></li><li><a class="toc__link" href="#21-cross-cutting-concerns">§21. Cross-Cutting Concerns</a></li><li><a class="toc__link toc__link--h3" href="#211-可觀測性三支柱實作">§21.1 可觀測性三支柱實作</a></li><li><a class="toc__link toc__link--h3" href="#212-分散式追蹤">§21.2 分散式追蹤</a></li><li><a class="toc__link toc__link--h3" href="#213-configuration-management">§21.3 Configuration Management</a></li><li><a class="toc__link toc__link--h3" href="#214-secrets-rotation">§21.4 Secrets Rotation</a></li></ul></div>
+    </aside>
+    <div class="sidebar-resizer" id="sidebarResizer"></div>
+    <main class="doc-content"><h1 id="edd--engineering-design-document">EDD — Engineering Design Document</h1>
+<p>&lt;!-- SDLC Layer 4 — Engineering Design / Architecture --&gt;</p>
+<p>&lt;!-- Upstream: PRD-PIXEL-PET-ARENA-20260503, PDD-PIXEL-PET-ARENA-20260503, VDD-PIXEL-PET-ARENA-20260503, CONSTANTS-PIXEL-PET-ARENA-20260503 --&gt;</p>
+<hr>
+<h2 id="document-control">Document Control</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>DOC-ID</strong></td><td>EDD-PIXEL-PET-ARENA-20260503</td></tr>
+<tr><td><strong>產品名稱</strong></td><td>Pixel Pet Arena</td></tr>
+<tr><td><strong>文件版本</strong></td><td>v2.0</td></tr>
+<tr><td><strong>狀態</strong></td><td>DRAFT</td></tr>
+<tr><td><strong>作者</strong></td><td>AI Generated (gendoc edd)</td></tr>
+<tr><td><strong>建立日期</strong></td><td>2026-05-03</td></tr>
+<tr><td><strong>最後更新</strong></td><td>2026-05-10</td></tr>
+<tr><td><strong>上游文件</strong></td><td>PRD-PIXEL-PET-ARENA-20260503, PDD-PIXEL-PET-ARENA-20260503, VDD-PIXEL-PET-ARENA-20260503, CONSTANTS-PIXEL-PET-ARENA-20260503</td></tr>
+<tr><td><strong>下游文件</strong></td><td>SCHEMA.md, API.md, ARCH.md, BDD.md, test-plan.md, runbook.md</td></tr>
+<tr><td><strong>client_type</strong></td><td>web (HTML5 browser, no installation)</td></tr>
+<tr><td><strong>has_admin_backend</strong></td><td>true</td></tr>
+</table>
+<hr>
+<h2 id="change-log">Change Log</h2>
+<table>
+<tr><th>版本</th><th>日期</th><th>作者</th><th>變更摘要</th></tr>
+<tr><td>v1.0</td><td>2026-05-03</td><td>AI Generated (gendoc edd)</td><td>初稿：從 PRD / PDD / VDD / CONSTANTS 生成完整工程設計文件</td></tr>
+<tr><td>v2.0</td><td>2026-05-10</td><td>AI Generated (gendoc edd review-r6)</td><td>完整重寫：新增 §1.2 設計原則、§1.3 PRD 追溯表、§3.1 架構模式（Modular Monolith）、§3.1b Clean Architecture &amp; SOLID、§3.2 ADR-001~004、§3.4 BC Schema Ownership Table、§3.6 HA/SPOF/SCALE/BCP、§3.7 Min-HA 架構圖、§4.3 跨模組 DAG 驗證、§4.5 UML 9 大圖（全 Mermaid）、§4.6 Domain Events、§8 Resilience（Bulkhead/Circuit Breaker）、§9 STRIDE+OWASP A01-A10、§9.6 RBAC、§10 Observability（SLO/SLI/Audit/Synthetic）、§11.2 Capacity Planning、§13 Deployment Strategy + DR + Runbook、§16 Implementation Plan + 依賴排序、§20 5 種 Feature Flag 類型、§21 三支柱可觀測性實作。所有 ASCII 圖改為 Mermaid，所有 PUML 改為 Mermaid。</td></tr>
+</table>
+<hr>
+<h2 id="0-business-constants-key-values-from-constantsmd--constantsjson">§0. Business Constants (Key Values from CONSTANTS.md / constants.json)</h2>
+<p>The following constants are extracted directly from CONSTANTS.md (CONSTANTS-PIXEL-PET-ARENA-20260503) and govern all engineering decisions in this document. See CONSTANTS.md for the authoritative source definitions and rationale.</p>
+<table>
+<tr><th>Constant</th><th>Value</th><th>Unit</th><th>Notes</th></tr>
+<tr><td>PET_GENERATION_COMBINATIONS_MIN</td><td>1,000,000,000</td><td>combinations</td><td>Minimum unique pet generation combinations</td></tr>
+<tr><td>PET_GENERATION_DIMENSIONS</td><td>6</td><td>dimensions</td><td>body, head, color_palette, accessory, rarity_trait, pattern</td></tr>
+<tr><td>PET_STAT_DEFAULT</td><td>10</td><td>points</td><td>Default stat value for speed, strength, stamina</td></tr>
+<tr><td>PET_STAT_MIN</td><td>1</td><td>points</td><td>Minimum stat value</td></tr>
+<tr><td>PET_STAT_MAX</td><td>100</td><td>points</td><td>Maximum stat value</td></tr>
+<tr><td>PET_LEVEL_DEFAULT</td><td>1</td><td>level</td><td>Starting level</td></tr>
+<tr><td>PET_LEVEL_MAX</td><td>100</td><td>level</td><td>Max level cap; FLOOR(training_actions / PET_LEVEL_FORMULA_DIVISOR)</td></tr>
+<tr><td>PET_LEVEL_FORMULA_DIVISOR</td><td>10</td><td>—</td><td>Divisor for level formula</td></tr>
+<tr><td>TRAINING_ACTIONS_PER_DAY</td><td>3</td><td>actions/day</td><td>Reset UTC 00:00</td></tr>
+<tr><td>TRAINING_NEGLECT_THRESHOLD_DAYS</td><td>3</td><td>days</td><td>Triggers visual neglect state</td></tr>
+<tr><td>ARENA_RATE_LIMIT_BATTLES_PER_HOUR_DEFAULT</td><td>10</td><td>battles/hr</td><td>Admin-tunable; 1–50 range</td></tr>
+<tr><td>ARENA_MATCHMAKING_TIMEOUT_SECONDS</td><td>30</td><td>seconds</td><td>AI fallback offered</td></tr>
+<tr><td>ARENA_MATCH_DURATION_MIN_SECONDS</td><td>5</td><td>seconds</td><td>Animation window minimum</td></tr>
+<tr><td>ARENA_MATCH_DURATION_MAX_SECONDS</td><td>15</td><td>seconds</td><td>Animation window maximum</td></tr>
+<tr><td>ARENA_BATTLE_OUTCOME_RANDOM_MODIFIER_PERCENT</td><td>±15</td><td>percent</td><td>Seeded random applied to Speed/Strength</td></tr>
+<tr><td>ARENA_BATTLE_RECORDS_DISPLAY_COUNT</td><td>20</td><td>battles</td><td>Last 20 shown publicly</td></tr>
+<tr><td>LEADERBOARD_TOP_DISPLAY</td><td>100</td><td>pets</td><td>Public; admin sees 500</td></tr>
+<tr><td>LEADERBOARD_UPDATE_LAG_MAX_SECONDS</td><td>30</td><td>seconds</td><td>Redis → consistent</td></tr>
+<tr><td>CLAIM_CODE_DIGITS</td><td>6</td><td>digits</td><td>One-time numeric code</td></tr>
+<tr><td>CLAIM_CODE_EXPIRY_MINUTES</td><td>15</td><td>minutes</td><td>After generation</td></tr>
+<tr><td>CLAIM_TOKEN_CLEANUP_TTL_HOURS</td><td>72</td><td>hours</td><td>After creation or first use</td></tr>
+<tr><td>PET_ACCESS_TOKEN_MIN_BYTES</td><td>32</td><td>bytes</td><td>URL-safe base64 random</td></tr>
+<tr><td>AUTH_RATE_LIMIT_CLAIM_ATTEMPTS_PER_HOUR</td><td>5</td><td>attempts/hr</td><td>Per email address</td></tr>
+<tr><td>AUTH_RATE_LIMIT_CODE_ENTRY_ATTEMPTS_PER_SESSION</td><td>10</td><td>attempts/session</td><td>Per session</td></tr>
+<tr><td>ADMIN_SESSION_INACTIVITY_EXPIRY_HOURS</td><td>4</td><td>hours</td><td>Inactivity timeout</td></tr>
+<tr><td>ADMIN_SESSION_ABSOLUTE_EXPIRY_HOURS</td><td>8</td><td>hours</td><td>Regardless of activity</td></tr>
+<tr><td>ADMIN_RATE_LIMIT_REQUESTS_PER_MINUTE</td><td>100</td><td>req/min</td><td>Per admin account</td></tr>
+<tr><td>ADMIN_AUDIT_LOG_RETENTION_YEARS</td><td>2</td><td>years</td><td>GDPR Art. 30 compliance</td></tr>
+<tr><td>BOT_DETECTION_BATTLES_THRESHOLD</td><td>50</td><td>battles</td><td>Per 60-min rolling window</td></tr>
+<tr><td>HORIZONTAL_SCALE_CPU_THRESHOLD_PERCENT</td><td>70</td><td>percent</td><td>HPA scale-out trigger</td></tr>
+<tr><td>DB_AUTOFAILOVER_TIME_SECONDS</td><td>60</td><td>seconds</td><td>PostgreSQL automated failover</td></tr>
+<tr><td>SENDGRID_FAILOVER_CONSECUTIVE_FAILURES</td><td>3</td><td>failures</td><td>Switch to Nodemailer SMTP</td></tr>
+<tr><td>CLAIM_EMAIL_DELIVERY_RATE_TARGET_PERCENT</td><td>98</td><td>percent</td><td>Minimum email delivery success</td></tr>
+<tr><td>NORMAL_OPERATION_RPS</td><td>100</td><td>RPS</td><td>Sustained</td></tr>
+<tr><td>NORMAL_OPERATION_DAU_MIN</td><td>2,000</td><td>DAU</td><td>Minimum normal DAU</td></tr>
+<tr><td>NORMAL_OPERATION_DAU_MAX</td><td>5,000</td><td>DAU</td><td>Maximum normal DAU</td></tr>
+<tr><td>PEAK_OPERATION_RPS</td><td>500</td><td>RPS</td><td>Viral peak</td></tr>
+<tr><td>PEAK_CONCURRENT_USERS</td><td>2,000</td><td>PCU</td><td>Arena events</td></tr>
+<tr><td>DB_CONNECTION_POOL_MIN_CONNECTIONS</td><td>20</td><td>connections</td><td>PostgreSQL pool floor</td></tr>
+<tr><td>DB_CONNECTION_POOL_MAX_CONNECTIONS</td><td>50</td><td>connections</td><td>PostgreSQL pool burst</td></tr>
+<tr><td>CODE_MODULE_MAX_LINES</td><td>800</td><td>lines</td><td>Hard limit per module</td></tr>
+<tr><td>CODE_FUNCTION_MAX_LINES</td><td>50</td><td>lines</td><td>Hard limit per function</td></tr>
+<tr><td>AVAILABILITY_MONTHLY_PERCENT</td><td>99.9%</td><td>monthly</td><td>≤43.8 min downtime/month</td></tr>
+<tr><td>P99_API_LATENCY_READ_MS_AT_100_RPS</td><td>&lt;200</td><td>ms</td><td>All read endpoints</td></tr>
+<tr><td>P99_API_LATENCY_WRITE_MS_AT_100_RPS</td><td>&lt;500</td><td>ms</td><td>Write endpoints</td></tr>
+<tr><td>GDPR_EMAIL_DELETION_WINDOW_DAYS</td><td>7</td><td>days</td><td>Email → SHA-256 hash</td></tr>
+<tr><td>GDPR_EMAIL_HASHING_INTERNAL_SLA_HOURS</td><td>24</td><td>hours</td><td>Internal SLA for hashing</td></tr>
+<tr><td>RARITY_COMMON_PERCENT</td><td>60</td><td>percent</td><td>Default rarity drop weight</td></tr>
+<tr><td>RARITY_RARE_PERCENT</td><td>25</td><td>percent</td><td>—</td></tr>
+<tr><td>RARITY_EPIC_PERCENT</td><td>12</td><td>percent</td><td>—</td></tr>
+<tr><td>RARITY_LEGENDARY_PERCENT</td><td>3</td><td>percent</td><td>—</td></tr>
+<tr><td>TRADE_TRANSACTION_FEE_PERCENT</td><td>5</td><td>percent</td><td>Platform trade fee</td></tr>
+<tr><td>MVP_BUDGET_USD</td><td>40,000</td><td>USD</td><td>Hard constraint</td></tr>
+<tr><td>PET_RESERVATION_TTL_HOURS</td><td>24</td><td>hours</td><td>Guest preview reservation</td></tr>
+<tr><td>SPRITE_RESOLUTION_PX</td><td>32</td><td>px</td><td>Phase 1 sprite resolution</td></tr>
+<tr><td>ADMIN_LOGIN_IP_RATE_LIMIT_ATTEMPTS</td><td>10</td><td>attempts</td><td>Pre-auth IP rate limit</td></tr>
+<tr><td>ADMIN_LOGIN_IP_RATE_LIMIT_WINDOW_SECONDS</td><td>900</td><td>seconds</td><td>15-min rolling window</td></tr>
+<tr><td>ADMIN_LOGIN_LOCKOUT_THRESHOLD</td><td>10</td><td>failures</td><td>Account lockout trigger</td></tr>
+<tr><td>ADMIN_LOGIN_LOCKOUT_DURATION_MINUTES</td><td>30</td><td>minutes</td><td>Lockout duration</td></tr>
+</table>
+<hr>
+<h2 id="1-executive-summary">§1. Executive Summary</h2>
+<h3 id="11-技術摘要">§1.1 技術摘要</h3>
+<p><strong>System Purpose</strong>: pixel-pet-arena 是一個 HTML5 browser-native SaaS 平台，玩家可在無傳統帳號註冊的前提下發現、認領、訓練並對戰程序化生成的像素藝術寵物。Identity layer 是 6-digit OTP email claim 產生 32-byte cryptographic URL token，玩家透過 URL 收藏返回。多模式競技場（Race / Sumo）、全球排行榜、（post-MVP）市集構成完整競爭循環。</p>
+<p><strong>Tech Stack Decision</strong>: 後端採用 <strong>Node.js 20 LTS + Fastify 4 + TypeScript 5</strong>，因其優秀的 TypeScript 整合、JSON Schema / Zod 驗證、real-time 友善 plugin 生態（WebSocket、Redis adapter）。Go (Fiber) 曾被考慮用於 arena service，但於 500 RPS / 2,000 PCU 投影負載下，Node.js event loop 配合 async/await 已足夠，且單語言降低 MVP $40,000 預算範圍內的營運開銷。前端為 <strong>React 18 + Phaser 3 + Vite</strong>（Player App）+ <strong>Vue 3 + Element Plus</strong>（Admin Portal）— 雙棧分離避免像素藝術設計系統污染資料密集的 admin UI。</p>
+<p><strong>Key Constraints</strong>:</p>
+<ul><li>Budget hard cap: $40,000 MVP（CONSTANTS MVP_BUDGET_USD）</li><li>無傳統用戶帳戶 — 所有 identity 透過 email OTP + URL token</li><li>Phaser 3 用於 game canvas；React 提供 UI chrome；Vue 3 提供 Admin</li><li>Availability SLO 99.9% monthly；peak 500 RPS；2,000 PCU</li><li>GDPR 合規（email 刪除請求 7 日內生效）</li><li>COPPA：年齡 13 歲確認 checkbox 必填；無 marketing email 預設</li><li>所有數值來自 CONSTANTS-PIXEL-PET-ARENA-20260503</li></ul>
+<h3 id="12-設計原則">§1.2 設計原則</h3>
+<p>本系統設計依循下列十條工程原則，與 PRD §7 NFR 對齊：</p>
+<ol><li><strong>Single Source of Truth on CONSTANTS</strong> — 所有量化值（RPS、TTL、閾值、費率）強制讀取 <code>CONSTANTS.md</code> 與 <code>constants.json</code>；CI gate 驗證程式碼中無硬編碼魔術數字。</li><li><strong>Stateless API</strong> — API server replicas 不持有 session 狀態；Player 用 SHA-256 hashed token 驗證；Admin session 集中於 Redis。任意 replica 可服務任意請求 → HA 與水平擴展前提。</li><li><strong>Idempotent Workers</strong> — 所有背景工作（GDPR erasure、claim_codes cleanup、leaderboard snapshot、food_buffs 清理）透過 unique key + processed_at 確保重複執行安全。</li><li><strong>Event-Driven for Async</strong> — 跨 BC 通訊透過 Domain Event（Pet, Arena, Leaderboard, Marketplace, Admin）；§4.6 列出完整 event schema 與 consumer。</li><li><strong>SOLID</strong> — 嚴格遵守單一職責、開放封閉、Liskov 替換、介面隔離、依賴反轉；§3.1b 提供具體實作對照表。</li><li><strong>Defense in Depth</strong> — 安全控制分層：CDN/WAF → API gateway rate limit → Auth middleware → schema validation → Repository constraint check → DB CHECK + unique constraint。</li><li><strong>Observability First</strong> — 三支柱（Logs / Metrics / Traces）於每個 endpoint 注入；新功能 PR 必須附 SLI 與 alert 規則才能 merge。</li><li><strong>HA-First</strong> — 任何 replica 數量 &lt; 2 的元件即為 SPOF；本系統強制 API/Worker ≥ 2 replicas（§3.6.1）；本地開發環境亦遵守此約束。</li><li><strong>Fail-Closed for Auth, Fail-Open for Read</strong> — Redis 不可用時 rate limit 退化但不阻斷讀取；Auth middleware 在 token 驗證錯誤時 fail-closed（拒絕請求）。</li><li><strong>Minimum Viable Architecture</strong> — 不過度抽象；MVP 階段拒絕 Microservices 拆分；保留 BC 邊界供未來必要時拆分（§3.4 Context Map）。</li></ol>
+<h3 id="13-prd-需求追溯表">§1.3 PRD 需求追溯表</h3>
+<p>完整對應 PRD 所有 P0 User Story 至本 EDD 章節。Status 顯示工程設計階段的覆蓋狀態。</p>
+<table>
+<tr><th>Epic</th><th>User Story ID</th><th>對應 EDD 章節</th><th>Status</th></tr>
+<tr><td>EPIC-PET</td><td>US-PET-001 (Random Pet Display Guest)</td><td>§4.1 Pet Module、§5.2 GET /api/v1/pets/random、§8.3 Pixel Art Rendering、§4.5.7 Activity (Claim Flow)</td><td>Designed</td></tr>
+<tr><td>EPIC-PET</td><td>US-PET-002 (Procedural Pixel Pet Generation)</td><td>§4.1 Pet Module、§4.4 Domain Glossary（PetGenerationService）、§6.1 ERD pets/generation_meta</td><td>Designed</td></tr>
+<tr><td>EPIC-AUTH</td><td>US-AUTH-001 (Email Claim Flow)</td><td>§5.1 Auth Endpoints、§9.1 Pet Access Token Model、§9.2 Claim Code Flow、§4.5.4 Sequence (Claim Flow)</td><td>Designed</td></tr>
+<tr><td>EPIC-AUTH</td><td>US-AUTH-002 (Returning Pet Owner Access)</td><td>§5.1 POST /api/v1/claim/recover、§9.1 Token recovery、§4.5.6 State (Pet)</td><td>Designed</td></tr>
+<tr><td>EPIC-TRAINING</td><td>US-TRAIN-001 (Pet Training System)</td><td>§4.1 Pet/Training Modules、§5.2 POST /api/v1/pets/:petId/train、§6.1 ERD training_logs</td><td>Designed</td></tr>
+<tr><td>EPIC-TRAINING</td><td>US-FOOD-001 (Special Food System)</td><td>§5.2 POST /api/v1/pets/:petId/feed、§6.1 ERD food_buffs</td><td>Designed</td></tr>
+<tr><td>EPIC-ARENA</td><td>US-ARENA-001 (Arena Racing Competition)</td><td>§4.1 Arena Module、§5.3 POST /api/v1/arena/enter、§4.5.4 Sequence (Arena Battle)、§4.5.6 State (Arena Match)</td><td>Designed</td></tr>
+<tr><td>EPIC-ARENA</td><td>US-ARENA-002 (Sumo Arena Mode P1)</td><td>§5.3 mode=&#x27;SUMO&#x27;、§7 Sequence flows</td><td>Designed</td></tr>
+<tr><td>EPIC-RANKING</td><td>US-BOARD-001 (Global Leaderboard)</td><td>§4.1 Leaderboard Module、§5.4 GET /api/v1/leaderboard、§6.1 ERD leaderboard_snapshots、Redis sorted set</td><td>Designed</td></tr>
+<tr><td>EPIC-RANKING</td><td>US-RECORD-001 (Battle Records Page P0)</td><td>§5.3 GET /api/v1/arena/history/:petId、§4.5.7 Activity (Battle)</td><td>Designed</td></tr>
+<tr><td>EPIC-RANKING</td><td>US-RARITY-001 (Rarity Scoring)</td><td>§4.1 Pet Module rarity ENUM、§6.1 ERD pets.rarity</td><td>Designed</td></tr>
+<tr><td>EPIC-ADMIN</td><td>US-ADMIN-001 (Admin Pet Management)</td><td>§5.5 GET /admin/api/pets、§9.6 RBAC</td><td>Designed</td></tr>
+<tr><td>EPIC-ADMIN</td><td>US-ADMIN-002 (Admin Leaderboard View)</td><td>§5.5 GET /admin/api/leaderboard</td><td>Designed</td></tr>
+<tr><td>EPIC-ADMIN</td><td>US-ADMIN-003 (Runtime Parameter Tuning)</td><td>§5.5 PUT /admin/api/config/runtime、§3.4 BC Admin</td><td>Designed</td></tr>
+<tr><td>EPIC-ADMIN</td><td>US-ADMIN-004 (GDPR Erasure)</td><td>§5.5 POST /admin/api/gdpr/delete、§4.5.7 Activity (GDPR Erasure)、§9.5 GDPR Summary</td><td>Designed</td></tr>
+<tr><td>EPIC-ADMIN</td><td>US-ADMIN-005 (Suspicious Pet Flag)</td><td>§5.5 GET /admin/api/suspicious、§4.6 Event suspicious_pet_flagged</td><td>Designed</td></tr>
+<tr><td>EPIC-ADMIN</td><td>US-ADMIN-006 (Game Economy Configuration)</td><td>§5.5 PUT /admin/api/config/economy</td><td>Designed</td></tr>
+</table>
+<hr>
+<h2 id="2-system-architecture-overview">§2. System Architecture Overview</h2>
+<h3 id="21-系統上下文圖c4-level-1">§2.1 系統上下文圖（C4 Level 1）</h3>
+<div class="diagram-container"><pre class="mermaid">graph TB
+    subgraph Actors
+        Guest[&quot;Guest Player&lt;br/&gt;(no account)&quot;]
+        Owner[&quot;Pet Owner&lt;br/&gt;(email-claimed)&quot;]
+        Comp[&quot;Competitor&lt;br/&gt;(arena player)&quot;]
+        Admin[&quot;Admin Operator&lt;br/&gt;(super_admin / moderator / read_only)&quot;]
+        Job[&quot;System Scheduled Jobs&lt;br/&gt;(cron / cleanup)&quot;]
+    end
+
+    subgraph &quot;Pixel Pet Arena Platform&quot;
+        PPA[&quot;pixel-pet-arena&lt;br/&gt;HTML5 browser game + REST API + Admin Portal&quot;]
+    end
+
+    subgraph &quot;External Systems&quot;
+        SG[&quot;SendGrid&lt;br/&gt;(transactional email)&quot;]
+        SMTP[&quot;Nodemailer SMTP&lt;br/&gt;(email fallback)&quot;]
+        SB[&quot;Supabase&lt;br/&gt;(PostgreSQL 15 managed)&quot;]
+        UP[&quot;Upstash Redis&lt;br/&gt;(serverless cache)&quot;]
+        VC[&quot;Vercel CDN&lt;br/&gt;(static assets)&quot;]
+        S3[&quot;S3-compatible Storage&lt;br/&gt;(DB backups)&quot;]
+        DD[&quot;Datadog / Grafana Cloud&lt;br/&gt;(observability)&quot;]
+    end
+
+    Guest --&gt;|&quot;HTTPS / browse&quot;| PPA
+    Owner --&gt;|&quot;HTTPS / pet URL token&quot;| PPA
+    Comp --&gt;|&quot;HTTPS / arena interactions&quot;| PPA
+    Admin --&gt;|&quot;HTTPS / admin session&quot;| PPA
+    Job --&gt;|&quot;cron triggers&quot;| PPA
+
+    PPA --&gt;|&quot;send claim email&quot;| SG
+    PPA --&gt;|&quot;fallback after 3 failures&quot;| SMTP
+    PPA --&gt;|&quot;persist data&quot;| SB
+    PPA --&gt;|&quot;cache + leaderboard + rate-limit&quot;| UP
+    PPA --&gt;|&quot;static assets&quot;| VC
+    SB --&gt;|&quot;daily backup&quot;| S3
+    PPA --&gt;|&quot;logs / metrics / traces&quot;| DD</pre></div>
+<h3 id="22-container-圖c4-level-2">§2.2 Container 圖（C4 Level 2）</h3>
+<div class="diagram-container"><pre class="mermaid">graph TB
+    Browser[&quot;Player Browser&lt;br/&gt;(React + Phaser 3)&quot;]
+    AdminBrowser[&quot;Admin Browser&lt;br/&gt;(Vue 3 + Element Plus)&quot;]
+
+    subgraph &quot;Edge / CDN Layer&quot;
+        CDN[&quot;Vercel Global CDN&lt;br/&gt;(static SPA bundles)&quot;]
+        LB[&quot;Nginx LB / Vercel Edge&lt;br/&gt;(TLS, X-Real-IP, rate-limit headers)&quot;]
+    end
+
+    subgraph &quot;Application Tier (Railway)&quot;
+        API1[&quot;API Replica 1&lt;br/&gt;(Fastify 4 / Node 20)&quot;]
+        API2[&quot;API Replica 2&lt;br/&gt;(Fastify 4 / Node 20)&quot;]
+        W1[&quot;Worker Replica 1&lt;br/&gt;(GDPR erasure / leaderboard snapshot / cleanup)&quot;]
+        W2[&quot;Worker Replica 2&lt;br/&gt;(idempotent backup)&quot;]
+    end
+
+    subgraph &quot;Data Tier&quot;
+        PG_P[&quot;PostgreSQL Primary&lt;br/&gt;(Supabase managed)&quot;]
+        PG_R[&quot;PostgreSQL Read Replica&lt;br/&gt;(leaderboard / public reads)&quot;]
+        REDIS_P[&quot;Redis Primary&lt;br/&gt;(Upstash)&quot;]
+        REDIS_S[&quot;Redis Replica&lt;br/&gt;(Upstash Sentinel)&quot;]
+    end
+
+    subgraph &quot;External Services&quot;
+        SG[&quot;SendGrid v3 API&quot;]
+        SMTP[&quot;SMTP fallback&quot;]
+        S3[&quot;S3 backups&quot;]
+    end
+
+    Browser --&gt; CDN
+    AdminBrowser --&gt; CDN
+    CDN --&gt; LB
+    LB --&gt; API1
+    LB --&gt; API2
+    API1 --&gt; PG_P
+    API2 --&gt; PG_P
+    API1 --&gt; PG_R
+    API2 --&gt; PG_R
+    API1 --&gt; REDIS_P
+    API2 --&gt; REDIS_P
+    REDIS_P --&gt; REDIS_S
+    PG_P --&gt; PG_R
+    PG_P --&gt; S3
+    W1 --&gt; PG_P
+    W2 --&gt; PG_P
+    API1 --&gt; SG
+    SG -.-&gt;|&quot;3 consecutive failures&quot;| SMTP
+    W1 --&gt; SMTP</pre></div>
+<hr>
+<h2 id="3-technology-stack--architecture-decisions">§3. Technology Stack &amp; Architecture Decisions</h2>
+<h3 id="31-架構模式architecture-pattern">§3.1 架構模式（Architecture Pattern）</h3>
+<p><strong>選擇</strong>：Modular Monolith + Layered Hexagonal Hybrid。</p>
+<p><strong>為何選擇 Modular Monolith</strong>：</p>
+<ul><li>MVP 預算 $40,000 與 1–2 工程師時程下，Microservices 的維運成本（service mesh、跨服務 trace、分散式事務、多 CI pipeline）遠超 MVP 階段所需，會直接擠壓功能交付時間。</li><li>單一可部署單元加速 CI/CD pipeline、簡化 local development、降低跨服務契約測試負擔。</li><li>Modular Monolith 強制 BC 邊界（§3.4），即使單一 process 內也保留未來拆分能力。</li></ul>
+<p><strong>為何拒絕 Microservices</strong>：</p>
+<ul><li>預期負載峰值 500 RPS 屬中等量級，單 process Node.js 已可達標（5–10 ms P99 處理時間 × 500 RPS = 2.5–5 vCPU 即足）。</li><li>缺乏多團隊組織壓力（Conway&#x27;s Law 不成立）。</li><li>Microservices 引入 eventual consistency 與分散式事務複雜度，與 BRD 對 Day-1 retention 的 SLO 不符（資料一致性是用戶體驗的一部分）。</li></ul>
+<p><strong>保留 BC 邊界供未來拆分</strong>：每個 Bounded Context 對應獨立 Fastify plugin、獨立 schema namespace、跨 BC 通訊透過 Domain Event Bus（內部 EventEmitter，可未來替換為 NATS/Kafka）。詳見 §3.4。</p>
+<h3 id="31b-clean-architecture--solid">§3.1b Clean Architecture &amp; SOLID</h3>
+<h4 id="dependency-rule">Dependency Rule</h4>
+<p>依賴方向（從外向內）：Presentation → Application → Domain；Infrastructure 透過 interface 反轉依賴注入 Application。</p>
+<div class="diagram-container"><pre class="mermaid">graph TD
+    Presentation[&quot;Presentation Layer&lt;br/&gt;(Fastify routes / Vue / React)&quot;]
+    Application[&quot;Application Layer&lt;br/&gt;(Use Cases / Services)&quot;]
+    Domain[&quot;Domain Layer&lt;br/&gt;(Entities / Value Objects / Domain Services)&quot;]
+    Infrastructure[&quot;Infrastructure Layer&lt;br/&gt;(Postgres Repo / Redis / SendGrid Adapter)&quot;]
+
+    Presentation --&gt; Application
+    Application --&gt; Domain
+    Infrastructure -.-&gt;|&quot;implements port&quot;| Application
+    Infrastructure -.-&gt;|&quot;implements port&quot;| Domain</pre></div>
+<h4 id="solid-對照表">SOLID 對照表</h4>
+<table>
+<tr><th>原則</th><th>本系統具體實作</th></tr>
+<tr><td><strong>Single Responsibility</strong></td><td>每個 Use Case class 只處理單一業務動作（例：<code>ClaimPetUseCase</code>, <code>EnterArenaUseCase</code>, <code>ApplyFoodBuffUseCase</code>）；Repository 只負責持久化；Service 只負責 domain logic。</td></tr>
+<tr><td><strong>Open/Closed</strong></td><td>Rarity weight 透過 <code>RarityWeightStrategy</code> interface 注入；新增稀有度層級（如 Mythic）只需新增 strategy，不修改 <code>PetGenerationService</code>。Battle outcome 計算透過 <code>ArenaModeStrategy</code>，新增 mode（Sumo, future Tag-Team）擴展不修改既有 mode。</td></tr>
+<tr><td><strong>Liskov Substitution</strong></td><td><code>EmailDeliveryPort</code> 有 <code>SendGridAdapter</code> 與 <code>SmtpAdapter</code> 兩個實作；caller 不關心實際提供者；fallback 切換不破壞契約。<code>LeaderboardRepository</code> 有 <code>RedisLeaderboardRepo</code> 與 <code>PostgresLeaderboardRepo</code>，前者主、後者退化備援。</td></tr>
+<tr><td><strong>Interface Segregation</strong></td><td><code>PetReadRepository</code> vs <code>PetWriteRepository</code> 分離；read-only admin endpoints 注入 read repo，避免暴露 mutation 能力。<code>AdminAuthService</code> 不繼承 <code>PlayerAuthService</code>，兩種 identity 模型分開。</td></tr>
+<tr><td><strong>Dependency Inversion</strong></td><td>Application Layer 定義 <code>ClaimCodeRepository</code>、<code>PetRepository</code>、<code>EmailDeliveryPort</code> 等抽象 port；Infrastructure Layer 提供 <code>PostgresClaimCodeRepository</code>、<code>SendGridEmailAdapter</code> 等具體實作；DI container 在 server boot 時組裝。Domain Layer 完全不依賴任何 framework。</td></tr>
+</table>
+<h3 id="32-architecture-decision-records-adr">§3.2 Architecture Decision Records (ADR)</h3>
+<h4 id="adr-001--backend-stack">ADR-001 — Backend Stack</h4>
+<p><strong>背景</strong>：需要選擇 backend 語言/框架支援 500 RPS、2,000 PCU、real-time matchmaking、共享 TypeScript 型別。</p>
+<p><strong>選項比較</strong>：</p>
+<table>
+<tr><th>選項</th><th>優勢</th><th>劣勢</th></tr>
+<tr><td>Node.js 20 + Fastify 4</td><td>TypeScript-first；JSON Schema 內建驗證；與前端共享型別；plugin 生態</td><td>單一 event loop 在 CPU-bound 任務下退化</td></tr>
+<tr><td>Go 1.22 + Fiber</td><td>goroutine 並發；低記憶體佔用；高吞吐</td><td>需另一套型別語言；TypeScript 共享需要額外 codegen；招聘池較小</td></tr>
+<tr><td>Python 3.12 + FastAPI</td><td>Async 支援；schema 驗證（Pydantic）</td><td>I/O 並發弱於 Node.js；GIL 限制</td></tr>
+</table>
+<p><strong>決策</strong>：採用 <strong>Node.js 20 LTS + Fastify 4 + TypeScript 5</strong>。</p>
+<p><strong>後果</strong>：</p>
+<ul><li>✅ 單語言全棧降低營運複雜度；型別在前後端共享（domain models in <code>@app/shared</code>）。</li><li>✅ Fastify 比 Express 約低 30% overhead；JSON Schema 序列化路徑優化。</li><li>⚠️ 需於 CPU-bound 任務（pet generation、battle calc）使用 worker_threads 避免 event-loop 阻塞；本 EDD §11 規範。</li></ul>
+<h4 id="adr-002--database">ADR-002 — Database</h4>
+<p><strong>背景</strong>：需要持久化關聯式資料、JSONB 元資料、支援 read replica、自動 failover、daily backup。</p>
+<p><strong>選項比較</strong>：</p>
+<table>
+<tr><th>選項</th><th>優勢</th><th>劣勢</th></tr>
+<tr><td>PostgreSQL 15 (Supabase managed)</td><td>成熟、JSONB、CHECK、SERIALIZABLE；managed backup + failover；RLS 內建</td><td>廠商鎖定；Free tier 1GB 限制</td></tr>
+<tr><td>MySQL 8</td><td>廣泛使用；管理工具豐富</td><td>JSONB 支援弱於 PG；CHECK 較晚加入；無原生 generated column 性能優勢</td></tr>
+<tr><td>DynamoDB</td><td>Serverless；無限擴展</td><td>無 JOIN；複雜 query 需 Global Secondary Index；學習曲線高；不適合排行榜聚合</td></tr>
+</table>
+<p><strong>決策</strong>：採用 <strong>PostgreSQL 15 + Supabase managed</strong>。</p>
+<p><strong>後果</strong>：</p>
+<ul><li>✅ JSONB 支援 pet <code>generation_meta</code> 6-dimension 向量。</li><li>✅ Daily backup + S3 + auto-failover ≤ 60 秒（DB_AUTOFAILOVER_TIME_SECONDS）滿足 SLO。</li><li>⚠️ 廠商鎖定風險：制定 14 天遷移計畫至 AWS RDS（VENDOR_MIGRATION_PLAN_DAYS = 14）。</li></ul>
+<h4 id="adr-003--real-time-matchmaking">ADR-003 — Real-Time Matchmaking</h4>
+<p><strong>背景</strong>：Arena enter → matchmaking → battle 流程中，玩家需在 30 秒內收到對手回應。</p>
+<p><strong>選項比較</strong>：</p>
+<table>
+<tr><th>選項</th><th>優勢</th><th>劣勢</th></tr>
+<tr><td>HTTP Long-Poll（30 秒 timeout）</td><td>簡單；無需 websocket plugin；防火牆/CDN 友善</td><td>連線數隨 PCU 線性增加；連線狀態需處理</td></tr>
+<tr><td>WebSocket（Fastify ws plugin）</td><td>低延遲；雙向通訊；future-proof</td><td>Vercel CDN 不支援 ws；需另一條架構路徑；mobile 連線不穩</td></tr>
+</table>
+<p><strong>決策</strong>：MVP 採用 <strong>HTTP Long-Poll</strong>；保留切換 WebSocket 的擴展點。</p>
+<p><strong>後果</strong>：</p>
+<ul><li>✅ 與 Vercel CDN 100% 相容；無需另闢 ws gateway。</li><li>✅ 簡化部署。</li><li>⚠️ PCU = 2,000 時連線數可達 2,000，需驗證 Fastify keep-alive 設定；§11.2 capacity planning 已涵蓋。</li><li>後續若需即時動畫雙向回饋，再評估 WebSocket（OQ-E02）。</li></ul>
+<h4 id="adr-004--frontend-stack-split">ADR-004 — Frontend Stack Split</h4>
+<p><strong>背景</strong>：Player App 為像素藝術 + Phaser canvas 為主；Admin Portal 為資料密集 CRUD。</p>
+<p><strong>選項比較</strong>：</p>
+<table>
+<tr><th>選項</th><th>優勢</th><th>劣勢</th></tr>
+<tr><td>單一 React stack（共用 component lib）</td><td>統一棧；單一 build pipeline</td><td>shadcn / Material UI 與 pixel art 風格衝突；data table 自製成本高</td></tr>
+<tr><td>分離：Player React + Admin Vue 3（Element Plus）</td><td>Element Plus 提供生產級 data table；Pinia 適合 admin form-heavy；CSS 設計系統不污染</td><td>兩套棧；team learning curve</td></tr>
+<tr><td>分離：Player React + Admin React Admin/Refine</td><td>同 React 棧；Refine 開箱即用 admin</td><td>Refine 學習曲線陡；自訂層仍需 React component lib</td></tr>
+</table>
+<p><strong>決策</strong>：採用 <strong>Player React 18 + Admin Vue 3 + Element Plus</strong> 雙棧分離。</p>
+<p><strong>後果</strong>：</p>
+<ul><li>✅ Admin 開發加速：Element Plus 內建分頁/排序/過濾 data table 與 form。</li><li>✅ 設計系統隔離：pixel-art tokens 不外洩到 admin。</li><li>⚠️ 需維護兩個 build pipeline；統一 by Vite。</li></ul>
+<h3 id="33-技術棧總覽表">§3.3 技術棧總覽表</h3>
+<table>
+<tr><th>Layer</th><th>Technology</th><th>Version</th><th>用途</th></tr>
+<tr><td><strong>客戶端引擎</strong></td><td>Phaser 3 over HTML5 Canvas</td><td>3.70+</td><td>Pet sprite 動畫、互動、Arena battle scene</td></tr>
+<tr><td><strong>Player 框架</strong></td><td>React + Vite + TypeScript</td><td>React 18 / Vite 5 / TS 5</td><td>UI chrome、claim flow、leaderboard</td></tr>
+<tr><td><strong>Admin 框架</strong></td><td>Vue 3 + Element Plus + Pinia</td><td>Vue 3.4 / Element Plus 2.x / Pinia 2.x</td><td>Admin Portal CRUD UI</td></tr>
+<tr><td><strong>State (Player)</strong></td><td>TanStack Query + Zustand</td><td>5.x / 4.x</td><td>Server state / ephemeral UI</td></tr>
+<tr><td><strong>Form (Player)</strong></td><td>React Hook Form + Zod</td><td>7.x / 3.x</td><td>Email claim、code entry</td></tr>
+<tr><td><strong>Backend</strong></td><td>Node.js 20 LTS + Fastify 4 + TypeScript 5</td><td>LTS</td><td>API server + Worker</td></tr>
+<tr><td><strong>Domain Validation</strong></td><td>Zod</td><td>3.x</td><td>Shared schema between FE/BE</td></tr>
+<tr><td><strong>DB</strong></td><td>PostgreSQL 15 + Redis 7</td><td>15.x / 7.x</td><td>持久化 + 排行榜/cache/rate-limit</td></tr>
+<tr><td><strong>Email</strong></td><td>SendGrid v3 + Nodemailer SMTP fallback</td><td>latest</td><td>Transactional email</td></tr>
+<tr><td><strong>Hosting</strong></td><td>Vercel + Railway + Supabase + Upstash</td><td>managed</td><td>Frontend / API / DB / Redis</td></tr>
+<tr><td><strong>CI/CD</strong></td><td>GitHub Actions + ghcr.io</td><td>—</td><td>test → build → deploy</td></tr>
+<tr><td><strong>Test</strong></td><td>Vitest + Playwright + axe-core</td><td>1.x / 1.x</td><td>Unit / Integration / E2E + a11y</td></tr>
+<tr><td><strong>Observability</strong></td><td>Pino + OpenTelemetry + Datadog/Grafana Cloud</td><td>latest</td><td>Logs + traces + metrics</td></tr>
+<tr><td><strong>Container</strong></td><td>Docker + multi-stage build</td><td>latest</td><td>API + Worker images</td></tr>
+</table>
+<h3 id="34-bounded-context--context-mapddd">§3.4 Bounded Context &amp; Context Map（DDD）</h3>
+<h4 id="schema-ownership-tablehc-1-隔離">Schema Ownership Table（HC-1 隔離）</h4>
+<p>每個 BC 唯一擁有一組 table。跨 BC 不直接 SELECT 對方的 table，需透過 Domain Event 或 Application Service 取得只讀 ViewModel。</p>
+<table>
+<tr><th>BC</th><th>擁有 Table（依 SCHEMA.md）</th><th>擁有 Redis Key Pattern</th><th>主要 Domain Event</th></tr>
+<tr><td><strong>Identity</strong></td><td><code>claim_identities</code>, <code>claim_codes</code>, <code>gdpr_requests</code></td><td><code>rl:claim:<em></code>, <code>rl:code_entry:</em></code></td><td><code>IdentityClaimed</code>, <code>GdprErasureRequested</code>, <code>GdprErasureCompleted</code></td></tr>
+<tr><td><strong>Pet</strong></td><td><code>pets</code>, <code>training_logs</code>, <code>food_buffs</code></td><td><code>rl:training:*</code></td><td><code>PetGenerated</code>, <code>PetClaimed</code>, <code>PetTrained</code>, <code>PetFoodConsumed</code>, <code>PetBanned</code></td></tr>
+<tr><td><strong>Arena</strong></td><td><code>arena_matches</code></td><td><code>matchmaking:queue:<em></code>, <code>rl:arena:</em></code></td><td><code>ArenaMatchStarted</code>, <code>ArenaMatchCompleted</code></td></tr>
+<tr><td><strong>Leaderboard</strong></td><td><code>leaderboard_snapshots</code></td><td><code>leaderboard:global</code> (Redis sorted set 為主)</td><td><code>LeaderboardUpdated</code>, <code>LeaderboardEntryRemoved</code></td></tr>
+<tr><td><strong>Marketplace</strong> <em>(P2 / FF_MARKETPLACE)</em></td><td><code>marketplace_listings</code>, <code>marketplace_transactions</code></td><td>—</td><td><code>ListingCreated</code>, <code>ListingCancelled</code>, <code>TradeCompleted</code></td></tr>
+<tr><td><strong>Admin</strong></td><td><code>admin_users</code>, <code>audit_logs</code></td><td><code>session:admin:<em></code>, <code>rl:admin:</em></code>, <code>rl:admin_login:*</code></td><td><code>AdminUserCreated</code>, <code>AdminActionLogged</code>, <code>SuspiciousPetFlagged</code></td></tr>
+</table>
+<h4 id="context-map">Context Map</h4>
+<div class="diagram-container"><pre class="mermaid">graph TB
+    Identity[&quot;Identity BC&lt;br/&gt;(email OTP, claim, GDPR)&quot;]
+    Pet[&quot;Pet BC&lt;br/&gt;(generation, training, food)&quot;]
+    Arena[&quot;Arena BC&lt;br/&gt;(matchmaking, battle, mode logic)&quot;]
+    Leaderboard[&quot;Leaderboard BC&lt;br/&gt;(score aggregation, snapshots)&quot;]
+    Marketplace[&quot;Marketplace BC&lt;br/&gt;(listings, trades)&lt;br/&gt;FF_MARKETPLACE&quot;]
+    Admin[&quot;Admin BC&lt;br/&gt;(moderation, config, audit)&quot;]
+
+    Identity --&gt;|&quot;Customer/Supplier:&lt;br/&gt;identity_id provides ownership&quot;| Pet
+    Pet --&gt;|&quot;Customer/Supplier:&lt;br/&gt;pet stats feed battle calc&quot;| Arena
+    Arena --&gt;|&quot;Published Language:&lt;br/&gt;ArenaMatchCompleted event&quot;| Leaderboard
+    Pet --&gt;|&quot;Published Language:&lt;br/&gt;PetClaimed event&quot;| Leaderboard
+    Pet --&gt;|&quot;Customer/Supplier:&lt;br/&gt;pet ownership for trading&quot;| Marketplace
+    Arena --&gt;|&quot;ACL:&lt;br/&gt;battle records read-only&quot;| Marketplace
+    Admin --&gt;|&quot;Conformist:&lt;br/&gt;reads from all BCs (read-only ViewModel)&quot;| Pet
+    Admin --&gt;|&quot;Conformist:&lt;br/&gt;moderation events&quot;| Arena
+    Admin --&gt;|&quot;Conformist:&lt;br/&gt;config push&quot;| Leaderboard
+    Identity --&gt;|&quot;Published Language:&lt;br/&gt;GdprErasureRequested&quot;| Admin</pre></div>
+<p>關係說明：</p>
+<ul><li><strong>Customer / Supplier</strong>：上游 BC 變更可能影響下游；使用 contract test 鎖定。</li><li><strong>Published Language</strong>：透過 Domain Event 廣播；versioned schema（<code>event_schema_version</code>）。</li><li><strong>ACL (Anti-Corruption Layer)</strong>：Marketplace 讀 Arena history 時透過 read-only ViewModel adapter，避免外部 schema 污染內部。</li><li><strong>Conformist</strong>：Admin 直接遵循各 BC 暴露的 read model；Admin 不擁有 source of truth。</li></ul>
+<h3 id="35-部署環境規格">§3.5 部署環境規格</h3>
+<h4 id="35-environment-matrix">§3.5 Environment Matrix</h4>
+<table>
+<tr><th>Environment</th><th>Purpose</th><th>DB</th><th>Redis</th><th>Domain</th><th>Auto-deploy</th></tr>
+<tr><td><code>development</code></td><td>Local dev</td><td>PostgreSQL Docker (port 54322)</td><td>Redis Docker (port 6379)</td><td><code>localhost</code></td><td>n/a</td></tr>
+<tr><td><code>staging</code></td><td>Pre-prod 驗證</td><td>Supabase staging</td><td>Upstash staging</td><td><code>staging.pixel-pet-arena.com</code></td><td>Yes (push to main)</td></tr>
+<tr><td><code>production</code></td><td>Live 服務</td><td>Supabase production (HA)</td><td>Upstash production (HA)</td><td><code>pixel-pet-arena.com</code></td><td>Manual approval</td></tr>
+</table>
+<h4 id="35b-service-port-matrix">§3.5b Service Port Matrix</h4>
+<table>
+<tr><th>Service</th><th>Local (host)</th><th>Local container</th><th>Staging</th><th>Production</th><th>k8s service port</th><th>真相來源</th></tr>
+<tr><td>Player frontend (Vite dev)</td><td>5173</td><td>—</td><td>n/a (Vercel CDN)</td><td>n/a (Vercel CDN)</td><td>n/a</td><td>LOCAL_DEPLOY §3</td></tr>
+<tr><td>Admin frontend (Vite dev)</td><td>5174</td><td>—</td><td>n/a (Vercel CDN)</td><td>n/a (Vercel CDN)</td><td>n/a</td><td>LOCAL_DEPLOY §3</td></tr>
+<tr><td>API server (Fastify)</td><td>3000</td><td>3000</td><td>8080</td><td>8080</td><td>8080</td><td>EDD §10.1</td></tr>
+<tr><td>Worker (Fastify side process)</td><td>3001</td><td>3001</td><td>8081</td><td>8081</td><td>8081</td><td>EDD §10.1</td></tr>
+<tr><td>PostgreSQL (Supabase local)</td><td>54322</td><td>5432</td><td>n/a (managed)</td><td>n/a (managed)</td><td>5432</td><td>LOCAL_DEPLOY §6</td></tr>
+<tr><td>Supabase API gateway</td><td>54321</td><td>8000</td><td>managed</td><td>managed</td><td>n/a</td><td>LOCAL_DEPLOY §6</td></tr>
+<tr><td>Supabase Studio</td><td>54323</td><td>3000</td><td>managed</td><td>managed</td><td>n/a</td><td>LOCAL_DEPLOY §6</td></tr>
+<tr><td>Inbucket (local email)</td><td>54324</td><td>9000</td><td>n/a</td><td>n/a</td><td>n/a</td><td>LOCAL_DEPLOY §6</td></tr>
+<tr><td>Redis</td><td>6379</td><td>6379</td><td>n/a (Upstash REST)</td><td>n/a (Upstash REST)</td><td>6379</td><td>LOCAL_DEPLOY §3</td></tr>
+</table>
+<p>任何 port 變動必須同步更新 <code>docs/LOCAL_DEPLOY.md</code>、<code>docker-compose.yml</code>、helm chart <code>values.yaml</code>、CI/CD env 檔。</p>
+<h4 id="35c-k8s-資源規格hpa--pdb--resources">§3.5c K8s 資源規格（HPA / PDB / Resources）</h4>
+<p>每個工作負載的水平自動擴縮（HPA）、Pod Disruption Budget（PDB）與 CPU/Memory request/limit 規格如下；Local / Staging 為對應壓縮值，Production 為承諾規模。</p>
+<table>
+<tr><th>Workload</th><th>Env</th><th>Replicas (min/max)</th><th>HPA target</th><th>PDB</th><th>CPU req / lim</th><th>Mem req / lim</th></tr>
+<tr><td>API Server</td><td>development</td><td>2 / 2（固定）</td><td>n/a（手動）</td><td>n/a</td><td>100m / 500m</td><td>256Mi / 512Mi</td></tr>
+<tr><td>API Server</td><td>staging</td><td>2 / 4</td><td>CPU 70%（HORIZONTAL_SCALE_CPU_THRESHOLD_PERCENT）</td><td><code>minAvailable: 1</code></td><td>200m / 1000m</td><td>384Mi / 768Mi</td></tr>
+<tr><td>API Server</td><td>production</td><td><strong>2 / 6</strong></td><td>CPU 70%；Memory 80%</td><td><strong><code>minAvailable: 2</code></strong>（保證滾動更新最少 2 健康 Pod）</td><td>250m / 1500m</td><td>512Mi / 1024Mi</td></tr>
+<tr><td>Worker</td><td>development</td><td>2 / 2（固定）</td><td>n/a</td><td>n/a</td><td>100m / 500m</td><td>256Mi / 512Mi</td></tr>
+<tr><td>Worker</td><td>staging</td><td>2 / 3</td><td>CPU 75%</td><td><code>minAvailable: 1</code></td><td>100m / 500m</td><td>256Mi / 512Mi</td></tr>
+<tr><td>Worker</td><td>production</td><td><strong>2 / 4</strong></td><td>CPU 75%</td><td><strong><code>minAvailable: 1</code></strong>（idempotent job design）</td><td>150m / 750m</td><td>256Mi / 768Mi</td></tr>
+</table>
+<h4 id="35d-hpa--pdb-設計依據">§3.5d HPA / PDB 設計依據</h4>
+<ul><li><strong>HPA min ≥ 2</strong>：與 §3.6.1 SPOF 表一致；任何 workload <code>minReplicas &lt; 2</code> 視為 HC-1 違規（CI gate <code>pdb_min_replicas_check.sh</code> 強制檢查）。</li><li><strong>PDB <code>minAvailable: 2</code> for API Server</strong>：在 K8s rolling update / node drain 期間至少保留 2 個健康 Pod 對外服務，確保 Availability SLO 99.9%。</li><li><strong>PDB <code>minAvailable: 1</code> for Worker</strong>：Worker 為 idempotent design，任何時刻單一 replica 即能完成所有背景 job；允許 1 replica 維護視窗。</li><li><strong>Resource request 與 §11.2 Capacity Planning 對齊</strong>：peak 500 RPS / 250m per replica × 6 = 1.5 vCPU 總量，落在 Railway Pro 配額內。</li><li><strong>Liveness probe</strong>：<code>GET /health/live</code>（純 process alive；timeout 1s；period 10s）；<strong>Readiness probe</strong>：<code>GET /health/ready</code>（依賴就緒；含 DB / Redis 連線；timeout 3s；period 5s；failureThreshold 3）。</li><li><strong>terminationGracePeriodSeconds: 35</strong>：搭配 §3.6.5 Graceful Shutdown 30 秒 drain 預算 + 5 秒緩衝。</li></ul>
+<h3 id="36-ha--spof--scale--bcp-architecture-specification">§3.6 HA / SPOF / SCALE / BCP Architecture Specification</h3>
+<h4 id="361-spof-分析表min-replicas--2">§3.6.1 SPOF 分析表（Min Replicas ≥ 2）</h4>
+<table>
+<tr><th>元件</th><th>風險</th><th>消除方式</th><th>Min Replicas (Local)</th><th>Min Replicas (Prod)</th></tr>
+<tr><td>API Server (Fastify)</td><td>Crash / OOM / deploy 中斷</td><td>雙 replica + Nginx LB；HPA 70% CPU 觸發 scale-out</td><td><strong>≥ 2</strong></td><td>≥ 2（peak 至 6）</td></tr>
+<tr><td>Worker</td><td>Job 卡死導致 GDPR / cleanup 延遲</td><td>雙 replica + Redis distributed lock（SETNX）防止重複處理；idempotent job design</td><td><strong>≥ 2</strong></td><td>≥ 2</td></tr>
+<tr><td>DB Primary (PostgreSQL)</td><td>單機故障</td><td>Supabase managed primary + standby read replica；自動 failover ≤ 60 秒</td><td>1（dev）；2（test 模擬 failover）</td><td>1 primary + 1 standby（managed HA）</td></tr>
+<tr><td>Redis</td><td>主節點當機</td><td>Upstash 內建 replica + Sentinel；fallback：Redis 不可用時 leaderboard 直連 PostgreSQL（degraded）</td><td>1（dev）</td><td>1 primary + 1 replica（Upstash HA）</td></tr>
+<tr><td>Email Service</td><td>SendGrid 服務中斷</td><td>SendGrid 主 + Nodemailer SMTP fallback；3 連續失敗自動切換</td><td>n/a（dev 用 Inbucket）</td><td>SendGrid + SMTP fallback</td></tr>
+<tr><td>CDN</td><td>邊緣節點故障</td><td>Vercel 全球邊緣冗餘；多 region 失敗時 fallback 至 origin</td><td>n/a</td><td>內建多 region</td></tr>
+<tr><td>LB / Edge</td><td>入口故障</td><td>Vercel Edge multi-region + 健康檢查</td><td>Nginx 1（dev）</td><td>Vercel Edge HA</td></tr>
+</table>
+<h4 id="362-ha-設計原則">§3.6.2 HA 設計原則</h4>
+<ol><li><strong>Stateless API</strong>：API server 不保留請求間狀態；session 與 rate-limit counter 全部於 Redis；任意 replica 可服務任意請求。</li><li><strong>Idempotent Worker</strong>：所有 background job 使用 <code>(job_type, target_id, day)</code> 為 idempotency key；重複觸發為 no-op。</li><li><strong>Graceful Shutdown</strong>：SIGTERM 觸發 30 秒排空（drain）視窗，停止接收新請求、完成 in-flight、關閉 DB / Redis 連線。</li><li><strong>Circuit Breaker</strong>：對外部依賴（SendGrid、Supabase REST、Upstash）使用 circuit breaker（opossum library），半開狀態探測。</li><li><strong>Idempotent Operations</strong>：所有 mutation API（POST/PUT/DELETE）支援 <code>Idempotency-Key</code> header；伺服器於 24 小時內保證重複請求回傳相同結果。</li><li><strong>Distributed Lock via Redis SETNX</strong>：跨 worker replica 互斥的工作（leaderboard snapshot、daily counter reset）使用 <code>SET key value NX EX 60</code> 競標；超時自動釋放。</li></ol>
+<h4 id="363-slo--rto--rpo-表">§3.6.3 SLO / RTO / RPO 表</h4>
+<table>
+<tr><th>指標</th><th>值</th><th>說明</th></tr>
+<tr><td>Availability</td><td>99.9% monthly</td><td>≤ 43.8 分鐘 / 月</td></tr>
+<tr><td>RTO（API server failover）</td><td>≤ 30 秒</td><td>LB 健康檢查 + replica 切換</td></tr>
+<tr><td>RTO（DB primary failover）</td><td>≤ 60 秒</td><td>Supabase 自動 failover（DB_AUTOFAILOVER_TIME_SECONDS）</td></tr>
+<tr><td>RTO（Redis primary failover）</td><td>≤ 30 秒</td><td>Upstash Sentinel</td></tr>
+<tr><td>RPO（DB）</td><td>0 秒</td><td>Synchronous standby replication</td></tr>
+<tr><td>RPO（Redis leaderboard）</td><td>≤ 5 秒</td><td>AOF every-second + replica</td></tr>
+<tr><td>MTTR（partial outage）</td><td>≤ 5 分鐘</td><td>Runbook 自動化</td></tr>
+<tr><td>MTBF（業務指標）</td><td>≥ 720 小時</td><td>月度評估</td></tr>
+</table>
+<h4 id="364-bcp業務連續性計畫場景表">§3.6.4 BCP（業務連續性計畫）場景表</h4>
+<table>
+<tr><th>場景</th><th>偵測方式</th><th>復原動作</th><th>RTO</th></tr>
+<tr><td><strong>API Pod 崩潰</strong>（OOM / unhandled exception）</td><td>k8s readiness probe failure；Datadog uptime monitor</td><td>LB 自動移除失敗 pod；HPA 拉新 pod；尖峰時保留 ≥ 2 健康 replica</td><td>≤ 30 秒</td></tr>
+<tr><td><strong>DB Primary 故障</strong></td><td>Supabase 健康檢查；連線錯誤率突增 alert</td><td>Supabase 自動 failover 至 standby；應用層 connection pool retry（2 次）；Pino log 記錄 failover 事件</td><td>≤ 60 秒</td></tr>
+<tr><td><strong>Redis 主節點故障</strong></td><td>Upstash 健康檢查；leaderboard 寫入錯誤 alert</td><td>Sentinel 自動切換 replica；應用層退化路徑：直接從 PostgreSQL 讀取最新 snapshot 提供降級 leaderboard（≤ 30 秒外的舊資料）</td><td>≤ 30 秒</td></tr>
+<tr><td><strong>SendGrid 全球中斷</strong></td><td>連續 3 次 send 失敗（SENDGRID_FAILOVER_CONSECUTIVE_FAILURES）</td><td>自動切換 Nodemailer SMTP；Slack alert；退避 5 分鐘後嘗試恢復主路徑</td><td>≤ 5 分鐘（用戶感知 email 仍寄達）</td></tr>
+<tr><td><strong>Vercel CDN 中斷</strong></td><td>UptimeRobot 告警</td><td>啟用 origin direct fallback DNS（pre-staged TTL 60 秒）</td><td>≤ 5 分鐘</td></tr>
+<tr><td><strong>單區域整體故障</strong>（Railway region down）</td><td>Datadog APM 告警</td><td>啟動災難演練手冊：重新部署至備用 region；DNS 切換</td><td>≤ 30 分鐘</td></tr>
+</table>
+<h4 id="365-graceful-shutdown-流程">§3.6.5 Graceful Shutdown 流程</h4>
+<p>5 步驟：(1) 收到 SIGTERM；(2) <code>server.close()</code> 停止接受新連線；(3) 完成 in-flight requests（≤ 30 秒）；(4) 釋放 DB / Redis 連線池；(5) <code>process.exit(0)</code>。</p>
+<pre><code class="language-typescript">// pseudocode — Node.js / Fastify graceful shutdown
+const SHUTDOWN_TIMEOUT_MS = 30_000;
+
+function setupGracefulShutdown(server, deps) {
+  const shutdown = async (signal) =&gt; {
+    logger.info({ signal }, &#x27;graceful shutdown initiated&#x27;);
+    // step 1: stop accepting new connections
+    await server.close();
+    // step 2: drain in-flight (server.close already waits)
+    // step 3: drain workers
+    await deps.workerPool.drain();
+    // step 4: close pools
+    await Promise.all([deps.pgPool.end(), deps.redis.quit()]);
+    logger.info(&#x27;graceful shutdown complete&#x27;);
+    process.exit(0);
+  };
+  process.once(&#x27;SIGTERM&#x27;, shutdown);
+  process.once(&#x27;SIGINT&#x27;, shutdown);
+  setTimeout(() =&gt; {
+    logger.error(&#x27;forced shutdown after timeout&#x27;);
+    process.exit(1);
+  }, SHUTDOWN_TIMEOUT_MS).unref();
+}</code></pre>
+<h3 id="37-最小完整度架構圖minimum-viable-ha-architecture">§3.7 最小完整度架構圖（Minimum Viable HA Architecture）</h3>
+<h4 id="371-figure-a--生產環境-ha-部署">§3.7.1 Figure A — 生產環境 HA 部署</h4>
+<div class="diagram-container"><pre class="mermaid">graph TB
+    subgraph Internet
+        User[&quot;End Users&quot;]
+    end
+
+    subgraph &quot;Global Edge (Vercel multi-region)&quot;
+        EdgeUS[&quot;Vercel Edge (us-east)&quot;]
+        EdgeEU[&quot;Vercel Edge (eu-west)&quot;]
+        DNS[&quot;Route 53 / Vercel DNS&lt;br/&gt;(GeoDNS + health-check)&quot;]
+    end
+
+    User --&gt; DNS
+    DNS --&gt; EdgeUS
+    DNS --&gt; EdgeEU
+
+    subgraph &quot;Region us-east (primary)&quot;
+        LB1[&quot;Railway LB&quot;]
+        API_US_1[&quot;API Replica us-1&quot;]
+        API_US_2[&quot;API Replica us-2&quot;]
+        W_US_1[&quot;Worker us-1&quot;]
+        W_US_2[&quot;Worker us-2&quot;]
+    end
+
+    subgraph &quot;Region eu-west (secondary, on-demand)&quot;
+        LB2[&quot;Railway LB&quot;]
+        API_EU_1[&quot;API Replica eu-1&quot;]
+        API_EU_2[&quot;API Replica eu-2&quot;]
+    end
+
+    subgraph &quot;Data Tier (managed HA)&quot;
+        PG_P[&quot;PostgreSQL Primary&lt;br/&gt;(Supabase, region-locked)&quot;]
+        PG_S[&quot;PostgreSQL Standby&lt;br/&gt;(sync replication, RPO=0)&quot;]
+        REDIS_P[&quot;Redis Primary (Upstash)&quot;]
+        REDIS_R[&quot;Redis Replica (Sentinel)&quot;]
+    end
+
+    EdgeUS --&gt; LB1
+    EdgeEU --&gt; LB2
+    LB1 --&gt; API_US_1
+    LB1 --&gt; API_US_2
+    LB2 --&gt; API_EU_1
+    LB2 --&gt; API_EU_2
+    API_US_1 --&gt; PG_P
+    API_US_2 --&gt; PG_P
+    API_EU_1 --&gt; PG_P
+    API_EU_2 --&gt; PG_P
+    API_US_1 --&gt; REDIS_P
+    API_US_2 --&gt; REDIS_P
+    API_EU_1 --&gt; REDIS_P
+    API_EU_2 --&gt; REDIS_P
+    PG_P -. &quot;sync replication&quot; .-&gt; PG_S
+    REDIS_P -. &quot;Sentinel failover&quot; .-&gt; REDIS_R
+    W_US_1 --&gt; PG_P
+    W_US_2 --&gt; PG_P</pre></div>
+<h4 id="372-figure-b--本地開發環境最小-ha-架構">§3.7.2 Figure B — 本地開發環境最小 HA 架構</h4>
+<div class="diagram-container"><pre class="mermaid">graph TB
+    Dev[&quot;Developer Browser&lt;br/&gt;(localhost)&quot;]
+
+    subgraph &quot;Local Nginx (port 80)&quot;
+        Nginx[&quot;Nginx LB&lt;br/&gt;(health-check / round-robin)&quot;]
+    end
+
+    subgraph &quot;Local Application Tier (Docker Compose)&quot;
+        API1[&quot;api-1&lt;br/&gt;(:3000 internal)&quot;]
+        API2[&quot;api-2&lt;br/&gt;(:3000 internal)&quot;]
+        W1[&quot;worker-1&quot;]
+        W2[&quot;worker-2&quot;]
+    end
+
+    subgraph &quot;Local Data Tier&quot;
+        PG[&quot;PostgreSQL Docker (single instance allowed in dev)&lt;br/&gt;port 54322&quot;]
+        REDIS[&quot;Redis Docker (single instance allowed in dev)&lt;br/&gt;port 6379&quot;]
+        INB[&quot;Inbucket (email mock)&lt;br/&gt;port 54324&quot;]
+    end
+
+    Dev --&gt; Nginx
+    Nginx --&gt; API1
+    Nginx --&gt; API2
+    API1 --&gt; PG
+    API2 --&gt; PG
+    API1 --&gt; REDIS
+    API2 --&gt; REDIS
+    API1 --&gt; INB
+    W1 --&gt; PG
+    W2 --&gt; PG</pre></div>
+<h4 id="373-最小-replica-表格">§3.7.3 最小 Replica 表格</h4>
+<table>
+<tr><th>元件</th><th>Min Replicas (Local)</th><th>Min Replicas (Staging)</th><th>Min Replicas (Prod)</th></tr>
+<tr><td>API Server</td><td><strong>≥ 2</strong>（HC-1 強制；不能為 1）</td><td>≥ 2</td><td>≥ 2（autoscale 至 6）</td></tr>
+<tr><td>Worker</td><td><strong>≥ 2</strong>（HC-1 強制）</td><td>≥ 2</td><td>≥ 2</td></tr>
+<tr><td>DB</td><td>1（managed by Supabase Local）</td><td>1 primary + 1 read replica</td><td>1 primary + 1 standby（HA）</td></tr>
+<tr><td>Redis</td><td>1（dev mode allowed）</td><td>1（dev mode allowed）</td><td>1 primary + 1 replica（Sentinel）</td></tr>
+<tr><td>MQ / Event Bus</td><td>n/a（in-process EventEmitter）</td><td>n/a</td><td>n/a</td></tr>
+</table>
+<blockquote><p><strong>重要</strong>：Local 環境 API Server / Worker Min Replicas = <strong>≥ 2</strong> 是 HC-1 硬約束。設為 1 視為 SPOF 違規，CI 不可通過。DB / Redis 在 Local 允許單 instance 是因為 Local 不需驗證 failover（Staging+ 才驗證）。</p></blockquote>
+<hr>
+<h2 id="4-module--component-design">§4. Module / Component Design</h2>
+<h3 id="41-模組按-bc">§4.1 模組（按 BC）</h3>
+<h4 id="identity-module">Identity Module</h4>
+<ul><li>職責：email hash + encryption、claim code 簽發/驗證、GDPR request 排隊</li><li>主要 class：<code>ClaimCodeService</code>, <code>IdentityRepository</code>, <code>GdprRequestService</code></li><li>依賴：PostgreSQL（claim_identities, claim_codes, gdpr_requests）、Redis（rate limit）、SendGrid</li></ul>
+<h4 id="pet-module">Pet Module</h4>
+<ul><li>職責：Pet 程序化生成、訓練、餵食、neglect 偵測、ban 處理</li><li>主要 class：<code>PetGenerationService</code>, <code>PetRepository</code>, <code>TrainingService</code>, <code>FoodBuffService</code>, <code>RarityWeightStrategy</code></li><li>依賴：PostgreSQL（pets, training_logs, food_buffs）、Redis（rate limit）</li></ul>
+<h4 id="arena-module">Arena Module</h4>
+<ul><li>職責：Matchmaking、battle outcome 計算、battle log 記錄</li><li>主要 class：<code>MatchmakingService</code>, <code>BattleCalculator</code>, <code>ArenaModeStrategy</code> (Race / Sumo)</li><li>依賴：PostgreSQL（arena_matches）、Redis（matchmaking queue, rate limit）、Pet Module（read pet stats）</li></ul>
+<h4 id="leaderboard-module">Leaderboard Module</h4>
+<ul><li>職責：分數聚合、排名查詢、snapshot 寫入</li><li>主要 class：<code>LeaderboardService</code>, <code>LeaderboardRepository</code> (Redis primary, Postgres backup)</li><li>依賴：Redis（leaderboard:global sorted set）、PostgreSQL（leaderboard_snapshots）</li></ul>
+<h4 id="marketplace-module-p2ff_marketplace">Marketplace Module <em>(P2，FF_MARKETPLACE)</em></h4>
+<ul><li>職責：上架、購買、抽手續費、anti-flip 檢查</li><li>主要 class：<code>ListingService</code>, <code>TradeService</code>, <code>MarketplaceRepository</code></li><li>依賴：PostgreSQL（marketplace_listings, marketplace_transactions）、Pet Module</li></ul>
+<h4 id="admin-module">Admin Module</h4>
+<ul><li>職責：認證、RBAC、審計、配置推送</li><li>主要 class：<code>AdminAuthService</code>, <code>AuditLogger</code>, <code>RuntimeConfigService</code>, <code>EconomyConfigService</code></li><li>依賴：PostgreSQL（admin_users, audit_logs）、Redis（admin session）</li></ul>
+<h3 id="42-模組對應-prd-user-story">§4.2 模組對應 PRD User Story</h3>
+<p>詳見 §1.3 PRD 需求追溯表。</p>
+<h3 id="43-跨模組依賴-dag-驗證hc-5">§4.3 跨模組依賴 DAG 驗證（HC-5）</h3>
+<div class="diagram-container"><pre class="mermaid">graph TB
+    Identity --&gt; Pet
+    Pet --&gt; Arena
+    Arena --&gt; Leaderboard
+    Pet --&gt; Leaderboard
+    Pet --&gt; Marketplace
+    Arena -. &quot;ACL read-only&quot; .-&gt; Marketplace
+    Identity --&gt; Admin
+    Pet -. &quot;Admin reads&quot; .-&gt; Admin
+    Arena -. &quot;Admin reads&quot; .-&gt; Admin
+    Leaderboard -. &quot;Admin reads&quot; .-&gt; Admin</pre></div>
+<p><strong>宣告</strong>：BC 之間<strong>無循環依賴</strong>。Admin 為 conformist 單向 inbound；Marketplace 透過 ACL 只讀 Arena history，不反向依賴。</p>
+<p><strong>驗證 skeleton</strong>（Node.js / TypeScript，使用 <code>eslint-plugin-boundaries</code> + 自製 cycle detection）：</p>
+<pre><code class="language-typescript">// scripts/verify-bc-boundaries.ts
+import { graphlib, alg } from &#x27;graphlib&#x27;;
+
+// BC dependency graph (declared in src/bcs/manifest.ts)
+const deps = {
+  identity: [],
+  pet: [&#x27;identity&#x27;],
+  arena: [&#x27;pet&#x27;],
+  leaderboard: [&#x27;arena&#x27;, &#x27;pet&#x27;],
+  marketplace: [&#x27;pet&#x27;, &#x27;arena&#x27;],  // ACL into arena = read-only adapter only
+  admin: [&#x27;identity&#x27;, &#x27;pet&#x27;, &#x27;arena&#x27;, &#x27;leaderboard&#x27;],  // conformist; inbound only
+};
+
+const g = new graphlib.Graph({ directed: true });
+Object.entries(deps).forEach(([bc, ds]) =&gt; {
+  g.setNode(bc);
+  ds.forEach((d) =&gt; g.setEdge(bc, d));
+});
+
+const cycles = alg.findCycles(g);
+if (cycles.length &gt; 0) {
+  console.error(&#x27;BC cycle detected:&#x27;, cycles);
+  process.exit(1);
+}
+console.log(&#x27;BC dependency DAG is acyclic.&#x27;);</code></pre>
+<p>CI 整合：每次 PR 執行 <code>pnpm run verify:bc-boundaries</code>；失敗則 block merge。</p>
+<h3 id="44-domain-glossary">§4.4 Domain Glossary</h3>
+<table>
+<tr><th>Term</th><th>Definition</th><th>Source BC</th></tr>
+<tr><td><strong>ClaimIdentity</strong></td><td>一個 email 對應的身份實體；只儲存 hash + encrypted email</td><td>Identity</td></tr>
+<tr><td><strong>ClaimCode</strong></td><td>6 位數一次性 OTP；存 hash；15 分鐘過期</td><td>Identity</td></tr>
+<tr><td><strong>GdprRequest</strong></td><td>GDPR 請求紀錄（erasure / data_access / restrict / object / rectification）</td><td>Identity</td></tr>
+<tr><td><strong>Pet</strong></td><td>程序化生成像素寵物實體；包含 seed、stats、level、rarity</td><td>Pet</td></tr>
+<tr><td><strong>PetSeed</strong></td><td>32-bit pet 唯一 seed；驅動所有 sprite 生成 determinism</td><td>Pet</td></tr>
+<tr><td><strong>TrainingLog</strong></td><td>單次訓練動作紀錄；feed level 公式</td><td>Pet</td></tr>
+<tr><td><strong>FoodBuff</strong></td><td>食物 buff 記錄；temp（含 expires_at）或 permanent</td><td>Pet</td></tr>
+<tr><td><strong>ArenaMatch</strong></td><td>一場戰鬥紀錄；append-only；is_flagged 可變</td><td>Arena</td></tr>
+<tr><td><strong>MatchOutcome</strong></td><td>戰鬥結果計算結果（含 winner, stat delta, random seed）</td><td>Arena</td></tr>
+<tr><td><strong>LeaderboardEntry</strong></td><td>Redis sorted set member（pet_id → score）</td><td>Leaderboard</td></tr>
+<tr><td><strong>LeaderboardSnapshot</strong></td><td>PostgreSQL 中的 top 500 快照；durable backup</td><td>Leaderboard</td></tr>
+<tr><td><strong>Listing</strong></td><td>市集上架記錄</td><td>Marketplace</td></tr>
+<tr><td><strong>Trade</strong></td><td>完成的交易記錄；包含 5% 手續費</td><td>Marketplace</td></tr>
+<tr><td><strong>AdminUser</strong></td><td>系統管理員帳戶；含 role / TOTP</td><td>Admin</td></tr>
+<tr><td><strong>AuditLog</strong></td><td>不可變的管理員操作審計紀錄；保留 2 年</td><td>Admin</td></tr>
+<tr><td><strong>PetAccessToken</strong></td><td>32-byte URL-safe base64；只存 hash；URL 內傳遞</td><td>Identity / Pet</td></tr>
+</table>
+<h3 id="45-uml-9-大圖全部-mermaid">§4.5 UML 9 大圖（全部 Mermaid）</h3>
+<h4 id="451-use-case-diagram">§4.5.1 Use Case Diagram</h4>
+<div class="diagram-container"><pre class="mermaid">graph TD
+    Guest[&quot;Guest Player&quot;]
+    Owner[&quot;Pet Owner&quot;]
+    Admin[&quot;Admin&quot;]
+    Job[&quot;System Job&quot;]
+
+    UC1((View Random Pet))
+    UC2((Claim Pet via Email OTP))
+    UC3((Train Pet))
+    UC4((Feed Pet))
+    UC5((Enter Arena))
+    UC6((View Battle Records))
+    UC7((View Leaderboard))
+    UC8((Request GDPR Erasure))
+    UC9((Ban Pet))
+    UC10((Tune Runtime Config))
+    UC11((Configure Economy))
+    UC12((View Audit Log))
+    UC13((Cleanup Expired Claim Codes))
+    UC14((Snapshot Leaderboard))
+    UC15((Process GDPR Erasure Job))
+
+    Guest --&gt; UC1
+    Guest --&gt; UC7
+    Guest --&gt; UC2
+    Owner --&gt; UC3
+    Owner --&gt; UC4
+    Owner --&gt; UC5
+    Owner --&gt; UC6
+    Owner --&gt; UC8
+    Admin --&gt; UC9
+    Admin --&gt; UC10
+    Admin --&gt; UC11
+    Admin --&gt; UC12
+    Job --&gt; UC13
+    Job --&gt; UC14
+    Job --&gt; UC15</pre></div>
+<h4 id="452-class-diagrams-3-layers">§4.5.2 Class Diagrams (3 layers)</h4>
+<p>##### Domain Layer</p>
+<div class="diagram-container"><pre class="mermaid">classDiagram
+    direction TB
+    class Pet {
+        &lt;&lt;Entity&gt;&gt;
+        +UUID id
+        +long seed
+        +Rarity rarity
+        +PetStats stats
+        +int level
+        +bool isBanned
+        +train(type) PetStats
+        +applyBuff(buff) PetStats
+        +ban(reason)
+    }
+    class PetStats {
+        &lt;&lt;ValueObject&gt;&gt;
+        +int speed
+        +int strength
+        +int stamina
+        +int level
+    }
+    class Rarity {
+        &lt;&lt;ValueObject&gt;&gt;
+        &lt;&lt;enumeration&gt;&gt;
+        COMMON
+        RARE
+        EPIC
+        LEGENDARY
+    }
+    class ClaimIdentity {
+        &lt;&lt;Entity&gt;&gt;
+        +UUID id
+        +string emailHash
+        +bytes emailEncrypted
+        +DateTime deletionRequestedAt
+        +requestErasure()
+    }
+    class ClaimCode {
+        &lt;&lt;Entity&gt;&gt;
+        +UUID id
+        +UUID petId
+        +string codeHash
+        +DateTime expiresAt
+        +bool verify(plaintext) bool
+    }
+    class ArenaMatch {
+        &lt;&lt;Entity&gt;&gt;
+        +UUID id
+        +UUID petAId
+        +UUID petBId
+        +ArenaMode mode
+        +UUID winnerPetId
+        +long randomSeed
+        +calculateOutcome() OutcomeResult
+    }
+    class ArenaMode {
+        &lt;&lt;ValueObject&gt;&gt;
+        &lt;&lt;enumeration&gt;&gt;
+        RACE
+        SUMO
+    }
+    class TrainingLog {
+        &lt;&lt;Entity&gt;&gt;
+        +UUID id
+        +UUID petId
+        +TrainingType type
+        +int statDelta
+    }
+    class FoodBuff {
+        &lt;&lt;Entity&gt;&gt;
+        +UUID id
+        +UUID petId
+        +BuffStat stat
+        +int magnitude
+        +bool isPermanent
+        +DateTime expiresAt
+    }
+    class LeaderboardEntry {
+        &lt;&lt;ValueObject&gt;&gt;
+        +UUID petId
+        +double score
+        +int rank
+    }
+    class PetGenerationService {
+        &lt;&lt;DomainService&gt;&gt;
+        +generate(seed) Pet
+        +rollRarity(weights) Rarity
+    }
+    class BattleCalculator {
+        &lt;&lt;DomainService&gt;&gt;
+        +calculate(petA, petB, mode, seed) OutcomeResult
+    }
+    class OutcomeResult {
+        &lt;&lt;ValueObject&gt;&gt;
+        +UUID winnerId
+        +int statDeltaA
+        +int statDeltaB
+    }
+    class BaseEntity {
+        &lt;&lt;AbstractEntity&gt;&gt;
+        +UUID id
+        +DateTime createdAt
+        +DateTime updatedAt
+        +equals(other) bool
+    }
+    class IDomainEvent {
+        &lt;&lt;interface&gt;&gt;
+        +string eventName
+        +DateTime occurredAt
+        +UUID aggregateId
+    }
+    class PetClaimedEvent {
+        &lt;&lt;DomainEvent&gt;&gt;
+        +UUID petId
+        +UUID claimIdentityId
+        +DateTime claimedAt
+    }
+    class ArenaMatchCompletedEvent {
+        &lt;&lt;DomainEvent&gt;&gt;
+        +UUID matchId
+        +UUID winnerPetId
+        +DateTime completedAt
+    }
+
+    BaseEntity &lt;|-- Pet : inheritance
+    BaseEntity &lt;|-- ClaimIdentity : inheritance
+    BaseEntity &lt;|-- ClaimCode : inheritance
+    BaseEntity &lt;|-- ArenaMatch : inheritance
+    BaseEntity &lt;|-- TrainingLog : inheritance
+    BaseEntity &lt;|-- FoodBuff : inheritance
+    PetClaimedEvent ..|&gt; IDomainEvent : realization
+    ArenaMatchCompletedEvent ..|&gt; IDomainEvent : realization
+    Pet &quot;1&quot; *-- &quot;1&quot; PetStats : composition
+    Pet &quot;1&quot; --&gt; &quot;1&quot; Rarity : association
+    Pet &quot;1&quot; o-- &quot;*&quot; TrainingLog : aggregation
+    Pet &quot;1&quot; o-- &quot;*&quot; FoodBuff : aggregation
+    ClaimIdentity &quot;1&quot; o-- &quot;*&quot; Pet : aggregation
+    ClaimCode &quot;1&quot; --&gt; &quot;1&quot; Pet : association
+    ArenaMatch &quot;1&quot; --&gt; &quot;1&quot; ArenaMode : association
+    ArenaMatch &quot;*&quot; --&gt; &quot;*&quot; Pet : association
+    PetGenerationService ..&gt; Pet : dependency
+    BattleCalculator ..&gt; Pet : dependency
+    BattleCalculator ..&gt; OutcomeResult : dependency</pre></div>
+<blockquote><p>6 種 UML 關聯齊備：Inheritance（<code>&lt;|--</code>）、Realization（<code>..|&gt;</code>）、Composition（<code>*--</code>）、Aggregation（<code>o--</code>）、Association（<code>--&gt;</code>）、Dependency（<code>..&gt;</code>）— 滿足 §4.5.10 QG-UML-02。</p></blockquote>
+<p>##### Application Layer</p>
+<div class="diagram-container"><pre class="mermaid">classDiagram
+    direction TB
+    class ClaimPetUseCase {
+        &lt;&lt;ApplicationService&gt;&gt;
+        -ClaimCodeService claimCodeSvc
+        -PetRepository petRepo
+        -EmailDeliveryPort email
+        +execute(input) ClaimResult
+    }
+    class VerifyClaimCodeUseCase {
+        &lt;&lt;ApplicationService&gt;&gt;
+        -ClaimCodeService claimCodeSvc
+        -PetRepository petRepo
+        -TokenIssuer tokenIssuer
+        +execute(input) PetTokenResult
+    }
+    class TrainPetUseCase {
+        &lt;&lt;ApplicationService&gt;&gt;
+        -PetRepository petRepo
+        -RateLimiter rateLimit
+        +execute(petId, type) TrainResult
+    }
+    class EnterArenaUseCase {
+        &lt;&lt;ApplicationService&gt;&gt;
+        -MatchmakingService matchSvc
+        -BattleCalculator battleCalc
+        -LeaderboardService leaderboardSvc
+        +execute(input) MatchResult
+    }
+    class BanPetUseCase {
+        &lt;&lt;ApplicationService&gt;&gt;
+        -PetRepository petRepo
+        -AuditLogger audit
+        -LeaderboardService leaderboard
+        +execute(petId, reason) BanResult
+    }
+    class ProcessGdprErasureUseCase {
+        &lt;&lt;ApplicationService&gt;&gt;
+        -GdprRequestRepository gdprRepo
+        -IdentityRepository idRepo
+        +execute(requestId) ErasureResult
+    }
+    class IClaimCodeService {
+        &lt;&lt;interface&gt;&gt;
+        +issue(email, petId) ClaimCode
+        +verify(claimId, plaintext) bool
+    }
+    class ClaimCodeService {
+        &lt;&lt;DomainService&gt;&gt;
+        +issue(email, petId) ClaimCode
+        +verify(claimId, plaintext) bool
+    }
+
+    ClaimPetUseCase ..&gt; IClaimCodeService : dependency
+    VerifyClaimCodeUseCase ..&gt; IClaimCodeService : dependency
+    ClaimCodeService &lt;|.. IClaimCodeService : realization
+    EnterArenaUseCase ..&gt; BanPetUseCase : dependency (via event)
+    BanPetUseCase --&gt; ProcessGdprErasureUseCase : association</pre></div>
+<p>##### Infrastructure / Presentation Layer</p>
+<div class="diagram-container"><pre class="mermaid">classDiagram
+    direction TB
+    class IPetRepository {
+        &lt;&lt;interface&gt;&gt;
+        +findById(id) Pet
+        +save(pet)
+    }
+    class PostgresPetRepository {
+        &lt;&lt;Repository&gt;&gt;
+        -Pool pgPool
+        +findById(id) Pet
+        +save(pet)
+    }
+    class ICacheRepository {
+        &lt;&lt;interface&gt;&gt;
+        +get(key) string
+        +set(key, val, ttl)
+    }
+    class RedisCacheRepository {
+        &lt;&lt;Repository&gt;&gt;
+        -RedisClient redis
+        +get(key) string
+        +set(key, val, ttl)
+    }
+    class IEmailDeliveryPort {
+        &lt;&lt;interface&gt;&gt;
+        +send(to, subject, body) DeliveryResult
+    }
+    class SendGridEmailAdapter {
+        &lt;&lt;Adapter&gt;&gt;
+        +send(to, subject, body) DeliveryResult
+    }
+    class SmtpEmailAdapter {
+        &lt;&lt;Adapter&gt;&gt;
+        +send(to, subject, body) DeliveryResult
+    }
+    class EmailDeliveryWithFallback {
+        &lt;&lt;Adapter&gt;&gt;
+        -SendGridEmailAdapter primary
+        -SmtpEmailAdapter fallback
+        -CircuitBreaker breaker
+        +send(to, subject, body) DeliveryResult
+    }
+    class ClaimController {
+        &lt;&lt;Controller&gt;&gt;
+        -ClaimPetUseCase claimUC
+        -VerifyClaimCodeUseCase verifyUC
+        +postClaim(req, reply)
+        +postVerify(req, reply)
+    }
+    class ArenaController {
+        &lt;&lt;Controller&gt;&gt;
+        -EnterArenaUseCase enterUC
+        +postEnter(req, reply)
+        +getMatch(req, reply)
+    }
+    class AdminController {
+        &lt;&lt;Controller&gt;&gt;
+        -BanPetUseCase banUC
+        -RuntimeConfigService cfg
+        +postBan(req, reply)
+        +putConfig(req, reply)
+    }
+
+    PostgresPetRepository ..|&gt; IPetRepository : realization
+    RedisCacheRepository ..|&gt; ICacheRepository : realization
+    SendGridEmailAdapter ..|&gt; IEmailDeliveryPort : realization
+    SmtpEmailAdapter ..|&gt; IEmailDeliveryPort : realization
+    EmailDeliveryWithFallback ..|&gt; IEmailDeliveryPort : realization
+    EmailDeliveryWithFallback *-- SendGridEmailAdapter : composition
+    EmailDeliveryWithFallback *-- SmtpEmailAdapter : composition
+    ClaimController --&gt; ClaimPetUseCase : association
+    ArenaController --&gt; EnterArenaUseCase : association
+    AdminController --&gt; BanPetUseCase : association</pre></div>
+<h4 id="453-object-diagram-snapshot">§4.5.3 Object Diagram (Snapshot)</h4>
+<div class="diagram-container"><pre class="mermaid">classDiagram
+    direction TB
+    class pet_alex_001 {
+        id = &quot;uuid-pet-001&quot;
+        seed = 42
+        rarity = LEGENDARY
+        speed = 78
+        strength = 65
+        stamina = 70
+        level = 14
+    }
+    class identity_alex {
+        id = &quot;uuid-id-007&quot;
+        emailHash = &quot;sha256(alex@example.com)&quot;
+    }
+    class claim_code_42 {
+        id = &quot;uuid-cc-042&quot;
+        codeHash = &quot;sha256(123456)&quot;
+        expiresAt = &quot;2026-05-10T14:15:00Z&quot;
+    }
+    class arena_match_77 {
+        id = &quot;uuid-match-077&quot;
+        petAId = &quot;uuid-pet-001&quot;
+        petBId = &quot;uuid-pet-019&quot;
+        winnerPetId = &quot;uuid-pet-001&quot;
+        mode = RACE
+    }
+    pet_alex_001 --&gt; identity_alex : claimed_by
+    claim_code_42 --&gt; pet_alex_001 : unlocks
+    arena_match_77 --&gt; pet_alex_001 : pet_a</pre></div>
+<h4 id="454-sequence-diagrams">§4.5.4 Sequence Diagrams</h4>
+<p>##### Claim Flow</p>
+<div class="diagram-container"><pre class="mermaid">sequenceDiagram
+    participant P as Player Browser
+    participant API as API Server (Fastify)
+    participant DB as PostgreSQL
+    participant R as Redis
+    participant SG as SendGrid
+
+    P-&gt;&gt;API: POST /api/v1/claim {email, petId, ageConfirmed}
+    API-&gt;&gt;R: INCR rl:claim:{email_hash} (TTL 3600)
+    alt rate limit &gt; 5
+        R--&gt;&gt;API: counter &gt; 5
+        API--&gt;&gt;P: HTTP 429 Retry-After
+    else within limit
+        API-&gt;&gt;API: generate 6-digit OTP
+        API-&gt;&gt;DB: INSERT claim_codes(pet_id, email_hash, code_hash, expires_at)
+        API-&gt;&gt;SG: send email with OTP
+        SG--&gt;&gt;API: 202 Accepted
+        API--&gt;&gt;P: HTTP 200 {claimId, expiresAt}
+    end
+
+    Note over P,SG: User receives email, enters code in browser
+
+    P-&gt;&gt;API: POST /api/v1/claim/verify {claimId, code}
+    API-&gt;&gt;R: INCR rl:code_entry:{session_id}
+    API-&gt;&gt;DB: SELECT claim_codes WHERE id=$1 AND expires_at &gt; NOW() AND used_at IS NULL
+    API-&gt;&gt;API: SHA-256(code) compare with code_hash
+    alt valid
+        API-&gt;&gt;DB: BEGIN, UPSERT claim_identities, UPDATE pets SET owner_token_hash=$1, claimed_at=NOW(), UPDATE claim_codes SET used_at=NOW(), COMMIT
+        API-&gt;&gt;R: SET token:blacklist (no-op for first claim)
+        API--&gt;&gt;P: HTTP 200 {petToken, petUrl}
+    else invalid / expired
+        API--&gt;&gt;P: HTTP 400 {INVALID_CODE | CODE_EXPIRED}
+    end</pre></div>
+<p>##### Arena Battle</p>
+<div class="diagram-container"><pre class="mermaid">sequenceDiagram
+    participant P as Player
+    participant API as API Server
+    participant R as Redis
+    participant DB as PostgreSQL
+
+    P-&gt;&gt;API: POST /api/v1/arena/enter {petId, mode, acceptAI}
+    API-&gt;&gt;R: INCR rl:arena:{pet_id} (TTL 3600)
+    alt rate limit &gt; 10
+        API--&gt;&gt;P: HTTP 429 Retry-After
+    else
+        API-&gt;&gt;R: ZADD matchmaking:queue:{mode} score=enqueue_epoch member=&quot;{petId}:{epoch_ms}&quot;
+        loop poll up to 30s
+            API-&gt;&gt;R: ZRANGEBYSCORE oldest opponent (excluding self)
+            alt opponent found
+                API-&gt;&gt;R: ZREM both pets
+                API-&gt;&gt;DB: SELECT both pet stats
+                API-&gt;&gt;API: BattleCalculator.calculate(stats, mode, seed)
+                API-&gt;&gt;DB: INSERT arena_matches, UPDATE leaderboard score
+                API-&gt;&gt;R: ZADD leaderboard:global score=newScore member=petId
+                API--&gt;&gt;P: HTTP 200 {matchId, result, opponentPetId}
+            else timeout 30s and acceptAI=true
+                API-&gt;&gt;API: AI opponent battle calculation
+                API-&gt;&gt;DB: INSERT arena_matches (is_ai_opponent=TRUE)
+                API--&gt;&gt;P: HTTP 200 {matchId, result, isAiOpponent: true}
+            else timeout 30s and acceptAI=false
+                API--&gt;&gt;P: HTTP 408 MATCHMAKING_TIMEOUT
+            end
+        end
+    end</pre></div>
+<p>##### GDPR Erasure</p>
+<div class="diagram-container"><pre class="mermaid">sequenceDiagram
+    participant P as Player
+    participant API as API Server
+    participant DB as PostgreSQL
+    participant R as Redis
+    participant W as GDPR Worker
+
+    P-&gt;&gt;API: POST /api/v1/gdpr/request {type=erasure} (Bearer pet token)
+    API-&gt;&gt;DB: INSERT gdpr_requests(claim_identity_id, type=erasure, status=pending)
+    API--&gt;&gt;P: HTTP 202 {jobId}
+
+    loop every 5 min cron
+        W-&gt;&gt;DB: SELECT gdpr_requests WHERE status=pending AND type=erasure LIMIT 10
+        W-&gt;&gt;DB: BEGIN
+        W-&gt;&gt;DB: UPDATE claim_identities SET email_encrypted=NULL, deletion_requested_at=NOW() WHERE id=$1
+        W-&gt;&gt;DB: SELECT pets WHERE claim_identity_id=$1
+        loop for each pet
+            W-&gt;&gt;R: ZREM leaderboard:global pet_id
+            W-&gt;&gt;DB: UPDATE pets SET owner_token_hash=NULL, claimed_at=NULL
+        end
+        W-&gt;&gt;DB: UPDATE gdpr_requests SET status=completed, completed_at=NOW()
+        W-&gt;&gt;DB: COMMIT
+    end
+
+    P-&gt;&gt;API: GET /api/v1/gdpr/request/status?jobId=...
+    API--&gt;&gt;P: HTTP 200 {status: completed, completedAt}</pre></div>
+<h4 id="455-communication-diagram">§4.5.5 Communication Diagram</h4>
+<div class="diagram-container"><pre class="mermaid">graph TD
+    P[&quot;Player&quot;]
+    CC[&quot;ClaimController&quot;]
+    CUC[&quot;ClaimPetUseCase&quot;]
+    CCS[&quot;ClaimCodeService&quot;]
+    EDP[&quot;EmailDeliveryPort&quot;]
+    PR[&quot;PostgresClaimCodeRepo&quot;]
+    SG[&quot;SendGridAdapter&quot;]
+
+    P --&gt;|&quot;1: POST /claim&quot;| CC
+    CC --&gt;|&quot;2: execute(input)&quot;| CUC
+    CUC --&gt;|&quot;3: issue(email, petId)&quot;| CCS
+    CCS --&gt;|&quot;4: insertCode&quot;| PR
+    CUC --&gt;|&quot;5: send(email, otp)&quot;| EDP
+    EDP --&gt;|&quot;5.1: deliver&quot;| SG
+    SG --&gt;|&quot;5.2: 202 OK&quot;| EDP
+    EDP --&gt;|&quot;5.3: success&quot;| CUC
+    CUC --&gt;|&quot;6: result&quot;| CC
+    CC --&gt;|&quot;7: HTTP 200&quot;| P</pre></div>
+<h4 id="456-state-machines">§4.5.6 State Machines</h4>
+<p>##### Pet Lifecycle</p>
+<div class="diagram-container"><pre class="mermaid">stateDiagram-v2
+    [*] --&gt; GENERATED
+    GENERATED --&gt; UNCLAIMED : reservedUntil set
+    UNCLAIMED --&gt; CLAIMED : claim_code_verified
+    UNCLAIMED --&gt; DELETED : reservation expired (24h)
+    CLAIMED --&gt; IDLE : default
+    IDLE --&gt; TRAINING : train action
+    IDLE --&gt; BATTLING : enter arena
+    IDLE --&gt; RESTING : 3+ days no training
+    TRAINING --&gt; IDLE : action complete
+    BATTLING --&gt; IDLE : match complete
+    RESTING --&gt; IDLE : daily reset
+    CLAIMED --&gt; BANNED : admin ban
+    BANNED --&gt; CLAIMED : admin unban
+    CLAIMED --&gt; DELETED : gdpr erasure
+    DELETED --&gt; [*]</pre></div>
+<p>##### Arena Match</p>
+<div class="diagram-container"><pre class="mermaid">stateDiagram-v2
+    [*] --&gt; CREATED
+    CREATED --&gt; FINDING_OPPONENT : enqueue
+    FINDING_OPPONENT --&gt; READY : opponent found
+    FINDING_OPPONENT --&gt; READY : 30s timeout AI fallback
+    FINDING_OPPONENT --&gt; CANCELLED : timeout no AI
+    READY --&gt; IN_PROGRESS : start_match
+    IN_PROGRESS --&gt; RESOLVED : duration complete
+    RESOLVED --&gt; ARCHIVED : completed_at set
+    ARCHIVED --&gt; FLAGGED : admin flag
+    FLAGGED --&gt; ARCHIVED : admin unflag
+    ARCHIVED --&gt; [*]
+    CANCELLED --&gt; [*]</pre></div>
+<h4 id="457-activity-diagrams">§4.5.7 Activity Diagrams</h4>
+<p>##### Claim Flow (Activity)</p>
+<div class="diagram-container"><pre class="mermaid">flowchart TB
+    Start((User on landing page)) --&gt; View[View random pet]
+    View --&gt; Decide{Wants to keep?}
+    Decide --&gt;|No| Exit((Leave))
+    Decide --&gt;|Yes| Form[Enter email + age13 checkbox]
+    Form --&gt; Validate{Form valid?}
+    Validate --&gt;|No| Form
+    Validate --&gt;|Yes| RateCheck{Rate limit OK?}
+    RateCheck --&gt;|No| Err429[Show 429 cooldown]
+    RateCheck --&gt;|Yes| GenOTP[Generate OTP, INSERT claim_codes]
+    GenOTP --&gt; SendEmail[Send email via SendGrid]
+    SendEmail --&gt; Wait[User waits, enters OTP]
+    Wait --&gt; Verify{OTP valid?}
+    Verify --&gt;|No| RetryCount{Attempts &amp;lt; 10?}
+    RetryCount --&gt;|Yes| Wait
+    RetryCount --&gt;|No| Err429
+    Verify --&gt;|Yes| TX[BEGIN: UPSERT identity + UPDATE pet token + mark code used]
+    TX --&gt; Commit[COMMIT]
+    Commit --&gt; Reveal[Show pet URL]
+    Reveal --&gt; End((User bookmarks URL))</pre></div>
+<p>##### Arena Battle (Activity)</p>
+<div class="diagram-container"><pre class="mermaid">flowchart TB
+    Start((Owner on arena page)) --&gt; Mode[Select mode RACE/SUMO]
+    Mode --&gt; Rate{Rate limit ≤ 10/hr?}
+    Rate --&gt;|No| Err429[HTTP 429 Retry-After]
+    Rate --&gt;|Yes| Enqueue[ZADD matchmaking:queue]
+    Enqueue --&gt; Poll{Opponent found?}
+    Poll --&gt;|&lt; 30s yes| Calc[BattleCalculator]
+    Poll --&gt;|30s timeout AI accepted| AI[AI opponent calc]
+    Poll --&gt;|30s timeout no AI| Err408[HTTP 408]
+    Calc --&gt; Persist[INSERT arena_match]
+    AI --&gt; Persist
+    Persist --&gt; ZADD[ZADD leaderboard:global]
+    ZADD --&gt; Animate[Play 5-15s animation client-side]
+    Animate --&gt; Result[Show win/loss + share button]
+    Result --&gt; End((User can share or rebattle))</pre></div>
+<p>##### GDPR Erasure (Activity)</p>
+<div class="diagram-container"><pre class="mermaid">flowchart TB
+    Start((Owner submits erasure)) --&gt; API[POST /api/v1/gdpr/request type=erasure]
+    API --&gt; Insert[INSERT gdpr_requests status=pending]
+    Insert --&gt; Queue((HTTP 202 jobId))
+    Queue --&gt; Cron[Cron worker every 5min]
+    Cron --&gt; Lock[Redis SETNX gdpr_lock]
+    Lock --&gt; Fetch[SELECT pending erasure ≤ 10]
+    Fetch --&gt; ForEach{For each request}
+    ForEach --&gt; NullEmail[UPDATE claim_identities SET email_encrypted=NULL]
+    NullEmail --&gt; Pets[SELECT pets WHERE claim_identity_id]
+    Pets --&gt; ForPet{For each pet}
+    ForPet --&gt; ZREM[ZREM leaderboard:global pet_id]
+    ZREM --&gt; NullToken[UPDATE pets SET owner_token_hash=NULL]
+    NullToken --&gt; NextPet{More pets?}
+    NextPet --&gt;|Yes| ForPet
+    NextPet --&gt;|No| Mark[UPDATE gdpr_requests status=completed]
+    Mark --&gt; Audit[INSERT audit_logs]
+    Audit --&gt; Notify[Send confirmation email]
+    Notify --&gt; End((Done within 7 days))</pre></div>
+<h4 id="458-component-diagram">§4.5.8 Component Diagram</h4>
+<div class="diagram-container"><pre class="mermaid">graph TB
+    subgraph &quot;Client&quot;
+        PR[&quot;Player React App&lt;br/&gt;(Phaser canvas)&quot;]
+        AV[&quot;Admin Vue App&quot;]
+        Vite[&quot;Vite Build&quot;]
+    end
+
+    subgraph &quot;API Server (Fastify)&quot;
+        Auth[&quot;AuthMiddleware&quot;]
+        RateMW[&quot;RateLimitMiddleware&quot;]
+        Routes[&quot;Game Routes&quot;]
+        AdminRoutes[&quot;Admin Routes&quot;]
+        UCs[&quot;Use Cases (Application)&quot;]
+        Domain[&quot;Domain Services&quot;]
+    end
+
+    subgraph &quot;Worker&quot;
+        WJobs[&quot;Background Jobs&lt;br/&gt;(GDPR / cleanup / snapshot)&quot;]
+    end
+
+    subgraph &quot;Data Tier&quot;
+        PG[&quot;PostgreSQL&quot;]
+        Redis[&quot;Redis&quot;]
+    end
+
+    subgraph &quot;External&quot;
+        SG[&quot;SendGrid&quot;]
+        CDN[&quot;Vercel CDN&quot;]
+    end
+
+    PR --&gt; Vite
+    AV --&gt; Vite
+    Vite --&gt; CDN
+    CDN --&gt; Auth
+    Auth --&gt; RateMW
+    RateMW --&gt; Routes
+    RateMW --&gt; AdminRoutes
+    Routes --&gt; UCs
+    AdminRoutes --&gt; UCs
+    UCs --&gt; Domain
+    UCs --&gt; PG
+    UCs --&gt; Redis
+    UCs --&gt; SG
+    WJobs --&gt; PG
+    WJobs --&gt; Redis
+    WJobs --&gt; SG</pre></div>
+<h4 id="459-deployment-diagram">§4.5.9 Deployment Diagram</h4>
+<div class="diagram-container"><pre class="mermaid">graph TB
+    subgraph &quot;Vercel Edge&quot;
+        CDN[&quot;Global CDN&quot;]
+        Static[&quot;Player + Admin Static SPA&quot;]
+    end
+
+    subgraph &quot;Railway Compute (us-east)&quot;
+        LB[&quot;LB / HPA 70% CPU&quot;]
+        API1[&quot;api-pod-1 :8080&quot;]
+        API2[&quot;api-pod-2 :8080&quot;]
+        W1[&quot;worker-pod-1&quot;]
+        W2[&quot;worker-pod-2&quot;]
+    end
+
+    subgraph &quot;Supabase&quot;
+        PGP[&quot;PG Primary&quot;]
+        PGS[&quot;PG Standby&quot;]
+    end
+
+    subgraph &quot;Upstash&quot;
+        RP[&quot;Redis Primary&quot;]
+        RR[&quot;Redis Replica&quot;]
+    end
+
+    subgraph &quot;External&quot;
+        SG[&quot;SendGrid API&quot;]
+        S3[&quot;S3 Backups&quot;]
+    end
+
+    CDN --&gt; LB
+    LB --&gt; API1
+    LB --&gt; API2
+    API1 --&gt; PGP
+    API2 --&gt; PGP
+    API1 --&gt; RP
+    API2 --&gt; RP
+    PGP --&gt; PGS
+    RP --&gt; RR
+    PGP --&gt; S3
+    W1 --&gt; PGP
+    W2 --&gt; PGP
+    API1 --&gt; SG
+    W1 --&gt; SG</pre></div>
+<h4 id="4510-uml-完整性門檻quality-gate">§4.5.10 UML 完整性門檻（Quality Gate）</h4>
+<table>
+<tr><th>Gate</th><th>Criterion</th></tr>
+<tr><td>QG-UML-01</td><td>9 大圖類型全部交付（Use Case / Class×3 / Object / Sequence×3 / Communication / State×2 / Activity×3 / Component / Deployment）</td></tr>
+<tr><td>QG-UML-02</td><td>Class diagram 6 種 UML 關聯（`&lt;\</td><td>--<code>、</code>&lt;\</td><td>..<code>、</code>*--<code>、</code>o--<code>、</code>--&gt;<code>、</code>..&gt;`）各至少 1 次</td></tr>
+<tr><td>QG-UML-03</td><td>所有圖表使用 Mermaid（無 ASCII art、無 PUML）</td></tr>
+<tr><td>QG-UML-04</td><td>State machine transition label 不含 <code>&lt;br/&gt;</code>（避免 Safari/Firefox 破圖）</td></tr>
+<tr><td>QG-UML-05</td><td>每張圖跟隨 1–3 句說明文字</td></tr>
+<tr><td>QG-UML-06</td><td>Class → table 命名 1:1 對齊（CamelCase ↔ snake_case 標準慣例）</td></tr>
+<tr><td>QG-UML-07</td><td>Use Case actor ≥ 4（Guest, Owner, Admin, System Job）</td></tr>
+</table>
+<h4 id="4511-class--implementation--test-追溯表">§4.5.11 Class → Implementation → Test 追溯表</h4>
+<p>完整對應表維護於 <code>docs/diagrams/class-inventory.md</code>（由 <code>gendoc-gen-diagrams</code> 產生），包含每個 Class 對應的程式檔路徑與測試檔路徑。本 EDD 提供章節索引，避免重複維護：</p>
+<ul><li>Domain: <code>src/domain/{bc}/<em>.ts</code> ↔ <code>tests/unit/domain/{bc}/</em>.test.ts</code></li><li>Application: <code>src/application/{bc}/use-cases/<em>.ts</code> ↔ <code>tests/unit/application/{bc}/</em>.test.ts</code></li><li>Infrastructure: <code>src/infrastructure/{bc}/<em>.ts</code> ↔ <code>tests/integration/{bc}/</em>.test.ts</code></li></ul>
+<h3 id="46-domain-events">§4.6 Domain Events</h3>
+<h4 id="461-domain-events-完整清單cross-bc-消費關係">§4.6.1 Domain Events 完整清單（Cross-BC 消費關係）</h4>
+<table>
+<tr><th>event_name</th><th>source_bc</th><th>topic_name</th><th>event_schema_version</th><th>consumer_bc(s)</th><th>payload schema</th></tr>
+<tr><td>PetGenerated</td><td>Pet</td><td><code>pet.lifecycle.generated</code></td><td>v1</td><td>Leaderboard, Admin</td><td><code>{petId, seed, rarity, generatedAt}</code></td></tr>
+<tr><td>PetClaimed</td><td>Pet</td><td><code>pet.lifecycle.claimed</code></td><td>v1</td><td>Identity, Leaderboard, Admin</td><td><code>{petId, claimIdentityId, claimedAt}</code></td></tr>
+<tr><td>PetTrained</td><td>Pet</td><td><code>pet.training.completed</code></td><td>v1</td><td>Leaderboard, Admin</td><td><code>{petId, type, statDelta, levelAfter, completedAt}</code></td></tr>
+<tr><td>PetFoodConsumed</td><td>Pet</td><td><code>pet.food.consumed</code></td><td>v1</td><td>Admin</td><td><code>{petId, foodType, magnitude, isPermanent, expiresAt}</code></td></tr>
+<tr><td>PetBanned</td><td>Pet</td><td><code>pet.lifecycle.banned</code></td><td>v1</td><td>Leaderboard, Admin</td><td><code>{petId, adminId, reason, bannedAt}</code></td></tr>
+<tr><td>ArenaMatchStarted</td><td>Arena</td><td><code>arena.match.started</code></td><td>v1</td><td>Admin</td><td><code>{matchId, petAId, petBId, mode, isAiOpponent, startedAt}</code></td></tr>
+<tr><td>ArenaMatchCompleted</td><td>Arena</td><td><code>arena.match.completed</code></td><td>v1</td><td>Leaderboard, Marketplace, Admin</td><td><code>{matchId, winnerPetId, statDeltaA, statDeltaB, completedAt}</code></td></tr>
+<tr><td>LeaderboardUpdated</td><td>Leaderboard</td><td><code>leaderboard.entry.updated</code></td><td>v1</td><td>Admin</td><td><code>{petId, score, rank, updatedAt}</code></td></tr>
+<tr><td>LeaderboardEntryRemoved</td><td>Leaderboard</td><td><code>leaderboard.entry.removed</code></td><td>v1</td><td>Admin</td><td><code>{petId, reason, removedAt}</code></td></tr>
+<tr><td>GdprErasureRequested</td><td>Identity</td><td><code>gdpr.request.created</code></td><td>v1</td><td>Admin, Pet, Leaderboard</td><td><code>{requestId, claimIdentityId, type, submittedAt}</code></td></tr>
+<tr><td>GdprErasureCompleted</td><td>Identity</td><td><code>gdpr.request.completed</code></td><td>v1</td><td>Admin</td><td><code>{requestId, claimIdentityId, completedAt}</code></td></tr>
+<tr><td>AdminUserCreated</td><td>Admin</td><td><code>admin.user.created</code></td><td>v1</td><td>(audit-only)</td><td><code>{adminId, role, createdBy, createdAt}</code></td></tr>
+<tr><td>AdminActionLogged</td><td>Admin</td><td><code>admin.action.logged</code></td><td>v1</td><td>(audit-only)</td><td><code>{auditLogId, adminId, action, targetType, targetId, at}</code></td></tr>
+<tr><td>SuspiciousPetFlagged</td><td>Admin</td><td><code>admin.suspicious.flagged</code></td><td>v1</td><td>Pet, Leaderboard</td><td><code>{petId, battlesLastHour, flaggedAt}</code></td></tr>
+<tr><td>ListingCreated</td><td>Marketplace</td><td><code>marketplace.listing.created</code></td><td>v1</td><td>Pet, Admin</td><td><code>{listingId, petId, priceCredits, listedAt}</code></td></tr>
+<tr><td>TradeCompleted</td><td>Marketplace</td><td><code>marketplace.trade.completed</code></td><td>v1</td><td>Pet, Admin</td><td><code>{tradeId, listingId, petId, priceCredits, feeCredits, completedAt}</code></td></tr>
+</table>
+<p>事件 transport：MVP 使用 in-process Node.js EventEmitter（同 process 跨 module）+ at-most-once；GA 階段如需跨 process 可替換為 NATS / Kafka，事件 schema 維持不變（versioned）。</p>
+<hr>
+<h2 id="5-api-design">§5. API Design</h2>
+<p>完整 endpoint 規格：詳見 <code>docs/API.md</code>。本節提供工程設計層必要摘要。</p>
+<p>所有 player 路由 <code>/api/v1/</code>；Admin 路由 <code>/admin/api</code>。回應 envelope：</p>
+<pre><code class="language-json">{
+  &quot;success&quot;: true | false,
+  &quot;data&quot;: { ... } | null,
+  &quot;error&quot;: null | { &quot;code&quot;: &quot;...&quot;, &quot;message&quot;: &quot;...&quot; },
+  &quot;meta&quot;: { &quot;total&quot;: number, &quot;page&quot;: number, &quot;limit&quot;: number }
+}</code></pre>
+<p>HTTP 狀態碼：200, 201, 202, 400, 401, 403, 404, 408, 409, 429, 500。</p>
+<h3 id="51-auth--claim">§5.1 Auth / Claim</h3>
+<table>
+<tr><th>Method</th><th>Path</th><th>Auth</th><th>用途</th></tr>
+<tr><td>POST</td><td>/api/v1/claim</td><td>None</td><td>寄送 OTP（rate-limit 5/hr/email）</td></tr>
+<tr><td>POST</td><td>/api/v1/claim/verify</td><td>None</td><td>驗證 OTP，回傳 pet token</td></tr>
+<tr><td>POST</td><td>/api/v1/claim/recover</td><td>None</td><td>重發已認領寵物存取連結</td></tr>
+</table>
+<h3 id="52-pet">§5.2 Pet</h3>
+<table>
+<tr><th>Method</th><th>Path</th><th>Auth</th><th>用途</th></tr>
+<tr><td>GET</td><td>/api/v1/pets/random</td><td>None</td><td>為訪客生成新隨機寵物</td></tr>
+<tr><td>GET</td><td>/api/v1/pets/:petId</td><td>Optional pet token</td><td>讀取 pet 完整資料</td></tr>
+<tr><td>POST</td><td>/api/v1/pets/:petId/train</td><td>Pet token</td><td>執行訓練動作</td></tr>
+<tr><td>POST</td><td>/api/v1/pets/:petId/feed</td><td>Pet token</td><td>餵食食物 buff</td></tr>
+</table>
+<h3 id="53-arena">§5.3 Arena</h3>
+<table>
+<tr><th>Method</th><th>Path</th><th>Auth</th><th>用途</th></tr>
+<tr><td>POST</td><td>/api/v1/arena/enter</td><td>Pet token</td><td>進入 matchmaking（rate-limit 10/hr/pet）</td></tr>
+<tr><td>GET</td><td>/api/v1/arena/match/:matchId</td><td>None</td><td>公開戰鬥記錄</td></tr>
+<tr><td>GET</td><td>/api/v1/arena/history/:petId</td><td>None</td><td>寵物戰鬥歷史（最後 20）</td></tr>
+</table>
+<h3 id="54-leaderboard">§5.4 Leaderboard</h3>
+<table>
+<tr><th>Method</th><th>Path</th><th>Auth</th><th>用途</th></tr>
+<tr><td>GET</td><td>/api/v1/leaderboard</td><td>None</td><td>Top 100，可依稀有度過濾</td></tr>
+<tr><td>GET</td><td>/api/v1/leaderboard/rank/:petId</td><td>None</td><td>單一 pet 排名查詢</td></tr>
+</table>
+<h3 id="55-admin">§5.5 Admin</h3>
+<p>完整 admin endpoints（POST /admin/api/auth/login、CRUD pets / battles / config / GDPR / audit / roles 等）見 API.md §3。RBAC 對照表見 §9.6。</p>
+<h3 id="56-gdpr-self-service">§5.6 GDPR Self-Service</h3>
+<table>
+<tr><th>Method</th><th>Path</th><th>Auth</th><th>用途</th></tr>
+<tr><td>POST</td><td>/api/v1/gdpr/request</td><td>Pet token</td><td>提交 erasure / data_access / restrict / object / rectification</td></tr>
+<tr><td>GET</td><td>/api/v1/gdpr/request/status</td><td>Pet token</td><td>查詢 jobId 狀態</td></tr>
+</table>
+<h3 id="57-marketplaceff_marketplace">§5.7 Marketplace（FF_MARKETPLACE）</h3>
+<table>
+<tr><th>Method</th><th>Path</th><th>Auth</th><th>用途</th></tr>
+<tr><td>GET</td><td>/api/v1/marketplace/listings</td><td>None</td><td>公開瀏覽</td></tr>
+<tr><td>POST</td><td>/api/v1/marketplace/listings</td><td>Pet token</td><td>上架（含 anti-flip 檢查）</td></tr>
+<tr><td>DELETE</td><td>/api/v1/marketplace/listings/:id</td><td>Pet token (owner)</td><td>取消</td></tr>
+<tr><td>POST</td><td>/api/v1/marketplace/listings/:id/buy</td><td>Pet token</td><td>購買（5% 手續費）</td></tr>
+</table>
+<hr>
+<h2 id="6-data-model">§6. Data Model</h2>
+<h3 id="61-erd">§6.1 ERD</h3>
+<div class="diagram-container"><pre class="mermaid">erDiagram
+    direction TB
+    CLAIM_IDENTITIES ||--o{ PETS : &quot;claims&quot;
+    CLAIM_IDENTITIES ||--o{ GDPR_REQUESTS : &quot;submits&quot;
+    PETS ||--o{ CLAIM_CODES : &quot;unlocks&quot;
+    PETS ||--o{ TRAINING_LOGS : &quot;records&quot;
+    PETS ||--o{ FOOD_BUFFS : &quot;consumes&quot;
+    PETS ||--o{ ARENA_MATCHES : &quot;petA&quot;
+    PETS }o--o{ ARENA_MATCHES : &quot;petB&quot;
+    PETS ||--o{ MARKETPLACE_LISTINGS : &quot;listed_as&quot;
+    MARKETPLACE_LISTINGS ||--|| MARKETPLACE_TRANSACTIONS : &quot;settled_to&quot;
+    ADMIN_USERS ||--o{ AUDIT_LOGS : &quot;performs&quot;
+    LEADERBOARD_SNAPSHOTS }|..|{ PETS : &quot;captures&quot;
+
+    CLAIM_IDENTITIES {
+        uuid id PK
+        varchar email_hash UK
+        bytea email_encrypted
+        timestamptz deletion_requested_at
+        timestamptz created_at
+    }
+    PETS {
+        uuid id PK
+        bigint seed UK
+        rarity_enum rarity
+        varchar pet_name
+        smallint stat_speed
+        smallint stat_strength
+        smallint stat_stamina
+        smallint level
+        int total_training_actions
+        timestamptz last_trained_at
+        varchar owner_token_hash
+        timestamptz claimed_at
+        uuid claim_identity_id FK
+        timestamptz reserved_until
+        bool is_banned
+        text banned_reason
+        timestamptz banned_at
+        jsonb generation_meta
+    }
+    CLAIM_CODES {
+        uuid id PK
+        uuid pet_id FK
+        varchar email_hash
+        varchar code_hash
+        timestamptz expires_at
+        timestamptz used_at
+        smallint attempts
+    }
+    ARENA_MATCHES {
+        uuid id PK
+        uuid pet_a_id FK
+        uuid pet_b_id FK
+        bool is_ai_opponent
+        arena_mode_enum mode
+        uuid winner_pet_id FK
+        bigint random_seed
+        smallint stat_delta_a
+        smallint stat_delta_b
+        smallint duration_seconds
+        jsonb battle_log
+        bool is_flagged
+        timestamptz completed_at
+    }
+    TRAINING_LOGS {
+        uuid id PK
+        uuid pet_id FK
+        training_type_enum training_type
+        smallint stat_delta
+        smallint stat_after
+        timestamptz completed_at
+    }
+    FOOD_BUFFS {
+        uuid id PK
+        uuid pet_id FK
+        varchar food_type
+        buff_stat_enum buff_stat
+        smallint magnitude
+        bool is_permanent
+        timestamptz expires_at
+        timestamptz consumed_at
+        timestamptz record_expires_at
+    }
+    LEADERBOARD_SNAPSHOTS {
+        uuid id PK
+        timestamptz snapshot_time
+        jsonb entries
+    }
+    MARKETPLACE_LISTINGS {
+        uuid id PK
+        uuid pet_id FK
+        varchar status
+        int price_credits
+        timestamptz listed_at
+    }
+    MARKETPLACE_TRANSACTIONS {
+        uuid id PK
+        uuid listing_id FK
+        uuid pet_id FK
+        int price_credits
+        int fee_credits
+        timestamptz completed_at
+    }
+    ADMIN_USERS {
+        uuid id PK
+        varchar username UK
+        text password_hash
+        text totp_secret_encrypted
+        varchar role
+        timestamptz locked_until
+        timestamptz deactivated_at
+    }
+    AUDIT_LOGS {
+        bigserial id PK
+        uuid admin_id FK
+        varchar action
+        varchar target_type
+        text target_id
+        jsonb detail
+        varchar ip_address_hash
+        timestamptz created_at
+    }
+    GDPR_REQUESTS {
+        uuid id PK
+        uuid claim_identity_id FK
+        uuid initiating_pet_id FK
+        varchar request_type
+        varchar status
+        timestamptz submitted_at
+        timestamptz completed_at
+    }</pre></div>
+<h3 id="62-indexing-strategy">§6.2 Indexing Strategy</h3>
+<table>
+<tr><th>Table</th><th>Index</th><th>Rationale</th></tr>
+<tr><td>pets</td><td><code>idx_pets_owner_token_hash WHERE owner_token_hash IS NOT NULL</code></td><td>認證快速查詢</td></tr>
+<tr><td>pets</td><td><code>idx_pets_claimed_at WHERE claimed_at IS NOT NULL</code></td><td>claim funnel analytics</td></tr>
+<tr><td>pets</td><td><code>idx_pets_reserved_until WHERE reserved_until IS NOT NULL</code></td><td>24h cleanup job</td></tr>
+<tr><td>claim_codes</td><td><code>idx_claim_codes_email_hash</code></td><td>OTP 查詢</td></tr>
+<tr><td>claim_codes</td><td><code>idx_claim_codes_created_at</code></td><td>72h cleanup</td></tr>
+<tr><td>arena_matches</td><td><code>idx_arena_matches_pet_a_history (pet_a_id, completed_at DESC)</code></td><td>戰鬥歷史頁查詢</td></tr>
+<tr><td>arena_matches</td><td><code>idx_arena_matches_pet_b_history (pet_b_id, completed_at DESC)</code></td><td>同上</td></tr>
+<tr><td>training_logs</td><td><code>idx_training_logs_completed_at (pet_id, completed_at DESC)</code></td><td>每日次數計算</td></tr>
+<tr><td>food_buffs</td><td><code>idx_food_buffs_record_expires</code></td><td>30 day cleanup</td></tr>
+<tr><td>audit_logs</td><td><code>idx_audit_logs_created_at DESC</code></td><td>12-month window 搜尋 ≤ 3 秒</td></tr>
+</table>
+<p>完整 DDL（先 markdown table，再 SQL）見 SCHEMA.md。本 EDD 範例：</p>
+<h4 id="pet-table範例">Pet table（範例）</h4>
+<table>
+<tr><th>Column</th><th>Type</th><th>Constraint</th><th>Notes</th></tr>
+<tr><td>id</td><td>UUID</td><td>PK</td><td>gen_random_uuid()</td></tr>
+<tr><td>seed</td><td>BIGINT</td><td>UK NOT NULL</td><td>procedural seed</td></tr>
+<tr><td>rarity</td><td>rarity_enum</td><td>NOT NULL</td><td>COMMON/RARE/EPIC/LEGENDARY</td></tr>
+<tr><td>stat_speed/strength/stamina</td><td>SMALLINT</td><td>DEFAULT 10 CHECK 1..100</td><td>—</td></tr>
+<tr><td>level</td><td>SMALLINT</td><td>DEFAULT 1 CHECK 1..100</td><td>derived</td></tr>
+<tr><td>owner_token_hash</td><td>VARCHAR(64)</td><td>NULL</td><td>SHA-256 of pet token</td></tr>
+<tr><td>claim_identity_id</td><td>UUID</td><td>FK</td><td>enables GDPR lookup</td></tr>
+</table>
+<pre><code class="language-sql">-- See SCHEMA.md §2.2 for the canonical DDL with all CHECK constraints.
+CREATE TABLE pets (
+  id UUID NOT NULL DEFAULT gen_random_uuid(),
+  seed BIGINT NOT NULL,
+  rarity rarity_enum NOT NULL,
+  stat_speed SMALLINT NOT NULL DEFAULT 10,
+  stat_strength SMALLINT NOT NULL DEFAULT 10,
+  stat_stamina SMALLINT NOT NULL DEFAULT 10,
+  level SMALLINT NOT NULL DEFAULT 1,
+  owner_token_hash VARCHAR(64) NULL,
+  claim_identity_id UUID NULL,
+  CONSTRAINT pk_pets PRIMARY KEY (id),
+  CONSTRAINT uq_pets_seed UNIQUE (seed),
+  CONSTRAINT chk_pet_stat_speed_range CHECK (stat_speed BETWEEN 1 AND 100)
+);</code></pre>
+<h3 id="63-資料生命週期">§6.3 資料生命週期</h3>
+<table>
+<tr><th>資料</th><th>保留策略</th><th>Cleanup Job</th></tr>
+<tr><td>Unclaimed pet (reserved_until 過期)</td><td>24 小時後刪除</td><td><code>cleanup-unclaimed-pets</code>（每 6 小時）</td></tr>
+<tr><td>Claim codes</td><td>72 小時（建立或首次使用後較晚者）</td><td><code>cleanup-claim-codes</code>（每小時）</td></tr>
+<tr><td>Food buffs (record_expires_at)</td><td>30 天</td><td><code>cleanup-food-buffs</code>（每日）</td></tr>
+<tr><td>Leaderboard snapshots</td><td>12 個月 rolling</td><td><code>cleanup-leaderboard-snapshots</code>（每日）</td></tr>
+<tr><td>Training logs</td><td>永久（行為分析）</td><td>—</td></tr>
+<tr><td>Arena matches</td><td>永久（公開記錄）</td><td>—</td></tr>
+<tr><td>Audit logs</td><td>2 年</td><td><code>cleanup-audit-logs</code>（每月）</td></tr>
+<tr><td>Email encrypted</td><td>erasure 後 24 小時內 NULL；hash 永久</td><td>GDPR worker（每 5 分鐘）</td></tr>
+<tr><td>IP hash</td><td>90 天</td><td>清除 job</td></tr>
+<tr><td>Analytics events</td><td>90 天 hot；2 年 cold archive</td><td>tiered archive job</td></tr>
+</table>
+<hr>
+<h2 id="7-key-sequence-flows">§7. Key Sequence Flows</h2>
+<h3 id="71-claim-flow">§7.1 Claim Flow</h3>
+<p>詳見 §4.5.4 Claim Flow Sequence Diagram。</p>
+<h3 id="72-arena-battle">§7.2 Arena Battle</h3>
+<p>詳見 §4.5.4 Arena Battle Sequence Diagram。</p>
+<h3 id="73-gdpr-erasure">§7.3 GDPR Erasure</h3>
+<p>詳見 §4.5.4 GDPR Erasure Sequence Diagram。</p>
+<h3 id="74-leaderboard-update-flow">§7.4 Leaderboard Update Flow</h3>
+<div class="diagram-container"><pre class="mermaid">sequenceDiagram
+    participant API as API Server
+    participant R as Redis
+    participant DB as PostgreSQL
+    participant W as Snapshot Worker
+
+    Note over API,DB: After ArenaMatchCompleted event
+    API-&gt;&gt;R: ZADD leaderboard:global score=newScore member=petId
+    API-&gt;&gt;API: ArenaMatchCompleted event published
+
+    loop every 5 min cron
+        W-&gt;&gt;R: ZRANGEBYSCORE leaderboard:global 0 -1 WITHSCORES LIMIT 0 500
+        W-&gt;&gt;DB: INSERT leaderboard_snapshots (entries=top500JSON, snapshot_time=NOW())
+    end</pre></div>
+<hr>
+<h2 id="8-error-handling--resilience">§8. Error Handling &amp; Resilience</h2>
+<h3 id="81-錯誤分類">§8.1 錯誤分類</h3>
+<table>
+<tr><th>Class</th><th>Examples</th><th>HTTP</th><th>Action</th></tr>
+<tr><td>Validation</td><td>bad email format, missing field</td><td>400</td><td>回傳 detailed validation error</td></tr>
+<tr><td>Auth</td><td>missing/invalid pet token</td><td>401</td><td>拒絕</td></tr>
+<tr><td>Forbidden</td><td>non-owner training</td><td>403</td><td>拒絕</td></tr>
+<tr><td>Not found</td><td>unknown petId</td><td>404</td><td>拒絕</td></tr>
+<tr><td>Conflict</td><td>already claimed, duplicate listing</td><td>409</td><td>拒絕</td></tr>
+<tr><td>Rate limit</td><td>too many requests</td><td>429</td><td>Retry-After header</td></tr>
+<tr><td>Timeout</td><td>matchmaking timeout</td><td>408</td><td>提示 user</td></tr>
+<tr><td>Server</td><td>unexpected exception</td><td>500</td><td>記錄 + 通用訊息</td></tr>
+</table>
+<h3 id="82-retry-strategy">§8.2 Retry Strategy</h3>
+<table>
+<tr><th>Operation</th><th>Retry Policy</th></tr>
+<tr><td>SendGrid send</td><td>3 retries over 15 min；指數退避（1s, 5s, 15s）</td></tr>
+<tr><td>DB transient error</td><td>2 retries（100ms, 500ms）</td></tr>
+<tr><td>Redis read</td><td>1 retry（50ms）；失敗則 fallback 至 PostgreSQL</td></tr>
+<tr><td>External API</td><td>Circuit breaker（半開狀態探測）</td></tr>
+</table>
+<h3 id="83-circuit-breaker">§8.3 Circuit Breaker</h3>
+<p>採用 <code>opossum</code> library。設定：</p>
+<ul><li>failureThreshold: 50%（10 次內 5 次失敗）</li><li>timeout: 5000 ms</li><li>resetTimeout: 30000 ms</li><li>halfOpenAfter: 30 秒</li><li>適用對象：SendGrid API、Supabase REST、Upstash REST</li></ul>
+<h3 id="84-idempotency">§8.4 Idempotency</h3>
+<p>所有 mutation API 支援 <code>Idempotency-Key</code> header（client UUID）：</p>
+<ul><li>伺服器於 24 小時內保證重複相同 key 回傳相同結果</li><li>儲存於 Redis：<code>idempotency:{key}</code> TTL 86400s</li><li>value: 序列化的 response body + status code</li></ul>
+<h3 id="85-graceful-degradation-strategy">§8.5 Graceful Degradation Strategy</h3>
+<h4 id="依賴服務降級矩陣">依賴服務降級矩陣</h4>
+<table>
+<tr><th>依賴</th><th>完全失敗時行為</th><th>部分失敗時行為</th></tr>
+<tr><td>Redis</td><td>leaderboard 直連 PostgreSQL（slow path）；rate limit 暫停（log alert）</td><td>命中率下降，自動 retry</td></tr>
+<tr><td>SendGrid</td><td>切換 Nodemailer SMTP fallback；alert</td><td>個別失敗 retry 3 次</td></tr>
+<tr><td>PostgreSQL Standby</td><td>讀流量轉回 Primary（DB 過載風險）；alert</td><td>failover 自動執行</td></tr>
+<tr><td>Vercel CDN</td><td>DNS fallback 至 origin（TTL 60 秒）</td><td>邊緣節點自動切換</td></tr>
+</table>
+<h4 id="bulkhead-pattern">Bulkhead Pattern</h4>
+<p>API server 內部用 connection pool 隔離不同類型工作：</p>
+<ul><li><code>pgPoolPlayer</code> (max 30 connections) — 玩家 API</li><li><code>pgPoolAdmin</code> (max 10 connections) — Admin API</li><li><code>pgPoolWorker</code> (max 10 connections) — Worker</li></ul>
+<p>Player burst 不會耗盡 Admin / Worker 的連線資源。</p>
+<h4 id="circuit-breaker-配置範例">Circuit Breaker 配置範例</h4>
+<pre><code class="language-typescript">import CircuitBreaker from &#x27;opossum&#x27;;
+
+const sendGridBreaker = new CircuitBreaker(sendGridClient.send, {
+  timeout: 5000,
+  errorThresholdPercentage: 50,
+  resetTimeout: 30000,
+});
+sendGridBreaker.fallback((to, subject, body) =&gt; smtpClient.send(to, subject, body));
+sendGridBreaker.on(&#x27;open&#x27;, () =&gt; logger.warn(&#x27;sendgrid circuit open&#x27;));
+sendGridBreaker.on(&#x27;halfOpen&#x27;, () =&gt; logger.info(&#x27;sendgrid circuit half-open&#x27;));</code></pre>
+<hr>
+<h2 id="9-security-design">§9. Security Design</h2>
+<h3 id="91-認證授權">§9.1 認證授權</h3>
+<h4 id="pet-access-token-model">Pet Access Token Model</h4>
+<ul><li>32 byte cryptographically random（PET_ACCESS_TOKEN_MIN_BYTES）；URL-safe base64</li><li>由 <code>crypto.randomBytes(32)</code> 產生</li><li>只存 SHA-256 hash 於 <code>pets.owner_token_hash</code></li><li>透過 <code>Authorization: Bearer &lt;token&gt;</code> 或 <code>?token=</code> query</li><li>Admin 設 <code>owner_token_hash = NULL</code> 立即作廢</li><li>Recovery 流程透過 POST /api/v1/claim/recover</li></ul>
+<h4 id="admin-authentication">Admin Authentication</h4>
+<ul><li>bcrypt password (work factor ≥ 12) + TOTP (RFC 6238, 30s window)</li><li>Server-side Redis session (httpOnly + SameSite=Strict cookie)</li><li>4h inactivity / 8h absolute expiry</li><li>Pre-auth IP rate limit: 10/15min per IP</li><li>Account lockout: 10 連續失敗 → 30 分鐘鎖定</li><li>First-login TOTP enrollment：HTTP 403 <code>TOTP_SETUP_REQUIRED</code> + setupToken（短效 JWT）</li></ul>
+<h3 id="92-輸入驗證">§9.2 輸入驗證</h3>
+<ul><li>所有 endpoint 使用 Zod schema 驗證 body / query / params</li><li>Fastify JSON Schema 直接掛載 route 定義</li><li>共享 schema 於 <code>@app/shared/schemas/</code> 同時為 FE/BE 使用</li><li>拒絕 unknown fields（strict mode）</li></ul>
+<h3 id="93-secrets-管理">§9.3 Secrets 管理</h3>
+<ul><li>所有 secret（DB URL、SendGrid key、admin JWT secret、AES-256-GCM email key）透過 Vercel/Railway env vars</li><li>啟動時 validate 必要 env，缺失立即 <code>process.exit(1)</code></li><li>90 天輪換週期（runbook §5）</li><li>不在 source / docker image / log 中</li></ul>
+<h3 id="94-敏感資料處理">§9.4 敏感資料處理</h3>
+<table>
+<tr><th>Data</th><th>Storage</th><th>Transmission</th><th>Logs</th></tr>
+<tr><td>Email plaintext</td><td>不存（只在 in-memory + SendGrid send）</td><td>TLS only</td><td>NEVER</td></tr>
+<tr><td>Email hash (SHA-256)</td><td>indexed in claim_identities</td><td>—</td><td>OK</td></tr>
+<tr><td>Email encrypted (AES-256-GCM)</td><td>claim_identities.email_encrypted</td><td>—</td><td>NEVER</td></tr>
+<tr><td>Pet access token</td><td>not stored；只存 hash</td><td>URL / Authorization header (TLS)</td><td>NEVER</td></tr>
+<tr><td>IP address</td><td>hash only；90 day retention</td><td>TLS</td><td>hashed</td></tr>
+<tr><td>Admin password</td><td>bcrypt hash</td><td>TLS POST</td><td>NEVER</td></tr>
+<tr><td>TOTP secret</td><td>AES-256-GCM encrypted</td><td>TLS during enrollment</td><td>NEVER</td></tr>
+</table>
+<h3 id="95-stride-威脅模型--owasp-top-10">§9.5 STRIDE 威脅模型 + OWASP Top 10</h3>
+<h4 id="stride">STRIDE</h4>
+<table>
+<tr><th>威脅</th><th>場景</th><th>對策</th></tr>
+<tr><td><strong>Spoofing</strong></td><td>偽造 pet token / admin session</td><td>SHA-256 hash + 32-byte entropy；Redis session；TOTP</td></tr>
+<tr><td><strong>Tampering</strong></td><td>修改戰鬥結果 / 排行榜</td><td>服務端權威計算；Redis ZADD only by API；audit log</td></tr>
+<tr><td><strong>Repudiation</strong></td><td>Admin 否認操作</td><td>audit_logs 不可變；2 年保留</td></tr>
+<tr><td><strong>Information Disclosure</strong></td><td>Email 列舉 / DB 洩漏</td><td>Same response for valid/invalid email；email encrypted at rest</td></tr>
+<tr><td><strong>Denial of Service</strong></td><td>Bot 灌排行榜 / 洪水</td><td>Rate limit + bot detection + 50 battles/60min flag</td></tr>
+<tr><td><strong>Elevation of Privilege</strong></td><td>Player 取得 admin token</td><td>RBAC + admin session 隔離 + IP allowlist optional</td></tr>
+</table>
+<h4 id="owasp-top-10-對策">OWASP Top 10 對策</h4>
+<table>
+<tr><th>OWASP</th><th>對策</th></tr>
+<tr><td><strong>A01 Broken Access Control</strong></td><td>RBAC 三層（super_admin / moderator / read_only）+ token-based pet ownership 驗證 + 每個 mutation 檢查 ownership</td></tr>
+<tr><td><strong>A02 Cryptographic Failures</strong></td><td>TLS 1.2+ everywhere；AES-256-GCM email at rest；SHA-256 token hashing；bcrypt(≥12) password；HTTPS HSTS 1 year</td></tr>
+<tr><td><strong>A03 Injection</strong></td><td>Parameterized queries（pg <code>$1</code>）；Zod schema validation；no string concat SQL；no eval</td></tr>
+<tr><td><strong>A04 Insecure Design</strong></td><td>Threat model（本節 STRIDE）；anti-enumeration response shape；one-time OTP；token-not-link</td></tr>
+<tr><td><strong>A05 Security Misconfiguration</strong></td><td>CSP nonce-based；secure headers（HSTS/X-Frame-Options/X-Content-Type-Options/Referrer-Policy）；無 default credentials</td></tr>
+<tr><td><strong>A06 Vulnerable Components</strong></td><td><code>pnpm audit</code> in CI gate；Dependabot；renovate weekly；Snyk monthly</td></tr>
+<tr><td><strong>A07 Identification &amp; Auth</strong></td><td>TOTP MFA；rate-limit on login；account lockout 10/30min；session 4h/8h；IP allowlist</td></tr>
+<tr><td><strong>A08 Software &amp; Data Integrity</strong></td><td>SRI for any CDN scripts；signed releases；commit signing optional；ghcr.io image digest pinning</td></tr>
+<tr><td><strong>A09 Logging &amp; Monitoring</strong></td><td>三支柱觀測；audit_logs；alert on anomalies（&gt;1% error / &gt;1000ms p99）</td></tr>
+<tr><td><strong>A10 SSRF</strong></td><td>No user-controlled outbound URLs；SendGrid / Upstash / Supabase 均為 fixed allowlist；DNS rebinding 防護</td></tr>
+</table>
+<h3 id="96-rbac-資料模型">§9.6 RBAC 資料模型</h3>
+<p><code>has_admin_backend = true</code>。<code>admin_users.role</code> 三值：</p>
+<table>
+<tr><th>Role</th><th>可存取 endpoint</th><th>不可存取</th></tr>
+<tr><td><strong>super_admin</strong></td><td>所有 GET/POST/PUT/DELETE/PATCH endpoints</td><td>—</td></tr>
+<tr><td><strong>moderator</strong></td><td><code>/admin/api/dashboard</code> GET、<code>/admin/api/pets</code> GET/POST(ban/unban)、<code>/admin/api/leaderboard</code> GET、<code>/admin/api/battles</code> GET/POST(flag)、<code>/admin/api/suspicious</code> GET、<code>/admin/api/email/monitor</code> GET、<code>/admin/api/analytics</code> GET</td><td><code>/admin/api/config/<em></code>、<code>/admin/api/gdpr/</em></code>、<code>/admin/api/roles*</code>、<code>/admin/api/audit</code></td></tr>
+<tr><td><strong>read_only</strong></td><td>所有 GET endpoints（dashboard / pets / leaderboard / battles / email monitor / analytics）</td><td>任何 mutation；<code>/admin/api/audit</code>、<code>/admin/api/roles</code>、<code>/admin/api/gdpr/*</code></td></tr>
+</table>
+<p>具體 endpoints x permission 對照（節錄）：</p>
+<table>
+<tr><th>Endpoint</th><th>super_admin</th><th>moderator</th><th>read_only</th></tr>
+<tr><td>GET /admin/api/dashboard</td><td>✅</td><td>✅</td><td>✅</td></tr>
+<tr><td>GET /admin/api/pets</td><td>✅</td><td>✅</td><td>✅</td></tr>
+<tr><td>POST /admin/api/pets/:id/ban</td><td>✅</td><td>✅</td><td>❌</td></tr>
+<tr><td>GET /admin/api/leaderboard</td><td>✅</td><td>✅</td><td>✅</td></tr>
+<tr><td>POST /admin/api/battles/:id/flag</td><td>✅</td><td>✅</td><td>❌</td></tr>
+<tr><td>PUT /admin/api/config/runtime</td><td>✅</td><td>❌</td><td>❌</td></tr>
+<tr><td>PUT /admin/api/config/economy</td><td>✅</td><td>❌</td><td>❌</td></tr>
+<tr><td>POST /admin/api/gdpr/delete</td><td>✅</td><td>❌</td><td>❌</td></tr>
+<tr><td>POST /admin/api/roles</td><td>✅</td><td>❌</td><td>❌</td></tr>
+<tr><td>DELETE /admin/api/roles/:id</td><td>✅</td><td>❌</td><td>❌</td></tr>
+<tr><td>GET /admin/api/audit</td><td>✅</td><td>❌</td><td>❌</td></tr>
+</table>
+<hr>
+<h2 id="10-observability-design">§10. Observability Design</h2>
+<h3 id="101-logging">§10.1 Logging</h3>
+<ul><li>Pino structured JSON</li><li>Levels: ERROR / WARN / INFO / DEBUG（prod = INFO）</li><li>必要欄位：<code>timestamp</code>, <code>level</code>, <code>service</code>, <code>trace_id</code>, <code>span_id</code>, <code>bc</code>, <code>event</code>, <code>duration_ms</code></li><li><code>X-Request-Id</code> header 透過所有 service boundary</li><li>PII：email plaintext / IP plaintext NEVER；只記 hash</li><li>Production HTTP 500 stripping：<code>stack</code>, internal path 不外洩</li></ul>
+<h3 id="102-metrics">§10.2 Metrics</h3>
+<p>採用 Prometheus exporter + Datadog/Grafana Cloud。關鍵指標：</p>
+<table>
+<tr><th>Metric</th><th>Type</th><th>Labels</th></tr>
+<tr><td><code>http_request_duration_seconds</code></td><td>histogram</td><td>method, route, status</td></tr>
+<tr><td><code>http_requests_total</code></td><td>counter</td><td>method, route, status</td></tr>
+<tr><td><code>arena_matches_total</code></td><td>counter</td><td>mode, outcome</td></tr>
+<tr><td><code>pet_claims_total</code></td><td>counter</td><td>rarity</td></tr>
+<tr><td><code>gdpr_request_processing_duration_seconds</code></td><td>histogram</td><td>type</td></tr>
+<tr><td><code>leaderboard_update_lag_seconds</code></td><td>gauge</td><td>—</td></tr>
+<tr><td><code>redis_memory_usage_percent</code></td><td>gauge</td><td>—</td></tr>
+<tr><td><code>db_connection_pool_utilization</code></td><td>gauge</td><td>pool_name</td></tr>
+<tr><td><code>email_delivery_success_rate</code></td><td>gauge</td><td>provider</td></tr>
+<tr><td><code>sendgrid_failover_active</code></td><td>gauge</td><td>—</td></tr>
+</table>
+<h3 id="103-distributed-tracing">§10.3 Distributed Tracing</h3>
+<p>OpenTelemetry SDK 注入 Fastify、Postgres <code>pg</code>、Redis <code>ioredis</code>、SendGrid axios。<code>trace_id</code> 由 edge 注入並沿 <code>X-Trace-ID</code> 傳遞。Datadog APM 接收。</p>
+<h3 id="104-alerting">§10.4 Alerting</h3>
+<table>
+<tr><th>Alert</th><th>Threshold</th><th>Window</th><th>Channel</th><th>Source</th></tr>
+<tr><td>API error rate</td><td>&gt;1%</td><td>5 min</td><td>PagerDuty + Slack</td><td>OBSERVABILITY_ERROR_RATE_ALERT_WINDOW</td></tr>
+<tr><td>P99 latency</td><td>&gt;1000 ms</td><td>5 min</td><td>Slack</td><td>OBSERVABILITY_LATENCY_ALERT_THRESHOLD</td></tr>
+<tr><td>Email delivery failure</td><td>&gt;2%</td><td>30 min</td><td>PagerDuty</td><td>EMAIL_DELIVERY_FAILURE_RATE_MAX_PERCENT</td></tr>
+<tr><td>Leaderboard lag</td><td>&gt;60 s</td><td>—</td><td>Slack</td><td>OBSERVABILITY_LEADERBOARD_LAG_ALERT</td></tr>
+<tr><td>Pet claim drop</td><td>&lt;5/hr for 2h</td><td>2 hr</td><td>Slack</td><td>OBSERVABILITY_PET_CLAIMS_DROP_THRESHOLD</td></tr>
+<tr><td>Arena battle drop</td><td>&lt;10/hr for 2h</td><td>2 hr</td><td>Slack</td><td>OBSERVABILITY_ARENA_BATTLES_DROP_THRESHOLD</td></tr>
+<tr><td>Redis memory</td><td>&gt;80%</td><td>—</td><td>Slack</td><td>INFRA_REDIS_ALERT_THRESHOLD</td></tr>
+<tr><td>DB pool utilization</td><td>&gt;80%</td><td>—</td><td>Slack</td><td>INFRA_DB_POOL_ALERT_THRESHOLD</td></tr>
+<tr><td>GDPR queue backlog</td><td>&gt;50 pending</td><td>1 hr</td><td>PagerDuty</td><td>(custom)</td></tr>
+<tr><td>Bot flag spike</td><td>&gt;20 flagged/hr</td><td>1 hr</td><td>Slack</td><td>BOT_DETECTION_BATTLES_THRESHOLD</td></tr>
+</table>
+<h3 id="105-slo--sli--error-budget">§10.5 SLO / SLI / Error Budget</h3>
+<table>
+<tr><th>Metric</th><th>SLO</th><th>SLI</th><th>Error Budget</th></tr>
+<tr><td>Availability</td><td>99.9% / month</td><td>uptime_minutes / 43200</td><td>43.8 min / month</td></tr>
+<tr><td>P99 read latency</td><td>&lt; 200 ms</td><td>http_request_duration_seconds{type=&quot;read&quot;} p99</td><td>5% of requests</td></tr>
+<tr><td>P99 write latency</td><td>&lt; 500 ms</td><td>http_request_duration_seconds{type=&quot;write&quot;} p99</td><td>5% of requests</td></tr>
+<tr><td>Email delivery success</td><td>≥ 98%</td><td>email_delivery_success_rate</td><td>2% / 30 min</td></tr>
+<tr><td>Leaderboard update lag</td><td>≤ 30 s</td><td>leaderboard_update_lag_seconds p95</td><td>5% breach budget</td></tr>
+<tr><td>Spam complaint rate</td><td>&lt; 0.1%</td><td>sendgrid_spam_complaints / sent</td><td>—</td></tr>
+</table>
+<p>Error budget consumption tracking 月度報告；超過 50% budget 觸發 feature freeze（先修穩定性）。</p>
+<h3 id="106-audit-log-design">§10.6 Audit Log Design</h3>
+<ul><li>table: <code>audit_logs</code>（已於 §6 定義）</li><li>不可變（無 UPDATE / DELETE 路徑）</li><li>BIGSERIAL 提供順序保證</li><li>2 年保留</li><li><code>idx_audit_logs_created_at DESC</code> 確保 12-month window 搜尋 ≤ 3 秒</li><li>關鍵 action types：<code>pet.ban</code>, <code>pet.unban</code>, <code>match.flag</code>, <code>match.unflag</code>, <code>config.runtime.update</code>, <code>config.economy.update</code>, <code>gdpr.erasure.create</code>, <code>gdpr.erasure.complete</code>, <code>admin.user.create</code>, <code>admin.user.deactivate</code>, <code>admin.totp.reset</code>, <code>admin.login.success</code>, <code>admin.login.failed</code>, <code>admin.lockout</code></li></ul>
+<h3 id="107-synthetic-monitoring--health-check">§10.7 Synthetic Monitoring &amp; Health Check</h3>
+<ul><li><code>GET /health</code>：≤ 500 ms 回應；含 DB / Redis / SendGrid 連線狀態</li><li><code>GET /health/live</code>：純 process alive</li><li><code>GET /health/ready</code>：依賴就緒（k8s readiness probe）</li><li>Datadog Synthetic：每 1 分鐘 ping 6 個關鍵 endpoint（landing, claim, pet, leaderboard, arena, admin login）</li><li>Pingdom 多區域監控</li></ul>
+<hr>
+<h2 id="11-performance-design">§11. Performance Design</h2>
+<h3 id="111-容量規劃基於-constants">§11.1 容量規劃（基於 CONSTANTS）</h3>
+<table>
+<tr><th>Parameter</th><th>Value</th><th>Source</th></tr>
+<tr><td>Normal RPS</td><td>100</td><td>NORMAL_OPERATION_RPS</td></tr>
+<tr><td>Peak RPS</td><td>500</td><td>PEAK_OPERATION_RPS</td></tr>
+<tr><td>Normal DAU</td><td>2,000–5,000</td><td>NORMAL_OPERATION_DAU_MIN/MAX</td></tr>
+<tr><td>Peak Concurrent</td><td>2,000</td><td>PEAK_CONCURRENT_USERS</td></tr>
+<tr><td>DB connections (min/max)</td><td>20 / 50</td><td>DB_CONNECTION_POOL_MIN/MAX_CONNECTIONS</td></tr>
+<tr><td>Pet generation batch</td><td>1,000 within 10 s</td><td>PET_GENERATION_CONCURRENT_BATCH</td></tr>
+<tr><td>Matchmaking concurrent</td><td>100</td><td>ARENA_MATCHMAKING_CONCURRENT_ENTRIES</td></tr>
+</table>
+<h3 id="112-capacity-planning">§11.2 Capacity Planning</h3>
+<h4 id="負載預測模型">負載預測模型</h4>
+<p>假設 DAU = 2,000，平均每用戶 5 次互動 / 日：</p>
+<ul><li>daily requests ≈ 10,000</li><li>平均 RPS（24h 攤平）= 10,000 / 86,400 ≈ 0.12 RPS</li><li>但峰值集中於 prime time（晚 7-11 點 4 小時）= 10,000 / 14,400 ≈ 0.7 RPS</li><li>病毒事件（10× spike）= 7 RPS sustained，瞬間突發可達 100 RPS</li></ul>
+<p>→ MVP NORMAL_OPERATION_RPS = 100 RPS 預留 14× 安全邊際；PEAK = 500 RPS 預留 70× 邊際。</p>
+<h4 id="資源規模計算">資源規模計算</h4>
+<pre><code class="">api_replicas = ceil(peak_rps / rps_per_replica × safety_factor)
+             = ceil(500 / 200 × 1.5) = 4 replicas (peak)
+api_min_replicas = 2 (HA floor; HC-1)
+hpa_target_cpu = 70% (HORIZONTAL_SCALE_CPU_THRESHOLD_PERCENT)
+
+worker_replicas = 2 (HA floor, idempotent design)
+
+db_pool_size = peak_concurrent_writes × avg_query_time / max_acceptable_latency
+            ≈ 50 (DB_CONNECTION_POOL_MAX_CONNECTIONS) — current setting headroom OK
+
+redis_memory = leaderboard(2k pets × 50B) + rate_limit_keys + sessions
+            ≈ 5 MB baseline；growth to 50 MB at DAU 100k → Upstash ample</code></pre>
+<h4 id="成本估算dau--5000">成本估算（DAU ≤ 5,000）</h4>
+<table>
+<tr><th>Component</th><th>Monthly Cost (USD)</th><th>Source</th></tr>
+<tr><td>Vercel Pro</td><td>$20</td><td>static hosting</td></tr>
+<tr><td>Railway Pro</td><td>$20–80</td><td>API + worker</td></tr>
+<tr><td>Supabase Pro</td><td>$25</td><td>DB + 8GB</td></tr>
+<tr><td>Upstash Pay-as-go</td><td>$0–20</td><td>Redis</td></tr>
+<tr><td>SendGrid Essentials</td><td>$20</td><td>50k emails/月</td></tr>
+<tr><td>Datadog Free + Pro tier</td><td>$0–30</td><td>observability</td></tr>
+<tr><td><strong>Total</strong></td><td><strong>$85–195</strong></td><td>within SERVER_COST_DAU5K_MONTHLY_MAX = 200</td></tr>
+</table>
+<h4 id="擴展觸發條件">擴展觸發條件</h4>
+<table>
+<tr><th>Trigger</th><th>Action</th></tr>
+<tr><td>API CPU &gt; 70% sustained 5 min</td><td>HPA scale-out（max 6）</td></tr>
+<tr><td>DB pool &gt; 80%</td><td>alert；考慮升級到 Pro+</td></tr>
+<tr><td>Redis memory &gt; 80%</td><td>alert；考慮升級</td></tr>
+<tr><td>SendGrid &gt;9k/month</td><td>upgrade to Pro tier</td></tr>
+<tr><td>DAU &gt; 5k sustained 2 weeks</td><td>re-run 容量規劃</td></tr>
+</table>
+<h3 id="113-快取策略">§11.3 快取策略</h3>
+<table>
+<tr><th>Tier</th><th>Tool</th><th>TTL</th><th>Invalidation</th></tr>
+<tr><td>Browser cache</td><td>Cache-Control</td><td>static 1 year, API 0</td><td>hash filename</td></tr>
+<tr><td>CDN edge</td><td>Vercel</td><td>static aggressive</td><td>redeploy</td></tr>
+<tr><td>TanStack Query</td><td>client</td><td>30 s stale</td><td>mutation invalidation</td></tr>
+<tr><td>Redis leaderboard</td><td>sorted set</td><td>no TTL</td><td>event-driven update</td></tr>
+<tr><td>Redis config cache</td><td>hash</td><td>5 min（CONFIG_CACHE_REFRESH_TIME）</td><td>admin push invalidation</td></tr>
+<tr><td>DB query cache</td><td>pg <code>pg-mem</code> no</td><td>n/a</td><td>n/a</td></tr>
+</table>
+<h3 id="114-資料庫優化">§11.4 資料庫優化</h3>
+<ul><li>所有 hot path 使用 read replica</li><li>Composite index <code>(pet_id, completed_at DESC)</code> for arena/training history</li><li><code>EXPLAIN ANALYZE</code> CI gate for queries on &gt;10k rows tables</li><li>VACUUM / ANALYZE auto by Supabase；weekly 監控 bloat</li><li>Connection pool 透過 <code>pg</code> driver；min 20, max 50</li></ul>
+<hr>
+<h2 id="12-testing-strategy">§12. Testing Strategy</h2>
+<h3 id="121-unit-tests">§12.1 Unit Tests</h3>
+<ul><li>Vitest；80% coverage 業務模組（UNIT_TEST_COVERAGE_MIN_PERCENT）</li><li><code>max-lines: 800</code>、<code>max-lines-per-function: 50</code> ESLint enforcement</li><li>優先模組：pet generation、battle calc、claim code OTP、rate-limit、GDPR worker</li></ul>
+<h3 id="122-integration-tests">§12.2 Integration Tests</h3>
+<table>
+<tr><th>Area</th><th>Tool</th></tr>
+<tr><td>API routes</td><td>Fastify <code>inject()</code> + Vitest</td></tr>
+<tr><td>Claim flow E2E</td><td>Vitest + Nodemailer test inbox</td></tr>
+<tr><td>Arena battle determinism</td><td>Vitest（fixed seed）</td></tr>
+<tr><td>Rate limit</td><td>Vitest + Redis ephemeral</td></tr>
+<tr><td>GDPR erasure worker</td><td>Vitest + test PG</td></tr>
+<tr><td>Leaderboard sync</td><td>Vitest + Redis + PG</td></tr>
+</table>
+<h3 id="123-e2e-tests">§12.3 E2E Tests</h3>
+<ul><li>Playwright；breakpoints 320/768/1024/1440</li><li>Full flows：guest interaction、claim end-to-end、train、arena rate limit、leaderboard filter</li><li>a11y：axe-core integration；無 critical violations</li><li>Visual regression：screenshots vs baseline</li></ul>
+<h3 id="124-load--stress">§12.4 Load / Stress</h3>
+<ul><li>k6 scripts：500 RPS sustained 5 min；2,000 PCU spike 30 s</li><li>gating staging deploy</li></ul>
+<hr>
+<h2 id="13-deployment--operations">§13. Deployment &amp; Operations</h2>
+<h3 id="131-部署架構">§13.1 部署架構</h3>
+<p>詳見 §3.7.1（生產 HA 圖）+ §3.5（Environment Matrix）+ §3.5b（Service Port Matrix）。</p>
+<h3 id="132-deployment-strategy">§13.2 Deployment Strategy</h3>
+<table>
+<tr><th>Strategy</th><th>適用場景</th><th>優劣</th></tr>
+<tr><td><strong>Rolling Update</strong>（預設）</td><td>一般 backwards-compatible 變更</td><td>低成本；無停機；窗口期較長</td></tr>
+<tr><td><strong>Blue-Green</strong></td><td>重大架構變更或 DB schema migration</td><td>即時 rollback；雙環境成本</td></tr>
+<tr><td><strong>Canary</strong>（5% → 25% → 100%）</td><td>高風險功能（rate-limit / matchmaking 演算法）</td><td>漸進；可中斷；需 feature flag</td></tr>
+</table>
+<p>預設 rolling；每個 GA 主要功能評估是否需 blue-green / canary。</p>
+<h3 id="133-migration">§13.3 Migration</h3>
+<ul><li>Tool: <code>node-pg-migrate</code>（idempotent；only pending migrations）</li><li>Step：deploy backwards-compatible code → migrate schema → deploy code 使用新 schema → drop old fields（separate release）</li><li>Down migration 必須手寫；CI 驗證 up + down round-trip</li><li>Migration 時間 SLA：≤ 30 秒（不阻塞請求）；長操作（如 reindex）使用 <code>CONCURRENTLY</code></li></ul>
+<h3 id="134-rollback">§13.4 Rollback</h3>
+<ul><li>API：deploy 前一版本 docker tag；&lt; 5 分鐘回退</li><li>DB：down migration（如可），否則 PITR（point-in-time recovery）至 deploy 前 5 分鐘</li><li>Frontend：Vercel rollback 一鍵</li><li>Feature flag emergency kill：env var 改值 → cache 5 分鐘清除（CONFIG_CACHE_REFRESH_TIME）</li></ul>
+<h3 id="135-disaster-recovery-dr">§13.5 Disaster Recovery (DR)</h3>
+<ul><li>DB daily backup → S3 (RPO 24 hr worst case；synchronous replica RPO=0)</li><li>DR drill：每季演練從 backup 還原至 staging</li><li>Region failover：us-east → eu-west 30 分鐘 RTO（手動觸發 + DNS TTL 60 秒）</li><li>Runbook §8 DR procedure</li></ul>
+<h3 id="136-cicd-pipeline">§13.6 CI/CD Pipeline</h3>
+<div class="diagram-container"><pre class="mermaid">flowchart TD
+    PR[Pull Request] --&gt; Lint[Lint + Type-check]
+    Lint --&gt; Unit[Unit Tests]
+    Unit --&gt; Int[Integration Tests]
+    Int --&gt; Build[Build + Docker]
+    Build --&gt; Push[Push ghcr.io]
+    Push --&gt; Staging[Deploy Staging]
+    Staging --&gt; Smoke[Smoke Tests]
+    Smoke --&gt; Approve{Manual Approval}
+    Approve --&gt;|Yes| Prod[Deploy Production]
+    Approve --&gt;|No| End((Block))
+    Prod --&gt; SmokeProd[Smoke Tests Prod]
+    SmokeProd --&gt; Notify[Slack notification]</pre></div>
+<ul><li>GitHub Actions</li><li>Concurrency control：每 branch 一條 pipeline</li><li>Required checks：lint / type-check / unit / integration / build</li></ul>
+<h3 id="137-runbook-framework">§13.7 Runbook Framework</h3>
+<p><code>docs/runbook.md</code> 章節：</p>
+<ol><li>服務啟停</li><li>部署 / Rollback</li><li>DB failover 應變</li><li>Redis failover 應變</li><li>Secret rotation（90 天）</li><li>GDPR 手動處理</li><li>Bot 大量湧入應變</li><li>DR 還原 procedure</li><li>Audit log 匯出</li></ol>
+<hr>
+<h2 id="14-risk-assessment">§14. Risk Assessment</h2>
+<table>
+<tr><th>#</th><th>Risk</th><th>Probability</th><th>Impact</th><th>Mitigation</th></tr>
+<tr><td>R-01</td><td>Supabase free tier 觸頂</td><td>Medium</td><td>High</td><td>Pool 監控；60% 升級</td></tr>
+<tr><td>R-02</td><td>Phaser 3 低端 mobile FPS &lt; 30</td><td>Medium</td><td>Medium</td><td>CSS sprite fallback；Galaxy A13 測試</td></tr>
+<tr><td>R-03</td><td>SendGrid 投遞率 &lt; 98%</td><td>Low</td><td>High</td><td>SPF/DKIM；SMTP fallback</td></tr>
+<tr><td>R-04</td><td>Redis eviction 排行榜過時</td><td>Low</td><td>Medium</td><td>Upstash durability；PostgreSQL fallback</td></tr>
+<tr><td>R-05</td><td>GDPR 7 天 SLA 漏</td><td>Low</td><td>High</td><td>DLQ + 24h 人工 override</td></tr>
+<tr><td>R-06</td><td>MVP 預算超支</td><td>Low</td><td>High</td><td>Cost ceiling alert $200/月</td></tr>
+<tr><td>R-07</td><td>Bot 攻擊排行榜</td><td>Medium</td><td>Medium</td><td>Bot detection + 50 battles/60min flag + admin tools</td></tr>
+<tr><td>R-08</td><td>Email enumeration</td><td>Low</td><td>Medium</td><td>Same response shape；rate limit</td></tr>
+</table>
+<hr>
+<h2 id="15-technical-debt--known-compromises">§15. Technical Debt &amp; Known Compromises</h2>
+<table>
+<tr><th>#</th><th>Item</th><th>Compromise</th><th>Reason</th><th>Target Resolution</th></tr>
+<tr><td>TD-01</td><td>Pet ownership transfer 未實作</td><td>Pets 變 unclaimed (OQ-E04)</td><td>MVP 範圍縮減</td><td>Post-v1 用戶確認</td></tr>
+<tr><td>TD-02</td><td>Feature flag 為 ENV-based</td><td>不可 runtime toggle</td><td>LaunchDarkly 延後 beta+</td><td>Post-beta 如需 A/B</td></tr>
+<tr><td>TD-03</td><td>Admin portal 共享 Vercel project</td><td>共享 CSP</td><td>MVP 簡化</td><td>Post-GA 如安全審計需要</td></tr>
+<tr><td>TD-04</td><td>OG image 動態生成延後</td><td>Static HTML fallback</td><td>Puppeteer 過重</td><td>Post-beta Cloudflare Browser</td></tr>
+<tr><td>TD-05</td><td>Sumo edge case 未完整規格</td><td>CONSTANTS ±15% 涵蓋 race + sumo</td><td>主流程穩定後規範</td><td>Arena 公開前</td></tr>
+<tr><td>TD-06</td><td>Worker in-process EventEmitter</td><td>Cross-process 無事件 bus</td><td>MVP 量級</td><td>GA 階段 NATS / Kafka 評估</td></tr>
+</table>
+<hr>
+<h2 id="16-implementation-plan">§16. Implementation Plan</h2>
+<h3 id="161-里程碑">§16.1 里程碑</h3>
+<h4 id="phase-1--core-alpha">Phase 1 — Core (Alpha)</h4>
+<ul><li>範圍：Pet generation / claim flow / pet display / 基礎 leaderboard / admin pet list</li><li>Schema：<code>pets</code>, <code>claim_identities</code>, <code>claim_codes</code>, <code>admin_users</code>, <code>audit_logs</code>, <code>gdpr_requests</code></li><li>API：claim、verify、recover、pet random、pet read、leaderboard（PG-only，Redis 待 Phase 2）</li><li>Email：SendGrid + SMTP fallback</li><li>Frontend：landing、claim、pet pages</li><li>Rate limit：Redis claim/code-entry</li><li>Exit criteria：20 alpha testers；claim conversion ≥ 7%；Day-3 retention ≥ 30%；6-week claimed pets ≥ 500</li></ul>
+<h4 id="phase-2--arena--leaderboard-beta">Phase 2 — Arena + Leaderboard (Beta)</h4>
+<ul><li>範圍：training / food / arena / live leaderboard / records / suspicious pets</li><li>Schema：<code>training_logs</code>, <code>arena_matches</code>, <code>food_buffs</code>, <code>leaderboard_snapshots</code></li><li>API：train、feed、arena enter、match read、history、leaderboard（Redis sorted set）</li><li>Bot detection：50 battles/60min auto-flag</li><li>Frontend：arena、battle result、leaderboard、records、training</li><li>Admin：leaderboard 管理、suspicious dashboard、runtime config</li><li>Exit criteria：≥ 50 daily battles；Day-7 retention ≥ 25%；500 beta users via itch.io + Discord</li></ul>
+<h4 id="phase-3--marketplace--admin-full-ga">Phase 3 — Marketplace + Admin Full (GA)</h4>
+<ul><li>範圍：marketplace（FF_MARKETPLACE）、GDPR full、game economy config、analytics、audit</li><li>Schema：<code>marketplace_listings</code>, <code>marketplace_transactions</code></li><li>Performance hardening：Lighthouse CI、500 RPS load test</li><li>Security：CSP nonce、OWASP Top 10 全面審查</li><li>Exit criteria：DAU ≥ 2,000；arena 100/day；Day-30 retention ≥ 15%；GMV ≥ $10k；fee revenue ≥ $500</li></ul>
+<h3 id="162-實作順序依賴">§16.2 實作順序依賴</h3>
+<div class="diagram-container"><pre class="mermaid">flowchart TB
+    A[1. DB schema + migrations] --&gt; B[2. Auth + Pet generation core]
+    B --&gt; C[3. Claim flow + Email integration]
+    C --&gt; D[4. Player UI: landing/claim/pet]
+    D --&gt; E[5. Rate limit + monitoring baseline]
+    E --&gt; Phase1Done[Phase 1 complete]
+    Phase1Done --&gt; F[6. Training + Food domain]
+    F --&gt; G[7. Arena matchmaking + battle calc]
+    G --&gt; H[8. Leaderboard Redis + snapshot worker]
+    H --&gt; I[9. Records page + admin moderation]
+    I --&gt; Phase2Done[Phase 2 complete]
+    Phase2Done --&gt; J[10. Marketplace domain + FF gate]
+    J --&gt; K[11. GDPR full + audit + analytics]
+    K --&gt; L[12. Performance + security hardening]
+    L --&gt; Phase3Done[Phase 3 / GA complete]</pre></div>
+<p>關鍵依賴：</p>
+<ul><li>認證/Pet generation 是所有後續功能基礎</li><li>Arena 必依賴 Pet stats + training（產出對戰素質）</li><li>Leaderboard 依賴 Arena 的事件流</li><li>Marketplace 依賴 Pet ownership + Arena history</li></ul>
+<hr>
+<h2 id="17-open-questions">§17. Open Questions</h2>
+<table>
+<tr><th>#</th><th>Question</th><th>Impact</th><th>Owner</th><th>Status</th></tr>
+<tr><td>OQ-E01</td><td>16×16 vs 32×32 sprite</td><td>Sprite engine, scaling</td><td>Eng + Design</td><td>PROVISIONAL: 32×32 Phase 1</td></tr>
+<tr><td>OQ-E02</td><td>HTTP long-poll vs WebSocket arena</td><td>Latency, infra</td><td>Eng</td><td>OPEN</td></tr>
+<tr><td>OQ-E03</td><td>Admin subdomain vs route</td><td>Security, deploy</td><td>Eng</td><td>OPEN</td></tr>
+<tr><td>OQ-E04</td><td>Pet ownership transfer</td><td>Data model, GDPR</td><td>Eng + Legal</td><td>OPEN</td></tr>
+<tr><td>OQ-E05</td><td>OG image static vs server-render</td><td>Infra</td><td>Eng + Design</td><td>OPEN</td></tr>
+<tr><td>OQ-E06</td><td>Redis rebuild SLA</td><td>Availability</td><td>Eng</td><td>OPEN</td></tr>
+<tr><td>OQ-E07</td><td>ENV vs LaunchDarkly FF</td><td>Operations</td><td>Eng + PM</td><td>OPEN</td></tr>
+<tr><td>OQ-E08</td><td>Sumo battle edge cases</td><td>Domain logic</td><td>Eng</td><td>OPEN</td></tr>
+</table>
+<hr>
+<h2 id="18-references">§18. References</h2>
+<table>
+<tr><th>文件</th><th>路徑</th><th>說明</th></tr>
+<tr><td>PRD</td><td><code>docs/PRD.md</code></td><td>功能需求、NFR、AC</td></tr>
+<tr><td>PDD</td><td><code>docs/PDD.md</code></td><td>UI/UX 設計規格</td></tr>
+<tr><td>VDD</td><td><code>docs/VDD.md</code></td><td>視覺設計與 token</td></tr>
+<tr><td>CONSTANTS</td><td><code>docs/CONSTANTS.md</code></td><td>量化常數真相來源</td></tr>
+<tr><td>SCHEMA</td><td><code>docs/SCHEMA.md</code></td><td>DB schema 詳定義</td></tr>
+<tr><td>API</td><td><code>docs/API.md</code></td><td>REST API 端點規格</td></tr>
+<tr><td>ARCH</td><td><code>docs/ARCH.md</code></td><td>系統架構概覽</td></tr>
+<tr><td>Diagrams</td><td><code>docs/diagrams/</code></td><td>UML / class inventory</td></tr>
+<tr><td>Supabase</td><td>https://supabase.com/docs</td><td>PG + Auth</td></tr>
+<tr><td>Phaser 3</td><td>https://phaser.io/phaser3</td><td>遊戲框架</td></tr>
+<tr><td>Railway</td><td>https://railway.app/docs</td><td>Backend</td></tr>
+<tr><td>Upstash</td><td>https://upstash.com/docs/redis</td><td>Serverless Redis</td></tr>
+<tr><td>OpenTelemetry</td><td>https://opentelemetry.io</td><td>Observability</td></tr>
+<tr><td>OWASP Top 10</td><td>https://owasp.org/Top10/</td><td>Security baseline</td></tr>
+</table>
+<hr>
+<h2 id="19-approval-sign-off">§19. Approval Sign-off</h2>
+<table>
+<tr><th>角色</th><th>負責人</th><th>審核日期</th><th>簽核狀態</th></tr>
+<tr><td>Engineering Lead</td><td>TBD</td><td>—</td><td>Pending</td></tr>
+<tr><td>Product Manager</td><td>TBD</td><td>—</td><td>Pending</td></tr>
+<tr><td>Security Reviewer</td><td>TBD</td><td>—</td><td>Pending</td></tr>
+<tr><td>Architecture Reviewer</td><td>TBD</td><td>—</td><td>Pending</td></tr>
+<tr><td>SRE Lead</td><td>TBD</td><td>—</td><td>Pending</td></tr>
+</table>
+<blockquote><p>APPROVED 版本的任何架構變更需走 ECR（Engineering Change Request）流程。</p></blockquote>
+<hr>
+<h2 id="20-feature-flag-engineering">§20. Feature Flag Engineering</h2>
+<h3 id="201-五種類型評估表">§20.1 五種類型評估表</h3>
+<table>
+<tr><th>類型</th><th>範例 Flag</th><th>用途</th><th>生命週期</th></tr>
+<tr><td><strong>Release</strong></td><td><code>FF_MARKETPLACE</code>, <code>FF_ARENA_SUMO</code></td><td>控制功能上線；漸進釋出</td><td>GA 後 30 天清理</td></tr>
+<tr><td><strong>Experiment</strong></td><td><code>FF_CLAIM_CTA_VARIANT_A</code></td><td>A/B 測試文案、UI、流程</td><td>實驗結束（2 週）後立即清理</td></tr>
+<tr><td><strong>Ops</strong></td><td><code>FF_LEADERBOARD_REDIS_PRIMARY</code>（true=Redis 主，false=PG 主）</td><td>緊急切換主要資料來源；rollback</td><td>永久（運維工具）</td></tr>
+<tr><td><strong>Permission</strong></td><td><code>FF_ADMIN_PORTAL</code>, <code>FF_ADVANCED_ANALYTICS</code></td><td>控制特定 role / tier 可見功能</td><td>永久（與 RBAC 同生命）</td></tr>
+<tr><td><strong>Subscription</strong></td><td>（MVP 不適用）</td><td>控制付費層用戶可用功能</td><td>post-revenue 階段</td></tr>
+</table>
+<h3 id="202-flag-清單">§20.2 Flag 清單</h3>
+<table>
+<tr><th>Flag</th><th>Default</th><th>類型</th><th>說明</th><th>啟用條件</th></tr>
+<tr><td><code>FF_MARKETPLACE</code></td><td><code>false</code></td><td>Release</td><td>啟用 marketplace</td><td>DAU ≥ 1000 sustain 2 週（DAU_MARKETPLACE_TRIGGER）</td></tr>
+<tr><td><code>FF_ARENA_SUMO</code></td><td><code>false</code></td><td>Release</td><td>啟用 sumo mode</td><td>Race mode 穩定後</td></tr>
+<tr><td><code>FF_ADMIN_PORTAL</code></td><td><code>true</code></td><td>Permission</td><td><code>/admin</code> 路由</td><td>永遠 on</td></tr>
+<tr><td><code>FF_LEADERBOARD_REDIS_PRIMARY</code></td><td><code>true</code></td><td>Ops</td><td>Redis 主或 PG 主</td><td>緊急切換</td></tr>
+<tr><td><code>FF_BATTLE_RECORDS</code></td><td><code>true</code></td><td>Release</td><td>Battle records page (kill-switch)</td><td>永遠 on（P0）</td></tr>
+<tr><td><code>FF_GUEST_PET_DISPLAY</code></td><td><code>true</code></td><td>Release</td><td>Random pet display</td><td>永遠 on（P0）</td></tr>
+<tr><td><code>FF_EMAIL_CLAIM</code></td><td><code>true</code></td><td>Release</td><td>Claim flow</td><td>永遠 on（P0）</td></tr>
+</table>
+<h3 id="203-flag-生命週期清單">§20.3 Flag 生命週期清單</h3>
+<ul><li style="list-style:none"><input type="checkbox" disabled> Flag 在 <code>.env.example</code> 宣告 + 說明</li><li style="list-style:none"><input type="checkbox" disabled> Flag 預設值為 <code>false</code>（Permission/Ops 例外）</li><li style="list-style:none"><input type="checkbox" disabled> 啟用條件量化於 CONSTANTS / PRD</li><li style="list-style:none"><input type="checkbox" disabled> 移除計畫：Release flag GA 後 30 天清理；Experiment 立即清理</li><li style="list-style:none"><input type="checkbox" disabled> 後端 guard：<code>if (!flag) return 404</code>（不暴露未完成）</li><li style="list-style:none"><input type="checkbox" disabled> 前端 guard：路由 redirect + UI 隱藏</li><li style="list-style:none"><input type="checkbox" disabled> 監控：每月審計未清理的舊 flag</li></ul>
+<h3 id="204-緊急回滾程序">§20.4 緊急回滾程序</h3>
+<ol><li>偵測：alert / 用戶投訴</li><li>評估：是否單一 flag 可解決</li><li>修改 env var：Vercel/Railway dashboard 改 <code>false</code></li><li>等待 cache invalidate：CONFIG_CACHE_REFRESH_TIME = 5 分鐘</li><li>驗證：smoke test、用戶反饋</li><li>通報：Slack 公告</li><li>RCA：48 小時內事故報告</li></ol>
+<hr>
+<h2 id="21-cross-cutting-concerns">§21. Cross-Cutting Concerns</h2>
+<h3 id="211-可觀測性三支柱實作">§21.1 可觀測性三支柱實作</h3>
+<table>
+<tr><th>支柱</th><th>Tool</th><th>採集方式</th><th>存儲</th><th>分析</th></tr>
+<tr><td><strong>Logs</strong></td><td>Pino structured JSON</td><td>Fastify lifecycle hooks</td><td>Datadog Log Drain</td><td>grep / Datadog Logs UI</td></tr>
+<tr><td><strong>Metrics</strong></td><td>OpenTelemetry SDK + Prometheus exporter</td><td>metric instrument</td><td>Datadog / Grafana Cloud</td><td>dashboard / alert</td></tr>
+<tr><td><strong>Traces</strong></td><td>OpenTelemetry SDK auto-instrument</td><td>trace span propagation</td><td>Datadog APM</td><td>flame graph</td></tr>
+</table>
+<p>關聯方式：<code>trace_id</code> 注入所有 log entry 與 metric label，UI 點 trace 可跳到 logs / metrics / spans 三方比對。</p>
+<h3 id="212-分散式追蹤">§21.2 分散式追蹤</h3>
+<p><code>trace_id</code> propagated via <code>X-Trace-ID</code> 跨 Vercel Edge → Railway API → Supabase REST → SendGrid。Span 標準命名：</p>
+<pre><code class="">http.server.request → fastify.route → use_case.execute → repository.query
+                                    → external.sendgrid.send</code></pre>
+<p>用於除錯：arena 戰鬥延遲 &gt; 2 秒（CONSTANTS Arena Battle E2E）、claim 流程慢、跨服務串接問題。</p>
+<h3 id="213-configuration-management">§21.3 Configuration Management</h3>
+<ul><li>所有 env-specific 值（DB URLs、API keys、feature flags、CORS allowlist）透過 Vercel/Railway env vars</li><li>啟動 validate（Zod schema for env）；缺失立即 <code>process.exit(1)</code></li><li>12-factor app principle</li><li>開發者本地：<code>.env.local</code>（gitignored）；範本 <code>.env.example</code></li><li>動態調整：admin runtime config（rate limit / rarity weights）via <code>/admin/api/config/runtime</code>，cache 5 min refresh</li></ul>
+<h3 id="214-secrets-rotation">§21.4 Secrets Rotation</h3>
+<table>
+<tr><th>Secret</th><th>輪換週期</th><th>流程</th></tr>
+<tr><td>SendGrid API key</td><td>90 天</td><td>雙 key 並行 → 切換 → 廢舊 key</td></tr>
+<tr><td>Supabase service role key</td><td>90 天</td><td>同上</td></tr>
+<tr><td>Admin JWT secret</td><td>90 天</td><td>雙 secret 並行 → 切換；舊 session expire 後廢舊 secret</td></tr>
+<tr><td>AES-256-GCM email encryption key</td><td>180 天（重新加密 batch）</td><td>雙 key 並行 → re-encrypt batch → 廢舊 key</td></tr>
+<tr><td>Redis URL</td><td>緊急時</td><td>雙 cluster 並行寫 → 讀切換 → 廢舊</td></tr>
+<tr><td>TOTP backup codes</td><td>180 天 / 主動觸發</td><td>admin 主動 reset</td></tr>
+</table>
+<p>詳細程序記錄於 <code>docs/runbook.md §5 Secret Rotation</code>。所有輪換寫入 audit log。</p>
+<hr>
+<p><em>本 EDD 為 pixel-pet-arena 的權威工程設計規格。所有實作決策、schema 設計、API 契約必須引用並遵守本文件。數值來自 CONSTANTS-PIXEL-PET-ARENA-20260503。本 EDD 與上游 PDD/VDD/PRD 衝突時，需透過 ECR 解決。</em></p></main>
+  </div>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({startOnLoad:true,theme:'default',
+      flowchart:{curve:'basis',nodeSpacing:60,rankSpacing:80},
+      er:{layoutDirection:'TD',minEntityWidth:100,fontSize:12},
+      sequence:{actorMargin:60,messageMargin:30}});
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-go.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

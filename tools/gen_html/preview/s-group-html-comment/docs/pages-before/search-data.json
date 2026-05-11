@@ -1,0 +1,32 @@
+{
+  "index.html": {
+    "url": "index.html",
+    "title": "s-group-html-comment 文件中心",
+    "excerpt": "&lt;!--\nDOC-ID:  README-PIXEL-PET-ARENA-20260511\nVersion: v1.4\nStatus:  IN_REVIEW\nAuthor:  AI Generated (gendoc readme)\nDate:    2026-05-11\nUpstream d"
+  },
+  "idea.html": {
+    "url": "idea.html",
+    "title": "構想文件 (IDEA)",
+    "excerpt": "IDEA Document Template\n&lt;!-- SDLC Requirements Engineering — Layer 0：Idea Capture --&gt;\n&lt;!-- 此文件是需求鏈的起點（IDEA → BRD → PRD → PDD → EDD），記錄最原始的構想輸入"
+  },
+  "brd.html": {
+    "url": "brd.html",
+    "title": "商業需求文件 (BRD)",
+    "excerpt": "BRD — Business Requirements Document\n&lt;!-- SDLC Requirements Engineering — Layer 1：Business Requirements --&gt;\n&lt;!-- 對應學術標準：ISO/IEC/IEEE 29148；對應"
+  },
+  "prd.html": {
+    "url": "prd.html",
+    "title": "產品需求文件 (PRD)",
+    "excerpt": "PRD — Product Requirements Document\n&lt;!-- SDLC Requirements Engineering — Layer 2：Product Requirements --&gt;\n&lt;!-- Upstream: IDEA-PIXEL-PET-ARENA"
+  },
+  "pdd.html": {
+    "url": "pdd.html",
+    "title": "產品設計文件 (PDD)",
+    "excerpt": "PDD — Product Design Document\n\nPlatform Scope Declaration（平台範圍宣告）\n Web（Browser） iOS Native Android Native Desktop App（Electron / macOS / Windows） Game"
+  },
+  "edd.html": {
+    "url": "edd.html",
+    "title": "工程設計文件 (EDD)",
+    "excerpt": "EDD — Engineering Design Document\n&lt;!-- SDLC Layer 4 — Engineering Design / Architecture --&gt;\n&lt;!-- Upstream: PRD-PIXEL-PET-ARENA-20260503, PDD-"
+  }
+}

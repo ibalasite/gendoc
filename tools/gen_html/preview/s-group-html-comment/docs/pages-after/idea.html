@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>構想文件 (IDEA) — s-group-html-comment</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <style>
+    /* ─── Sidebar collapsible folder groups ─── */
+    .sidebar__section details { border: none; }
+    .sidebar__section details > summary {
+      cursor: pointer; list-style: none; display: flex; align-items: center;
+      gap: 0.375rem; padding: 0 1rem; margin-bottom: 0.375rem;
+      font-size: 0.6875rem; font-weight: 600; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.08em; user-select: none;
+    }
+    .sidebar__section details > summary::-webkit-details-marker { display: none; }
+    .sidebar__section details > summary::before {
+      content: '▶'; font-size: 0.5rem; flex-shrink: 0;
+      transition: transform 150ms; color: var(--text-muted);
+    }
+    .sidebar__section details[open] > summary::before { transform: rotate(90deg); }
+    .sidebar__section details .sidebar__link { padding-left: 1.75rem; font-size: 0.8125rem; }
+    .sidebar__section details details > summary { padding-left: 1.75rem; }
+    .sidebar__section details details .sidebar__link { padding-left: 2.5rem; }
+    /* B5/B8: labels inside details are sub-labels — indent past their parent <summary>. */
+    .sidebar__section details > .sidebar__label {
+      padding-left: 2.25rem;
+    }
+    .sidebar__section details details > .sidebar__label {
+      padding-left: 3rem;
+    }
+    /* B5: sub-label inside diagrams folding for prefix groups (Activity / Class / ...) */
+    .sidebar__label--sub {
+      padding: 0.25rem 1rem 0.125rem 3rem;
+      font-size: 0.6875rem; font-weight: 600;
+      color: var(--text-muted); text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    /* B5: links following a sub-label indent further still */
+    .sidebar__section details .sidebar__label--sub ~ .sidebar__link {
+      padding-left: 3.5rem;
+    }
+    /* ─── Q-group: header 兩層等高 56px + 白條消除 ─── */
+    .top-nav { height: 56px; padding: 0 1.5rem; border-bottom: none; }
+    .nav-breadcrumb { display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.95rem; color: #cbd5e1; }
+    .nav-breadcrumb a { color: #fff; text-decoration: none; font-weight: 600; }
+    .nav-breadcrumb a:hover { color: #60a5fa; }
+    .doc-page-banner { height: 56px; padding: 0 2rem;
+      display: flex; align-items: center; border-top: none; }
+    .banner-title { font-size: 1.25rem; font-weight: 700;
+      line-height: 1; margin: 0; }
+    /* R-group: main 上方留白縮減（從 style.css 預設 2.5rem 改 1rem，
+       讓 main content 緊接 banner，跟 sidebar 視覺對齊）*/
+    .doc-content { padding-top: 1rem; }
+
+
+    /* ─── N1 + Q + R: sidebar tab switcher (📁 文件 / 📑 本頁目錄) ─── */
+    /* `padding: 0` overrides style.css `.sidebar { padding: 1.5rem 0 }`.
+       `top: 0` overrides style.css `.sidebar { top: var(--nav-h) }` —
+       N1 changed `position: sticky` → `relative` but the stale `top: 56px`
+       silently pushed sidebar 56px down → Q-group white gap.
+       R-group: `height: auto` + `overflow: visible` cancel style.css fixed
+       viewport height + scrollbar. sidebar grows with grid row to full
+       content height; page-level scroll handles overflow naturally. */
+    .sidebar { position: relative; top: 0; display: flex; flex-direction: column;
+      overflow: visible; padding: 0; height: auto; }
+    .sidebar__toggle { position: absolute; top: 6px; right: 6px;
+      background: #f1f5f9; border: 1px solid #cbd5e1;
+      padding: 2px 6px; border-radius: 4px;
+      cursor: pointer; font-size: 11px; line-height: 1;
+      color: #475569; z-index: 3; }
+    .sidebar__toggle:hover { background: #e2e8f0; }
+    .sidebar__tabs { display: flex; gap: 2px; padding: 4px 32px 0 4px;
+      border-bottom: 1px solid #e2e8f0; background: #f8fafc;
+      flex-shrink: 0; }
+    .sidebar__tab { flex: 1; padding: 6px 8px; font-size: 12px;
+      border: 1px solid transparent; border-bottom: none;
+      border-radius: 4px 4px 0 0; cursor: pointer; background: transparent;
+      color: #64748b; font-family: inherit; text-align: center;
+      transition: background-color 150ms, color 150ms; }
+    .sidebar__tab:hover { color: #1e293b; background: #f1f5f9; }
+    .sidebar__tab.active { background: #fff; color: #1e3a8a;
+      border-color: #e2e8f0; font-weight: 600; margin-bottom: -1px; }
+    .sidebar__panel { display: none; flex: 1; overflow: visible;
+      padding: 0.5rem 0; font-size: 0.875rem; }
+    .sidebar__panel.active { display: block; }
+    /* TOC list rendering inside the toc panel */
+    .sidebar__panel .toc-list { list-style: none; padding: 0; margin: 0; }
+    .sidebar__panel .toc-list li { margin: 0; }
+    .toc__link { display: block; padding: 0.25rem 0.75rem;
+      color: #475569; text-decoration: none; font-size: 0.8125rem;
+      border-left: 2px solid transparent; margin: 1px 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .toc__link:hover { background: #f1f5f9; color: #1e293b; }
+    .toc__link.active { background: #eff6ff; color: #1e3a8a;
+      border-left-color: #3b82f6; font-weight: 500; }
+    .toc__link--h3 { padding-left: 1.5rem; font-size: 0.78rem; color: #64748b; }
+    /* Sidebar collapsed state — keep a 32px rail visible so the toggle
+       button stays clickable; hide tabs + panels. Overrides style.css's
+       .page-wrapper.sidebar-collapsed { grid-template-columns: 0 4px 1fr; }
+       to keep the rail. */
+    .page-wrapper.sidebar-collapsed { grid-template-columns: 32px 4px 1fr; }
+    .page-wrapper.sidebar-collapsed .sidebar {
+      width: 32px; min-width: 32px;
+      visibility: visible; padding: 0; overflow: visible;
+    }
+    .page-wrapper.sidebar-collapsed .sidebar__tabs,
+    .page-wrapper.sidebar-collapsed .sidebar__panel { display: none; }
+    .page-wrapper.sidebar-collapsed .sidebar__toggle { left: 4px; right: 4px; }
+    /* RWD — auto-collapse on phones (<768px). Only kicks in when no
+       explicit `.sidebar-expanded` flag is set; tap the toggle to expand. */
+    @media (max-width: 768px) {
+      .page-wrapper:not(.sidebar-expanded) {
+        grid-template-columns: 32px 4px 1fr;
+      }
+      .page-wrapper:not(.sidebar-expanded) .sidebar {
+        width: 32px; min-width: 32px;
+      }
+      .page-wrapper:not(.sidebar-expanded) .sidebar__tabs,
+      .page-wrapper:not(.sidebar-expanded) .sidebar__panel { display: none; }
+    }
+    /* G-Q2: lightbox cloned-diagram visibility.
+       The lightbox sets `.lightbox__content > * { position:absolute }`
+       which collapses the cloned .diagram-container to 0×0; its child SVG
+       with `width:100%` then renders empty. Force a sensible explicit
+       width so the cloned content is actually visible. */
+    .lightbox__content .diagram-container {
+      width: 80vw;
+      max-width: 1400px;
+      min-width: 60vw;
+    }
+    .lightbox__content .diagram-container svg {
+      width: 100%;
+      height: auto;
+      max-height: 80vh;
+      display: block;
+    }
+    .lightbox__content .diagram-container .mermaid {
+      width: 100%;
+      max-width: none;
+    }
+    .lightbox__content svg {
+      height: auto;
+    }
+    /* G-Q5: prevent flex/grid child main.doc-content from expanding to its
+       content's intrinsic size when a PUML SVG / pre.mermaid has wide
+       content. Without min-width:0, the flex item's default min-width is
+       its min-content (i.e. SVG natural width), which pushes <main> to
+       3000px+ on PUML pages and breaks layout.
+
+       Pair with `<pre> { max-width: 100% }` so wide source content scrolls
+       inside the <pre> block instead of expanding the page. */
+    main.doc-content {
+      min-width: 0;
+    }
+    .doc-content pre {
+      max-width: 100%;
+    }
+    .doc-content .diagram-container {
+      max-width: 100%;
+      overflow-x: auto;
+    }
+
+    /* ─── UI Mock DSL (stage 9) ─── */
+    .umock { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #1e293b; }
+    .umock__page, .umock__modal, .umock__card {
+      border: 1.5px solid #94a3b8; border-radius: 8px; background: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin: 1rem 0;
+      overflow: hidden;
+    }
+    .umock__card-title { padding: 0.625rem 1rem; font-weight: 600; font-size: 0.95rem;
+      background: #f8fafc; border-bottom: 1.5px solid #94a3b8; color: #1e293b; }
+    .umock__page-title { padding: 0.75rem 1rem; font-weight: 600; font-size: 1.05rem;
+      background: #f8fafc; border-bottom: 1.5px solid #94a3b8; }
+    /* `.diagram-container` (assets/style.css) defaults to text-align: center
+       which is right for SVG/mermaid but wrong for umock body text. Reset
+       to start so individual umock elements decide their own alignment.
+       Also constrain width to content so umock card mirrors ASCII source
+       proportions (rather than stretching to full doc-content width). */
+    .diagram-container--umock {
+      text-align: start;
+      width: fit-content;
+      max-width: 100%;
+    }
+    .diagram-container--umock .umock__card,
+    .diagram-container--umock .umock__page,
+    .diagram-container--umock .umock__modal {
+      width: fit-content;
+      max-width: 100%;
+    }
+    /* Outer-alignment modifiers — applied via attrs.align detected from
+       the source ASCII's leading/trailing whitespace within `│ ... │`. */
+    .umock__card-title--center, .umock__page-title--center,
+    .umock__text--center, .umock__info--center, .umock__hint--center,
+    .umock__actions--center { text-align: center; }
+    .umock__card-title--right, .umock__page-title--right,
+    .umock__text--right, .umock__info--right, .umock__hint--right,
+    .umock__actions--right { text-align: right; }
+    .umock__modal { max-width: 540px; }
+    .umock__modal-titlebar { display: flex; justify-content: space-between; align-items: center;
+      padding: 0.75rem 1rem; background: #f1f5f9; border-bottom: 1.5px solid #94a3b8; }
+    .umock__modal-title { font-weight: 600; font-size: 1rem; }
+    .umock__modal-close { color: #94a3b8; font-size: 1.1rem; cursor: default; }
+    .umock__modal-body, .umock__page > .umock__section,
+    .umock__card { padding: 0.75rem 1rem; }
+    .umock__navbar { display: flex; gap: 1rem; align-items: center;
+      padding: 0.625rem 1rem; background: #1e293b; color: #f1f5f9;
+      border-radius: 8px 8px 0 0; }
+    .umock__sidenav { float: left; width: 12rem; padding: 0.75rem;
+      background: #f8fafc; border-right: 1px solid #e2e8f0; min-height: 200px; }
+    .umock__sidenav .umock__item { padding: 0.375rem 0.5rem; border-radius: 4px;
+      color: #475569; font-size: 0.875rem; }
+    .umock__sidenav .umock__item:hover { background: #e2e8f0; }
+    .umock__page > *:not(.umock__navbar):not(.umock__sidenav) { margin-left: 12.5rem;
+      padding: 0.75rem 1rem; }
+    .umock__page::after { content: ""; display: block; clear: both; }
+    .umock__section { padding: 0.75rem 0; }
+    .umock__section-title { margin: 0 0 0.5rem 0; font-size: 1rem; font-weight: 600; }
+    .umock__section-subtitle { color: #64748b; font-size: 0.875rem; margin-bottom: 0.5rem; }
+    .umock__field { margin: 0.5rem 0; }
+    .umock__field-label { display: block; font-size: 0.85rem; color: #334155;
+      margin-bottom: 0.25rem; font-weight: 500; }
+    .umock__field-required { color: #dc2626; margin-left: 0.125rem; }
+    .umock__input, .umock__search {
+      display: block; width: 100%; padding: 0.5rem 0.625rem; font-size: 0.9rem;
+      border: 1px solid #94a3b8; border-radius: 4px; background: #fff;
+      color: #475569; box-sizing: border-box;
+    }
+    .umock__btn { display: inline-block; padding: 0.4rem 0.9rem; margin: 0.125rem;
+      font-size: 0.875rem; font-weight: 500; border: 1px solid transparent;
+      border-radius: 4px; cursor: default; background: #e2e8f0; color: #334155; }
+    .umock__btn--primary { background: #2563eb; color: #fff; }
+    .umock__btn--secondary { background: #fff; color: #475569; border-color: #cbd5e1; }
+    .umock__btn--danger { background: #dc2626; color: #fff; }
+    .umock__actions { padding: 0.5rem 0;
+      border-top: 1px solid #f1f5f9; }
+    .umock__badge { display: inline-block; padding: 0.125rem 0.5rem;
+      border-radius: 999px; font-size: 0.75rem; font-weight: 500;
+      background: #e2e8f0; color: #475569; }
+    .umock__badge--active { background: #dcfce7; color: #166534; }
+    .umock__badge--inactive { background: #fee2e2; color: #991b1b; }
+    .umock__badge--warning { background: #fef3c7; color: #92400e; }
+    .umock__hint { color: #64748b; font-size: 0.8rem; margin: 0.25rem 0 0.5rem 0; }
+    .umock__info { background: #eff6ff; border-left: 3px solid #3b82f6;
+      padding: 0.5rem 0.75rem; margin: 0.5rem 0; color: #1e3a8a; font-size: 0.875rem; }
+    /* Plain body text row in UI mock: monospace, preserve whitespace,
+       left-aligned, no background. Maps to ASCII content rows that aren't
+       semantic markers (ⓘ / helper:). */
+    .umock__text { padding: 0.125rem 1rem; margin: 0; color: #1e293b;
+      font-family: 'Menlo','Consolas','Courier New',monospace;
+      font-size: 0.85rem; white-space: pre; }
+    /* Higher specificity than `.doc-content pre` (assets/style.css) so the
+       umock dark-canvas background isn't overridden by the generic `pre`
+       rule when umock is rendered inside `.doc-content`. */
+    .doc-content pre.umock__code, pre.umock__code { background: #1e293b; color: #f1f5f9; padding: 0.75rem;
+      border-radius: 4px; overflow-x: auto; font-size: 0.8rem;
+      font-family: ui-monospace, "SF Mono", Consolas, monospace; }
+    .umock__code code { background: none; color: inherit; padding: 0; }
+    .umock__table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.9rem; }
+    .umock__table th, .umock__table td { padding: 0.75rem 0.875rem; text-align: left;
+      border-bottom: 1px solid #cbd5e1; }
+    .umock__table th { background: #f8fafc; font-weight: 600; color: #334155;
+      border-bottom: 2px solid #94a3b8; }
+    .umock__table tbody tr:hover { background: #f8fafc; }
+    .umock__pagination { padding: 0.5rem 0; color: #64748b; font-size: 0.8rem; text-align: right; }
+    .umock__tabs { display: flex; gap: 0.5rem; padding: 0.25rem 0; border-bottom: 1px solid #e2e8f0; }
+    .umock__tab { padding: 0.375rem 0.75rem; color: #475569; font-size: 0.875rem;
+      border-bottom: 2px solid transparent; }
+    .umock__tab:first-child { border-bottom-color: #2563eb; color: #1e40af; font-weight: 500; }
+    .umock__filter-bar { display: flex; gap: 0.5rem; align-items: center;
+      padding: 0.5rem 0; }
+    .umock__divider { border: 0; border-top: 1px solid #e2e8f0; margin: 0.5rem 0; }
+    .umock__meta-line { color: #64748b; font-size: 0.8rem; margin: 0.125rem 0; }
+    .umock__row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .umock__row-cell { font-size: 0.875rem; color: #334155; }
+    .umock__avatar { width: 1.75rem; height: 1.75rem; border-radius: 50%;
+      background: #94a3b8; display: inline-block; }
+    .umock__logo { font-weight: 700; letter-spacing: 0.02em; }
+    .umock__spacer { flex: 1; }
+    .umock__pyramid { display: block; max-width: 100%; height: auto; }
+    /* generic fallback for unknown types */
+    .umock__x { padding: 0.5rem; border: 1px dashed #cbd5e1; border-radius: 4px;
+      color: #64748b; font-size: 0.875rem; margin: 0.25rem 0; }
+  </style>
+</head>
+<body>
+  <header class="top-nav">
+    <nav class="nav-breadcrumb"><a href="index.html">s-group-html-comment</a> › 構想文件 (IDEA)</nav>
+    <div class="nav-controls">
+      <div class="search-wrap">
+        <input class="search-input" type="search" placeholder="搜尋文件...">
+        <div class="search-results"></div>
+      </div>
+      <a class="nav-gh-link" href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener">⌥ GitHub</a>
+      <button class="sidebar-toggle" id="sidebarToggle" title="收合/展開側欄">☰</button>
+    </div>
+  </header>
+  <div class="doc-page-banner">
+    <h1 class="banner-title">構想文件 (IDEA)</h1>
+  </div>
+  <div class="page-wrapper">
+    <aside class="sidebar" aria-label="文件導覽">
+      <button class="sidebar__toggle" id="sidebarCollapseBtn" type="button" aria-label="收合 / 展開側欄" title="收合 / 展開">⇤</button><div class="sidebar__tabs" role="tablist"><button class="sidebar__tab active" data-tab="docs" type="button" role="tab" aria-selected="true">📁 文件</button><button class="sidebar__tab" data-tab="toc" type="button" role="tab" aria-selected="false">📑 本頁目錄</button></div><div class="sidebar__panel active" data-panel="docs" role="tabpanel"><div class="sidebar__section">
+<a class="sidebar__link" href="index.html">🏠 首頁</a>
+<a class="sidebar__link active" href="idea.html">💡 構想文件 (IDEA)</a>
+<a class="sidebar__link" href="brd.html">📋 商業需求文件 (BRD)</a>
+<a class="sidebar__link" href="prd.html">📝 產品需求文件 (PRD)</a>
+<a class="sidebar__link" href="pdd.html">🎨 產品設計文件 (PDD)</a>
+<a class="sidebar__link" href="edd.html">🏗️ 工程設計文件 (EDD)</a>
+</div></div><div class="sidebar__panel" data-panel="toc" role="tabpanel"><ul class="toc-list"><li><a class="toc__link" href="#0-input-source輸入素材說明">§0 Input Source（輸入素材說明）</a></li><li><a class="toc__link" href="#document-control">Document Control</a></li><li><a class="toc__link" href="#1-idea-essence核心本質">1. Idea Essence（核心本質）</a></li><li><a class="toc__link toc__link--h3" href="#11-一句話描述elevator-pitch">1.1 一句話描述（Elevator Pitch）</a></li><li><a class="toc__link toc__link--h3" href="#12-核心假說lean-hypothesis">1.2 核心假說（Lean Hypothesis）</a></li><li><a class="toc__link toc__link--h3" href="#13-成功願景success-vision">1.3 成功願景（Success Vision）</a></li><li><a class="toc__link toc__link--h3" href="#14-innovation-type-classification創新類型分類">1.4 Innovation Type Classification（創新類型分類）</a></li><li><a class="toc__link" href="#2-problem-statement問題陳述">2. Problem Statement（問題陳述）</a></li><li><a class="toc__link toc__link--h3" href="#21-現狀描述as-is-narrative">2.1 現狀描述（As-Is Narrative）</a></li><li><a class="toc__link toc__link--h3" href="#22-根本原因分析5-whys">2.2 根本原因分析（5 Whys）</a></li><li><a class="toc__link toc__link--h3" href="#23-問題規模量化估算">2.3 問題規模（量化估算）</a></li><li><a class="toc__link" href="#3-target-users目標使用者">3. Target Users（目標使用者）</a></li><li><a class="toc__link toc__link--h3" href="#31-主要使用者群q1-澄清結果">3.1 主要使用者群（Q1 澄清結果）</a></li><li><a class="toc__link toc__link--h3" href="#32-jobs-to-be-done用戶核心任務">3.2 Jobs to Be Done（用戶核心任務）</a></li><li><a class="toc__link toc__link--h3" href="#33-非目標使用者not-our-users">3.3 非目標使用者（Not Our Users）</a></li><li><a class="toc__link" href="#4-value-hypothesis價值假說">4. Value Hypothesis（價值假說）</a></li><li><a class="toc__link toc__link--h3" href="#41-核心價值主張value-proposition-canvas">4.1 核心價值主張（Value Proposition Canvas）</a></li><li><a class="toc__link toc__link--h3" href="#42-差異化定位">4.2 差異化定位</a></li><li><a class="toc__link" href="#5-mvp--learning-plan最小可行驗證計畫">5. MVP &amp;amp; Learning Plan（最小可行驗證計畫）</a></li><li><a class="toc__link toc__link--h3" href="#51-mvp-邊界定義">5.1 MVP 邊界定義</a></li><li><a class="toc__link toc__link--h3" href="#52-validation-metrics驗證指標pre-brd-階段">5.2 Validation Metrics（驗證指標，Pre-BRD 階段）</a></li><li><a class="toc__link toc__link--h3" href="#53-riskiest-assumption最高風險假設leap-of-faith">5.3 Riskiest Assumption（最高風險假設，Leap of Faith）</a></li><li><a class="toc__link" href="#6-clarification-interview-record澄清訪談記錄">6. Clarification Interview Record（澄清訪談記錄）</a></li><li><a class="toc__link toc__link--h3" href="#q1--主要使用者">Q1 — 主要使用者</a></li><li><a class="toc__link toc__link--h3" href="#q2--核心痛點">Q2 — 核心痛點</a></li><li><a class="toc__link toc__link--h3" href="#q3--技術限制或偏好">Q3 — 技術限制或偏好</a></li><li><a class="toc__link toc__link--h3" href="#q4--預估流量規模pm-expert-研究推估">Q4 — 預估流量規模（PM Expert 研究推估）</a></li><li><a class="toc__link toc__link--h3" href="#q5--其他補充說明動態追問">Q5 — 其他補充說明（動態追問）</a></li><li><a class="toc__link toc__link--h3" href="#原始-idea使用者輸入原文逐字保留">原始 IDEA（使用者輸入原文，逐字保留）</a></li><li><a class="toc__link" href="#7-market--competitive-intelligence市場與競品情報">7. Market &amp;amp; Competitive Intelligence（市場與競品情報）</a></li><li><a class="toc__link toc__link--h3" href="#71-競品--參考資源">7.1 競品 / 參考資源</a></li><li><a class="toc__link toc__link--h3" href="#72-技術生態建議">7.2 技術生態建議</a></li><li><a class="toc__link toc__link--h3" href="#73-研究來源">7.3 研究來源</a></li><li><a class="toc__link" href="#8-initial-risk-assessment初始風險評估">8. Initial Risk Assessment（初始風險評估）</a></li><li><a class="toc__link toc__link--h3" href="#81-風險矩陣">8.1 風險矩陣</a></li><li><a class="toc__link toc__link--h3" href="#82-kill-conditions專案終止條件">8.2 Kill Conditions（專案終止條件）</a></li><li><a class="toc__link toc__link--h3" href="#83-dependencies--external-risks依賴與外部風險">8.3 Dependencies &amp;amp; External Risks（依賴與外部風險）</a></li><li><a class="toc__link toc__link--h3" href="#84-pre-mortem-exercise失敗前情境模擬">8.4 Pre-mortem Exercise（失敗前情境模擬）</a></li><li><a class="toc__link" href="#9-business-potential初步商業潛力">9. Business Potential（初步商業潛力）</a></li><li><a class="toc__link toc__link--h3" href="#91-商業模式假說">9.1 商業模式假說</a></li><li><a class="toc__link toc__link--h3" href="#92-戰略對齊">9.2 戰略對齊</a></li><li><a class="toc__link" href="#10-executive-sponsorship--stakeholder-alignment執行贊助與關鍵利害關係人對齊">10. Executive Sponsorship &amp;amp; Stakeholder Alignment（執行贊助與關鍵利害關係人對齊）</a></li><li><a class="toc__link toc__link--h3" href="#101-executive-sponsor">10.1 Executive Sponsor</a></li><li><a class="toc__link toc__link--h3" href="#102-stakeholder-pre-alignment-matrix">10.2 Stakeholder Pre-alignment Matrix</a></li><li><a class="toc__link toc__link--h3" href="#103-communication-plan溝通計畫">10.3 Communication Plan（溝通計畫）</a></li><li><a class="toc__link" href="#11-idea-quality-score構想品質評分">11. IDEA Quality Score（構想品質評分）</a></li><li><a class="toc__link" href="#12-critical-assumptions關鍵假設清單">12. Critical Assumptions（關鍵假設清單）</a></li><li><a class="toc__link" href="#13-open-questions待解問題">13. Open Questions（待解問題）</a></li><li><a class="toc__link" href="#14-idea--brd-handoff-checklist">14. IDEA → BRD Handoff Checklist</a></li><li><a class="toc__link" href="#15-traceability-note溯源說明">15. Traceability Note（溯源說明）</a></li><li><a class="toc__link" href="#appendix-aresearch-raw-data研究原始資料">Appendix A：Research Raw Data（研究原始資料）</a></li><li><a class="toc__link toc__link--h3" href="#搜尋-1競品與開源專案">搜尋 1：競品與開源專案</a></li><li><a class="toc__link toc__link--h3" href="#搜尋-2技術最佳實踐">搜尋 2：技術最佳實踐</a></li><li><a class="toc__link toc__link--h3" href="#搜尋-3已知挑戰與陷阱">搜尋 3：已知挑戰與陷阱</a></li><li><a class="toc__link" href="#appendix-bdocument-history">Appendix B：Document History</a></li><li><a class="toc__link" href="#appendix-c素材清單">Appendix C：素材清單</a></li></ul></div>
+    </aside>
+    <div class="sidebar-resizer" id="sidebarResizer"></div>
+    <main class="doc-content"><h1 id="idea-document-template">IDEA Document Template</h1>
+<h2 id="0-input-source輸入素材說明">§0 Input Source（輸入素材說明）</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>輸入類型</strong></td><td>text_idea（使用者直接輸入文字構想）</td></tr>
+<tr><td><strong>素材檔案</strong></td><td><code>docs/req/idea-input.md</code></td></tr>
+<tr><td><strong>輸入摘要</strong></td><td>HTML5 寵物互動網站，無帳號門檻，email 認領制，像素風格隨機寵物，競技場對戰，訓練/食物強化，寵物交易市場，戰績排行榜</td></tr>
+<tr><td><strong>素材類型</strong></td><td>產品原始構想文字輸入</td></tr>
+<tr><td><strong>對應章節</strong></td><td>全章節（依 §15 Traceability Note 標記）</td></tr>
+</table>
+<hr>
+<h2 id="document-control">Document Control</h2>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>DOC-ID</strong></td><td>IDEA-PIXEL-PET-ARENA-20260503</td></tr>
+<tr><td><strong>專案名稱</strong></td><td>pixel-pet-arena</td></tr>
+<tr><td><strong>文件版本</strong></td><td>v0.1-capture</td></tr>
+<tr><td><strong>狀態</strong></td><td>DRAFT</td></tr>
+<tr><td><strong>作者</strong></td><td>AI Generated (gendoc-gen-idea)</td></tr>
+<tr><td><strong>建立日期</strong></td><td>2026-05-03</td></tr>
+<tr><td><strong>最後更新</strong></td><td>2026-05-03</td></tr>
+<tr><td><strong>輸入模式</strong></td><td>AI 自動填入（text_idea + Q1-Q5 澄清）</td></tr>
+<tr><td><strong>建立方式</strong></td><td>/gendoc-auto 自動捕捉；請執行 /reviewdoc brd 審查後方可升版</td></tr>
+<tr><td><strong>下游文件</strong></td><td>docs/BRD.md（由本文件產生）</td></tr>
+<tr><td><strong>client_type</strong></td><td>web（HTML5 瀏覽器端，無需安裝）</td></tr>
+</table>
+<hr>
+<h2 id="1-idea-essence核心本質">1. Idea Essence（核心本質）</h2>
+<h3 id="11-一句話描述elevator-pitch">1.1 一句話描述（Elevator Pitch）</h3>
+<blockquote><p><strong>pixel-pet-arena 幫助休閒玩家與像素藝術愛好者解決「無帳號門檻下無法擁有自己的虛擬寵物並與他人競技」的問題，方式是提供 email 認領制的隨機像素寵物、完整訓練強化生態系統，以及多模式競技場，讓每隻寵物都獨一無二、可養可賽可交易。</strong></p></blockquote>
+<p><strong>Elevator Pitch 5 句話：</strong></p>
+<ol><li><strong>Who</strong>：休閒玩家（不想創帳號的輕度用戶）、像素藝術愛好者、輕度競技遊戲玩家、寵物收藏愛好者。</li><li><strong>Problem</strong>：現有虛擬寵物遊戲大多要求完整帳號註冊，門檻高；而現有 HTML5 遊戲缺乏持久性寵物養成與競技生態，玩家無法真正「擁有」並培育獨特寵物。</li><li><strong>Solution</strong>：純 HTML5 網站，訪客可即時互動隨機寵物；想養就輸入 email，系統寄送認領密碼與專屬 URL，下次直接回訪繼續；像素風格程序化生成保證每隻寵物外型獨特，可訓練、喂食、競技、交易。</li><li><strong>Why Now</strong>：HTML5 Canvas + Phaser.js 技術成熟，瀏覽器端遊戲無需安裝門檻最低；email Magic-Link 模式已成熟（Notion、Slack 均採用）；Pixel Art 風格在 itch.io 等平台持續熱門，玩家對 retro 風格接受度高。</li><li><strong>Key Differentiator</strong>：唯一結合「無帳號門檻 email 認領」＋「程序化像素寵物唯一性生成」＋「跨模式競技場（跑步 / 相撲 / 更多）」＋「寵物 P2P 交易市場」的輕量 HTML5 寵物遊戲。</li></ol>
+<hr>
+<h3 id="12-核心假說lean-hypothesis">1.2 核心假說（Lean Hypothesis）</h3>
+<blockquote><p><strong>If we build</strong> 一個無需帳號、直接在瀏覽器中互動隨機像素寵物並透過 email 認領的 HTML5 遊戲平台，</p></blockquote>
+<blockquote><p><strong>then</strong> 休閒玩家（無帳號門檻偏好者）</p></blockquote>
+<blockquote><p><strong>will</strong> 自發性認領寵物、持續回訪訓練並參與競技，</p></blockquote>
+<blockquote><p><strong>which will lead to</strong> 高 Day-7 回訪率（&gt;30%）、競技場日活躍對戰場次數增長，以及寵物交易市場有機成長，最終形成社群口碑傳播。</p></blockquote>
+<p><em>假說需可測試、可被推翻。90 天驗證：認領數 ≥ 500、Day-7 回訪 ≥ 30%、競技場日對戰 ≥ 100 場次。</em></p>
+<hr>
+<h3 id="13-成功願景success-vision">1.3 成功願景（Success Vision）</h3>
+<p><strong>12 個月後，若本專案成功，以下情境將成真：</strong></p>
+<ul><li>用戶維度：每天有 2,000–5,000 名玩家在瀏覽器打開 pixel-pet-arena，其中超過 30% 已認領自己的寵物並定期回訪訓練；競技場每天舉辦數百場對戰，玩家在社群媒體自發分享戰績截圖；寵物交易市場每週有穩定成交，稀有像素寵物成為玩家炫耀資本。</li><li>業務維度：DAU 達 2,000–5,000（常態），活動期峰值 20,000；寵物交易市場手續費或稀有寵物販售形成初步變現路徑；口碑傳播使獲客成本接近 $0，itch.io / Twitter 等平台形成自然流量。</li><li>技術維度：Phaser.js + Node.js 後端穩定支撐 200–500 同時在線（峰值 2,000）；像素寵物生成演算法具備足夠大的組合空間（&gt;10 億種組合），確保唯一性；email 認領系統零安全事故，token 管理完善。</li></ul>
+<h3 id="14-innovation-type-classification創新類型分類">1.4 Innovation Type Classification（創新類型分類）</h3>
+<table>
+<tr><th>類型</th><th>定義</th><th>是否適用</th></tr>
+<tr><td><strong>Incremental</strong>（漸進式）</td><td>改善既有產品功能或流程效率</td><td>☐</td></tr>
+<tr><td><strong>Sustaining</strong>（持續性）</td><td>在既有市場中競爭，提供更好的解法</td><td>☐</td></tr>
+<tr><td><strong>Adjacent</strong>（鄰近式）</td><td>現有能力進入新市場或新用戶群</td><td>☑</td></tr>
+<tr><td><strong>Disruptive</strong>（顛覆性）</td><td>從低端或全新市場切入，重塑現有市場</td><td>☐</td></tr>
+<tr><td><strong>Radical / Breakthrough</strong>（突破性）</td><td>基於新技術或商業模式，創造新市場</td><td>☐</td></tr>
+</table>
+<p><strong>本 IDEA 的分類</strong>：Adjacent（鄰近式創新）</p>
+<p><strong>分類依據</strong>：核心創新在於將現有虛擬寵物遊戲的能力（養成、競技、交易）延伸至「不願創帳號的輕度休閒瀏覽器用戶」這一尚未被服務的新市場，符合 Adjacent 定義（現有能力進入新用戶群）。雖具備 Sustaining 特徵（在既有市場提供更低門檻替代方案），但主分類以「新用戶群進入」為主要創新驅動力。</p>
+<p><em>分類影響資源投入策略：Adjacent 需優先驗證新用戶群（不願創帳號的休閒玩家）的行為模式與留存指標，再擴展功能深度。</em></p>
+<hr>
+<h2 id="2-problem-statement問題陳述">2. Problem Statement（問題陳述）</h2>
+<h3 id="21-現狀描述as-is-narrative">2.1 現狀描述（As-Is Narrative）</h3>
+<p>目前市場上的虛擬寵物遊戲（如 Neopets、Tamagotchi 官方 app、或各類 P2E 寵物鏈遊）普遍要求完整帳號註冊（email + 密碼 + 信箱驗證），對休閒用戶形成明顯摩擦。使用者臨時想玩時，面對「填寫資料」的心理負擔往往直接關閉頁面。</p>
+<p>現有的 HTML5 小遊戲（itch.io 上的 browser-based 寵物遊戲）雖有低門檻優勢，但普遍缺乏持久性數據——每次刷新頁面寵物就消失，無法建立長期的養成關係。玩家「想帶走這隻寵物」時，沒有合理的低門檻認領機制。</p>
+<p>現有解法的 Workaround：部分玩家使用 localStorage 暫存寵物數據，但跨裝置無法同步；或使用 cookie，但清除 cookie 即遺失寵物。這些都是臨時性且不可靠的替代方案。</p>
+<p><em>問題發生頻率：每次新訪客訪問瀏覽器遊戲時；從數據看，典型 HTML5 遊戲首次訪問到完成註冊的轉換率僅 5-15%，顯示帳號門檻造成大量流失。</em></p>
+<hr>
+<h3 id="22-根本原因分析5-whys">2.2 根本原因分析（5 Whys）</h3>
+<pre><code class="">問題現象：休閒玩家無法在低門檻下擁有持久的虛擬寵物
+  Why 1：現有寵物遊戲要求完整帳號註冊才能保存數據
+    Why 2：傳統 web 應用以帳號系統為用戶身份識別的預設方案
+      Why 3：帳號系統是最直接的後端持久化映射機制
+        Why 4：開發者未考慮「無帳號」與「持久數據」並存的架構設計
+          Why 5（根本原因）：缺乏「email + 專屬 token URL」作為輕量身份識別層的設計模式，導致「想要數據持久」和「不想創帳號」被視為互斥需求 ← 我們要解決的是這個</code></pre>
+<p><em>5 Whys 結論：根本問題是「身份識別模式設計」的缺位，而非技術不可行。email 認領 + 專屬 URL token 模式已在 Magic Link 認證中成熟驗證。</em></p>
+<hr>
+<h3 id="23-問題規模量化估算">2.3 問題規模（量化估算）</h3>
+<table>
+<tr><th>指標</th><th>估算數字</th><th>資料來源</th><th>信心水準</th></tr>
+<tr><td>受影響使用者數（全球）</td><td>約 5 億月活的 casual browser game 玩家</td><td>Statista HTML5 遊戲市場報告（2024）</td><td>低</td></tr>
+<tr><td>受影響使用者數（目標市場）</td><td>約 500 萬（喜歡 pixel art 且有養成遊戲偏好）</td><td>itch.io pixel art 分類月活 + Tamagotchi-style 搜尋量估算</td><td>低</td></tr>
+<tr><td>每人每週損失時間</td><td>約 0.5 小時（帳號門檻造成的重複性放棄）</td><td>待用戶訪談驗證</td><td>低</td></tr>
+<tr><td>每人每年成本損失</td><td>非金錢損失（娛樂機會損失）</td><td>待驗證</td><td>低</td></tr>
+<tr><td>可定址市場規模（TAM）</td><td>HTML5 遊戲市場 ~$15B（2024），養成遊戲子市場 ~$2B</td><td>Newzoo / Sensor Tower 估算</td><td>低</td></tr>
+<tr><td>可服務市場規模（SAM）</td><td>Pixel art 養成 + 競技 browser game 玩家，~$200M</td><td>AI 推斷（TAM 的 ~10%）</td><td>低</td></tr>
+<tr><td>可獲取市場規模（SOM，預估 12 月）</td><td>~$200K–$500K（廣告 + 交易手續費）</td><td>AI 推斷（DAU 2k-5k × $0.1–0.3/用戶/月）</td><td>低</td></tr>
+</table>
+<p><em>以上數字為初始估算，需在 PRD 階段的用戶研究後更新。</em></p>
+<hr>
+<h2 id="3-target-users目標使用者">3. Target Users（目標使用者）</h2>
+<h3 id="31-主要使用者群q1-澄清結果">3.1 主要使用者群（Q1 澄清結果）</h3>
+<p><strong>使用者描述</strong>：休閒玩家（無需帳號）、像素藝術愛好者、輕度競技遊戲玩家、寵物收藏愛好者</p>
+<table>
+<tr><th>屬性</th><th>描述</th></tr>
+<tr><td>職業 / 角色</td><td>學生、上班族、居家工作者；無特定職業限制</td></tr>
+<tr><td>行業 / 情境</td><td>休閒娛樂、短暫消遣（午休、通勤、睡前）；瀏覽器直接訪問，無需安裝</td></tr>
+<tr><td>技術成熟度</td><td>初學 ～ 中階（會用 email，熟悉基本瀏覽器操作）</td></tr>
+<tr><td>使用頻率</td><td>每日（高度黏著玩家） ／ 每週（競技場活動期回訪）</td></tr>
+<tr><td>決策角色</td><td>使用者（直接玩家）；推薦者（將遊戲連結分享給朋友）</td></tr>
+</table>
+<p><strong>用戶規模估算</strong>：目標市場 ~500 萬潛在用戶（全球 pixel art 養成遊戲偏好者），上線 12 個月內目標觸達 2,000–5,000 DAU（佔 TAM 的 0.04–0.1%，保守估算）。</p>
+<hr>
+<h3 id="32-jobs-to-be-done用戶核心任務">3.2 Jobs to Be Done（用戶核心任務）</h3>
+<table>
+<tr><th>任務類型</th><th>用戶任務描述</th></tr>
+<tr><td><strong>Functional</strong>（功能性）</td><td>當我無聊想放鬆時，我想要立刻打開網頁就能互動一隻可愛的像素寵物，以便不需要填寫任何帳號資料就能立即開始遊戲體驗。</td></tr>
+<tr><td><strong>Functional</strong>（功能性）</td><td>當我認為某隻寵物值得長期培養時，我想要透過輸入 email 永久認領牠，以便下次可以隨時從任何裝置回來繼續養它。</td></tr>
+<tr><td><strong>Functional</strong>（功能性）</td><td>當我想讓我的寵物更強時，我想要透過訓練和特殊食物提升屬性，以便在競技場中打敗其他玩家的寵物。</td></tr>
+<tr><td><strong>Emotional</strong>（情感性）</td><td>我想要擁有一隻「只屬於我」的獨特像素寵物（程序化生成，全球唯一外型），讓我感受到收藏稀有物品的滿足感與身份認同。</td></tr>
+<tr><td><strong>Social</strong>（社交性）</td><td>我想要在排行榜上展示我的寵物戰績，以便向朋友炫耀並引發討論，進一步吸引朋友也來玩。</td></tr>
+</table>
+<hr>
+<h3 id="33-非目標使用者not-our-users">3.3 非目標使用者（Not Our Users）</h3>
+<table>
+<tr><th>排除群體</th><th>排除原因</th></tr>
+<tr><td>❌ 硬核 RPG / MMORPG 玩家</td><td>對養成深度和戰鬥機制複雜性要求遠超本產品 MVP 範圍；他們已有 WoW、FF14 等專業選擇</td></tr>
+<tr><td>❌ P2E (Play-to-Earn) 區塊鏈遊戲玩家</td><td>需要錢包 + 鏈上資產，技術門檻高且與「無帳號」核心理念衝突；本產品聚焦娛樂而非投機</td></tr>
+<tr><td>❌ 12 歲以下兒童（主要目標族群）</td><td>Email 認領機制需要基本 email 使用能力；COPPA 法規要求兒童數據特殊處理，MVP 階段暫不優化此群體</td></tr>
+</table>
+<p><em>明確定義「不服務誰」與「服務誰」同等重要，防止範圍無限擴張。</em></p>
+<hr>
+<h2 id="4-value-hypothesis價值假說">4. Value Hypothesis（價值假說）</h2>
+<h3 id="41-核心價值主張value-proposition-canvas">4.1 核心價值主張（Value Proposition Canvas）</h3>
+<p><strong>Pain Relievers（痛點緩解）：</strong></p>
+<table>
+<tr><th>使用者痛點</th><th>我們的緩解方式</th></tr>
+<tr><td>帳號門檻高（填寫大量資料才能開始）</td><td>訪客模式：打開網頁直接與隨機寵物互動，無需填寫任何資料；只有在「想認領」時才輸入 email</td></tr>
+<tr><td>寵物數據不持久（刷新就消失）</td><td>Email 認領 + 專屬 URL token：認領後永久綁定，任何裝置輸入 URL 即可回訪同一隻寵物</td></tr>
+<tr><td>每隻寵物外觀大同小異（缺乏收藏價值）</td><td>程序化像素寵物生成：多屬性組合空間 &gt; 10 億種，每次認領均不同，具備收藏稀有性</td></tr>
+<tr><td>沒有競技對戰的社交動力（缺乏長期黏著）</td><td>競技場多模式對戰（跑步賽、相撲擂台等）+ 全服排行榜 + 戰績紀錄，形成長期競技動力</td></tr>
+</table>
+<p><strong>Gain Creators（增益創造）：</strong></p>
+<table>
+<tr><th>使用者期望收益</th><th>我們如何創造</th></tr>
+<tr><td>擁有「獨一無二」的收藏品</td><td>程序化生成保證全球唯一外型，附帶稀有度評分（Common / Rare / Epic / Legendary），增強收藏驅動力</td></tr>
+<tr><td>在社群中展示成就並獲得認可</td><td>公開寵物戰績頁面（可分享 URL）+ 全服排行榜 + 競技場成績社群分享按鈕</td></tr>
+<tr><td>以寵物作為資產交易獲利</td><td>寵物交易市場：可掛牌、出價、成交，罕見寵物形成二級市場需求</td></tr>
+</table>
+<hr>
+<h3 id="42-差異化定位">4.2 差異化定位</h3>
+<p><strong>相對現有解法（競品 / 替代方案），本產品的獨特差異：</strong></p>
+<blockquote><p>pixel-pet-arena 是唯一同時具備「無帳號 email 認領制（Magic Link 模式）」+ 「程序化像素寵物保證唯一性（&gt;10 億組合）」+ 「多模式競技場對戰」+ 「P2P 寵物交易市場」的 HTML5 瀏覽器端養成競技遊戲。競品要麼需要完整帳號（Neopets、CryptoKitties），要麼缺乏持久性（itch.io 單機小遊戲），要麼沒有社交競技維度（傳統 Tamagotchi）。</p></blockquote>
+<table>
+<tr><th>維度</th><th>pixel-pet-arena</th><th>Neopets</th><th>itch.io Browser Pet Games</th><th>CryptoKitties</th></tr>
+<tr><td>無帳號即時互動</td><td>✅</td><td>❌</td><td>✅（但無持久化）</td><td>❌（需錢包）</td></tr>
+<tr><td>Email 認領（低門檻持久化）</td><td>✅</td><td>❌（完整註冊）</td><td>❌</td><td>❌</td></tr>
+<tr><td>程序化像素唯一寵物</td><td>✅</td><td>❌（固定外型）</td><td>部分</td><td>✅（鏈上 NFT）</td></tr>
+<tr><td>多模式競技場</td><td>✅（跑步/相撲等）</td><td>部分</td><td>❌</td><td>❌</td></tr>
+<tr><td>寵物交易市場</td><td>✅</td><td>✅</td><td>❌</td><td>✅（但鏈上）</td></tr>
+<tr><td>技術門檻（玩家端）</td><td>🟢 零門檻（瀏覽器）</td><td>🟡 帳號</td><td>🟢 零門檻</td><td>🔴 錢包+Gas</td></tr>
+</table>
+<p><em>差異化優勢真實存在且可持續：「無帳號 email 認領」是技術架構設計選擇，非臨時性優勢。</em></p>
+<hr>
+<h2 id="5-mvp--learning-plan最小可行驗證計畫">5. MVP &amp; Learning Plan（最小可行驗證計畫）</h2>
+<h3 id="51-mvp-邊界定義">5.1 MVP 邊界定義</h3>
+<blockquote><p><strong>MVP 的目的是驗證最關鍵的假設：玩家願意在「無帳號門檻」下認領並持續回訪養成像素寵物。</strong></p></blockquote>
+<p><strong>P0 必做功能（MVP 核心，≤ 5 項）：</strong></p>
+<table>
+<tr><th>MVP 功能</th><th>驗證假設</th><th>最低可接受標準（Go Threshold）</th></tr>
+<tr><td>隨機像素寵物展示 + 即時互動（訪客模式）</td><td>玩家願意在零門檻下與寵物互動</td><td>首次訪問平均停留 &gt; 2 分鐘；互動率 &gt; 50%</td></tr>
+<tr><td>Email 認領流程（密碼信 + 專屬 URL）</td><td>Email 認領轉換率可接受</td><td>訪客 → 認領轉換率 ≥ 10%；認領後 Day-3 回訪 ≥ 30%</td></tr>
+<tr><td>基礎訓練 / 喂食系統（提升屬性值）</td><td>玩家願意每日回訪進行養成操作</td><td>Day-7 留存率 ≥ 25%</td></tr>
+<tr><td>競技場基礎對戰（至少 1 種模式，如跑步賽）</td><td>競技功能驅動社交分享與回訪</td><td>每日對戰場次 ≥ 50 場；社群分享率 ≥ 5%</td></tr>
+<tr><td>全服排行榜（依戰績/屬性排名）</td><td>排行榜形成長期競技動力</td><td>排行榜頁面日 UV ≥ 20% 的 DAU</td></tr>
+</table>
+<p><strong>明確不在 MVP 範圍（Non-MVP）：</strong></p>
+<ul><li>❌ 寵物交易市場（推遲原因：需要足夠的寵物存量才有交易需求，至少待 DAU &gt; 1,000 後引入）</li><li>❌ 第 2+ 種競技模式（相撲擂台等）（推遲原因：先驗證第 1 種模式的用戶反應，再擴展）</li><li>❌ 付費道具 / 變現機制（推遲原因：用戶留存驗證前不引入付費摩擦）</li><li>❌ 行動 App 版本（推遲原因：HTML5 瀏覽器端先驗證，降低初期開發成本）</li></ul>
+<hr>
+<h3 id="52-validation-metrics驗證指標pre-brd-階段">5.2 Validation Metrics（驗證指標，Pre-BRD 階段）</h3>
+<p><em>以下指標在 IDEA 驗證期間每週追蹤，達到閾值後方可升級為 BRD。</em></p>
+<table>
+<tr><th>指標</th><th>測量方式</th><th>通過閾值（Go）</th><th>失敗閾值（Pivot/Kill）</th><th>追蹤週期</th></tr>
+<tr><td>問題確認率</td><td>用戶訪談：「無帳號門檻對您重要嗎？」</td><td>≥ 70% 答「是」</td><td>&lt; 40%</td><td>週 1–2</td></tr>
+<tr><td>Email 認領意願</td><td>訪談：「您願意輸入 email 換取永久認領寵物嗎？」</td><td>≥ 60% 答「是」</td><td>&lt; 35%</td><td>週 1–2</td></tr>
+<tr><td>付費意願（未來交易市場）</td><td>願意為稀有寵物付費的受訪者比例</td><td>≥ 30%</td><td>&lt; 15%</td><td>週 2–3</td></tr>
+<tr><td>訪談完成數</td><td>完成深度訪談人數（pixel art 遊戲玩家）</td><td>≥ 10 人</td><td>&lt; 5 人</td><td>週 1–3</td></tr>
+<tr><td>競品替代接受度</td><td>受訪者「願意從其他養成遊戲切換」比例</td><td>≥ 25%</td><td>&lt; 10%</td><td>週 2–3</td></tr>
+</table>
+<p><strong>驗證計畫時程：</strong></p>
+<pre><code class="">Week 1：用戶招募（目標 N ≥ 15 人，itch.io / Twitter pixel art 社群）；完成問卷調查
+Week 2：深度訪談（N ≥ 10），蒐集質化資料（Email 認領接受度 / 競技意願）
+Week 3：數據分析，決策：
+  - Go    → 生成 BRD，啟動 autodev
+  - Pivot → 修改核心機制（例：改為匿名 token 而非 email）
+  - Kill  → 停止，記錄學習報告</code></pre>
+<hr>
+<h3 id="53-riskiest-assumption最高風險假設leap-of-faith">5.3 Riskiest Assumption（最高風險假設，Leap of Faith）</h3>
+<blockquote><p><strong>以下假設一旦被推翻，整個 IDEA 必須根本性調整或放棄。</strong></p></blockquote>
+<p><strong>核心 Leap of Faith：</strong></p>
+<blockquote><p>我們假設 <strong>「輸入 email 換取永久寵物認領」的低門檻機制足以突破玩家的帳號門檻阻力，並形成足夠高的 Day-7 回訪行為</strong>。</p></blockquote>
+<blockquote><p>若此假設為假，則 <strong>email 認領轉換率 &lt; 5%，玩家不回訪，核心 Loop 不成立</strong>，專案應 <strong>Pivot（考慮匿名 LocalStorage + 雲端備份方案，或完全放棄持久化功能）</strong>。</p></blockquote>
+<blockquote><p>我們將透過 <strong>MVP 上線後前 4 週的 cohort 留存數據 + A/B 測試（email 認領 vs. 匿名 token）</strong> 在 <strong>上線後第 4 週</strong> 前驗證此假設。</p></blockquote>
+<table>
+<tr><th>假設</th><th>驗證方法</th><th>驗證期限</th><th>若錯誤的後果</th></tr>
+<tr><td>Email 認領轉換率 ≥ 10%（訪客 → 認領）（最高風險）</td><td>MVP cohort 留存數據 + 訪談</td><td>上線後第 4 週</td><td>核心 Loop 不成立，需根本性 Pivot</td></tr>
+<tr><td>玩家對程序化像素寵物的稀有感有收藏驅動力</td><td>訪談 + 排行榜頁面訪問率</td><td>上線後第 2 週</td><td>調整外型生成演算法 / 引入手繪元素</td></tr>
+<tr><td>競技場對戰驅動 Day-7 回訪（留存率 ≥ 25%）</td><td>留存漏斗分析</td><td>上線後第 3 週</td><td>加強訓練 / 社交功能；延後競技場 MVP</td></tr>
+</table>
+<p><em>Leap of Faith ≠ 普通風險。它是整個商業邏輯成立的前提條件。</em></p>
+<hr>
+<h2 id="6-clarification-interview-record澄清訪談記錄">6. Clarification Interview Record（澄清訪談記錄）</h2>
+<blockquote><p>本節記錄 /gendoc-auto Step 2 互動提問的完整結果，是 BRD 各章節的原始輸入來源。</p></blockquote>
+<h3 id="q1--主要使用者">Q1 — 主要使用者</h3>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>回答</strong></td><td>休閒玩家（無需帳號）、像素藝術愛好者、輕度競技遊戲玩家、寵物收藏愛好者</td></tr>
+<tr><td><strong>選擇方式</strong></td><td>AI 推薦預設</td></tr>
+<tr><td><strong>影響範疇</strong></td><td>BRD §4 Stakeholders、PDD Persona、RTM 使用者欄位</td></tr>
+</table>
+<hr>
+<h3 id="q2--核心痛點">Q2 — 核心痛點</h3>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>回答</strong></td><td>無需帳號門檻，email 認領制（密碼 + 專屬 URL）；隨機生成像素寵物；競技場多模式對戰；寵物訓練/強化/交易生態系統</td></tr>
+<tr><td><strong>選擇方式</strong></td><td>AI 推薦預設</td></tr>
+<tr><td><strong>影響範疇</strong></td><td>BRD §2 Problem Statement、§5 Proposed Solution、§7 Success Metrics</td></tr>
+</table>
+<hr>
+<h3 id="q3--技術限制或偏好">Q3 — 技術限制或偏好</h3>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>回答</strong></td><td>HTML5（支援主流瀏覽器）；像素風格 Canvas 渲染；後端需支援 email 發送；每隻寵物數據永久存儲</td></tr>
+<tr><td><strong>選擇方式</strong></td><td>使用者自行輸入（來自原始 IDEA 文字）</td></tr>
+<tr><td><strong>影響範疇</strong></td><td>BRD §8 Constraints、EDD 技術選型、ARCH 架構設計</td></tr>
+</table>
+<hr>
+<h3 id="q4--預估流量規模pm-expert-研究推估">Q4 — 預估流量規模（PM Expert 研究推估）</h3>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>日活用戶（DAU）</strong></td><td>2,000–5,000/day（launch）→ peak 20,000/day（viral event）</td></tr>
+<tr><td><strong>同時在線峰值（PCU）</strong></td><td>200–500 人（常態），峰值約 2,000 人（競技場活動期）</td></tr>
+<tr><td><strong>推估依據</strong></td><td>參考具名競品：Neopets（現約 200 萬 MAU，DAU/MAU ≈ 5-10% → DAU 約 10-20 萬）；Tamagotchi Uni 官方 app（估計 MAU 50-100 萬）；itch.io 熱門瀏覽器虛擬寵物遊戲（個別項目 MAU 約 1-10 萬）。本專案為新進入者，保守估算目標市場滲透率 0.1-0.5%，DAU 2k-5k；競技場活動期峰值 PCU 約 DAU 10%（參考 Neopets 競技場時段規律）。</td></tr>
+<tr><td><strong>影響範疇</strong></td><td>EDD 容量規劃數值、ARCH HPA 觸發閾值、DB 連線池大小</td></tr>
+</table>
+<blockquote><p>以上數值由 PM Expert 依競品研究與行業基準自動推估，僅供容量規劃使用，不影響架構選型（架構均採 HA 設計，≥ 2 replica）。</p></blockquote>
+<hr>
+<h3 id="q5--其他補充說明動態追問">Q5 — 其他補充說明（動態追問）</h3>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>回答</strong></td><td>寵物完全隨機生成，每次領養都不同；像素藝術風格；有排行榜與交易市場</td></tr>
+<tr><td><strong>追問觸發原因</strong></td><td>確認差異化特徵（唯一性機制 + 視覺風格）與商業機制（交易市場）</td></tr>
+<tr><td><strong>影響範疇</strong></td><td>§1.4 差異化定位、§4 Value Hypothesis、§7.2 技術生態建議、§9.1 商業模式假說</td></tr>
+</table>
+<hr>
+<h3 id="原始-idea使用者輸入原文逐字保留">原始 IDEA（使用者輸入原文，逐字保留）</h3>
+<pre><code class="">一個HTML5的寵物網站，使用者不用登入，可以隨機跟一個寵物互動，覺得想養要給email，
+會寄一封密碼信給你，以及畫面有領取的URL，下次可依此URL回來跟寵物互動，養大的寵物
+可以跟其他寵物競賽，可以去競技場比賽跑，可以比相撲擂台等，若要讓寵物好，要訓練，
+給特殊食物，也可以把寵物交易，所以每支寵物有自己的戰績，也有寵物排行榜，每支寵物
+都是獨一無二的，用象素風格來做隨機產生特殊寵物，隨機到每次領的都不一樣</code></pre>
+<p><em>保留原文供未來 ECR（Engineering Change Request）審查時比對，確認需求變更屬 BUG 修正還是範圍擴充。</em></p>
+<hr>
+<h2 id="7-market--competitive-intelligence市場與競品情報">7. Market &amp; Competitive Intelligence（市場與競品情報）</h2>
+<blockquote><p>本節由 /gendoc-auto Step 3 研究自動蒐集，作為 BRD §6 的原始資料來源。</p></blockquote>
+<h3 id="71-競品--參考資源">7.1 競品 / 參考資源</h3>
+<table>
+<tr><th>競品 / 工具</th><th>核心定位</th><th>優勢</th><th>劣勢</th><th>我們的差異</th></tr>
+<tr><td><strong>Neopets</strong></td><td>老牌網頁虛擬寵物平台，月活約 200 萬（峰值曾達 3000 萬）</td><td>功能豐富、社群成熟、大量寵物種類</td><td>需完整帳號註冊、Flash 遺留問題（已遷移）、UI 老舊、無程序化生成</td><td>我們：無帳號門檻 + 像素程序化生成 + 現代 HTML5 技術</td></tr>
+<tr><td><strong>CryptoKitties / Axie Infinity</strong></td><td>P2E 區塊鏈寵物遊戲，NFT 資產交易</td><td>稀有性保證（鏈上）、交易市場成熟、高收藏價值感</td><td>需要加密錢包 + Gas Fee，門檻極高；市場受加密市場週期影響大</td><td>我們：無需錢包，傳統 email 即可，無 Gas 成本</td></tr>
+<tr><td><strong>KilledByAPixel/LittleJS</strong></td><td>輕量 HTML5 遊戲引擎（⭐ 3k+），無依賴</td><td>極輕量（&lt; 10KB）、無依賴、適合像素小遊戲</td><td>沒有社交 / 後端功能，純前端</td><td>參考借鑒（技術選型參考）</td></tr>
+<tr><td><strong>Phaser.js</strong></td><td>成熟 HTML5 遊戲框架，有豐富 pixel art 範例</td><td>活躍社群、豐富 arcade 功能、文檔完善</td><td>較重（&gt; 1MB），需要打包優化</td><td>參考借鑒（前端框架候選）</td></tr>
+<tr><td><strong>itch.io Browser-based Pet Games</strong></td><td>多款獨立遊戲開發者的 pixel art 養成遊戲</td><td>零門檻（直接瀏覽器）、pixel art 風格成熟</td><td>無持久化、無社交競技、無後端</td><td>我們補足持久化 + 競技 + 交易三大缺口</td></tr>
+</table>
+<hr>
+<h3 id="72-技術生態建議">7.2 技術生態建議</h3>
+<table>
+<tr><th>層次</th><th>建議方案</th><th>選擇理由</th></tr>
+<tr><td>程式語言 / 框架（前端）</td><td>Phaser 3（HTML5 遊戲框架）或 LittleJS（輕量備選）</td><td>Phaser 3 有完整 arcade 物理、sprite 管理、WebGL 加速；LittleJS 適合極輕量部署</td></tr>
+<tr><td>程式語言 / 框架（後端）</td><td>Node.js (Fastify / Express) 或 Go (Fiber / Gin)</td><td>Node.js 開發速度快，Go 在高並發（競技場對戰）有優勢；Q3 確認需支援 email 發送</td></tr>
+<tr><td>資料庫</td><td>PostgreSQL（主數據）+ Redis（排行榜 / 競技場快取）</td><td>PostgreSQL 強事務性保證寵物唯一性；Redis sorted set 實現即時排行榜</td></tr>
+<tr><td>Email 服務</td><td>SendGrid（主要）+ Nodemailer SMTP（備援）</td><td>SendGrid API 成熟，支援 transactional email；SMTP fallback 降低依賴風險</td></tr>
+<tr><td>像素寵物生成</td><td>程序化 Sprite 組件拼裝（頭型 × 身體 × 顏色 × 特徵 × 稀有屬性）</td><td>多屬性組合 &gt; 10 億種，確保唯一性；種子值記錄於 DB，可復現</td></tr>
+<tr><td>基礎設施</td><td>Vercel / Railway（前端 + 後端）+ Supabase（PostgreSQL 託管）</td><td>低初始成本，支援自動擴展；DAU 5k 以內月成本 ~$50–200</td></tr>
+<tr><td>版本控制 / CI</td><td>GitHub + GitHub Actions</td><td>標準 DevOps 流程</td></tr>
+</table>
+<h4 id="服務角色識別">服務角色識別</h4>
+<table>
+<tr><th>角色名</th><th>用途</th><th>建議技術</th></tr>
+<tr><td><strong>Pet Generation Service</strong></td><td>程序化生成像素寵物（種子 → 外型 + 屬性），保證唯一性</td><td>Node.js / Go 微服務 + PostgreSQL（seed 去重）</td></tr>
+<tr><td><strong>Auth Service（Email Magic Link）</strong></td><td>處理 email 認領請求、生成一次性密碼 + 專屬 URL token、驗證回訪身份</td><td>Node.js + JWT（短效 token）+ Redis（token 黑名單）</td></tr>
+<tr><td><strong>Battle Service（競技場）</strong></td><td>管理對戰配對、戰鬥結算邏輯、戰績記錄</td><td>Go（高並發）+ Redis（對戰隊列）+ PostgreSQL（戰績持久化）</td></tr>
+<tr><td><strong>Ranking Service（排行榜）</strong></td><td>維護全服排行榜（依戰績 / 屬性 / 等級排名）</td><td>Redis sorted set + 定期快照至 PostgreSQL</td></tr>
+<tr><td><strong>Marketplace Service（交易市場）</strong></td><td>寵物掛牌、出價、成交、轉移所有權</td><td>Node.js + PostgreSQL（事務保證）</td></tr>
+<tr><td><strong>Notification Service（通知）</strong></td><td>發送認領 email、競技結果通知</td><td>SendGrid API + Nodemailer fallback</td></tr>
+</table>
+<hr>
+<h3 id="73-研究來源">7.3 研究來源</h3>
+<table>
+<tr><th>搜尋關鍵字</th><th>主要發現</th><th>可信度</th></tr>
+<tr><td><code>GitHub topics/virtual-pet browser HTML5</code></td><td>多個 Tamagotchi 風格虛擬寵物開源項目（瀏覽器 + 狀態機 + WebSocket）；驗證技術可行性</td><td>高</td></tr>
+<tr><td><code>pixel art procedural generation HTML5 game</code></td><td>KilledByAPixel/LittleJS（輕量引擎）、itch.io 相關工具集；Phaser.js 有豐富 pixel art arcade 範例</td><td>高</td></tr>
+<tr><td><code>email magic link authentication security risks</code></td><td>Email client 預掃描問題（magic link 被提前觸發）→ 改用密碼 email + 手動輸入；token TTL + used tracking 是必要安全措施</td><td>高</td></tr>
+<tr><td><code>Neopets monthly active users market size</code></td><td>峰值 3000 萬 MAU（2005），現約 200 萬；DAU/MAU ≈ 5-10%，驗證目標市場規模估算</td><td>中</td></tr>
+<tr><td><code>procedural pixel pet uniqueness seed generation</code></td><td>需設計足夠大的隨機組合空間 + 記錄已用 seed；調色盤隨機化 + 多屬性組合是通用方案</td><td>高</td></tr>
+</table>
+<hr>
+<h2 id="8-initial-risk-assessment初始風險評估">8. Initial Risk Assessment（初始風險評估）</h2>
+<h3 id="81-風險矩陣">8.1 風險矩陣</h3>
+<table>
+<tr><th>#</th><th>風險描述</th><th>類型</th><th>可能性</th><th>影響</th><th>風險等級</th><th>初步緩解策略</th></tr>
+<tr><td>R1</td><td>Email 預掃描問題：某些 email client（Gmail、Outlook）會自動點擊 email 中的 URL，導致認領 token 提前失效</td><td>技術</td><td>HIGH</td><td>HIGH</td><td>🔴 HIGH</td><td>改為「密碼信」模式（email 含 6 位數字密碼，用戶手動在網頁輸入）而非直接 magic link；或提供 TOTP fallback</td></tr>
+<tr><td>R2</td><td>Token 安全性：專屬 URL token 若遭攔截，攻擊者可永久控制寵物</td><td>安全</td><td>MEDIUM</td><td>HIGH</td><td>🔴 HIGH</td><td>Token 加密（JWT with secret）+ 可選二次驗證；Token 長度 ≥ 32 bytes random；提供 token 更換機制</td></tr>
+<tr><td>R3</td><td>帳號枚舉攻擊：攻擊者可透過 email 認領 API 探測哪些 email 已存在</td><td>安全</td><td>MEDIUM</td><td>MEDIUM</td><td>🟡 MEDIUM</td><td>不論 email 是否存在，API 回應相同訊息（「若 email 正確，您將收到認領信」）</td></tr>
+<tr><td>R4</td><td>像素寵物唯一性保證：若隨機組合空間不足，早期玩家可能領到「撞臉」寵物，破壞收藏價值感</td><td>技術</td><td>LOW</td><td>HIGH</td><td>🟡 MEDIUM</td><td>設計多維度屬性組合（頭型 × 身體 × 顏色 × 特徵 × 稀有屬性 ≥ 5 維），組合空間 &gt; 10 億；DB 記錄已發放 seed，確保唯一性</td></tr>
+<tr><td>R5</td><td>競技場公平性問題：玩家透過機器人刷戰績，破壞排行榜生態</td><td>執行</td><td>HIGH</td><td>MEDIUM</td><td>🟡 MEDIUM</td><td>Rate limiting（每隻寵物每小時最多 X 場對戰）+ 對戰冷卻期 + 異常行為偵測</td></tr>
+<tr><td>R6</td><td>競品快速跟進：Neopets 或新的 HTML5 遊戲廠商複製核心機制</td><td>競爭</td><td>LOW</td><td>HIGH</td><td>🟡 MEDIUM</td><td>先發優勢 + 社群效應（排行榜 / 寵物交易的網路效應）；加速 MVP 上線時程</td></tr>
+<tr><td>R7</td><td>GDPR / CAN-SPAM 合規：EU 用戶 email 認領機制可能違反 GDPR 數據最小化原則；CAN-SPAM 要求 transactional email 明確標示；COPPA 對 13 歲以下兒童數據保護有強制要求</td><td>法規</td><td>MEDIUM</td><td>HIGH</td><td>🔴 HIGH</td><td>BRD 前完成法務審查 email 認領機制（含數據保留政策 + 刪除流程）；在 §3.3 明確排除 12 歲以下兒童；隱私政策中載明 email 用途僅限認領與通知</td></tr>
+</table>
+<p>風險等級 = 可能性 × 影響：HIGH/HIGH = 🔴，其他組合 = 🟡 或 🟢。</p>
+<hr>
+<h3 id="82-kill-conditions專案終止條件">8.2 Kill Conditions（專案終止條件）</h3>
+<p><em>以下任一情況發生，應暫停或終止專案，避免繼續投入：</em></p>
+<table>
+<tr><th>終止條件</th><th>觸發閾值</th><th>檢查時機</th></tr>
+<tr><td>Email 認領轉換率過低</td><td>MVP 上線後 4 週內，訪客 → email 認領轉換率持續 &lt; 3%（低於預期 10% 閾值的 30%），且優化後無改善</td><td>MVP 上線後第 4 週</td></tr>
+<tr><td>Day-7 留存率過低</td><td>認領用戶 Day-7 回訪率 &lt; 10%（預期 25% 的 40%），且訪談確認「缺乏回訪動機」</td><td>MVP 上線後第 6 週</td></tr>
+<tr><td>技術不可行</td><td>Email 唯一性 + 像素寵物程序化生成在可接受成本（月 &lt; $500）內無法技術實現</td><td>PoC 完成後（BRD 前）</td></tr>
+<tr><td>法規阻礙</td><td>法務評估後，目標市場（全球）的 email 認領機制有 GDPR / CAN-SPAM 合規問題且無法解決</td><td>BRD 法務審查後</td></tr>
+</table>
+<hr>
+<h3 id="83-dependencies--external-risks依賴與外部風險">8.3 Dependencies &amp; External Risks（依賴與外部風險）</h3>
+<table>
+<tr><th>依賴項</th><th>類型</th><th>關鍵性</th><th>若失效的影響</th><th>備援方案</th></tr>
+<tr><td>SendGrid（email 發送服務）</td><td>技術（第三方 API）</td><td>高</td><td>認領機制完全失效，無法發送密碼信</td><td>Nodemailer + SMTP 自建備援；或 AWS SES / Mailgun 快速切換</td></tr>
+<tr><td>Phaser.js / LittleJS（前端遊戲引擎）</td><td>技術（開源框架）</td><td>中</td><td>前端遊戲渲染需重寫（影響開發進度）</td><td>Phaser.js 社群活躍（⭐ 35k+），停止維護風險低；備選 LittleJS</td></tr>
+<tr><td>PostgreSQL 託管服務（Supabase / Railway）</td><td>技術（基礎設施）</td><td>高</td><td>寵物數據遺失或服務中斷</td><td>定期備份至 S3；可遷移至自建 PostgreSQL 或 AWS RDS</td></tr>
+<tr><td>用戶 email 可達性（非 spam 過濾）</td><td>市場</td><td>中</td><td>認領 email 被標記為 spam，轉換率下降</td><td>SendGrid IP 信譽管理 + SPF/DKIM 設定 + 白名單引導</td></tr>
+</table>
+<p><em>此處記錄影響 IDEA 成立的關鍵外部依賴。本節聚焦於「我們無法完全控制」的外部因素。</em></p>
+<hr>
+<h3 id="84-pre-mortem-exercise失敗前情境模擬">8.4 Pre-mortem Exercise（失敗前情境模擬）</h3>
+<blockquote><p><strong>想象 12 個月後，這個專案已徹底失敗。請列出最可能的失敗原因：</strong></p></blockquote>
+<table>
+<tr><th>#</th><th>失敗情境</th><th>根本原因</th><th>預防措施</th><th>早期預警訊號</th></tr>
+<tr><td>F1</td><td>玩家認領後第 3 天就不再回訪，競技場空洞無人</td><td>訓練/競技的長期動力不足，沒有足夠的社交壓力或即時回饋</td><td>MVP 強化「每日任務」提示 + 排行榜變化推播；競技場引入對戰邀請機制</td><td>Day-7 留存率 &lt; 15% 且問卷反映「沒有繼續的理由」</td></tr>
+<tr><td>F2</td><td>Email 認領轉換率 &lt; 3%，大多數訪客試玩後離開</td><td>對「輸入 email」這個動作的心理摩擦比預期高；玩家不信任</td><td>減少認領步驟（一鍵 OAuth 備選？）；在互動過程中強化「這隻寵物很稀有」的稀缺感設計</td><td>認領頁面 Bounce Rate &gt; 70%</td></tr>
+<tr><td>F3</td><td>開發進度遠低於預期，競爭對手搶先上線</td><td>Phaser.js + 程序化生成 + 後端 email 系統整合複雜度被低估</td><td>在 BRD 前完成技術 PoC（前端渲染 + email 發送 + DB 唯一性驗證）</td><td>PoC 超出 3 週仍未完成</td></tr>
+<tr><td>F4</td><td>排行榜被機器人霸榜，正常玩家放棄競技</td><td>Rate limiting 和反作弊機制設計不足</td><td>早期引入對戰冷卻期 + 人工審查機制；DAU 達 1,000 前優先處理反作弊</td><td>前 10 名寵物對戰場次/天明顯超出正常比例（&gt; 50 場/天）</td></tr>
+<tr><td>F5</td><td>Email 被大量標記為 spam，認領率崩潰</td><td>SendGrid IP 信譽問題 + 郵件模板觸發 spam 過濾器</td><td>早期使用 SendGrid 共享 IP（信譽較好）+ 嚴格遵守 CAN-SPAM；監控 bounce rate 和 spam report</td><td>Spam Report Rate &gt; 0.1%</td></tr>
+<tr><td>F6</td><td>寵物「撞臉」問題破壞稀有感，玩家口碑負面</td><td>組合空間設計不足，早期玩家大量重複外型</td><td>PoC 驗證組合空間足夠大（&gt; 10 億）；實作 seed 去重機制</td><td>用戶論壇 / Twitter 出現大量「我的寵物長得跟別人一樣」投訴</td></tr>
+</table>
+<p><strong>Pre-mortem 結論：</strong> 最可能的失敗路徑是 <strong>F1（訓練/競技動力不足導致低留存）+ F2（email 認領轉換率低）</strong>，需在 BRD 階段優先設計「稀缺感強化機制」與「認領流程最小化摩擦」的預防機制。</p>
+<hr>
+<h2 id="9-business-potential初步商業潛力">9. Business Potential（初步商業潛力）</h2>
+<h3 id="91-商業模式假說">9.1 商業模式假說</h3>
+<table>
+<tr><th>項目</th><th>初步假設</th></tr>
+<tr><td>收入來源</td><td>主要：寵物交易市場手續費（每筆成交 5–10%）；次要：稀有/限定寵物販售（直接向玩家販售特殊外型寵物）；三級：廣告（低優先，避免破壞遊戲體驗）</td></tr>
+<tr><td>主要定價策略</td><td>Freemium + 交易手續費：基礎功能完全免費，交易市場抽成；稀有寵物 $0.99–$4.99</td></tr>
+<tr><td>主要成本驅動因子</td><td>伺服器成本（PostgreSQL + Redis + Compute）；Email 發送成本（SendGrid）；開發維護人力成本</td></tr>
+<tr><td>核心資源</td><td>程序化像素寵物生成演算法（獨特競爭壁壘）；玩家社群與排行榜數據（網路效應）；email 認領用戶庫（低成本觸達渠道）</td></tr>
+<tr><td>獲客管道</td><td>itch.io 發布（有機流量）；Twitter/TikTok 分享戰績（病毒傳播）；Discord pixel art 社群；排行榜公開頁面 SEO</td></tr>
+</table>
+<p><em>以上為概念階段假設，需在 BRD §11 Business Model 中深化，PRD 中以用戶研究驗證。</em></p>
+<hr>
+<h3 id="92-戰略對齊">9.2 戰略對齊</h3>
+<table>
+<tr><th>公司策略目標</th><th>本 IDEA 的貢獻方式</th><th>對齊強度</th></tr>
+<tr><td>建立低成本獲客的 HTML5 遊戲平台</td><td>零帳號門檻設計最大化訪客進入漏斗，email 認領建立用戶資產，口碑傳播降低獲客成本</td><td>強</td></tr>
+<tr><td>探索 Web3-less 的數字資產所有權模式</td><td>email + URL token 作為「輕量數字所有權」替代 NFT/錢包模式，驗證非鏈上唯一性資產的可行性</td><td>中</td></tr>
+<tr><td>開拓休閒遊戲玩家市場</td><td>無門檻設計直接針對「不願創帳號」的輕度用戶群體，驗證該市場的商業價值</td><td>強</td></tr>
+</table>
+<hr>
+<h2 id="10-executive-sponsorship--stakeholder-alignment執行贊助與關鍵利害關係人對齊">10. Executive Sponsorship &amp; Stakeholder Alignment（執行贊助與關鍵利害關係人對齊）</h2>
+<h3 id="101-executive-sponsor">10.1 Executive Sponsor</h3>
+<table>
+<tr><th>欄位</th><th>內容</th></tr>
+<tr><td><strong>贊助人</strong></td><td>TBD — 由 BRD 階段釐清（建議：Product Director 或 CTO，需有 HTML5 遊戲市場判斷能力）</td></tr>
+<tr><td><strong>贊助原因</strong></td><td>本專案探索「無帳號低門檻 + 數字資產輕量化」新模式，與公司休閒遊戲戰略方向對齊</td></tr>
+<tr><td><strong>授權範圍</strong></td><td>預算上限 TBD（由 BRD 定義）；MVP 決策自主範圍（技術選型 + 功能優先級）</td></tr>
+<tr><td><strong>核可日期</strong></td><td>TBD（BRD 完成後）</td></tr>
+<tr><td><strong>升級路徑</strong></td><td>若遇阻礙，升級至 CEO / Founder 層級</td></tr>
+</table>
+<hr>
+<h3 id="102-stakeholder-pre-alignment-matrix">10.2 Stakeholder Pre-alignment Matrix</h3>
+<table>
+<tr><th>利害關係人</th><th>角色</th><th>對本 IDEA 的態度</th><th>主要顧慮</th><th>對齊策略</th><th>對齊期限</th></tr>
+<tr><td>Product Manager</td><td>產品負責人</td><td>支持</td><td>MVP 範圍控制（避免功能蔓延）</td><td>明確 Non-MVP 清單，鎖定 P0 功能</td><td>BRD 前</td></tr>
+<tr><td>Engineering Lead</td><td>技術負責人</td><td>中立</td><td>Email 認領安全性、像素生成組合空間、後端擴展性</td><td>PoC 驗證核心技術可行性（email + 生成演算法）</td><td>EDD 前</td></tr>
+<tr><td>法務（Legal）</td><td>Legal</td><td>中立</td><td>GDPR / CAN-SPAM email 合規、兒童數據保護（COPPA）</td><td>提前法務審查 email 認領機制與數據保留政策</td><td>BRD 前</td></tr>
+<tr><td>Marketing</td><td>行銷負責人</td><td>支持</td><td>如何在 itch.io / Twitter 建立初始用戶基礎</td><td>準備 itch.io 頁面 + 競技場活動預告行銷計畫</td><td>PRD 前</td></tr>
+</table>
+<hr>
+<h3 id="103-communication-plan溝通計畫">10.3 Communication Plan（溝通計畫）</h3>
+<table>
+<tr><th>里程碑</th><th>溝通對象</th><th>溝通形式</th><th>期限</th></tr>
+<tr><td>IDEA 核准</td><td>Executive Sponsor</td><td>1-pager + 口頭簡報</td><td>BRD 啟動前</td></tr>
+<tr><td>BRD 完成</td><td>All Stakeholders</td><td>文件分享 + 審查會議</td><td>BRD 生成後 1 週內</td></tr>
+<tr><td>PRD 核准</td><td>Product + Engineering</td><td>Sprint Planning</td><td>PRD 生成後</td></tr>
+<tr><td>MVP 上線</td><td>All Stakeholders + 行銷</td><td>Demo + 數據儀表板分享</td><td>MVP 上線後 1 週</td></tr>
+</table>
+<hr>
+<h2 id="11-idea-quality-score構想品質評分">11. IDEA Quality Score（構想品質評分）</h2>
+<blockquote><p>由 /gendoc-auto Step 5.5 自動計算，用於判斷是否具備開始 BRD 的條件。</p></blockquote>
+<p><strong>整體評分</strong>：★★★★☆（4/5）</p>
+<table>
+<tr><th>評分維度</th><th>分數</th><th>評估說明</th><th>改進建議</th></tr>
+<tr><td>目標清晰度</td><td>1 / 1</td><td>一句話描述清晰，包含 Who / Problem / Solution / Why Now / Differentiator，無模糊詞</td><td>無需改進</td></tr>
+<tr><td>使用者具體度</td><td>0.9 / 1</td><td>四類用戶群明確（休閒玩家 / 像素藝術愛好者 / 競技玩家 / 收藏愛好者），含職業/行為/痛點描述；年齡層未完全定義</td><td>在 BRD Persona 中補充年齡層與地理分佈估算</td></tr>
+<tr><td>痛點可量化</td><td>0.8 / 1</td><td>帳號門檻問題有量化（帳號轉換率僅 5-15%）；寵物數據不持久有具體描述；部分痛點仍為定性描述</td><td>在 BRD 用戶研究後補充更多量化數據（NPS / 放棄率）</td></tr>
+<tr><td>範圍邊界明確</td><td>1 / 1</td><td>MVP P0/P1/P2 明確分層，Non-MVP 清單具體，Kill Conditions 可量化</td><td>無需改進</td></tr>
+<tr><td>技術可行性初判</td><td>0.3 / 1</td><td>技術選型方向正確（Phaser + Node.js + PostgreSQL），但 email 認領安全性（預掃描問題）和像素唯一性組合空間需 PoC 驗證；研究來源為靜態推斷，無即時 Web Research</td><td>在 EDD 前完成技術 PoC；補充即時競品研究數據</td></tr>
+</table>
+<p><strong>評分解讀：</strong></p>
+<table>
+<tr><th>分數</th><th>星等</th><th>含義</th><th>建議行動</th></tr>
+<tr><td>4</td><td>★★★★☆</td><td>良好，微小缺漏</td><td>生成 BRD，審查後啟動</td></tr>
+</table>
+<p><strong>本次評分說明：</strong></p>
+<pre><code class="">【IDEA 品質評分】★★★★☆（4/5）
+  優點：目標清晰、範圍邊界明確、競品分析充分、Kill Conditions 可量化
+  缺漏：部分痛點量化數據仍為估算（需用戶訪談驗證）；技術可行性需 PoC 確認
+  建議：完成 Q1-Q5 澄清後立即生成 BRD，並在 EDD 前安排 email + 生成演算法 PoC</code></pre>
+<hr>
+<h2 id="12-critical-assumptions關鍵假設清單">12. Critical Assumptions（關鍵假設清單）</h2>
+<p><em>假設是尚未被事實驗證的陳述。以下按「影響 × 不確定性」排序，影響最高者優先驗證。</em></p>
+<table>
+<tr><th>#</th><th>假設陳述</th><th>影響層級</th><th>不確定性</th><th>驗證方式</th><th>驗證期限</th></tr>
+<tr><td>A1</td><td>訪客 → email 認領轉換率 ≥ 10%（「輸入 email 換取永久寵物」的心理摩擦可接受）（基於 Q2 痛點）</td><td>HIGH</td><td>HIGH</td><td>MVP cohort 數據 + 訪談（N ≥ 10）</td><td>MVP 上線後第 4 週</td></tr>
+<tr><td>A2</td><td>Day-7 留存率 ≥ 25%（訓練/競技機制足以驅動持續回訪）（基於 Q4 規模假設）</td><td>HIGH</td><td>MEDIUM</td><td>留存漏斗分析 + 用戶訪談</td><td>MVP 上線後第 6 週</td></tr>
+<tr><td>A3</td><td>程序化像素寵物生成組合空間可達 &gt; 10 億種，且視覺上足夠有辨識度（基於 Q3 技術限制）</td><td>MEDIUM</td><td>HIGH</td><td>技術 PoC（生成演算法驗證）</td><td>EDD 完成前</td></tr>
+<tr><td>A4</td><td>Email 認領安全機制（密碼信 + 專屬 URL）可有效防止 email client 預掃描問題（基於 R1 風險）</td><td>HIGH</td><td>MEDIUM</td><td>技術 PoC（跨 email client 測試）</td><td>EDD 完成前</td></tr>
+<tr><td>A5</td><td>寵物交易市場在 DAU &gt; 1,000 後有自然成交，形成留存驅動力（基於 §5.1 Non-MVP 判斷）</td><td>MEDIUM</td><td>HIGH</td><td>A/B 測試（引入交易市場前後的 DAU 對比）</td><td>PRD 完成前</td></tr>
+</table>
+<p><em>A1 若假設錯誤，專案應終止或根本性調整方向（考慮改為匿名 token 模式）。</em></p>
+<hr>
+<h2 id="13-open-questions待解問題">13. Open Questions（待解問題）</h2>
+<table>
+<tr><th>#</th><th>問題</th><th>影響層級</th><th>若不解決的後果</th><th>負責人</th><th>狀態</th></tr>
+<tr><td>OQ1</td><td>當玩家刪除 email 或換 email 時，如何轉移寵物所有權？（token 與 email 強綁定的設計風險）</td><td>策略</td><td>可能需修改身份識別架構，影響 EDD 設計</td><td>Engineering</td><td>🔲 OPEN</td></tr>
+<tr><td>OQ2</td><td>競技場對戰需要即時匹配（WebSocket）還是非同步匹配？影響後端架構複雜度</td><td>範圍</td><td>影響 MVP 後端架構選型（WebSocket vs. Polling）</td><td>Engineering</td><td>🔲 OPEN</td></tr>
+<tr><td>OQ3</td><td>GDPR 合規：EU 用戶的 email 數據保留政策（認領後多久可刪除 email？）</td><td>法規</td><td>可能影響 EU 市場進入時程</td><td>Legal</td><td>🔲 OPEN</td></tr>
+<tr><td>OQ4</td><td>寵物交易是否涉及虛擬貨幣定價問題？（各地法規對虛擬物品交易的規定不一）</td><td>法規</td><td>部分市場可能無法開放交易功能</td><td>Legal</td><td>🔲 OPEN</td></tr>
+<tr><td>OQ5</td><td>初始寵物生成是純隨機（每次刷新都不同），還是「每個 IP 每日限制 1 次隨機」？影響稀缺感設計</td><td>範圍</td><td>影響前端交互設計和後端邏輯</td><td>Product</td><td>🔲 OPEN</td></tr>
+</table>
+<hr>
+<h2 id="14-idea--brd-handoff-checklist">14. IDEA → BRD Handoff Checklist</h2>
+<blockquote><p>以下所有項目確認後，方可執行 <code>/gendoc brd</code> 或啟動 <code>/gendoc-auto</code>。</p></blockquote>
+<table>
+<tr><th>#</th><th>Checklist 項目</th><th>狀態</th><th>負責人</th></tr>
+<tr><td>C1</td><td>一句話描述（§1.1）已清晰表達，無模糊詞</td><td>✅</td><td>PM</td></tr>
+<tr><td>C2</td><td>核心假說（§1.2）符合可測試格式</td><td>✅</td><td>PM</td></tr>
+<tr><td>C3</td><td>Q1 使用者描述具體（非「所有人」）</td><td>✅</td><td>PM</td></tr>
+<tr><td>C4</td><td>Q2 痛點已量化（時間 / 成本損失有初步估算）</td><td>✅（帳號轉換率 5-15%）</td><td>PM</td></tr>
+<tr><td>C5</td><td>Q4 規模已選定（影響架構決策）</td><td>✅（DAU 2k-5k，PCU 200-500）</td><td>PM</td></tr>
+<tr><td>C6</td><td>至少 1 個競品在 §7 已識別</td><td>✅（5 個競品 / 參考工具）</td><td>PM</td></tr>
+<tr><td>C7</td><td>至少 3 項風險在 §8 已識別</td><td>✅（6 項風險）</td><td>PM</td></tr>
+<tr><td>C8</td><td>Kill Conditions（§8.2）已定義</td><td>✅（4 條，可量化）</td><td>PM</td></tr>
+<tr><td>C9</td><td>關鍵假設 A1（§12）已識別並有驗證計畫</td><td>✅</td><td>PM</td></tr>
+<tr><td>C10</td><td>IDEA Quality Score ≥ 3</td><td>✅（4/5）</td><td>AI 自動</td></tr>
+<tr><td>C11</td><td>原始 IDEA 原文已逐字保留（§6 末段）</td><td>✅</td><td>AI 自動</td></tr>
+<tr><td>C12</td><td>Open Questions 中無 P0 級別未解技術問題</td><td>✅（OQ2 競技場架構待確認，但不阻塞 BRD 生成）</td><td>Engineering</td></tr>
+</table>
+<p><strong>Handoff 結論</strong>：所有 C1-C12 已通過 ✅，可執行 <code>/gendoc brd</code> 生成 BRD。</p>
+<hr>
+<h2 id="15-traceability-note溯源說明">15. Traceability Note（溯源說明）</h2>
+<p><em>此文件是需求鏈的起點，扮演「原始意圖記錄者」的角色。</em></p>
+<p><strong>向下追溯（Forward）：</strong></p>
+<pre><code class="">IDEA.md （本文件）
+  └─► BRD.md       ← /gendoc brd（由 /gendoc-auto 自動生成）
+        └─► PRD.md      ← /gendoc prd
+              └─► PDD.md      ← /gendoc pdd
+                    └─► EDD.md      ← /gendoc edd
+                          └─► ARCH / API / SCHEMA / BDD → 實作</code></pre>
+<p><strong>素材來源追溯：</strong></p>
+<table>
+<tr><th>章節</th><th>來源素材</th><th>素材類型</th></tr>
+<tr><td>§1 Idea Essence（Elevator Pitch、核心假說）</td><td><code>docs/req/idea-input.md</code> + Q1/Q2 澄清</td><td>原始構想文字輸入</td></tr>
+<tr><td>§2 Problem Statement（As-Is Narrative、5 Whys）</td><td><code>docs/req/idea-input.md</code> + Q2 澄清</td><td>原始構想 + 澄清訪談</td></tr>
+<tr><td>§3 Target Users</td><td>Q1 澄清結果</td><td>澄清訪談</td></tr>
+<tr><td>§4 Value Hypothesis</td><td>Q2 澄清 + 研究摘要</td><td>澄清訪談 + Web Research</td></tr>
+<tr><td>§5 MVP &amp; Learning Plan</td><td>Q1/Q2 澄清 + PM 推斷</td><td>澄清訪談 + AI 推斷</td></tr>
+<tr><td>§6 Clarification Interview Record</td><td>Q1–Q5 原始回答</td><td>澄清訪談（逐字保留）</td></tr>
+<tr><td>§7 Market &amp; Competitive Intelligence</td><td>研究摘要（state file）</td><td>Web Research 摘要</td></tr>
+<tr><td>§8 Initial Risk Assessment</td><td>研究摘要（風險部分）+ AI 推斷</td><td>Web Research + AI 推斷</td></tr>
+<tr><td>§9 Business Potential</td><td>AI 推斷（依商業模式常識）</td><td>AI 推斷</td></tr>
+<tr><td>§10 Executive Sponsorship</td><td>TBD（BRD 階段釐清）</td><td>待補充</td></tr>
+<tr><td>§11 IDEA Quality Score</td><td>AI 自動評分</td><td>AI 自動</td></tr>
+<tr><td>§12 Critical Assumptions</td><td>Q2/Q3/Q4 澄清 + 研究摘要</td><td>澄清訪談 + AI 推斷</td></tr>
+<tr><td>§13 Open Questions</td><td>AI 推斷（依技術 / 法規常識）</td><td>AI 推斷</td></tr>
+</table>
+<p><strong>需求變更判斷準則：</strong></p>
+<table>
+<tr><th>場景</th><th>對比依據</th><th>分類</th></tr>
+<tr><td>功能行為與原始 IDEA Q1/Q2 一致但實作有誤</td><td>IDEA §6 原文</td><td><strong>BUG</strong>（修正，不需 ECR）</td></tr>
+<tr><td>功能需求超出原始 Q1/Q2 描述範圍</td><td>IDEA §6 原文</td><td><strong>ECR</strong>（需人工評估變更範圍）</td></tr>
+<tr><td>技術選型偏離 Q3 且理由不足</td><td>IDEA §6 Q3</td><td><strong>ECR 或 ADR</strong>（需說明決策依據）</td></tr>
+</table>
+<hr>
+<h2 id="appendix-aresearch-raw-data研究原始資料">Appendix A：Research Raw Data（研究原始資料）</h2>
+<p><em>以下為研究的完整原始摘要（來自 state file research_summary），供 BRD §0 引用。</em></p>
+<h3 id="搜尋-1競品與開源專案">搜尋 1：競品與開源專案</h3>
+<pre><code class="">查詢：GitHub topics/virtual-pet browser HTML5 pixel art
+結果：
+- GitHub topics/virtual-pet：多個 Tamagotchi 風格虛擬寵物開源項目（瀏覽器 + 狀態機 + WebSocket）
+- KilledByAPixel/LittleJS：輕量 HTML5 遊戲引擎（無依賴，⭐ 3k+），適合像素小遊戲
+- Phaser.js：成熟 HTML5 遊戲框架，有豐富 pixel art + arcade 範例
+- itch.io HTML5 Pixel Art + Procedural Generation 工具集：多款類似風格參考</code></pre>
+<h3 id="搜尋-2技術最佳實踐">搜尋 2：技術最佳實踐</h3>
+<pre><code class="">查詢：HTML5 pixel art procedural generation + email magic link authentication
+結果：
+- 渲染框架建議：Phaser 3 或 LittleJS（輕量），Canvas 搭配 image-rendering: pixelated
+- 像素生成：程序化生成（Sprite 組件拼裝），支援調色盤隨機化確保唯一性
+- 後端：Node.js (Express/Fastify) + PostgreSQL（寵物數據持久化）
+- Auth：Email Magic Link（JWT token，有效期 15 分鐘）+ 專屬 URL（長效 token）
+- Email：SendGrid / Nodemailer（SMTP fallback）</code></pre>
+<h3 id="搜尋-3已知挑戰與陷阱">搜尋 3：已知挑戰與陷阱</h3>
+<pre><code class="">查詢：email magic link security risks + virtual pet game engagement retention
+結果：
+- Email Client 預掃描問題：收信後 client 可能提前點擊 magic link 導致失效
+  → 改用 Password email 配合手動輸入，或使用 TOTP fallback
+- Token 過期管理：必須設置 TTL + already-used tracking，防止 token 重用攻擊
+- 帳號枚舉攻擊：email 不論是否存在都回傳相同訊息（不透露是否已存在）
+- 像素寵物唯一性保證：需設計足夠大的隨機組合空間（種子 + 多屬性組合），並記錄已用 seed
+- 競技場公平性：防止刷戰績（Rate limiting + 對戰冷卻期）</code></pre>
+<hr>
+<h2 id="appendix-bdocument-history">Appendix B：Document History</h2>
+<table>
+<tr><th>版本</th><th>日期</th><th>作者</th><th>修改摘要</th></tr>
+<tr><td>v0.1-capture</td><td>2026-05-03</td><td>AI Generated (gendoc-gen-idea)</td><td>初始捕捉，由 AI 自動填寫（依 Q1-Q5 澄清 + docs/req/idea-input.md + state file research_summary）</td></tr>
+<tr><td>v0.2</td><td>—</td><td>—</td><td>—</td></tr>
+</table>
+<hr>
+<h2 id="appendix-c素材清單">Appendix C：素材清單</h2>
+<p><em>列出所有引用的 docs/req/ 素材。</em></p>
+<table>
+<tr><th>檔案路徑</th><th>素材類型</th><th>應用於（對應章節）</th></tr>
+<tr><td><code>docs/req/idea-input.md</code></td><td>產品原始構想文字輸入（使用者逐字輸入）</td><td>§1 Idea Essence、§2 Problem Statement、§4 Value Hypothesis、§6 原始 IDEA 原文（逐字保留）</td></tr>
+<tr><td><code>.gendoc-state-tobala-main.json</code>（Q1-Q5 欄位）</td><td>澄清訪談紀錄（AI 自動填入）</td><td>§3 Target Users、§6 Clarification Interview Record（Q1-Q5）</td></tr>
+<tr><td><code>.gendoc-state-tobala-main.json</code>（research_summary 欄位）</td><td>Web Research 摘要（AI 研究後填入 state）</td><td>§7 Market &amp; Competitive Intelligence、§8 Initial Risk Assessment、Appendix A</td></tr>
+<tr><td><code>.gendoc-state-tobala-main.json</code>（q4_dau / q4_peak_ccu / q4_estimate_basis 欄位）</td><td>PM Expert 容量推估（自動填入）</td><td>§6 Q4、§7.3 研究來源（流量估算）</td></tr>
+</table>
+<hr>
+<p><em>此 IDEA.md 由 /gendoc 自動生成並保存。它記錄了需求探索過程的所有原始輸入、假設與品質評分，是未來 BUG vs ECR 判斷的一級依據。</em></p>
+<p><em>未來需求發生變化時，請先閱讀本文件 §6（原始 IDEA 原文）與 §12（關鍵假設），確認變更是否超出原始意圖範圍。</em></p></main>
+  </div>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({startOnLoad:true,theme:'default',
+      flowchart:{curve:'basis',nodeSpacing:60,rankSpacing:80},
+      er:{layoutDirection:'TD',minEntityWidth:100,fontSize:12},
+      sequence:{actorMargin:60,messageMargin:30}});
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-go.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

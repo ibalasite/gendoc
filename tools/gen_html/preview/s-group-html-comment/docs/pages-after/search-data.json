@@ -1,0 +1,32 @@
+{
+  "index.html": {
+    "url": "index.html",
+    "title": "s-group-html-comment 文件中心",
+    "excerpt": "pixel-pet-arena\nZero-account-barrier HTML5 browser game where players claim, train, and battle procedurally-generated pixel pets via email — no regist"
+  },
+  "idea.html": {
+    "url": "idea.html",
+    "title": "構想文件 (IDEA)",
+    "excerpt": "IDEA Document Template\n§0 Input Source（輸入素材說明）\n\n欄位內容\n輸入類型text_idea（使用者直接輸入文字構想）\n素材檔案docs/req/idea-input.md\n輸入摘要HTML5 寵物互動網站，無帳號門檻，email 認領制，像素風格隨機寵物，競"
+  },
+  "brd.html": {
+    "url": "brd.html",
+    "title": "商業需求文件 (BRD)",
+    "excerpt": "BRD — Business Requirements Document\nDocument Control\n\n欄位內容\nDOC-IDBRD-PIXEL-PET-ARENA-20260503\n專案名稱pixel-pet-arena\n文件版本v1.0\n狀態DRAFT\n作者AI Generated (ge"
+  },
+  "prd.html": {
+    "url": "prd.html",
+    "title": "產品需求文件 (PRD)",
+    "excerpt": "PRD — Product Requirements Document\nDocument Control\n\nFieldContent\nDOC-IDPRD-PIXEL-PET-ARENA-20260503\nProject Namepixel-pet-arena\nDocument Versionv1.0"
+  },
+  "pdd.html": {
+    "url": "pdd.html",
+    "title": "產品設計文件 (PDD)",
+    "excerpt": "PDD — Product Design Document\n\nPlatform Scope Declaration（平台範圍宣告）\n Web（Browser） iOS Native Android Native Desktop App（Electron / macOS / Windows） Game"
+  },
+  "edd.html": {
+    "url": "edd.html",
+    "title": "工程設計文件 (EDD)",
+    "excerpt": "EDD — Engineering Design Document\nDocument Control\n\n欄位內容\nDOC-IDEDD-PIXEL-PET-ARENA-20260503\n產品名稱Pixel Pet Arena\n文件版本v2.0\n狀態DRAFT\n作者AI Generated (gendo"
+  }
+}

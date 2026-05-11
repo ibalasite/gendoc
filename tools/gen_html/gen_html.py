@@ -3269,6 +3269,25 @@ def md_to_html(text, src_dir=None):
     """Convert markdown to HTML.
     src_dir: Path directory of the source .md file — used to resolve relative img paths."""
     text = strip_frontmatter(text)
+    # S-group: strip HTML comments (`<!-- ... -->`). Markdown parser otherwise
+    # wraps each line in <p>, showing comment content as visible text.
+    # SDLC convention: source often has `# H1\n\n<!-- meta --> ...\n\n---\n\n## Section`
+    # — when a comment block exists, the trailing `---` separator becomes a
+    # meaningless artifact (its job was to divide a now-empty metadata region
+    # from the body). Strip it too — but only when metadata comments actually
+    # existed (don't touch body `---` users wrote intentionally).
+    had_metadata_comment = '<!--' in text
+    text = re.sub(r'<!--.*?-->', '', text, flags=re.DOTALL)
+    if had_metadata_comment:
+        # Strip the first `---` after H1 (separator between metadata block and body).
+        text = re.sub(
+            r'(^#\s+[^\n]+\n)\s*---+\s*\n',
+            r'\1\n',
+            text, count=1, flags=re.MULTILINE,
+        )
+    # Collapse 3+ consecutive newlines (left from stripped comments) into 2,
+    # so we don't produce a chain of empty <p> tags.
+    text = re.sub(r'\n{3,}', '\n\n', text)
     lines = text.split('\n')
     out = []
     i = 0

@@ -1,0 +1,1550 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>產品需求文件 (PRD) — s-group-html-comment</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <style>
+    /* ─── Sidebar collapsible folder groups ─── */
+    .sidebar__section details { border: none; }
+    .sidebar__section details > summary {
+      cursor: pointer; list-style: none; display: flex; align-items: center;
+      gap: 0.375rem; padding: 0 1rem; margin-bottom: 0.375rem;
+      font-size: 0.6875rem; font-weight: 600; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.08em; user-select: none;
+    }
+    .sidebar__section details > summary::-webkit-details-marker { display: none; }
+    .sidebar__section details > summary::before {
+      content: '▶'; font-size: 0.5rem; flex-shrink: 0;
+      transition: transform 150ms; color: var(--text-muted);
+    }
+    .sidebar__section details[open] > summary::before { transform: rotate(90deg); }
+    .sidebar__section details .sidebar__link { padding-left: 1.75rem; font-size: 0.8125rem; }
+    .sidebar__section details details > summary { padding-left: 1.75rem; }
+    .sidebar__section details details .sidebar__link { padding-left: 2.5rem; }
+    /* B5/B8: labels inside details are sub-labels — indent past their parent <summary>. */
+    .sidebar__section details > .sidebar__label {
+      padding-left: 2.25rem;
+    }
+    .sidebar__section details details > .sidebar__label {
+      padding-left: 3rem;
+    }
+    /* B5: sub-label inside diagrams folding for prefix groups (Activity / Class / ...) */
+    .sidebar__label--sub {
+      padding: 0.25rem 1rem 0.125rem 3rem;
+      font-size: 0.6875rem; font-weight: 600;
+      color: var(--text-muted); text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    /* B5: links following a sub-label indent further still */
+    .sidebar__section details .sidebar__label--sub ~ .sidebar__link {
+      padding-left: 3.5rem;
+    }
+    /* ─── Q-group: header 兩層等高 56px + 白條消除 ─── */
+    .top-nav { height: 56px; padding: 0 1.5rem; border-bottom: none; }
+    .nav-breadcrumb { display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.95rem; color: #cbd5e1; }
+    .nav-breadcrumb a { color: #fff; text-decoration: none; font-weight: 600; }
+    .nav-breadcrumb a:hover { color: #60a5fa; }
+    .doc-page-banner { height: 56px; padding: 0 2rem;
+      display: flex; align-items: center; border-top: none; }
+    .banner-title { font-size: 1.25rem; font-weight: 700;
+      line-height: 1; margin: 0; }
+    /* R-group: main 上方留白縮減（從 style.css 預設 2.5rem 改 1rem，
+       讓 main content 緊接 banner，跟 sidebar 視覺對齊）*/
+    .doc-content { padding-top: 1rem; }
+
+    /* ─── N1 + Q + R: sidebar tab switcher (📁 文件 / 📑 本頁目錄) ─── */
+    /* `padding: 0` overrides style.css `.sidebar { padding: 1.5rem 0 }`.
+       `top: 0` overrides style.css `.sidebar { top: var(--nav-h) }` —
+       N1 changed `position: sticky` → `relative` but the stale `top: 56px`
+       silently pushed sidebar 56px down → Q-group white gap.
+       R-group: `height: auto` + `overflow: visible` cancel style.css fixed
+       viewport height + scrollbar. sidebar grows with grid row to full
+       content height; page-level scroll handles overflow naturally. */
+    .sidebar { position: relative; top: 0; display: flex; flex-direction: column;
+      overflow: visible; padding: 0; height: auto; }
+    .sidebar__toggle { position: absolute; top: 6px; right: 6px;
+      background: #f1f5f9; border: 1px solid #cbd5e1;
+      padding: 2px 6px; border-radius: 4px;
+      cursor: pointer; font-size: 11px; line-height: 1;
+      color: #475569; z-index: 3; }
+    .sidebar__toggle:hover { background: #e2e8f0; }
+    .sidebar__tabs { display: flex; gap: 2px; padding: 4px 32px 0 4px;
+      border-bottom: 1px solid #e2e8f0; background: #f8fafc;
+      flex-shrink: 0; }
+    .sidebar__tab { flex: 1; padding: 6px 8px; font-size: 12px;
+      border: 1px solid transparent; border-bottom: none;
+      border-radius: 4px 4px 0 0; cursor: pointer; background: transparent;
+      color: #64748b; font-family: inherit; text-align: center;
+      transition: background-color 150ms, color 150ms; }
+    .sidebar__tab:hover { color: #1e293b; background: #f1f5f9; }
+    .sidebar__tab.active { background: #fff; color: #1e3a8a;
+      border-color: #e2e8f0; font-weight: 600; margin-bottom: -1px; }
+    .sidebar__panel { display: none; flex: 1; overflow: visible;
+      padding: 0.5rem 0; font-size: 0.875rem; }
+    .sidebar__panel.active { display: block; }
+    /* TOC list rendering inside the toc panel */
+    .sidebar__panel .toc-list { list-style: none; padding: 0; margin: 0; }
+    .sidebar__panel .toc-list li { margin: 0; }
+    .toc__link { display: block; padding: 0.25rem 0.75rem;
+      color: #475569; text-decoration: none; font-size: 0.8125rem;
+      border-left: 2px solid transparent; margin: 1px 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .toc__link:hover { background: #f1f5f9; color: #1e293b; }
+    .toc__link.active { background: #eff6ff; color: #1e3a8a;
+      border-left-color: #3b82f6; font-weight: 500; }
+    .toc__link--h3 { padding-left: 1.5rem; font-size: 0.78rem; color: #64748b; }
+    /* Sidebar collapsed state — keep a 32px rail visible so the toggle
+       button stays clickable; hide tabs + panels. Overrides style.css's
+       .page-wrapper.sidebar-collapsed { grid-template-columns: 0 4px 1fr; }
+       to keep the rail. */
+    .page-wrapper.sidebar-collapsed { grid-template-columns: 32px 4px 1fr; }
+    .page-wrapper.sidebar-collapsed .sidebar {
+      width: 32px; min-width: 32px;
+      visibility: visible; padding: 0; overflow: visible;
+    }
+    .page-wrapper.sidebar-collapsed .sidebar__tabs,
+    .page-wrapper.sidebar-collapsed .sidebar__panel { display: none; }
+    .page-wrapper.sidebar-collapsed .sidebar__toggle { left: 4px; right: 4px; }
+    /* RWD — auto-collapse on phones (<768px). Only kicks in when no
+       explicit `.sidebar-expanded` flag is set; tap the toggle to expand. */
+    @media (max-width: 768px) {
+      .page-wrapper:not(.sidebar-expanded) {
+        grid-template-columns: 32px 4px 1fr;
+      }
+      .page-wrapper:not(.sidebar-expanded) .sidebar {
+        width: 32px; min-width: 32px;
+      }
+      .page-wrapper:not(.sidebar-expanded) .sidebar__tabs,
+      .page-wrapper:not(.sidebar-expanded) .sidebar__panel { display: none; }
+    }
+    /* G-Q2: lightbox cloned-diagram visibility.
+       The lightbox sets `.lightbox__content > * { position:absolute }`
+       which collapses the cloned .diagram-container to 0×0; its child SVG
+       with `width:100%` then renders empty. Force a sensible explicit
+       width so the cloned content is actually visible. */
+    .lightbox__content .diagram-container {
+      width: 80vw;
+      max-width: 1400px;
+      min-width: 60vw;
+    }
+    .lightbox__content .diagram-container svg {
+      width: 100%;
+      height: auto;
+      max-height: 80vh;
+      display: block;
+    }
+    .lightbox__content .diagram-container .mermaid {
+      width: 100%;
+      max-width: none;
+    }
+    .lightbox__content svg {
+      height: auto;
+    }
+    /* G-Q5: prevent flex/grid child main.doc-content from expanding to its
+       content's intrinsic size when a PUML SVG / pre.mermaid has wide
+       content. Without min-width:0, the flex item's default min-width is
+       its min-content (i.e. SVG natural width), which pushes <main> to
+       3000px+ on PUML pages and breaks layout.
+
+       Pair with `<pre> { max-width: 100% }` so wide source content scrolls
+       inside the <pre> block instead of expanding the page. */
+    main.doc-content {
+      min-width: 0;
+    }
+    .doc-content pre {
+      max-width: 100%;
+    }
+    .doc-content .diagram-container {
+      max-width: 100%;
+      overflow-x: auto;
+    }
+
+    /* ─── UI Mock DSL (stage 9) ─── */
+    .umock { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #1e293b; }
+    .umock__page, .umock__modal, .umock__card {
+      border: 1.5px solid #94a3b8; border-radius: 8px; background: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin: 1rem 0;
+      overflow: hidden;
+    }
+    .umock__card-title { padding: 0.625rem 1rem; font-weight: 600; font-size: 0.95rem;
+      background: #f8fafc; border-bottom: 1.5px solid #94a3b8; color: #1e293b; }
+    .umock__page-title { padding: 0.75rem 1rem; font-weight: 600; font-size: 1.05rem;
+      background: #f8fafc; border-bottom: 1.5px solid #94a3b8; }
+    /* `.diagram-container` (assets/style.css) defaults to text-align: center
+       which is right for SVG/mermaid but wrong for umock body text. Reset
+       to start so individual umock elements decide their own alignment.
+       Also constrain width to content so umock card mirrors ASCII source
+       proportions (rather than stretching to full doc-content width). */
+    .diagram-container--umock {
+      text-align: start;
+      width: fit-content;
+      max-width: 100%;
+    }
+    .diagram-container--umock .umock__card,
+    .diagram-container--umock .umock__page,
+    .diagram-container--umock .umock__modal {
+      width: fit-content;
+      max-width: 100%;
+    }
+    /* Outer-alignment modifiers — applied via attrs.align detected from
+       the source ASCII's leading/trailing whitespace within `│ ... │`. */
+    .umock__card-title--center, .umock__page-title--center,
+    .umock__text--center, .umock__info--center, .umock__hint--center,
+    .umock__actions--center { text-align: center; }
+    .umock__card-title--right, .umock__page-title--right,
+    .umock__text--right, .umock__info--right, .umock__hint--right,
+    .umock__actions--right { text-align: right; }
+    .umock__modal { max-width: 540px; }
+    .umock__modal-titlebar { display: flex; justify-content: space-between; align-items: center;
+      padding: 0.75rem 1rem; background: #f1f5f9; border-bottom: 1.5px solid #94a3b8; }
+    .umock__modal-title { font-weight: 600; font-size: 1rem; }
+    .umock__modal-close { color: #94a3b8; font-size: 1.1rem; cursor: default; }
+    .umock__modal-body, .umock__page > .umock__section,
+    .umock__card { padding: 0.75rem 1rem; }
+    .umock__navbar { display: flex; gap: 1rem; align-items: center;
+      padding: 0.625rem 1rem; background: #1e293b; color: #f1f5f9;
+      border-radius: 8px 8px 0 0; }
+    .umock__sidenav { float: left; width: 12rem; padding: 0.75rem;
+      background: #f8fafc; border-right: 1px solid #e2e8f0; min-height: 200px; }
+    .umock__sidenav .umock__item { padding: 0.375rem 0.5rem; border-radius: 4px;
+      color: #475569; font-size: 0.875rem; }
+    .umock__sidenav .umock__item:hover { background: #e2e8f0; }
+    .umock__page > *:not(.umock__navbar):not(.umock__sidenav) { margin-left: 12.5rem;
+      padding: 0.75rem 1rem; }
+    .umock__page::after { content: ""; display: block; clear: both; }
+    .umock__section { padding: 0.75rem 0; }
+    .umock__section-title { margin: 0 0 0.5rem 0; font-size: 1rem; font-weight: 600; }
+    .umock__section-subtitle { color: #64748b; font-size: 0.875rem; margin-bottom: 0.5rem; }
+    .umock__field { margin: 0.5rem 0; }
+    .umock__field-label { display: block; font-size: 0.85rem; color: #334155;
+      margin-bottom: 0.25rem; font-weight: 500; }
+    .umock__field-required { color: #dc2626; margin-left: 0.125rem; }
+    .umock__input, .umock__search {
+      display: block; width: 100%; padding: 0.5rem 0.625rem; font-size: 0.9rem;
+      border: 1px solid #94a3b8; border-radius: 4px; background: #fff;
+      color: #475569; box-sizing: border-box;
+    }
+    .umock__btn { display: inline-block; padding: 0.4rem 0.9rem; margin: 0.125rem;
+      font-size: 0.875rem; font-weight: 500; border: 1px solid transparent;
+      border-radius: 4px; cursor: default; background: #e2e8f0; color: #334155; }
+    .umock__btn--primary { background: #2563eb; color: #fff; }
+    .umock__btn--secondary { background: #fff; color: #475569; border-color: #cbd5e1; }
+    .umock__btn--danger { background: #dc2626; color: #fff; }
+    .umock__actions { padding: 0.5rem 0;
+      border-top: 1px solid #f1f5f9; }
+    .umock__badge { display: inline-block; padding: 0.125rem 0.5rem;
+      border-radius: 999px; font-size: 0.75rem; font-weight: 500;
+      background: #e2e8f0; color: #475569; }
+    .umock__badge--active { background: #dcfce7; color: #166534; }
+    .umock__badge--inactive { background: #fee2e2; color: #991b1b; }
+    .umock__badge--warning { background: #fef3c7; color: #92400e; }
+    .umock__hint { color: #64748b; font-size: 0.8rem; margin: 0.25rem 0 0.5rem 0; }
+    .umock__info { background: #eff6ff; border-left: 3px solid #3b82f6;
+      padding: 0.5rem 0.75rem; margin: 0.5rem 0; color: #1e3a8a; font-size: 0.875rem; }
+    /* Plain body text row in UI mock: monospace, preserve whitespace,
+       left-aligned, no background. Maps to ASCII content rows that aren't
+       semantic markers (ⓘ / helper:). */
+    .umock__text { padding: 0.125rem 1rem; margin: 0; color: #1e293b;
+      font-family: 'Menlo','Consolas','Courier New',monospace;
+      font-size: 0.85rem; white-space: pre; }
+    /* Higher specificity than `.doc-content pre` (assets/style.css) so the
+       umock dark-canvas background isn't overridden by the generic `pre`
+       rule when umock is rendered inside `.doc-content`. */
+    .doc-content pre.umock__code, pre.umock__code { background: #1e293b; color: #f1f5f9; padding: 0.75rem;
+      border-radius: 4px; overflow-x: auto; font-size: 0.8rem;
+      font-family: ui-monospace, "SF Mono", Consolas, monospace; }
+    .umock__code code { background: none; color: inherit; padding: 0; }
+    .umock__table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.9rem; }
+    .umock__table th, .umock__table td { padding: 0.75rem 0.875rem; text-align: left;
+      border-bottom: 1px solid #cbd5e1; }
+    .umock__table th { background: #f8fafc; font-weight: 600; color: #334155;
+      border-bottom: 2px solid #94a3b8; }
+    .umock__table tbody tr:hover { background: #f8fafc; }
+    .umock__pagination { padding: 0.5rem 0; color: #64748b; font-size: 0.8rem; text-align: right; }
+    .umock__tabs { display: flex; gap: 0.5rem; padding: 0.25rem 0; border-bottom: 1px solid #e2e8f0; }
+    .umock__tab { padding: 0.375rem 0.75rem; color: #475569; font-size: 0.875rem;
+      border-bottom: 2px solid transparent; }
+    .umock__tab:first-child { border-bottom-color: #2563eb; color: #1e40af; font-weight: 500; }
+    .umock__filter-bar { display: flex; gap: 0.5rem; align-items: center;
+      padding: 0.5rem 0; }
+    .umock__divider { border: 0; border-top: 1px solid #e2e8f0; margin: 0.5rem 0; }
+    .umock__meta-line { color: #64748b; font-size: 0.8rem; margin: 0.125rem 0; }
+    .umock__row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .umock__row-cell { font-size: 0.875rem; color: #334155; }
+    .umock__avatar { width: 1.75rem; height: 1.75rem; border-radius: 50%;
+      background: #94a3b8; display: inline-block; }
+    .umock__logo { font-weight: 700; letter-spacing: 0.02em; }
+    .umock__spacer { flex: 1; }
+    .umock__pyramid { display: block; max-width: 100%; height: auto; }
+    /* generic fallback for unknown types */
+    .umock__x { padding: 0.5rem; border: 1px dashed #cbd5e1; border-radius: 4px;
+      color: #64748b; font-size: 0.875rem; margin: 0.25rem 0; }
+  </style>
+</head>
+<body>
+  <header class="top-nav">
+    <nav class="nav-breadcrumb"><a href="index.html">s-group-html-comment</a> › 產品需求文件 (PRD)</nav>
+    <div class="nav-controls">
+      <div class="search-wrap">
+        <input class="search-input" type="search" placeholder="搜尋文件...">
+        <div class="search-results"></div>
+      </div>
+      <a class="nav-gh-link" href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener">⌥ GitHub</a>
+      <button class="sidebar-toggle" id="sidebarToggle" title="收合/展開側欄">☰</button>
+    </div>
+  </header>
+  <div class="doc-page-banner">
+    <h1 class="banner-title">產品需求文件 (PRD)</h1>
+  </div>
+  <div class="page-wrapper">
+    <aside class="sidebar" aria-label="文件導覽">
+      <button class="sidebar__toggle" id="sidebarCollapseBtn" type="button" aria-label="收合 / 展開側欄" title="收合 / 展開">⇤</button><div class="sidebar__tabs" role="tablist"><button class="sidebar__tab active" data-tab="docs" type="button" role="tab" aria-selected="true">📁 文件</button><button class="sidebar__tab" data-tab="toc" type="button" role="tab" aria-selected="false">📑 本頁目錄</button></div><div class="sidebar__panel active" data-panel="docs" role="tabpanel"><div class="sidebar__section">
+<a class="sidebar__link" href="index.html">🏠 首頁</a>
+<a class="sidebar__link" href="idea.html">💡 構想文件 (IDEA)</a>
+<a class="sidebar__link" href="brd.html">📋 商業需求文件 (BRD)</a>
+<a class="sidebar__link active" href="prd.html">📝 產品需求文件 (PRD)</a>
+<a class="sidebar__link" href="pdd.html">🎨 產品設計文件 (PDD)</a>
+<a class="sidebar__link" href="edd.html">🏗️ 工程設計文件 (EDD)</a>
+</div></div><div class="sidebar__panel" data-panel="toc" role="tabpanel"><ul class="toc-list"><li><a class="toc__link" href="#document-control">Document Control</a></li><li><a class="toc__link" href="#change-log">Change Log</a></li><li><a class="toc__link" href="#1-executive-summary">§1 Executive Summary</a></li><li><a class="toc__link toc__link--h3" href="#11-product-vision">1.1 Product Vision</a></li><li><a class="toc__link toc__link--h3" href="#12-business-context-from-brd-1">1.2 Business Context (from BRD §1)</a></li><li><a class="toc__link toc__link--h3" href="#13-product-scope-summary">1.3 Product Scope Summary</a></li><li><a class="toc__link toc__link--h3" href="#14-north-star-metric">1.4 North Star Metric</a></li><li><a class="toc__link" href="#2-problem-statement">§2 Problem Statement</a></li><li><a class="toc__link toc__link--h3" href="#21-user-pain-points">2.1 User Pain Points</a></li><li><a class="toc__link toc__link--h3" href="#22-root-cause-analysis">2.2 Root Cause Analysis</a></li><li><a class="toc__link toc__link--h3" href="#23-opportunity-hypothesis">2.3 Opportunity Hypothesis</a></li><li><a class="toc__link toc__link--h3" href="#24-system-context-diagram">2.4 System Context Diagram</a></li><li><a class="toc__link" href="#3-stakeholders--users">§3 Stakeholders &amp;amp; Users</a></li><li><a class="toc__link toc__link--h3" href="#31-stakeholder-map">3.1 Stakeholder Map</a></li><li><a class="toc__link toc__link--h3" href="#32-persona-cards">3.2 Persona Cards</a></li><li><a class="toc__link" href="#4-scope">§4 Scope</a></li><li><a class="toc__link toc__link--h3" href="#41-p0--in-scope-must-have-from-brd-must-have">4.1 P0 — In Scope (Must Have, from BRD Must Have)</a></li><li><a class="toc__link toc__link--h3" href="#42-p1--should-have">4.2 P1 — Should Have</a></li><li><a class="toc__link toc__link--h3" href="#43-p2--could-have">4.3 P2 — Could Have</a></li><li><a class="toc__link toc__link--h3" href="#44-out-of-scope-with-reasons">4.4 Out of Scope (with reasons)</a></li><li><a class="toc__link toc__link--h3" href="#45-moscow-priority-table">4.5 MoSCoW Priority Table</a></li><li><a class="toc__link" href="#5-user-stories--acceptance-criteria">§5 User Stories &amp;amp; Acceptance Criteria</a></li><li><a class="toc__link toc__link--h3" href="#epic-pet--pet-generation--display">EPIC-PET — Pet Generation &amp;amp; Display</a></li><li><a class="toc__link toc__link--h3" href="#us-pet-001--random-pet-display-guest-mode">US-PET-001 — Random Pet Display (Guest Mode)</a></li><li><a class="toc__link toc__link--h3" href="#us-pet-002--procedural-pixel-pet-generation">US-PET-002 — Procedural Pixel Pet Generation</a></li><li><a class="toc__link toc__link--h3" href="#epic-auth--authentication--identity">EPIC-AUTH — Authentication &amp;amp; Identity</a></li><li><a class="toc__link toc__link--h3" href="#us-auth-001--email-claim-flow">US-AUTH-001 — Email Claim Flow</a></li><li><a class="toc__link toc__link--h3" href="#us-auth-002--returning-pet-owner-access">US-AUTH-002 — Returning Pet Owner Access</a></li><li><a class="toc__link toc__link--h3" href="#epic-training--training--feeding-system">EPIC-TRAINING — Training &amp;amp; Feeding System</a></li><li><a class="toc__link toc__link--h3" href="#us-train-001--pet-training-system">US-TRAIN-001 — Pet Training System</a></li><li><a class="toc__link toc__link--h3" href="#us-food-001--special-food-system">US-FOOD-001 — Special Food System</a></li><li><a class="toc__link toc__link--h3" href="#epic-arena--arena-battle-system">EPIC-ARENA — Arena Battle System</a></li><li><a class="toc__link toc__link--h3" href="#us-arena-001--arena-racing-competition">US-ARENA-001 — Arena Racing Competition</a></li><li><a class="toc__link toc__link--h3" href="#us-arena-002--sumo-arena-mode-p1">US-ARENA-002 — Sumo Arena Mode (P1)</a></li><li><a class="toc__link toc__link--h3" href="#epic-ranking--rankings-records--rarity">EPIC-RANKING — Rankings, Records &amp;amp; Rarity</a></li><li><a class="toc__link toc__link--h3" href="#us-board-001--global-leaderboard">US-BOARD-001 — Global Leaderboard</a></li><li><a class="toc__link toc__link--h3" href="#us-record-001--battle-records-page-p0">US-RECORD-001 — Battle Records Page (P0)</a></li><li><a class="toc__link toc__link--h3" href="#us-rarity-001--rarity-scoring-p1">US-RARITY-001 — Rarity Scoring (P1)</a></li><li><a class="toc__link toc__link--h3" href="#epic-marketplace--pet-trading-marketplace">EPIC-MARKETPLACE — Pet Trading Marketplace</a></li><li><a class="toc__link toc__link--h3" href="#us-trade-001--pet-trading-marketplace-p2">US-TRADE-001 — Pet Trading Marketplace (P2)</a></li><li><a class="toc__link toc__link--h3" href="#epic-admin--admin--moderation-portal">EPIC-ADMIN — Admin &amp;amp; Moderation Portal</a></li><li><a class="toc__link toc__link--h3" href="#us-admin-001--admin-pet-management">US-ADMIN-001 — Admin Pet Management</a></li><li><a class="toc__link toc__link--h3" href="#us-admin-002--admin-leaderboard-moderation">US-ADMIN-002 — Admin Leaderboard Moderation</a></li><li><a class="toc__link toc__link--h3" href="#us-admin-003--admin-runtime-parameter-tuning">US-ADMIN-003 — Admin Runtime Parameter Tuning</a></li><li><a class="toc__link" href="#6-user-flows">§6 User Flows</a></li><li><a class="toc__link toc__link--h3" href="#61-happy-path-guest-to-active-pet-owner">6.1 Happy Path: Guest to Active Pet Owner</a></li><li><a class="toc__link toc__link--h3" href="#62-error-flow-email-delivery-failure">6.2 Error Flow: Email Delivery Failure</a></li><li><a class="toc__link toc__link--h3" href="#63-arena-battle-flow">6.3 Arena Battle Flow</a></li><li><a class="toc__link toc__link--h3" href="#64-pet-lifecycle-state-machine">6.4 Pet Lifecycle State Machine</a></li><li><a class="toc__link toc__link--h3" href="#65-claimtoken-state-machine">6.5 ClaimToken State Machine</a></li><li><a class="toc__link toc__link--h3" href="#66-foodbuff-state-machine">6.6 FoodBuff State Machine</a></li><li><a class="toc__link" href="#7-non-functional-requirements">§7 Non-Functional Requirements</a></li><li><a class="toc__link toc__link--h3" href="#71-performance">7.1 Performance</a></li><li><a class="toc__link toc__link--h3" href="#72-security">7.2 Security</a></li><li><a class="toc__link toc__link--h3" href="#73-availability">7.3 Availability</a></li><li><a class="toc__link toc__link--h3" href="#74-scalability">7.4 Scalability</a></li><li><a class="toc__link toc__link--h3" href="#75-maintainability">7.5 Maintainability</a></li><li><a class="toc__link toc__link--h3" href="#76-internationalization-i18n">7.6 Internationalization (i18n)</a></li><li><a class="toc__link toc__link--h3" href="#77-accessibility-a11y">7.7 Accessibility (A11Y)</a></li><li><a class="toc__link toc__link--h3" href="#78-observability">7.8 Observability</a></li><li><a class="toc__link toc__link--h3" href="#79-analytics-event-map">7.9 Analytics Event Map</a></li><li><a class="toc__link" href="#8-constraints--dependencies">§8 Constraints &amp;amp; Dependencies</a></li><li><a class="toc__link toc__link--h3" href="#81-constraints">8.1 Constraints</a></li><li><a class="toc__link toc__link--h3" href="#82-technology-dependencies">8.2 Technology Dependencies</a></li><li><a class="toc__link toc__link--h3" href="#83-external-dependencies">8.3 External Dependencies</a></li><li><a class="toc__link toc__link--h3" href="#84-assumptions">8.4 Assumptions</a></li><li><a class="toc__link toc__link--h3" href="#85-backward-compatibility">8.5 Backward Compatibility</a></li><li><a class="toc__link" href="#9-success-metrics">§9 Success Metrics</a></li><li><a class="toc__link toc__link--h3" href="#91-north-star-metric">9.1 North Star Metric</a></li><li><a class="toc__link toc__link--h3" href="#92-guardrail-metrics">9.2 Guardrail Metrics</a></li><li><a class="toc__link toc__link--h3" href="#93-go--no-go-criteria">9.3 Go / No-Go Criteria</a></li><li><a class="toc__link" href="#94-experiment--ab-test-plan實驗與-ab-測試計畫">§9.4 Experiment &amp;amp; A/B Test Plan（實驗與 A/B 測試計畫）</a></li><li><a class="toc__link" href="#95-definition-of-done完成定義">§9.5 Definition of Done（完成定義）</a></li><li><a class="toc__link" href="#10-rollout-plan">§10 Rollout Plan</a></li><li><a class="toc__link toc__link--h3" href="#101-alpha--beta--ga-table">10.1 Alpha / Beta / GA Table</a></li><li><a class="toc__link toc__link--h3" href="#102-feature-flag-specification">10.2 Feature Flag Specification</a></li><li><a class="toc__link" href="#11-data-requirements">§11 Data Requirements</a></li><li><a class="toc__link toc__link--h3" href="#111-new-data-created">11.1 New Data Created</a></li><li><a class="toc__link toc__link--h3" href="#112-data-dictionary">11.2 Data Dictionary</a></li><li><a class="toc__link toc__link--h3" href="#113-data-quality-requirements">11.3 Data Quality Requirements</a></li><li><a class="toc__link toc__link--h3" href="#114-pii-personally-identifiable-information-inventory">11.4 PII (Personally Identifiable Information) Inventory</a></li><li><a class="toc__link" href="#12-open-questions">§12 Open Questions</a></li><li><a class="toc__link" href="#13-glossary">§13 Glossary</a></li><li><a class="toc__link" href="#14-references">§14 References</a></li><li><a class="toc__link" href="#15-requirements-traceability-matrix-rtm">§15 Requirements Traceability Matrix (RTM)</a></li><li><a class="toc__link" href="#16-approval-sign-off">§16 Approval Sign-off</a></li><li><a class="toc__link" href="#17-privacy-by-design">§17 Privacy by Design</a></li><li><a class="toc__link toc__link--h3" href="#171-privacy-by-design--seven-principles">17.1 Privacy by Design — Seven Principles</a></li><li><a class="toc__link toc__link--h3" href="#172-pii-inventory">17.2 PII Inventory</a></li><li><a class="toc__link toc__link--h3" href="#173-gdpr-rights-matrix">17.3 GDPR Rights Matrix</a></li><li><a class="toc__link toc__link--h3" href="#174-consent-management-schema">17.4 Consent Management Schema</a></li><li><a class="toc__link" href="#18-accessibility-requirements">§18 Accessibility Requirements</a></li><li><a class="toc__link" href="#19-admin-backend-requirements">§19 Admin Backend Requirements</a></li><li><a class="toc__link toc__link--h3" href="#191-admin-portal-positioning">19.1 Admin Portal Positioning</a></li><li><a class="toc__link toc__link--h3" href="#192-admin-roles">19.2 Admin Roles</a></li><li><a class="toc__link toc__link--h3" href="#193-admin-portal-feature-modules">19.3 Admin Portal Feature Modules</a></li><li><a class="toc__link toc__link--h3" href="#194-admin-user-stories">19.4 Admin User Stories</a></li><li><a class="toc__link toc__link--h3" href="#195-admin-audit-requirements">19.5 Admin Audit Requirements</a></li><li><a class="toc__link toc__link--h3" href="#196-admin-nfr">19.6 Admin NFR</a></li></ul></div>
+    </aside>
+    <div class="sidebar-resizer" id="sidebarResizer"></div>
+    <main class="doc-content"><h1 id="prd--product-requirements-document">PRD — Product Requirements Document</h1>
+<p>&lt;!-- SDLC Requirements Engineering — Layer 2：Product Requirements --&gt;</p>
+<p>&lt;!-- Upstream: IDEA-PIXEL-PET-ARENA-20260503, BRD-PIXEL-PET-ARENA-20260503 --&gt;</p>
+<p>&lt;!-- Answers: What to build? For whom? How does success look? What are the exact acceptance criteria? --&gt;</p>
+<hr>
+<h2 id="document-control">Document Control</h2>
+<table>
+<tr><th>Field</th><th>Content</th></tr>
+<tr><td><strong>DOC-ID</strong></td><td>PRD-PIXEL-PET-ARENA-20260503</td></tr>
+<tr><td><strong>Project Name</strong></td><td>pixel-pet-arena</td></tr>
+<tr><td><strong>Document Version</strong></td><td>v1.0</td></tr>
+<tr><td><strong>Status</strong></td><td>DRAFT</td></tr>
+<tr><td><strong>Author</strong></td><td>AI Generated (gendoc prd)</td></tr>
+<tr><td><strong>Created Date</strong></td><td>2026-05-03</td></tr>
+<tr><td><strong>Last Updated</strong></td><td>2026-05-03</td></tr>
+<tr><td><strong>Upstream BRD</strong></td><td><a href="brd.html" target="_blank" rel="noopener">BRD.md</a> (BRD-PIXEL-PET-ARENA-20260503)</td></tr>
+<tr><td><strong>Upstream IDEA</strong></td><td><a href="idea.html" target="_blank" rel="noopener">IDEA.md</a> (IDEA-PIXEL-PET-ARENA-20260503)</td></tr>
+<tr><td><strong>Downstream</strong></td><td>PDD.md (UI/UX Design), EDD.md (Engineering Design)</td></tr>
+<tr><td><strong>Reviewers</strong></td><td>Product Manager, Engineering Lead, Design Lead</td></tr>
+<tr><td><strong>Approvers</strong></td><td>Executive Sponsor (Product Director or CTO)</td></tr>
+<tr><td><strong>client_type</strong></td><td>web (HTML5 browser-based, no installation required)</td></tr>
+<tr><td><strong>has_admin_backend</strong></td><td>true</td></tr>
+</table>
+<hr>
+<h2 id="change-log">Change Log</h2>
+<table>
+<tr><th>Version</th><th>Date</th><th>Author</th><th>Summary</th></tr>
+<tr><td>v1.0</td><td>2026-05-03</td><td>AI Generated (gendoc prd)</td><td>Initial draft generated from BRD-PIXEL-PET-ARENA-20260503 and IDEA-PIXEL-PET-ARENA-20260503</td></tr>
+<tr><td>v1.1</td><td>2026-05-03</td><td>PRD Editor (review-r1)</td><td>Fixed 15 review findings (F1–F15): scope reconciliation for US-RECORD-001 (F1), MAAPO as primary North Star (F2), arena battles target clarification (F3), US-PET-002 persona fix (F4), persona pain points and tech familiarity (F5), AC-006-4 daily-login-reward removed (F6), US-TRAIN-001 stat-max boundary AC added (F7), US-ARENA-001 rate-limit error AC added (F8), WCAG 2.1 AA NFR subsection added (F9), admin analytics events added (F10), RTM Priority column added + BRD cross-reference note (F11), AC-012-5 trade fee formula made concrete (F12), T-shirt estimates added to all USs (F13), §5 restructured into Epics (F14), ClaimToken and FoodBuff state machines added (F15)</td></tr>
+<tr><td>v1.2</td><td>2026-05-03</td><td>PRD Editor (review-r2)</td><td>Fixed 10 review findings (F1–F10): §4.5 MoSCoW Battle Records promoted to Must Have (F1); FF_BATTLE_RECORDS set to P0/ON with kill-switch (F2); US-RECORD-001 heading corrected to P0 (F3); added AC-010-5 HTTP 404 error path and AC-010-6 &lt;20 battles boundary to US-RECORD-001 (F4); added AC-004-5 invalid/revoked URL 404 error path to US-AUTH-002 (F5); second §7.8 renumbered to §7.9 Analytics Event Map (F6); <code>level</code> field added to §11.2 data dictionary (F7); BRD O3 added to US-AUTH-001, US-TRAIN-001, US-ARENA-001 RTM rows (F8); US-ADMIN-004/005/006 Estimate, Feature Flag, Test Type column added + all 3 added to §15 RTM (F9); US-FOOD-001 estimate corrected from S to M (F10)</td></tr>
+<tr><td>v1.3</td><td>2026-05-03</td><td>PRD Editor (review-r3)</td><td>Fixed 6 review findings (F1–F6): RTM US-ADMIN-006 MoSCoW corrected from Must to Should (F1); RTM BRD Objective for US-ADMIN-004 corrected to O1 and US-ADMIN-005 to O2 (F2); §9.2 Guardrail Metrics added Leaderboard page UV/DAU ≥ 20% and Arena social share rate ≥ 5% (F3); AC-009-3 terminology changed from &#x27;logged-in&#x27; to URL-token auth model (F4); AC-006-6 stat-cap boundary condition added to US-FOOD-001 (F5); battle_records_viewed analytics event added to §7.9 (F6)</td></tr>
+<tr><td>v1.4</td><td>2026-05-03</td><td>PRD Editor (review-r4)</td><td>Fixed 5 review findings (F1–F5): EPIC-ADMIN &#x27;US included&#x27; updated to include US-ADMIN-004/005/006 (F1); RTM US-ADMIN-006 BRD Objective corrected from O5 to O2 (F2); US-ADMIN-003 renamed to &#x27;Runtime Parameter Tuning&#x27; (max battles/hour, rarity weights) and US-ADMIN-006 renamed to &#x27;Game Economy Configuration&#x27; (food buff multipliers, arena entry cost/cooldown) with explicit scope separation and no overlapping AC fields (F3); §6.3 Arena Battle Flow diagram updated with rate-limit check node before arena mode selection (F4); §7.9 Analytics Event Map updated with gdpr_deletion_processed and suspicious_pet_flagged events for US-ADMIN-004 and US-ADMIN-005 (F5)</td></tr>
+<tr><td>v1.5</td><td>2026-05-03</td><td>PRD Editor (review-r5)</td><td>Fixed 5 review findings (F1–F5): US-PET-002 story persona changed from &#x27;product owner&#x27; to &#x27;Collector&#x27; with uniqueness/keeper framing (F1); RTM US-ADMIN-003 Feature column updated from &#x27;Admin system configuration&#x27; to &#x27;Admin runtime parameter tuning&#x27; (F2); §19.3 System Configuration row split into &#x27;Runtime Parameter Tuning&#x27; (US-ADMIN-003) and &#x27;Game Economy Configuration&#x27; (US-ADMIN-006) (F3); §6.3 Arena Battle Flow A2 rate-limit node connected to &#x27;Return to arena lobby&#x27; exit edge (F4); RTM Business Risk text differentiated for US-ADMIN-003 (platform safety/rate limits) and US-ADMIN-006 (economy balance/player churn) (F5)</td></tr>
+</table>
+<hr>
+<h2 id="1-executive-summary">§1 Executive Summary</h2>
+<h3 id="11-product-vision">1.1 Product Vision</h3>
+<p><strong>pixel-pet-arena</strong> is the world&#x27;s first zero-account-barrier HTML5 browser pet game that uses email claim mechanics to give casual players permanent ownership of procedurally generated pixel pets — without requiring traditional account registration.</p>
+<p>Players open the browser, immediately interact with a randomly generated pixel pet unique to them, and if they want to keep it, simply enter their email. The system sends a claim password and a unique URL. The pet is theirs forever — accessible from any device, ready to train, compete in arenas, and trade with other players.</p>
+<p><strong>The core innovation</strong>: &quot;email as lightweight identity layer&quot; solves the mutual exclusivity between &quot;no account barrier&quot; and &quot;persistent data&quot; that has prevented casual players from truly owning virtual pets on the web.</p>
+<h3 id="12-business-context-from-brd-1">1.2 Business Context (from BRD §1)</h3>
+<p>The HTML5 game market is approximately $15B (2024). Current virtual pet games (Neopets, itch.io browser games, CryptoKitties) each fail at least one critical dimension:</p>
+<ul><li><strong>Neopets</strong>: Full account required — 85-95% of visitors drop off at registration</li><li><strong>itch.io browser games</strong>: Zero barrier, but no persistence — pets disappear on refresh</li><li><strong>CryptoKitties</strong>: Unique pets and trading, but requires crypto wallet + gas fees</li></ul>
+<p>pixel-pet-arena occupies the unique position of <strong>zero barrier + persistence + uniqueness + competitive ecosystem</strong> — a combination no current competitor offers.</p>
+<h3 id="13-product-scope-summary">1.3 Product Scope Summary</h3>
+<table>
+<tr><th>Priority</th><th>Features</th></tr>
+<tr><td><strong>P0 (Must Have)</strong></td><td>Random pixel pet display + guest interaction; email claim flow (password email + unique URL); pet training/feeding system; arena racing competition; global leaderboard; <strong>battle records page (shareable URL)</strong></td></tr>
+<tr><td><strong>P1 (Should Have)</strong></td><td>Rarity scoring (Common/Rare/Epic/Legendary); sumo arena mode</td></tr>
+<tr><td><strong>P2 (Could Have)</strong></td><td>Pet trading marketplace; tournament system; seasonal competitions</td></tr>
+<tr><td><strong>Out of Scope</strong></td><td>Mobile native apps; real-money transactions; P2E blockchain mechanics; voice chat</td></tr>
+</table>
+<blockquote><p><strong>Scope reconciliation note (F1)</strong>: BRD §5.3 lists the battle records page as an MVP Must-Have In-Scope item. This PRD therefore promotes US-RECORD-001 (F-RECORD-01) from P1 to P0. The promotion is reflected in §4, §5, and §15. This overrides the initial draft&#x27;s P1 classification.</p></blockquote>
+<h3 id="14-north-star-metric">1.4 North Star Metric</h3>
+<p><strong>Monthly Active Arena Pet Owners (MAAPO)</strong>: The number of claimed pet owners who completed at least 1 arena battle in the past 30 days. This is the primary North Star metric, aligned with BRD §7.1, as it captures both retention and the core competitive behavior that drives the product&#x27;s long-term value.</p>
+<p><strong>Leading / Input Metric: Daily Active Pets (DAP)</strong> — The number of claimed pets with at least 1 interaction (training, feeding, or arena battle entry) per day. DAP is the leading indicator that feeds MAAPO: consistent daily pet activity is the precondition for monthly arena engagement. When DAP is healthy, MAAPO follows. Monitor both, but optimize decisions against MAAPO.</p>
+<blockquote><p><strong>Scope alignment note (F2)</strong>: BRD §7.1 defines MAAPO as the primary business North Star. PRD §9.1 is updated accordingly. DAP is retained as the primary leading metric that operationally drives MAAPO growth.</p></blockquote>
+<hr>
+<h2 id="2-problem-statement">§2 Problem Statement</h2>
+<h3 id="21-user-pain-points">2.1 User Pain Points</h3>
+<p><strong>Pain 1 — Account Registration Barrier (CRITICAL)</strong></p>
+<p>A 25-year-old office worker discovers a pixel pet game during lunch break. Opening it requires email + password + email verification before any interaction. Faced with this friction, she closes the page. This repeats millions of times daily across the web. Industry data shows HTML5 games achieve only 5-15% visitor-to-registration conversion — 85-95% of potential players are lost at the account wall.</p>
+<p><strong>Pain 2 — No Data Persistence (HIGH)</strong></p>
+<p>Even if a player creates an account, existing HTML5 pet games lack reliable persistence. LocalStorage disappears when the device changes. Cookies are cleared. Flash-era save mechanisms are defunct. Players cannot build a lasting relationship with a pet they found compelling.</p>
+<p><strong>Pain 3 — Homogeneous Pet Appearances (MEDIUM)</strong></p>
+<p>Most virtual pet games offer fixed sprite designs with minimal variation. Players have no reason to feel their pet is uniquely theirs. There is no collection rarity driving long-term attachment.</p>
+<p><strong>Pain 4 — No Social Competitive Hook (MEDIUM)</strong></p>
+<p>Without competitive mechanics and social comparison, players disengage by day 3. A game without stakes has no reason to revisit.</p>
+<h3 id="22-root-cause-analysis">2.2 Root Cause Analysis</h3>
+<p>Using the 5 Whys framework (from BRD §2.2):</p>
+<pre><code class="">Symptom: Casual players cannot own persistent virtual pets without high-friction account creation
+  Why 1: Existing pet games require full account registration to persist data
+    Why 2: Traditional web apps default to account systems as the identity layer
+      Why 3: Account systems are the most direct backend persistence mapping mechanism
+        Why 4: Developers have not considered architectures where &quot;no account&quot; and
+               &quot;persistent data&quot; coexist
+          Why 5 (Root Cause): Absence of the &quot;email + unique token URL&quot; pattern
+          as a lightweight identity layer — treating &quot;persistent data&quot; and
+          &quot;no account&quot; as mutually exclusive requirements</code></pre>
+<p><strong>Resolution</strong>: The email claim + unique URL token pattern (proven by Notion, Slack, Linear Magic Link) allows both constraints to coexist. This is a design pattern choice, not a technical limitation.</p>
+<h3 id="23-opportunity-hypothesis">2.3 Opportunity Hypothesis</h3>
+<blockquote><p>&quot;If we provide a zero-account browser pet game where players claim pets via email (receiving a password + unique URL), with procedurally generated unique pixel pets and a competitive arena ecosystem, then casual players will claim pets, return regularly to train and compete, and drive organic viral growth through battle record sharing.&quot;</p></blockquote>
+<p><strong>Validation thresholds</strong> (from BRD §7.3):</p>
+<ul><li>Email claim conversion rate ≥ 10% within 4 weeks of MVP launch</li><li>Day-7 retention ≥ 25% within 6 weeks of MVP launch</li><li>Arena daily battles ≥ 50 matches within 8 weeks of MVP launch</li></ul>
+<h3 id="24-system-context-diagram">2.4 System Context Diagram</h3>
+<div class="diagram-container"><pre class="mermaid">C4Context
+    title pixel-pet-arena System Context
+
+    Person(guest, &quot;Guest Player&quot;, &quot;Visits site, interacts with random pet, no account required&quot;)
+    Person(petOwner, &quot;Pet Owner&quot;, &quot;Has claimed a pet via email, returns via unique URL&quot;)
+    Person(competitor, &quot;Competitive Player&quot;, &quot;Trains pets, enters arena, tracks leaderboard&quot;)
+    Person(admin, &quot;Admin Operator&quot;, &quot;Manages platform, moderates leaderboard, configures system&quot;)
+
+    System(ppa, &quot;pixel-pet-arena Platform&quot;, &quot;HTML5 browser game with email claim authentication, arena battles, leaderboard, and pet management&quot;)
+
+    System_Ext(sendgrid, &quot;SendGrid&quot;, &quot;Transactional email delivery for claim passwords&quot;)
+    System_Ext(postgres, &quot;PostgreSQL&quot;, &quot;Persistent pet data, user records, battle history&quot;)
+    System_Ext(redis, &quot;Redis&quot;, &quot;Leaderboard cache, session tokens, rate limiting&quot;)
+    System_Ext(cdnStorage, &quot;CDN / Static Hosting&quot;, &quot;Phaser.js game assets, pixel sprite sheets&quot;)
+
+    Rel(guest, ppa, &quot;Visits, interacts with random pet&quot;)
+    Rel(petOwner, ppa, &quot;Returns via unique URL, trains pet, views records&quot;)
+    Rel(competitor, ppa, &quot;Enters arena, views leaderboard, shares battle results&quot;)
+    Rel(admin, ppa, &quot;Manages pets/users, moderates, configures via Admin Portal&quot;)
+
+    Rel(ppa, sendgrid, &quot;Sends claim password email&quot;)
+    Rel(ppa, postgres, &quot;Persists pet data, battle records, user tokens&quot;)
+    Rel(ppa, redis, &quot;Caches leaderboard, manages rate limits&quot;)
+    Rel(ppa, cdnStorage, &quot;Serves game assets and pixel sprites&quot;)</pre></div>
+<hr>
+<h2 id="3-stakeholders--users">§3 Stakeholders &amp; Users</h2>
+<h3 id="31-stakeholder-map">3.1 Stakeholder Map</h3>
+<div class="diagram-container"><pre class="mermaid">graph TD
+    Exec[&quot;Executive Sponsor&lt;br/&gt;Product Director or CTO&lt;br/&gt;Budget approval and strategic direction&quot;]
+    PM[&quot;Product Manager&lt;br/&gt;Requirements definition and prioritization&lt;br/&gt;Owns this PRD&quot;]
+    Eng[&quot;Engineering Lead&lt;br/&gt;Technical feasibility and architecture&lt;br/&gt;EDD ownership&quot;]
+    Des[&quot;Design Lead&lt;br/&gt;Pixel art style and UX&lt;br/&gt;PDD ownership&quot;]
+    Legal[&quot;Legal / Compliance&lt;br/&gt;GDPR, CAN-SPAM, COPPA review&lt;br/&gt;Privacy policy approval&quot;]
+    Marketing[&quot;Marketing&lt;br/&gt;itch.io, Twitter, Discord growth&lt;br/&gt;Launch strategy&quot;]
+    DataAnalytics[&quot;Data / Analytics&lt;br/&gt;KPI instrumentation&lt;br/&gt;Cohort analysis and funnel tracking&quot;]
+    Users[&quot;End Users&lt;br/&gt;Casual players, pixel art fans&lt;br/&gt;Competitive players, collectors&quot;]
+    AdminOps[&quot;Admin Operators&lt;br/&gt;Platform operations&lt;br/&gt;Leaderboard moderation&quot;]
+
+    Exec --&gt;|Authorizes| PM
+    PM --&gt;|Requirements| Eng
+    PM --&gt;|Requirements| Des
+    PM --&gt;|Consults| Legal
+    PM --&gt;|Strategy| Marketing
+    PM --&gt;|KPI definition| DataAnalytics
+    Users --&gt;|Feedback| PM
+    AdminOps --&gt;|Operations needs| PM</pre></div>
+<p><strong>RACI Matrix</strong></p>
+<table>
+<tr><th>Activity</th><th>Exec Sponsor</th><th>PM</th><th>Engineering</th><th>Design</th><th>Legal</th><th>Marketing</th></tr>
+<tr><td>PRD authoring and scope decisions</td><td>A</td><td>R</td><td>C</td><td>C</td><td>C</td><td>I</td></tr>
+<tr><td>Technical feasibility assessment</td><td>I</td><td>C</td><td>R/A</td><td>C</td><td>I</td><td>I</td></tr>
+<tr><td>UX design and acceptance</td><td>I</td><td>A</td><td>C</td><td>R</td><td>I</td><td>C</td></tr>
+<tr><td>Budget approval</td><td>A</td><td>C</td><td>C</td><td>I</td><td>I</td><td>I</td></tr>
+<tr><td>GDPR/COPPA compliance review</td><td>I</td><td>C</td><td>I</td><td>I</td><td>R/A</td><td>I</td></tr>
+<tr><td>Go/No-Go launch decision</td><td>A</td><td>R</td><td>C</td><td>C</td><td>C</td><td>C</td></tr>
+<tr><td>Analytics instrumentation</td><td>I</td><td>A</td><td>R</td><td>I</td><td>I</td><td>C</td></tr>
+<tr><td>Admin portal requirements</td><td>I</td><td>R</td><td>C</td><td>C</td><td>I</td><td>I</td></tr>
+</table>
+<h3 id="32-persona-cards">3.2 Persona Cards</h3>
+<hr>
+<p><strong>Persona 1: Alex — The Guest Visitor</strong></p>
+<table>
+<tr><th>Attribute</th><th>Detail</th></tr>
+<tr><td>Age</td><td>23</td></tr>
+<tr><td>Occupation</td><td>University student</td></tr>
+<tr><td>Device</td><td>Laptop (primary), phone (secondary)</td></tr>
+<tr><td>Discovery</td><td>Twitter link, itch.io homepage, friend share</td></tr>
+<tr><td>Behavior</td><td>Browses multiple tabs simultaneously; attention span 2-5 minutes per new site</td></tr>
+<tr><td>Goal</td><td>Quick entertainment without commitment; wants to see &quot;what this does&quot; immediately</td></tr>
+<tr><td>Frustration 1</td><td>&quot;If I have to sign up, I&#x27;m gone. I just want to see the pet.&quot;</td></tr>
+<tr><td>Frustration 2</td><td>&quot;I found a cool game last week but I closed the tab and can&#x27;t find it again — and my progress was gone anyway.&quot;</td></tr>
+<tr><td>Tech Familiarity</td><td>Medium — comfortable with browsers and social media; uses web apps daily but has no patience for multi-step onboarding flows or developer-oriented UX</td></tr>
+<tr><td>Current Alternative</td><td>itch.io single-session browser games — but forgets them after closing</td></tr>
+<tr><td>Success Criteria</td><td>Spends 3+ minutes interacting with the pet before deciding whether to claim</td></tr>
+<tr><td>Key Feature Needed</td><td>Instant pet interaction on page load; no gatekeeping before the fun starts</td></tr>
+</table>
+<hr>
+<p><strong>Persona 2: Maya — The Pet Owner</strong></p>
+<table>
+<tr><th>Attribute</th><th>Detail</th></tr>
+<tr><td>Age</td><td>28</td></tr>
+<tr><td>Occupation</td><td>Marketing professional</td></tr>
+<tr><td>Device</td><td>Various devices across work and home</td></tr>
+<tr><td>Discovery</td><td>Colleague shared their pet&#x27;s battle record URL</td></tr>
+<tr><td>Behavior</td><td>Returns 3-5 times per week; builds attachment to specific pet; wants multi-device access</td></tr>
+<tr><td>Goal</td><td>Grow and develop &quot;her&quot; pet; see it improve over time; feel it&#x27;s uniquely hers</td></tr>
+<tr><td>Frustration 1</td><td>&quot;I hate losing progress when I switch computers. This pet needs to follow me around.&quot;</td></tr>
+<tr><td>Frustration 2</td><td>&quot;I can never tell if my pet is actually improving or if the stats are just random noise — I need clear feedback that training makes a difference.&quot;</td></tr>
+<tr><td>Tech Familiarity</td><td>Medium-High — daily SaaS user (Slack, Notion, Figma); comfortable with email-based auth flows and bookmarking URLs; unlikely to read documentation but will follow clear in-product guidance</td></tr>
+<tr><td>Current Alternative</td><td>Mobile Tamagotchi app — but too time-demanding and device-locked</td></tr>
+<tr><td>Success Criteria</td><td>Claims pet via email; returns on Day 7 and Day 30; recognizes pet improvements</td></tr>
+<tr><td>Key Feature Needed</td><td>Email claim + unique URL; persistent pet attributes; training feedback loop</td></tr>
+</table>
+<hr>
+<p><strong>Persona 3: Jordan — The Competitive Player</strong></p>
+<table>
+<tr><th>Attribute</th><th>Detail</th></tr>
+<tr><td>Age</td><td>22</td></tr>
+<tr><td>Occupation</td><td>Part-time barista, avid gamer</td></tr>
+<tr><td>Device</td><td>Desktop PC primarily</td></tr>
+<tr><td>Discovery</td><td>&quot;Pixel pet game with arenas&quot; mentioned on gaming Discord</td></tr>
+<tr><td>Behavior</td><td>Daily trainer; checks leaderboard frequently; shares screenshots of wins on Twitter</td></tr>
+<tr><td>Goal</td><td>Dominate the global leaderboard; have the most powerful, rarest pet; get social recognition</td></tr>
+<tr><td>Frustration 1</td><td>&quot;Without a real ranking system, what&#x27;s the point of training?&quot;</td></tr>
+<tr><td>Frustration 2</td><td>&quot;I spend days grinding stats and then lose to someone who just started — I need to know the match-making is fair and that my investment matters.&quot;</td></tr>
+<tr><td>Tech Familiarity</td><td>High — power browser user; uses Discord, Twitch, Steam daily; comfortable with competitive game mechanics, stat systems, and sharing URLs; likely to find and test edge cases</td></tr>
+<tr><td>Current Alternative</td><td>Mobile competitive games — but slow progression, pay-to-win, and account-heavy</td></tr>
+<tr><td>Success Criteria</td><td>Enters arena within first week; reaches top 100 leaderboard within 30 days; shares battle URL at least once</td></tr>
+<tr><td>Key Feature Needed</td><td>Arena battles; visible stats growth from training; shareable battle records; leaderboard with real-time updates</td></tr>
+</table>
+<hr>
+<p><strong>Persona 4: Sam — The Collector</strong></p>
+<table>
+<tr><th>Attribute</th><th>Detail</th></tr>
+<tr><td>Age</td><td>31</td></tr>
+<tr><td>Occupation</td><td>Software developer</td></tr>
+<tr><td>Device</td><td>Browser on multiple computers</td></tr>
+<tr><td>Discovery</td><td>Reddit post about procedurally generated pixel art pets</td></tr>
+<tr><td>Behavior</td><td>Claims multiple pets to compare rarity; discusses rare pets in Discord; interested in trading</td></tr>
+<tr><td>Goal</td><td>Own Legendary or Epic rarity pets; trade commons for rares; build a collection</td></tr>
+<tr><td>Frustration 1</td><td>&quot;If everyone&#x27;s pet looks the same, there&#x27;s nothing worth collecting.&quot;</td></tr>
+<tr><td>Frustration 2</td><td>&quot;I can&#x27;t trust that the rarity system is real — I need to see the actual probability and verify that Legendary is genuinely rare, not just a marketing label.&quot;</td></tr>
+<tr><td>Tech Familiarity</td><td>High — software developer; will inspect network requests, read API docs if exposed, and scrutinize rarity math; appreciates transparency in generation algorithms and probability disclosures</td></tr>
+<tr><td>Current Alternative</td><td>CryptoKitties — but wallet/gas requirements are too tedious</td></tr>
+<tr><td>Success Criteria</td><td>Claims a Legendary pet; participates in trading marketplace when available</td></tr>
+<tr><td>Key Feature Needed</td><td>Visible rarity score; unique appearance guarantee; eventual trading marketplace</td></tr>
+</table>
+<hr>
+<h2 id="4-scope">§4 Scope</h2>
+<h3 id="41-p0--in-scope-must-have-from-brd-must-have">4.1 P0 — In Scope (Must Have, from BRD Must Have)</h3>
+<table>
+<tr><th>Feature ID</th><th>Feature</th><th>Business Justification</th></tr>
+<tr><td>F-PET-01</td><td>Random pixel pet display on page load (guest mode, no login required)</td><td>Core zero-barrier value proposition; without this, the acquisition funnel cannot start</td></tr>
+<tr><td>F-AUTH-01</td><td>Email claim flow: claim password delivery + unique pet URL generation</td><td>Core identity mechanism; without this, &quot;persistence without account&quot; does not exist</td></tr>
+<tr><td>F-TRAIN-01</td><td>Pet training system (stats: speed, strength, stamina); daily training actions</td><td>Drives Day-7 return behavior; provides long-term growth loop</td></tr>
+<tr><td>F-FOOD-01</td><td>Special food items that boost pet stats temporarily or permanently</td><td>Adds depth to training; creates item economy foundation</td></tr>
+<tr><td>F-ARENA-01</td><td>Arena racing competition (Race mode: deterministic stat-based outcome + animation)</td><td>Core competitive hook; drives social sharing and repeat visits</td></tr>
+<tr><td>F-BOARD-01</td><td>Global leaderboard ranked by win count, pet level, and arena score</td><td>Social comparison engine; drives competitive motivation</td></tr>
+<tr><td>F-RECORD-01</td><td>Per-pet battle records page with shareable URL</td><td>Promoted to P0 from P1 to align with BRD §5.3 In-Scope Must-Have; high-value viral sharing mechanism that is required to justify the arena investment</td></tr>
+</table>
+<h3 id="42-p1--should-have">4.2 P1 — Should Have</h3>
+<table>
+<tr><th>Feature ID</th><th>Feature</th><th>Business Justification</th></tr>
+<tr><td>F-RARITY-01</td><td>Rarity scoring system (Common/Rare/Epic/Legendary) displayed on pet profile</td><td>Strengthens collection drive; increases perceived value of claimed pets</td></tr>
+<tr><td>F-ARENA-02</td><td>Sumo arena mode (strength-based match with push-out mechanic)</td><td>Adds variety to competitive modes; reduces arena fatigue</td></tr>
+</table>
+<blockquote><p>Note: F-RECORD-01 was moved to P0 (§4.1) to align with BRD §5.3. See scope reconciliation note in §1.3.</p></blockquote>
+<h3 id="43-p2--could-have">4.3 P2 — Could Have</h3>
+<table>
+<tr><th>Feature ID</th><th>Feature</th><th>Business Justification</th></tr>
+<tr><td>F-TRADE-01</td><td>Pet trading marketplace (list, bid, accept, transfer ownership)</td><td>Revenue via transaction fees; requires DAU &gt; 1,000 to have sufficient liquidity</td></tr>
+<tr><td>F-TOURNAMENT-01</td><td>Seasonal tournament system with brackets and special rewards</td><td>Drives spike events and social sharing; builds competitive calendar</td></tr>
+<tr><td>F-SOCIAL-01</td><td>Follow other pet owners; view friends&#x27; pets and records</td><td>Social graph for retention; deferred until critical mass achieved</td></tr>
+</table>
+<h3 id="44-out-of-scope-with-reasons">4.4 Out of Scope (with reasons)</h3>
+<table>
+<tr><th>Feature</th><th>Reason Excluded</th></tr>
+<tr><td>Mobile native app (iOS/Android)</td><td>HTML5 browser-first validates the concept at lower cost; mobile-specific optimization deferred to post-PMF</td></tr>
+<tr><td>Real-money transactions (direct purchase)</td><td>Regulatory complexity (virtual goods regulations vary by jurisdiction); deferred to v2 after revenue model validation</td></tr>
+<tr><td>P2E / blockchain mechanics</td><td>Contradicts &quot;zero barrier&quot; core principle; crypto wallet requirement is antithetical to the product&#x27;s identity</td></tr>
+<tr><td>Third-party OAuth login (Google, Facebook)</td><td>Contradicts &quot;no account&quot; identity philosophy; email claim is the deliberate UX choice</td></tr>
+<tr><td>Voice chat</td><td>Out of scope for a casual browser pet game; adds infrastructure complexity with no retention justification</td></tr>
+<tr><td>MMORPG-depth combat systems</td><td>Not the target audience; would require orders-of-magnitude more development investment</td></tr>
+<tr><td>12-and-under children as primary audience</td><td>COPPA compliance requires special handling; email claim requires basic email competency; deferred</td></tr>
+</table>
+<h3 id="45-moscow-priority-table">4.5 MoSCoW Priority Table</h3>
+<table>
+<tr><th>Feature</th><th>MoSCoW</th><th>BRD Objective</th><th>Sprint Estimate</th></tr>
+<tr><td>Random pixel pet display (guest mode)</td><td>Must Have</td><td>O1</td><td>2 sprints</td></tr>
+<tr><td>Email claim flow (password + unique URL)</td><td>Must Have</td><td>O1</td><td>2 sprints</td></tr>
+<tr><td>Pet training system</td><td>Must Have</td><td>O1, O2</td><td>2 sprints</td></tr>
+<tr><td>Special food items</td><td>Must Have</td><td>O1, O2</td><td>1 sprint</td></tr>
+<tr><td>Arena racing competition</td><td>Must Have</td><td>O2</td><td>3 sprints</td></tr>
+<tr><td>Global leaderboard</td><td>Must Have</td><td>O2, O4</td><td>1 sprint</td></tr>
+<tr><td>Battle records page (shareable URL)</td><td>Must Have</td><td>O4</td><td>1 sprint</td></tr>
+<tr><td>Rarity scoring system</td><td>Should Have</td><td>O4</td><td>1 sprint</td></tr>
+<tr><td>Sumo arena mode</td><td>Could Have</td><td>O2</td><td>2 sprints</td></tr>
+<tr><td>Pet trading marketplace</td><td>Won&#x27;t Have (v1)</td><td>O5</td><td>—</td></tr>
+<tr><td>Seasonal tournament system</td><td>Won&#x27;t Have (v1)</td><td>O5</td><td>—</td></tr>
+<tr><td>Social follow/friends</td><td>Won&#x27;t Have (v1)</td><td>—</td><td>—</td></tr>
+</table>
+<hr>
+<h2 id="5-user-stories--acceptance-criteria">§5 User Stories &amp; Acceptance Criteria</h2>
+<blockquote><p>User Stories are organized into Epics. Each Epic groups related stories, has a one-line description, and links to the BRD objective it addresses. T-shirt estimates are on individual US headers. Epic total estimates are the sum of contained stories.</p></blockquote>
+<hr>
+<h3 id="epic-pet--pet-generation--display">EPIC-PET — Pet Generation &amp; Display</h3>
+<p><strong>Description</strong>: Covers all aspects of procedurally generating and rendering the pixel pet for both guests and owners.</p>
+<p><strong>BRD Objective Link</strong>: O1 (zero-barrier acquisition), O4 (uniqueness and collectibility)</p>
+<p><strong>US included</strong>: US-PET-001, US-PET-002</p>
+<h3 id="us-pet-001--random-pet-display-guest-mode">US-PET-001 — Random Pet Display (Guest Mode)</h3>
+<p><strong>Story</strong>: As a guest visitor, I want to see an animated pixel pet immediately on page load so that I can interact with it without creating any account.</p>
+<p><strong>REQ-ID</strong>: US-PET-001</p>
+<p><strong>Priority</strong>: P0</p>
+<p><strong>Estimate</strong>: S — 3 SP (T-shirt: S = 1–3 SP)</p>
+<p><strong>Linked Feature</strong>: F-PET-01</p>
+<p><strong>Feature Flag</strong>: <code>FF_GUEST_PET_DISPLAY</code></p>
+<p><strong>Acceptance Criteria</strong>:</p>
+<table>
+<tr><th>AC#</th><th>Criterion</th><th>Test Type</th></tr>
+<tr><td>AC-001-1</td><td>Given a new visitor opens the root URL, a pixel pet is rendered within 2 seconds on the canvas without requiring any login or email input</td><td>E2E</td></tr>
+<tr><td>AC-001-2</td><td>Given the pet is displayed, when the user clicks/taps on the pet, the pet plays an interaction animation (wiggle, bounce, or sound reaction) within 200ms</td><td>E2E</td></tr>
+<tr><td>AC-001-3</td><td>Given the pet is displayed, the pet sprite has been procedurally generated from at least 5 independent attribute dimensions (body, head, color palette, accessory, rarity trait), ensuring visual uniqueness</td><td>Unit</td></tr>
+<tr><td>AC-001-4</td><td>Given a guest visitor refreshes the page, a different pet is generated (not the previously displayed pet)</td><td>E2E</td></tr>
+<tr><td>AC-001-5</td><td>Given reduced motion is enabled in the OS, the pet&#x27;s idle animation is suppressed or reduced to a static sprite</td><td>Accessibility</td></tr>
+<tr><td>AC-001-6</td><td>Given the pet is rendered, the canvas pixel art renders with <code>image-rendering: pixelated</code> CSS property ensuring crisp pixel edges at all zoom levels</td><td>Visual Regression</td></tr>
+</table>
+<hr>
+<h3 id="us-pet-002--procedural-pixel-pet-generation">US-PET-002 — Procedural Pixel Pet Generation</h3>
+<p><strong>Story</strong>: As a collector, I want each pet to have over 1 billion possible visual combinations and a uniqueness guarantee, so that my pet is truly one-of-a-kind and worth keeping.</p>
+<p><strong>REQ-ID</strong>: US-PET-002</p>
+<p><strong>Priority</strong>: P0</p>
+<p><strong>Estimate</strong>: M — 8 SP (T-shirt: M = 5–8 SP)</p>
+<p><strong>Linked Feature</strong>: F-PET-01</p>
+<p><strong>Feature Flag</strong>: <code>FF_PET_GENERATION</code></p>
+<p><strong>Acceptance Criteria</strong>:</p>
+<table>
+<tr><th>AC#</th><th>Criterion</th><th>Test Type</th></tr>
+<tr><td>AC-002-1</td><td>Given the generation algorithm, the combination space of (body_type × head_type × color_palette × accessory × rarity_trait × pattern) must exceed 1,000,000,000 distinct combinations</td><td>Unit</td></tr>
+<tr><td>AC-002-2</td><td>Given a pet seed value, the same seed always generates the same pet appearance (deterministic generation)</td><td>Unit</td></tr>
+<tr><td>AC-002-3</td><td>Given a new pet claim, the system checks the pet_seed against existing seeds in the database and regenerates if a collision is detected</td><td>Integration</td></tr>
+<tr><td>AC-002-4</td><td>Given 10,000 generated pets in a test run, no two pets share the same seed value (uniqueness guarantee)</td><td>Integration</td></tr>
+<tr><td>AC-002-5</td><td>Given a generated pet, the rarity is assigned probabilistically: Common 60%, Rare 25%, Epic 12%, Legendary 3%</td><td>Unit</td></tr>
+</table>
+<hr>
+<hr>
+<h3 id="epic-auth--authentication--identity">EPIC-AUTH — Authentication &amp; Identity</h3>
+<p><strong>Description</strong>: Covers the email-based claim flow and returning pet owner access — the lightweight identity layer that enables persistence without a traditional account.</p>
+<p><strong>BRD Objective Link</strong>: O1 (zero-barrier persistence)</p>
+<p><strong>US included</strong>: US-AUTH-001, US-AUTH-002</p>
+<h3 id="us-auth-001--email-claim-flow">US-AUTH-001 — Email Claim Flow</h3>
+<p><strong>Story</strong>: As a guest player who wants to keep my pet, I want to enter my email and receive a claim password and unique URL so that I can permanently own this pet and return to it from any device.</p>
+<p><strong>REQ-ID</strong>: US-AUTH-001</p>
+<p><strong>Priority</strong>: P0</p>
+<p><strong>Estimate</strong>: L — 13 SP (T-shirt: L = 13 SP)</p>
+<p><strong>Linked Feature</strong>: F-AUTH-01</p>
+<p><strong>Feature Flag</strong>: <code>FF_EMAIL_CLAIM</code></p>
+<p><strong>Acceptance Criteria</strong>:</p>
+<table>
+<tr><th>AC#</th><th>Criterion</th><th>Test Type</th></tr>
+<tr><td>AC-003-1</td><td>Given a guest is interacting with a pet, a &quot;Claim This Pet&quot; CTA is visible without obscuring the main interaction area</td><td>Visual Regression</td></tr>
+<tr><td>AC-003-2</td><td>Given the user submits a valid email address, the system sends a claim email within 60 seconds containing a 6-digit numeric password (not a clickable magic link)</td><td>Integration</td></tr>
+<tr><td>AC-003-3</td><td>Given the user enters the 6-digit password on the claim page, the pet is permanently bound to their email and a unique pet URL is generated and displayed</td><td>E2E</td></tr>
+<tr><td>AC-003-4</td><td>Given the claim password, it expires after 15 minutes from generation, and any attempt to use an expired password causes the system to display the error message: &quot;Claim code has expired. Please request a new claim link.&quot; and provides a button to trigger a new claim email</td><td>Unit + E2E</td></tr>
+<tr><td>AC-003-5</td><td>Given a claim password is used successfully, it is immediately marked as used and cannot be reused (one-time token enforcement)</td><td>Unit</td></tr>
+<tr><td>AC-003-6</td><td>Given any email address is submitted (whether it exists in the system or not), the API response is identical: &quot;If this email is valid, you will receive a claim password&quot; (prevents email enumeration attacks)</td><td>Security</td></tr>
+<tr><td>AC-003-7</td><td>Given the user clicks the unique pet URL on any device or browser, they are taken directly to their pet page without needing to re-enter credentials</td><td>E2E</td></tr>
+<tr><td>AC-003-8</td><td>Given an age confirmation checkbox (&quot;I am at least 13 years old&quot;) is present on the claim form, the form cannot be submitted without checking it (COPPA compliance)</td><td>E2E + Accessibility</td></tr>
+</table>
+<hr>
+<h3 id="us-auth-002--returning-pet-owner-access">US-AUTH-002 — Returning Pet Owner Access</h3>
+<p><strong>Story</strong>: As a pet owner, I want to use my unique pet URL to return to my pet from any device so that I never lose access.</p>
+<p><strong>REQ-ID</strong>: US-AUTH-002</p>
+<p><strong>Priority</strong>: P0</p>
+<p><strong>Estimate</strong>: M — 8 SP (T-shirt: M = 5–8 SP)</p>
+<p><strong>Linked Feature</strong>: F-AUTH-01</p>
+<p><strong>Feature Flag</strong>: <code>FF_EMAIL_CLAIM</code></p>
+<p><strong>Acceptance Criteria</strong>:</p>
+<table>
+<tr><th>AC#</th><th>Criterion</th><th>Test Type</th></tr>
+<tr><td>AC-004-1</td><td>Given a valid pet URL, when accessed from any browser or device, the correct pet is loaded with current stats and history</td><td>E2E</td></tr>
+<tr><td>AC-004-2</td><td>Given the user wants to re-claim access after losing their URL, they can request a new access link to be sent to their registered email</td><td>E2E</td></tr>
+<tr><td>AC-004-3</td><td>Given a request to re-send the access link, the system sends an email to the registered address within 60 seconds containing the unique URL</td><td>Integration</td></tr>
+<tr><td>AC-004-4</td><td>Given the user requests deletion of their data (GDPR right to be forgotten), their email is replaced with a hashed value within 7 days, the unique URL continues to work, and the pet becomes &quot;unclaimed&quot; status</td><td>E2E</td></tr>
+<tr><td>AC-004-5</td><td>Given a visitor accesses a pet URL with an invalid, non-existent, or revoked token, the system returns HTTP 404 with message &quot;This pet URL is not valid or has been revoked&quot; and a link to the home page</td><td>E2E + Security</td></tr>
+</table>
+<hr>
+<hr>
+<h3 id="epic-training--training--feeding-system">EPIC-TRAINING — Training &amp; Feeding System</h3>
+<p><strong>Description</strong>: Covers all pet development mechanics — daily training stat increases and special food items that provide temporary or permanent stat boosts.</p>
+<p><strong>BRD Objective Link</strong>: O1 (engagement loop), O2 (competitive readiness)</p>
+<p><strong>US included</strong>: US-TRAIN-001, US-FOOD-001</p>
+<h3 id="us-train-001--pet-training-system">US-TRAIN-001 — Pet Training System</h3>
+<p><strong>Story</strong>: As a pet owner, I want to train my pet daily so that its stats improve and it becomes stronger for arena competition.</p>
+<p><strong>REQ-ID</strong>: US-TRAIN-001</p>
+<p><strong>Priority</strong>: P0</p>
+<p><strong>Estimate</strong>: M — 8 SP (T-shirt: M = 5–8 SP)</p>
+<p><strong>Linked Feature</strong>: F-TRAIN-01</p>
+<p><strong>Feature Flag</strong>: <code>FF_TRAINING_SYSTEM</code></p>
+<p><strong>Acceptance Criteria</strong>:</p>
+<table>
+<tr><th>AC#</th><th>Criterion</th><th>Test Type</th></tr>
+<tr><td>AC-005-1</td><td>Given a claimed pet, the owner can perform up to 3 training actions per day (run training, strength training, stamina training), each incrementing the corresponding stat by 1-3 points based on the pet&#x27;s current level</td><td>E2E</td></tr>
+<tr><td>AC-005-2</td><td>Given training actions are exhausted for the day, the system displays a countdown timer showing when the next training slot is available (daily reset at UTC 00:00)</td><td>E2E</td></tr>
+<tr><td>AC-005-3</td><td>Given a training action is completed, an animation plays on the pet sprite and a stat change indicator (+X Speed) is displayed for 2 seconds</td><td>E2E</td></tr>
+<tr><td>AC-005-4</td><td>Given a pet&#x27;s stats increase, the changes are persisted to the database immediately and reflected on all devices accessing the same pet URL</td><td>Integration</td></tr>
+<tr><td>AC-005-5</td><td>Given a pet owner has not trained in 3 consecutive days, the pet displays a &quot;hungry/neglected&quot; visual state</td><td>Unit + Visual Regression</td></tr>
+<tr><td>AC-005-6</td><td>Given a pet&#x27;s stat is already at the maximum value (100), the training button for that stat is disabled with a &#x27;Max&#x27; indicator shown inline, and attempting to train via API returns HTTP 400 with body: <code>{&quot;error&quot;: &quot;stat_at_maximum&quot;, &quot;message&quot;: &quot;This stat has reached the maximum value of 100&quot;}</code></td><td>Unit + E2E</td></tr>
+</table>
+<hr>
+<h3 id="us-food-001--special-food-system">US-FOOD-001 — Special Food System</h3>
+<p><strong>Story</strong>: As a pet owner, I want to give my pet special food items so that I can boost its stats and improve its arena performance.</p>
+<p><strong>REQ-ID</strong>: US-FOOD-001</p>
+<p><strong>Priority</strong>: P0</p>
+<p><strong>Estimate</strong>: M — 5 SP (T-shirt: M = 5–8 SP; lower end given food buff complexity is moderate)</p>
+<p><strong>Linked Feature</strong>: F-FOOD-01</p>
+<p><strong>Feature Flag</strong>: <code>FF_FOOD_SYSTEM</code></p>
+<p><strong>Acceptance Criteria</strong>:</p>
+<table>
+<tr><th>AC#</th><th>Criterion</th><th>Test Type</th></tr>
+<tr><td>AC-006-1</td><td>Given the pet management page, a food inventory section displays available food items with their stat effects (e.g., &quot;Speed Berry +5 Speed for 24h&quot;, &quot;Power Mushroom +3 Strength permanently&quot;)</td><td>E2E</td></tr>
+<tr><td>AC-006-2</td><td>Given a food item is fed to the pet, the stat effect is applied immediately and persisted; temporary effects show a countdown timer; permanent effects increment the base stat</td><td>Integration</td></tr>
+<tr><td>AC-006-3</td><td>Given a pet has been fed, a feeding animation plays on the pet sprite and the food item is removed from inventory</td><td>E2E</td></tr>
+<tr><td>AC-006-4</td><td>Given the food inventory is empty, a &quot;get more food&quot; prompt is displayed pointing to defined ways to earn food items: participating in arena battles (food drop on battle completion) and completing training sessions (food reward on 3-session training streak)</td><td>E2E</td></tr>
+<tr><td>AC-006-5</td><td>Given a temporary food buff is active during arena combat, the boosted stat is used in combat calculation and a buff indicator is shown on the pre-battle screen</td><td>Integration</td></tr>
+<tr><td>AC-006-6</td><td>Given a pet owner attempts to feed a permanent stat-boosting food item to a pet whose target stat is already at 100, the feed action is blocked with an inline message &#x27;This stat is already at maximum&#x27;, the food item remains in inventory, and the API returns HTTP 400 with body <code>{&quot;error&quot;: &quot;stat_at_maximum&quot;, &quot;stat&quot;: &quot;&lt;stat_name&gt;&quot;}</code></td><td>Unit + E2E</td></tr>
+</table>
+<hr>
+<hr>
+<h3 id="epic-arena--arena-battle-system">EPIC-ARENA — Arena Battle System</h3>
+<p><strong>Description</strong>: Covers all competitive arena modes where pet owners battle other players&#x27; pets, including the race mode (P0) and sumo mode (P1).</p>
+<p><strong>BRD Objective Link</strong>: O2 (competitive ecosystem), O4 (social sharing)</p>
+<p><strong>US included</strong>: US-ARENA-001, US-ARENA-002</p>
+<h3 id="us-arena-001--arena-racing-competition">US-ARENA-001 — Arena Racing Competition</h3>
+<p><strong>Story</strong>: As a competitive player, I want to enter my pet in a racing competition against other players&#x27; pets so that I can earn battle records and climb the leaderboard.</p>
+<p><strong>REQ-ID</strong>: US-ARENA-001</p>
+<p><strong>Priority</strong>: P0</p>
+<p><strong>Estimate</strong>: L — 13 SP (T-shirt: L = 13 SP)</p>
+<p><strong>Linked Feature</strong>: F-ARENA-01</p>
+<p><strong>Feature Flag</strong>: <code>FF_ARENA_RACE</code></p>
+<p><strong>Acceptance Criteria</strong>:</p>
+<table>
+<tr><th>AC#</th><th>Criterion</th><th>Test Type</th></tr>
+<tr><td>AC-007-1</td><td>Given a claimed pet, the owner can enter the Racing Arena and be matched with another pet from the matchmaking pool within 30 seconds</td><td>E2E</td></tr>
+<tr><td>AC-007-2</td><td>Given two pets are matched, the race outcome is deterministically calculated from Speed stats + a seeded random modifier (±15%), ensuring reproducibility but not pure determinism</td><td>Unit</td></tr>
+<tr><td>AC-007-3</td><td>Given a race is resolved, an animation sequence plays (both pets running, winner crosses finish line) lasting 5-15 seconds before the result is shown</td><td>E2E</td></tr>
+<tr><td>AC-007-4</td><td>Given a race result, the outcome (win/loss, opponent pet ID, date, stat comparison) is saved to both pets&#x27; battle records immediately</td><td>Integration</td></tr>
+<tr><td>AC-007-5</td><td>Given the result screen, a &quot;Share Battle Result&quot; button generates a unique shareable URL for the battle record</td><td>E2E</td></tr>
+<tr><td>AC-007-6</td><td>Given rate limiting, a single pet can enter at most 10 battles per hour across all arena modes, preventing bot-driven record inflation</td><td>Unit + Security</td></tr>
+<tr><td>AC-007-7</td><td>Given no opponent is available within 30 seconds, the system offers a &quot;battle against AI opponent&quot; option with clearly labeled AI status in the battle record</td><td>E2E</td></tr>
+<tr><td>AC-007-8</td><td>Given a pet has already entered 10 battles in the current hour, when the owner attempts to enter another battle, the UI displays: &quot;Arena rate limit reached. You can enter again in [X minutes].&quot; with a live countdown timer, the Enter Arena button is disabled for the remainder of that hour, and the API returns HTTP 429 with a <code>Retry-After</code> header</td><td>E2E + Security</td></tr>
+</table>
+<hr>
+<h3 id="us-arena-002--sumo-arena-mode-p1">US-ARENA-002 — Sumo Arena Mode (P1)</h3>
+<p><strong>Story</strong>: As a competitive player, I want to enter my pet in a sumo competition so that I have an alternative arena mode that tests strength stats.</p>
+<p><strong>REQ-ID</strong>: US-ARENA-002</p>
+<p><strong>Priority</strong>: P1</p>
+<p><strong>Estimate</strong>: M — 8 SP (T-shirt: M = 5–8 SP)</p>
+<p><strong>Linked Feature</strong>: F-ARENA-02</p>
+<p><strong>Feature Flag</strong>: <code>FF_ARENA_SUMO</code></p>
+<p><strong>Acceptance Criteria</strong>:</p>
+<table>
+<tr><th>AC#</th><th>Criterion</th><th>Test Type</th></tr>
+<tr><td>AC-008-1</td><td>Given the Arena section, a &quot;Sumo Ring&quot; mode is available alongside Race mode</td><td>E2E</td></tr>
+<tr><td>AC-008-2</td><td>Given a sumo match, the outcome is calculated from Strength stats + seeded modifier (±15%), independent from Race outcome calculation</td><td>Unit</td></tr>
+<tr><td>AC-008-3</td><td>Given a sumo match, an animation of two pets pushing on a circular ring plays, with the losing pet being pushed off the edge</td><td>E2E</td></tr>
+<tr><td>AC-008-4</td><td>Given sumo results, they are stored in the same battle records format as race results, with mode labeled as &quot;SUMO&quot;</td><td>Integration</td></tr>
+</table>
+<hr>
+<hr>
+<h3 id="epic-ranking--rankings-records--rarity">EPIC-RANKING — Rankings, Records &amp; Rarity</h3>
+<p><strong>Description</strong>: Covers the global leaderboard, individual pet battle records pages (viral sharing), and rarity scoring display — the social and collectibility layer.</p>
+<p><strong>BRD Objective Link</strong>: O2 (competitive motivation), O4 (social sharing, collectibility)</p>
+<p><strong>US included</strong>: US-BOARD-001, US-RECORD-001, US-RARITY-001</p>
+<h3 id="us-board-001--global-leaderboard">US-BOARD-001 — Global Leaderboard</h3>
+<p><strong>Story</strong>: As a competitive player, I want to view a global leaderboard ranking all pets by performance so that I have a clear goal to work toward.</p>
+<p><strong>REQ-ID</strong>: US-BOARD-001</p>
+<p><strong>Priority</strong>: P0</p>
+<p><strong>Estimate</strong>: S — 5 SP (T-shirt: S = 1–3 SP baseline; 5 SP for Redis sorted set + update lag)</p>
+<p><strong>Linked Feature</strong>: F-BOARD-01</p>
+<p><strong>Feature Flag</strong>: <code>FF_LEADERBOARD</code></p>
+<p><strong>Acceptance Criteria</strong>:</p>
+<table>
+<tr><th>AC#</th><th>Criterion</th><th>Test Type</th></tr>
+<tr><td>AC-009-1</td><td>Given the leaderboard page, the top 100 pets are displayed ranked by composite arena score (win rate × battles_played × level multiplier)</td><td>E2E</td></tr>
+<tr><td>AC-009-2</td><td>Given leaderboard data, it is updated within 30 seconds of a battle result being recorded (eventual consistency with 30-second maximum lag)</td><td>Integration</td></tr>
+<tr><td>AC-009-3</td><td>Given a pet owner accesses the leaderboard via their unique pet URL, their pet&#x27;s current rank is highlighted and displayed even if outside the top 100</td><td>E2E</td></tr>
+<tr><td>AC-009-4</td><td>Given a leaderboard row is clicked, it links to that pet&#x27;s public battle records page</td><td>E2E</td></tr>
+<tr><td>AC-009-5</td><td>Given the leaderboard page, it is publicly accessible without claiming a pet (guests can view the leaderboard)</td><td>E2E</td></tr>
+<tr><td>AC-009-6</td><td>Given a pet is banned by an admin for bot activity, it is removed from the leaderboard display within 5 minutes of the ban action</td><td>Integration</td></tr>
+</table>
+<hr>
+<h3 id="us-record-001--battle-records-page-p0">US-RECORD-001 — Battle Records Page (P0)</h3>
+<p><strong>Story</strong>: As a pet owner, I want to share my pet&#x27;s battle records with friends via a public URL so that I can show off my wins and attract new players.</p>
+<p><strong>REQ-ID</strong>: US-RECORD-001</p>
+<p><strong>Priority</strong>: P0 <em>(promoted from P1; see §1.3 scope reconciliation note)</em></p>
+<p><strong>Estimate</strong>: M — 8 SP (T-shirt: M = 5–8 SP)</p>
+<p><strong>Linked Feature</strong>: F-RECORD-01</p>
+<p><strong>Feature Flag</strong>: <code>FF_BATTLE_RECORDS</code></p>
+<p><strong>Acceptance Criteria</strong>:</p>
+<table>
+<tr><th>AC#</th><th>Criterion</th><th>Test Type</th></tr>
+<tr><td>AC-010-1</td><td>Given a pet&#x27;s unique URL, a public page displays the pet&#x27;s sprite, rarity, stats summary, win/loss record, and last 20 battles</td><td>E2E</td></tr>
+<tr><td>AC-010-2</td><td>Given the battle records page, each battle entry shows: date, mode (Race/Sumo), opponent pet name, outcome (Win/Loss), and stat comparison</td><td>E2E</td></tr>
+<tr><td>AC-010-3</td><td>Given the battle records page URL, it renders correctly in social media link previews (Open Graph meta tags: pet name, rarity, win count as subtitle, pet sprite as image)</td><td>Integration</td></tr>
+<tr><td>AC-010-4</td><td>Given a visitor accesses the battle records page, no authentication is required; the page is fully public</td><td>E2E</td></tr>
+<tr><td>AC-010-5</td><td>Given a visitor accesses the battle records page with an invalid or non-existent pet ID, the system returns HTTP 404 with message &quot;This pet could not be found&quot; and a link to the home page</td><td>E2E</td></tr>
+<tr><td>AC-010-6</td><td>Given a pet has fewer than 20 battles, the battle records page displays the available battles (1-19 entries) and shows a message &quot;More battles coming — enter the arena to build your records!&quot; beneath the last entry; no error state is shown</td><td>E2E</td></tr>
+</table>
+<hr>
+<h3 id="us-rarity-001--rarity-scoring-p1">US-RARITY-001 — Rarity Scoring (P1)</h3>
+<p><strong>Story</strong>: As a collector, I want to see my pet&#x27;s rarity rating displayed prominently so that I understand its collectibility and have motivation to keep rare pets.</p>
+<p><strong>REQ-ID</strong>: US-RARITY-001</p>
+<p><strong>Priority</strong>: P1</p>
+<p><strong>Estimate</strong>: M — 5 SP (T-shirt: M = 5–8 SP; lower end given rarity is computed at generation time)</p>
+<p><strong>Linked Feature</strong>: F-RARITY-01</p>
+<p><strong>Feature Flag</strong>: <code>FF_RARITY_DISPLAY</code></p>
+<p><strong>Acceptance Criteria</strong>:</p>
+<table>
+<tr><th>AC#</th><th>Criterion</th><th>Test Type</th></tr>
+<tr><td>AC-011-1</td><td>Given a pet page, the rarity tier (Common / Rare / Epic / Legendary) is displayed as a badge with distinct visual styling for each tier</td><td>Visual Regression</td></tr>
+<tr><td>AC-011-2</td><td>Given the rarity badge, it shows the estimated occurrence rate (e.g., &quot;Legendary — 3% of all pets&quot;)</td><td>E2E</td></tr>
+<tr><td>AC-011-3</td><td>Given the leaderboard, pets are filterable by rarity tier</td><td>E2E</td></tr>
+<tr><td>AC-011-4</td><td>Given a Legendary pet, it displays a special animated border effect on its sprite in all public-facing views</td><td>Visual Regression</td></tr>
+</table>
+<hr>
+<hr>
+<h3 id="epic-marketplace--pet-trading-marketplace">EPIC-MARKETPLACE — Pet Trading Marketplace</h3>
+<p><strong>Description</strong>: Covers the P2 peer-to-peer pet trading system, including listing, offer submission, atomic ownership transfer, and transaction fee collection.</p>
+<p><strong>BRD Objective Link</strong>: O5 (marketplace revenue)</p>
+<p><strong>US included</strong>: US-TRADE-001</p>
+<h3 id="us-trade-001--pet-trading-marketplace-p2">US-TRADE-001 — Pet Trading Marketplace (P2)</h3>
+<p><strong>Story</strong>: As a pet owner with surplus pets, I want to list my pet for trade and accept offers from other players so that I can exchange pets and build my ideal collection.</p>
+<p><strong>REQ-ID</strong>: US-TRADE-001</p>
+<p><strong>Priority</strong>: P2</p>
+<p><strong>Estimate</strong>: L — 13 SP (T-shirt: L = 13 SP; atomic ownership transfer + anti-flip logic)</p>
+<p><strong>Linked Feature</strong>: F-TRADE-01</p>
+<p><strong>Feature Flag</strong>: <code>FF_MARKETPLACE</code> (disabled in v1; enabled when DAU &gt; 1,000)</p>
+<p><strong>Acceptance Criteria</strong>:</p>
+<table>
+<tr><th>AC#</th><th>Criterion</th><th>Test Type</th></tr>
+<tr><td>AC-012-1</td><td>Given a pet owner, they can list a pet for trade with a &quot;looking for&quot; description</td><td>E2E</td></tr>
+<tr><td>AC-012-2</td><td>Given a listed pet, other players can submit trade offers (offering their own pet in exchange)</td><td>E2E</td></tr>
+<tr><td>AC-012-3</td><td>Given a trade offer is accepted by both parties, pet ownership is atomically transferred in a database transaction (no partial transfers)</td><td>Integration</td></tr>
+<tr><td>AC-012-4</td><td>Given a completed trade, a 7-day cancellation protection period prevents the original owner from immediately relisting the same pet (anti-flip protection)</td><td>Integration</td></tr>
+<tr><td>AC-012-5</td><td>Given a completed trade with an agreed trade credit price, the platform deducts a 5% transaction fee from the agreed price. The minimum suggested price is calculated as: <code>(pet_level × 100) + (rarity_multiplier × 500)</code>, where rarity_multiplier values are: Common=1, Rare=2, Epic=4, Legendary=8. The fee amount and net proceeds are displayed to the seller before confirmation, and the fee deduction is recorded in the trade transaction record for monetization tracking.</td><td>Integration</td></tr>
+</table>
+<hr>
+<hr>
+<h3 id="epic-admin--admin--moderation-portal">EPIC-ADMIN — Admin &amp; Moderation Portal</h3>
+<p><strong>Description</strong>: Covers all admin operator capabilities — pet management and banning, leaderboard moderation, and system configuration — required for platform integrity and game balance.</p>
+<p><strong>BRD Objective Link</strong>: O2 (competitive integrity), O4 (leaderboard trust)</p>
+<p><strong>US included</strong>: US-ADMIN-001, US-ADMIN-002, US-ADMIN-003, US-ADMIN-004, US-ADMIN-005, US-ADMIN-006</p>
+<h3 id="us-admin-001--admin-pet-management">US-ADMIN-001 — Admin Pet Management</h3>
+<p><strong>Story</strong>: As an admin operator, I want to view and manage all pets in the system so that I can moderate misconduct, remove bots, and ensure fair play.</p>
+<p><strong>REQ-ID</strong>: US-ADMIN-001</p>
+<p><strong>Priority</strong>: P0</p>
+<p><strong>Estimate</strong>: M — 5 SP (T-shirt: M = 5–8 SP; lower end as it is primarily a data display + ban action)</p>
+<p><strong>Linked Feature</strong>: Admin Backend</p>
+<p><strong>Feature Flag</strong>: <code>FF_ADMIN_PORTAL</code></p>
+<p><strong>Acceptance Criteria</strong>:</p>
+<table>
+<tr><th>AC#</th><th>Criterion</th><th>Test Type</th></tr>
+<tr><td>AC-013-1</td><td>Given the admin portal, a paginated pet list displays all pets with: pet ID, owner email (masked), rarity, level, arena record, creation date</td><td>E2E</td></tr>
+<tr><td>AC-013-2</td><td>Given an admin selects a pet, they can ban it from arena participation with a reason; the ban is logged with admin ID, timestamp, and reason</td><td>E2E</td></tr>
+<tr><td>AC-013-3</td><td>Given an admin bans a pet, it is immediately removed from the leaderboard and cannot enter arena matches</td><td>Integration</td></tr>
+<tr><td>AC-013-4</td><td>Given an admin searches by pet ID or email, results return within 2 seconds for up to 1 million records</td><td>Performance</td></tr>
+</table>
+<hr>
+<h3 id="us-admin-002--admin-leaderboard-moderation">US-ADMIN-002 — Admin Leaderboard Moderation</h3>
+<p><strong>Story</strong>: As an admin, I want to manage the global leaderboard so that I can remove cheaters and maintain competitive integrity.</p>
+<p><strong>REQ-ID</strong>: US-ADMIN-002</p>
+<p><strong>Priority</strong>: P0</p>
+<p><strong>Estimate</strong>: S — 3 SP (T-shirt: S = 1–3 SP; leaderboard removal reuses ban infrastructure from US-ADMIN-001)</p>
+<p><strong>Linked Feature</strong>: Admin Backend</p>
+<p><strong>Feature Flag</strong>: <code>FF_ADMIN_PORTAL</code></p>
+<p><strong>Acceptance Criteria</strong>:</p>
+<table>
+<tr><th>AC#</th><th>Criterion</th><th>Test Type</th></tr>
+<tr><td>AC-014-1</td><td>Given the leaderboard management section, an admin can view all top 500 pets with their hourly battle counts, flagging any pet with &gt;50 battles/hour as suspicious</td><td>E2E</td></tr>
+<tr><td>AC-014-2</td><td>Given a suspicious pet, an admin can remove it from the leaderboard temporarily (pending review) or permanently (ban)</td><td>E2E</td></tr>
+<tr><td>AC-014-3</td><td>Given a leaderboard removal action, it takes effect within 5 minutes and is reflected on the public leaderboard</td><td>Integration</td></tr>
+</table>
+<hr>
+<h3 id="us-admin-003--admin-runtime-parameter-tuning">US-ADMIN-003 — Admin Runtime Parameter Tuning</h3>
+<p><strong>Story</strong>: As an admin, I want to tune real-time operational safety parameters (max battles per hour, rarity weights) so that I can respond to live platform issues and balance concerns without code deployments.</p>
+<p><strong>REQ-ID</strong>: US-ADMIN-003</p>
+<p><strong>Priority</strong>: P1</p>
+<p><strong>Estimate</strong>: M — 8 SP (T-shirt: M = 5–8 SP; config cache invalidation + audit trail logic)</p>
+<p><strong>Linked Feature</strong>: Admin Backend</p>
+<p><strong>Feature Flag</strong>: <code>FF_ADMIN_PORTAL</code></p>
+<p><strong>Acceptance Criteria</strong>:</p>
+<table>
+<tr><th>AC#</th><th>Criterion</th><th>Test Type</th></tr>
+<tr><td>AC-015-1</td><td>Given the system configuration panel, an admin can adjust runtime operational safety levers only: max battles per hour per pet (integer 1–50, default: 10) and rarity weight percentages (four values that must sum to 100%)</td><td>E2E</td></tr>
+<tr><td>AC-015-2</td><td>Given a configuration change, the change is saved and takes effect within 5 minutes via configuration cache refresh</td><td>Integration</td></tr>
+<tr><td>AC-015-3</td><td>Given any configuration change, the action is logged to the audit trail with: admin ID, timestamp, field changed, old value, new value</td><td>Integration</td></tr>
+</table>
+<hr>
+<h2 id="6-user-flows">§6 User Flows</h2>
+<h3 id="61-happy-path-guest-to-active-pet-owner">6.1 Happy Path: Guest to Active Pet Owner</h3>
+<div class="diagram-container"><pre class="mermaid">flowchart TD
+    A((User opens pixel-pet-arena.com)) --&gt; B[Canvas loads; random pixel pet generated and animated]
+    B --&gt; C{User interacts with pet?}
+    C --&gt;|&quot;Click/tap on pet&quot;| D[Pet plays interaction animation; stats briefly flash]
+    C --&gt;|Just watches| D
+    D --&gt; E{User wants to keep this pet?}
+    E --&gt;|No| F[User leaves site — no data collected]
+    E --&gt;|Yes| G[User clicks &#x27;Claim This Pet&#x27; CTA]
+    G --&gt; H[Claim modal: email input + age confirmation checkbox]
+    H --&gt; I{Valid email + age confirmed?}
+    I --&gt;|No| J[Inline validation error shown; form remains open]
+    J --&gt; H
+    I --&gt;|Yes| K[System generates 6-digit password + unique pet URL token]
+    K --&gt; L[Claim password email sent via SendGrid within 60s]
+    L --&gt; M[Page shows: &#x27;Check your email for your claim code&#x27;]
+    M --&gt; N[User receives email with 6-digit code]
+    N --&gt; O[User enters 6-digit code in claim form]
+    O --&gt; P{Code valid and not expired?}
+    P --&gt;|Expired or invalid| Q[Error: &#x27;Code expired. Request a new one.&#x27;]
+    Q --&gt; H
+    P --&gt;|Valid| R[Pet ownership bound to email; unique URL displayed]
+    R --&gt; S[Redirect to pet management page via unique URL]
+    S --&gt; T[Pet page: stats, training actions, arena entry, leaderboard link]
+    T --&gt; U{Daily return visit?}
+    U --&gt;|Returns via unique URL| T
+    U --&gt;|Lost URL| V[Request URL resend via email]
+    V --&gt; W[Email sent with unique URL]
+    W --&gt; T</pre></div>
+<h3 id="62-error-flow-email-delivery-failure">6.2 Error Flow: Email Delivery Failure</h3>
+<div class="diagram-container"><pre class="mermaid">flowchart TD
+    A[User submits email for claim] --&gt; B[System attempts to send via SendGrid]
+    B --&gt; C{SendGrid delivery status?}
+    C --&gt;|Delivered| D[Standard happy path continues]
+    C --&gt;|&quot;Bounce / Invalid email&quot;| E[Log bounce; DO NOT reveal email validity to user]
+    E --&gt; F[Show generic message: &#x27;If this email is valid, you will receive a code&#x27;]
+    F --&gt; G[User waits and does not receive email]
+    G --&gt; H[User can retry after 60-second cooldown]
+    C --&gt;|SendGrid API timeout or 5xx| I[Fallback: attempt Nodemailer SMTP backup]
+    I --&gt; J{SMTP delivery status?}
+    J --&gt;|Delivered| D
+    J --&gt;|Failed| K[Log failure; show user: &#x27;Email delivery is experiencing delays. Try again in 5 minutes.&#x27;]
+    K --&gt; L[Retry queue: system retries delivery up to 3 times over 15 minutes]</pre></div>
+<h3 id="63-arena-battle-flow">6.3 Arena Battle Flow</h3>
+<div class="diagram-container"><pre class="mermaid">flowchart TD
+    A[&quot;Pet owner clicks &#x27;Enter Arena&#x27;&quot;] --&gt; A1{&quot;Rate limit reached?&quot;}
+    A1 --&gt;|Yes| A2[Show rate limit&lt;br/&gt;countdown message&lt;br/&gt;Disable button]
+    A2 --&gt; P2[Return to arena lobby]
+    A1 --&gt;|No| B[Select arena mode: Race or Sumo]
+    B --&gt; C[Pre-battle screen: pet stats, active food buffs shown]
+    C --&gt; D[System enters matchmaking queue]
+    D --&gt; E{Opponent found within 30s?}
+    E --&gt;|Yes| F[Match confirmed; both pet stats loaded]
+    E --&gt;|No| G[Offer: Battle AI Opponent?]
+    G --&gt;|Decline| H[Return to arena lobby]
+    G --&gt;|Accept| F
+    F --&gt; I[Battle animation plays 5-15 seconds]
+    I --&gt; J[Outcome calculated: Speed/Strength + seeded ±15% modifier]
+    J --&gt; K[Result screen: Win or Loss with stat breakdown]
+    K --&gt; L[Battle record saved to both pets&#x27; histories]
+    L --&gt; M[Leaderboard updated within 30 seconds]
+    K --&gt; N{Share result?}
+    N --&gt;|Yes| O[Battle shareable URL generated and copied]
+    N --&gt;|No| P[Return to arena or pet page]</pre></div>
+<h3 id="64-pet-lifecycle-state-machine">6.4 Pet Lifecycle State Machine</h3>
+<div class="diagram-container"><pre class="mermaid">stateDiagram-v2
+    [*] --&gt; Generated : Page load (guest visit)
+    Generated --&gt; Interacted : Guest clicks/taps pet
+    Generated --&gt; Expired : Page refresh without claim (new pet generated)
+    Interacted --&gt; ClaimPending : Guest clicks &#x27;Claim This Pet&#x27;
+    ClaimPending --&gt; ClaimPending : Password email sent, awaiting code entry
+    ClaimPending --&gt; Claimed : Valid 6-digit code entered within 15 min
+    ClaimPending --&gt; Expired : Claim code expires (&gt;15 min), pet recyclable
+    Claimed --&gt; Active : Owner returns via unique URL
+    Active --&gt; Training : Owner performs training action
+    Training --&gt; Active : Training complete, stats updated
+    Active --&gt; InArena : Owner enters arena battle
+    InArena --&gt; Active : Battle resolved, records updated
+    Active --&gt; Neglected : No interaction for 3 consecutive days
+    Neglected --&gt; Active : Owner returns and interacts
+    Claimed --&gt; Abandoned : Owner requests data deletion (GDPR)
+    Abandoned --&gt; [*] : Email removed, pet record retained for leaderboard history
+    Active --&gt; Transferred : Trade completed (P2 feature)
+    Transferred --&gt; Active : New owner takes control
+    Active --&gt; Banned : Admin bans pet for bot activity
+    Banned --&gt; [*] : Pet removed from leaderboard and arena</pre></div>
+<h3 id="65-claimtoken-state-machine">6.5 ClaimToken State Machine</h3>
+<div class="diagram-container"><pre class="mermaid">stateDiagram-v2
+    [*] --&gt; Generated : Guest clicks &quot;Claim This Pet&quot;, 6-digit code created + expiry set (T+15min)
+    Generated --&gt; EmailSent : SendGrid/SMTP delivers claim email to guest
+    Generated --&gt; EmailFailed : Email delivery fails (bounce or API error), token remains valid for retry
+    EmailFailed --&gt; EmailSent : Guest retries after 60s cooldown, new delivery attempt succeeds
+    EmailSent --&gt; Used : Guest enters correct 6-digit code within 15 minutes, pet ownership bound
+    EmailSent --&gt; Expired : 15 minutes elapse without code entry, token invalidated
+    Generated --&gt; Expired : 15 minutes elapse before email sent (rare edge case: generation without delivery)
+    Used --&gt; Deleted : 72 hours after creation (scheduled cleanup job)
+    Expired --&gt; Deleted : 72 hours after creation (scheduled cleanup job)</pre></div>
+<h3 id="66-foodbuff-state-machine">6.6 FoodBuff State Machine</h3>
+<div class="diagram-container"><pre class="mermaid">stateDiagram-v2
+    [*] --&gt; Inactive : FoodItem in pet inventory, not yet fed to pet
+    Inactive --&gt; Active : Owner feeds food item to pet, stat effect applied, expiry timestamp set (for temporary buffs)
+    Inactive --&gt; [*] : FoodItem removed from inventory (manual discard or admin action)
+    Active --&gt; Expired : Buff expiry timestamp reached (temporary food items only), stat bonus removed from combat calculation
+    Active --&gt; Consumed : Permanent food item fully applied, stat incremented on base stat, no expiry
+    Expired --&gt; Deleted : 30 days after expiry (buff record retained for audit trail per §11.1)
+    Consumed --&gt; Deleted : 30 days after consumption (record retained for audit trail per §11.1)
+    Active --&gt; Expired : Arena battle completes while buff active (single-use arena buffs, buff consumed on use)</pre></div>
+<hr>
+<h2 id="7-non-functional-requirements">§7 Non-Functional Requirements</h2>
+<h3 id="71-performance">7.1 Performance</h3>
+<table>
+<tr><th>NFR-ID</th><th>Category</th><th>Requirement</th><th>Measurement Method</th><th>Target</th></tr>
+<tr><td>NFR-PERF-01</td><td>API Latency</td><td>P99 API response time for all read endpoints</td><td>APM (DataDog/Prometheus)</td><td>&lt; 200ms at 100 RPS</td></tr>
+<tr><td>NFR-PERF-02</td><td>API Latency</td><td>P99 API response time for write endpoints (training, arena entry)</td><td>APM</td><td>&lt; 500ms at 100 RPS</td></tr>
+<tr><td>NFR-PERF-03</td><td>Page Load</td><td>First Contentful Paint (FCP) on initial page load</td><td>Lighthouse / Core Web Vitals</td><td>&lt; 1.5s</td></tr>
+<tr><td>NFR-PERF-04</td><td>Page Load</td><td>Largest Contentful Paint (LCP)</td><td>Core Web Vitals</td><td>&lt; 2.5s</td></tr>
+<tr><td>NFR-PERF-05</td><td>Page Load</td><td>Cumulative Layout Shift (CLS)</td><td>Core Web Vitals</td><td>&lt; 0.1</td></tr>
+<tr><td>NFR-PERF-06</td><td>Page Load</td><td>Interaction to Next Paint (INP)</td><td>Core Web Vitals</td><td>&lt; 200ms</td></tr>
+<tr><td>NFR-PERF-07</td><td>Game Performance</td><td>Pet animation frame rate on mid-range devices</td><td>Playwright performance test</td><td>≥ 30 FPS sustained</td></tr>
+<tr><td>NFR-PERF-08</td><td>Arena</td><td>Battle result calculation and storage</td><td>Backend integration test</td><td>&lt; 2 seconds end-to-end</td></tr>
+<tr><td>NFR-PERF-09</td><td>Leaderboard</td><td>Time from battle completion to leaderboard update</td><td>Integration test</td><td>≤ 30 seconds</td></tr>
+<tr><td>NFR-PERF-10</td><td>Email</td><td>Claim password email delivery time</td><td>SendGrid webhook monitoring</td><td>≤ 60 seconds P90</td></tr>
+</table>
+<p><strong>Capacity targets</strong>:</p>
+<ul><li>Normal operation: 100 RPS sustained, DAU 2,000-5,000</li><li>Peak operation (viral event): 500 RPS, PCU 2,000</li><li>Database: PostgreSQL connection pool ≥ 20 connections; read replicas for leaderboard queries</li></ul>
+<p><strong>Bundle size limits</strong> (per web performance rules):</p>
+<ul><li>Total JS (gzipped): &lt; 300kb (app page type)</li><li>Total CSS (gzipped): &lt; 50kb</li><li>Game assets (Phaser sprites): lazy-loaded; initial bundle excluding game assets</li></ul>
+<h3 id="72-security">7.2 Security</h3>
+<table>
+<tr><th>NFR-ID</th><th>Requirement</th></tr>
+<tr><td>NFR-SEC-01</td><td>All claim tokens are cryptographically random (≥ 32 bytes entropy), stored as hashed values in the database</td></tr>
+<tr><td>NFR-SEC-02</td><td>6-digit claim passwords expire after 15 minutes and are one-time use (attempted reuse returns 401)</td></tr>
+<tr><td>NFR-SEC-03</td><td>Email enumeration is prevented: the API returns identical responses for existing and non-existing emails</td></tr>
+<tr><td>NFR-SEC-04</td><td>All authentication endpoints are rate-limited: max 5 claim attempts per email per hour; max 10 code-entry attempts per session</td></tr>
+<tr><td>NFR-SEC-05</td><td>Unique pet URL tokens are ≥ 32 characters of URL-safe base64 random bytes</td></tr>
+<tr><td>NFR-SEC-06</td><td>All data in transit uses TLS 1.2 minimum; TLS 1.3 preferred</td></tr>
+<tr><td>NFR-SEC-07</td><td>GDPR right to erasure: email replaced with SHA-256 hash within 7 days of deletion request; pet data retained for leaderboard integrity</td></tr>
+<tr><td>NFR-SEC-08</td><td>Content Security Policy headers are set on all pages; <code>default-src: &#x27;self&#x27;</code>; no <code>unsafe-inline</code> for scripts</td></tr>
+<tr><td>NFR-SEC-09</td><td>SQL injection prevention: all database queries use parameterized statements (no string interpolation in queries)</td></tr>
+<tr><td>NFR-SEC-10</td><td>Arena rate limiting: max 10 battles per pet per hour enforced at API gateway level; Redis-backed counter with TTL</td></tr>
+<tr><td>NFR-SEC-11</td><td>Admin portal requires separate authentication (password + TOTP); admin session tokens have a 4-hour expiry</td></tr>
+<tr><td>NFR-SEC-12</td><td>Sensitive operations (email claim, data deletion) produce audit log entries with timestamp, IP (hashed), action type, and outcome</td></tr>
+</table>
+<h3 id="73-availability">7.3 Availability</h3>
+<table>
+<tr><th>NFR-ID</th><th>Requirement</th></tr>
+<tr><td>NFR-AVAIL-01</td><td>Overall system uptime SLA: 99.9% monthly (maximum 43.8 minutes downtime per month)</td></tr>
+<tr><td>NFR-AVAIL-02</td><td>Planned maintenance windows: maximum 2 hours per month; communicated 48 hours in advance via status page</td></tr>
+<tr><td>NFR-AVAIL-03</td><td>Database: PostgreSQL with at least one read replica; automated failover within 60 seconds</td></tr>
+<tr><td>NFR-AVAIL-04</td><td>Email delivery: SendGrid primary with Nodemailer SMTP fallback; automatic failover on 3 consecutive SendGrid failures</td></tr>
+<tr><td>NFR-AVAIL-05</td><td>Redis: if Redis is unavailable, leaderboard falls back to direct PostgreSQL query (degraded performance, not outage)</td></tr>
+<tr><td>NFR-AVAIL-06</td><td>API health check endpoint (<code>/health</code>) returns 200 with database and cache connectivity status within 500ms</td></tr>
+</table>
+<h3 id="74-scalability">7.4 Scalability</h3>
+<table>
+<tr><th>NFR-ID</th><th>Requirement</th></tr>
+<tr><td>NFR-SCALE-01</td><td>Application tier scales horizontally; each service instance is stateless; no in-process session state</td></tr>
+<tr><td>NFR-SCALE-02</td><td>Horizontal Pod Autoscaler (or equivalent) triggers scale-out at 70% CPU utilization</td></tr>
+<tr><td>NFR-SCALE-03</td><td>Database read queries for leaderboard and public pet pages route to read replicas, not the primary writer</td></tr>
+<tr><td>NFR-SCALE-04</td><td>Arena matchmaking queue implemented in Redis; supports 100 concurrent match entries without performance degradation</td></tr>
+<tr><td>NFR-SCALE-05</td><td>Pet generation is CPU-only (no external calls); generation of 1,000 pets concurrently completes within 10 seconds</td></tr>
+<tr><td>NFR-SCALE-06</td><td>Architecture uses bounded contexts (per BRD §5.5); each BC can be independently scaled and deployed</td></tr>
+</table>
+<h3 id="75-maintainability">7.5 Maintainability</h3>
+<table>
+<tr><th>NFR-ID</th><th>Requirement</th></tr>
+<tr><td>NFR-MAINT-01</td><td>Unit test coverage ≥ 80% for all business logic (pet generation, battle calculation, token management)</td></tr>
+<tr><td>NFR-MAINT-02</td><td>All API endpoints have integration tests; critical user paths (claim flow, arena battle) have E2E tests</td></tr>
+<tr><td>NFR-MAINT-03</td><td>No module exceeds 800 lines; functions do not exceed 50 lines</td></tr>
+<tr><td>NFR-MAINT-04</td><td>Bounded context inter-communication uses public APIs or domain events only (no cross-BC direct database access)</td></tr>
+<tr><td>NFR-MAINT-05</td><td>All environment-specific values are in environment variables; no hardcoded configuration in source code</td></tr>
+<tr><td>NFR-MAINT-06</td><td>API versioning: all public APIs are versioned (<code>/api/v1/</code>); backward compatibility maintained for at least one major version</td></tr>
+<tr><td>NFR-MAINT-07</td><td>CI pipeline runs lint, type-check, unit tests, and integration tests on every pull request; builds must be green before merge</td></tr>
+</table>
+<h3 id="76-internationalization-i18n">7.6 Internationalization (i18n)</h3>
+<table>
+<tr><th>NFR-ID</th><th>Requirement</th></tr>
+<tr><td>NFR-I18N-01</td><td>All user-facing text is stored in i18n string files; no hardcoded UI strings in component code</td></tr>
+<tr><td>NFR-I18N-02</td><td>v1 launches in English only; i18n architecture must support adding Japanese and Chinese (Traditional) without structural changes</td></tr>
+<tr><td>NFR-I18N-03</td><td>Claim emails are sent in English for v1; email template system supports locale-specific variants</td></tr>
+<tr><td>NFR-I18N-04</td><td>Date and time formats use UTC in the database; display layer converts to user&#x27;s browser locale</td></tr>
+</table>
+<h3 id="77-accessibility-a11y">7.7 Accessibility (A11Y)</h3>
+<p><strong>Conformance Target</strong>: WCAG 2.1 Level AA across all P0 user-facing pages and flows.</p>
+<table>
+<tr><th>NFR-ID</th><th>Requirement</th><th>Measurement Method</th></tr>
+<tr><td>NFR-A11Y-01</td><td>All interactive elements (buttons, links, form fields) must have clearly visible focus indicators with a minimum 3:1 contrast ratio against the surrounding background</td><td>Automated accessibility scan (axe-core) + manual keyboard test</td></tr>
+<tr><td>NFR-A11Y-02</td><td>All pixel pet sprites, rarity badges, and food item icons must have descriptive <code>alt</code> text attributes (e.g., <code>alt=&quot;Legendary blue dragon pixel pet with fire accessory&quot;</code>); decorative animations may use <code>alt=&quot;&quot;</code></td><td>Automated scan + manual audit</td></tr>
+<tr><td>NFR-A11Y-03</td><td>All P0 user flows (guest pet interaction, email claim, training, arena entry, leaderboard view) must be fully operable via keyboard navigation alone (Tab, Enter, Space, Arrow keys) with logical focus order</td><td>Manual keyboard-only walkthrough on each P0 flow</td></tr>
+<tr><td>NFR-A11Y-04</td><td>The platform must respect the <code>prefers-reduced-motion</code> media query: all non-essential animations (idle pet animations, victory effects, leaderboard transitions) must be suppressed or replaced with a static alternative when the user&#x27;s OS reduced-motion preference is active</td><td>Playwright test with <code>--force-prefers-reduced-motion</code> flag; verified in AC-001-5</td></tr>
+</table>
+<p><strong>Exclusions</strong>: The Phaser.js game canvas (racing/sumo battle animation) is exempt from WCAG 2.1 Level AA for the animation conformance criteria during the animated battle sequence only (battle duration 5-15 seconds). All pre-battle and post-battle screens remain fully conformant.</p>
+<h3 id="78-observability">7.8 Observability</h3>
+<table>
+<tr><th>NFR-ID</th><th>Requirement</th></tr>
+<tr><td>NFR-OBS-01</td><td>All API requests log: timestamp, endpoint, HTTP method, response time, HTTP status, request ID</td></tr>
+<tr><td>NFR-OBS-02</td><td>All business events emit structured logs: pet claimed, battle started, battle resolved, leaderboard updated</td></tr>
+<tr><td>NFR-OBS-03</td><td>Error rate alert: triggers if error rate exceeds 1% of requests over a 5-minute window</td></tr>
+<tr><td>NFR-OBS-04</td><td>P99 latency alert: triggers if any endpoint exceeds 1,000ms P99 over a 5-minute window</td></tr>
+<tr><td>NFR-OBS-05</td><td>Email delivery failure alert: triggers if SendGrid delivery failure rate exceeds 2% in a 30-minute window</td></tr>
+</table>
+<p><strong>Metrics Table</strong>:</p>
+<table>
+<tr><th>Metric</th><th>Type</th><th>Alert Threshold</th><th>Dashboard</th></tr>
+<tr><td><code>api_request_duration_p99</code></td><td>Histogram</td><td>&gt; 1000ms for 5 min</td><td>API Performance</td></tr>
+<tr><td><code>api_error_rate</code></td><td>Counter</td><td>&gt; 1% for 5 min</td><td>API Performance</td></tr>
+<tr><td><code>pet_claims_per_hour</code></td><td>Counter</td><td>&lt; 5/hour for 2h (engagement drop)</td><td>Funnel</td></tr>
+<tr><td><code>arena_battles_per_hour</code></td><td>Counter</td><td>&lt; 10/hour for 2h</td><td>Arena Health</td></tr>
+<tr><td><code>email_delivery_failure_rate</code></td><td>Gauge</td><td>&gt; 2% for 30 min</td><td>Email Health</td></tr>
+<tr><td><code>leaderboard_update_lag_seconds</code></td><td>Gauge</td><td>&gt; 60s</td><td>System Health</td></tr>
+<tr><td><code>redis_memory_usage_percent</code></td><td>Gauge</td><td>&gt; 80%</td><td>Infrastructure</td></tr>
+<tr><td><code>db_connection_pool_utilization</code></td><td>Gauge</td><td>&gt; 80%</td><td>Infrastructure</td></tr>
+</table>
+<h3 id="79-analytics-event-map">7.9 Analytics Event Map</h3>
+<p>All events must be captured in the analytics pipeline for funnel analysis and retention tracking.</p>
+<table>
+<tr><th>Event Name</th><th>Trigger</th><th>Key Properties</th><th>Used For</th></tr>
+<tr><td><code>page_view</code></td><td>Every page load</td><td>page_name, referrer, device_type, is_returning</td><td>Traffic analysis</td></tr>
+<tr><td><code>pet_displayed</code></td><td>Random pet rendered for guest</td><td>pet_rarity, pet_generation_ms</td><td>Performance, rarity distribution</td></tr>
+<tr><td><code>pet_interacted</code></td><td>Guest clicks/taps pet</td><td>interaction_type, time_since_load_ms</td><td>Engagement quality</td></tr>
+<tr><td><code>claim_initiated</code></td><td>User clicks &quot;Claim This Pet&quot;</td><td>is_after_interaction, time_on_page_seconds</td><td>Funnel step 1</td></tr>
+<tr><td><code>claim_email_submitted</code></td><td>Email form submitted</td><td>—</td><td>Funnel step 2</td></tr>
+<tr><td><code>claim_email_delivered</code></td><td>SendGrid delivery webhook</td><td>delivery_latency_ms</td><td>Email health</td></tr>
+<tr><td><code>claim_code_entered</code></td><td>User submits 6-digit code</td><td>is_first_attempt, attempt_number</td><td>Funnel step 3</td></tr>
+<tr><td><code>claim_completed</code></td><td>Pet ownership bound</td><td>time_to_claim_minutes, pet_rarity</td><td>Conversion</td></tr>
+<tr><td><code>training_performed</code></td><td>Training action executed</td><td>training_type, stat_increased, new_stat_value</td><td>Engagement</td></tr>
+<tr><td><code>food_fed</code></td><td>Food item used</td><td>food_type, stat_effect, is_temporary</td><td>Item usage</td></tr>
+<tr><td><code>arena_entered</code></td><td>User enters arena lobby</td><td>mode (race/sumo), pet_level</td><td>Arena funnel</td></tr>
+<tr><td><code>battle_started</code></td><td>Match found</td><td>matchmaking_wait_seconds, is_ai_match</td><td>Arena quality</td></tr>
+<tr><td><code>battle_completed</code></td><td>Battle result recorded</td><td>outcome (win/loss), mode, pet_level_diff</td><td>Arena outcomes</td></tr>
+<tr><td><code>battle_shared</code></td><td>Share URL generated</td><td>mode, outcome</td><td>Virality</td></tr>
+<tr><td><code>leaderboard_viewed</code></td><td>Leaderboard page opened</td><td>is_owner_viewing_own_rank</td><td>Retention signal</td></tr>
+<tr><td><code>pet_url_accessed</code></td><td>Unique URL used to access pet</td><td>days_since_claim, is_returning</td><td>Retention</td></tr>
+<tr><td><code>admin_pet_banned</code></td><td>Admin bans a pet from arena and leaderboard</td><td>admin_id_hash, pet_id, ban_reason_category (one of: bot_activity, cheating, inappropriate_content, other), is_permanent (boolean)</td><td>Admin moderation audit, bot infestation trending</td></tr>
+<tr><td><code>admin_leaderboard_removal</code></td><td>Admin removes a pet from the leaderboard</td><td>admin_id_hash, pet_id, action_type (one of: temporary_removal, permanent_ban, score_reset)</td><td>Leaderboard integrity monitoring</td></tr>
+<tr><td><code>battle_records_viewed</code></td><td>Visitor opens a pet&#x27;s public battle records page</td><td>pet_id, is_owner_viewing, referrer_type (direct/share_url/leaderboard), battle_count</td><td>Virality measurement, k-factor tracking, share URL conversion</td></tr>
+<tr><td><code>gdpr_deletion_processed</code></td><td>Super Admin completes GDPR deletion request</td><td>admin_id_hash, pet_ids_affected_count, completion_time_hours</td><td>GDPR compliance monitoring, SLA tracking</td></tr>
+<tr><td><code>suspicious_pet_flagged</code></td><td>System auto-flags pet exceeding 50 battles in 60-min window</td><td>pet_id, battles_in_window, flag_type (auto_detection)</td><td>Bot infestation trending, moderation queue monitoring</td></tr>
+</table>
+<hr>
+<h2 id="8-constraints--dependencies">§8 Constraints &amp; Dependencies</h2>
+<h3 id="81-constraints">8.1 Constraints</h3>
+<table>
+<tr><th>Constraint</th><th>Type</th><th>Impact</th></tr>
+<tr><td>HTML5 browser-only (no native app)</td><td>Hard</td><td>All frontend must work in Chrome, Firefox, Safari without plugins</td></tr>
+<tr><td>Email as sole identity mechanism (no OAuth, no passwords)</td><td>Hard</td><td>Auth system design must be built around email + URL token</td></tr>
+<tr><td>Pixel art visual style throughout</td><td>Soft</td><td>All UI assets and game graphics must be pixel art style</td></tr>
+<tr><td>GDPR, CAN-SPAM, COPPA compliance</td><td>Hard</td><td>Data handling, email format, and age verification are mandatory</td></tr>
+<tr><td>MVP budget: $40,000</td><td>Hard</td><td>Scope limited to P0 features only; P1 in second sprint</td></tr>
+<tr><td>Open source licenses: MIT/Apache 2.0 only for core commercial components</td><td>Hard</td><td>GPL components cannot be used in core business logic</td></tr>
+<tr><td>Architecture: Bounded Contexts per BRD §5.5</td><td>Hard</td><td>No cross-BC direct DB foreign keys; inter-BC via API or domain events only</td></tr>
+</table>
+<h3 id="82-technology-dependencies">8.2 Technology Dependencies</h3>
+<table>
+<tr><th>Dependency</th><th>Version / SLA</th><th>Criticality</th><th>Owner</th></tr>
+<tr><td>Phaser.js 3.x (or LittleJS)</td><td>Latest stable</td><td>High — game rendering</td><td>Engineering</td></tr>
+<tr><td>Node.js (Fastify or Express)</td><td>LTS</td><td>High — API server</td><td>Engineering</td></tr>
+<tr><td>PostgreSQL 15+</td><td>Hosted (Supabase/Railway)</td><td>Critical — all data persistence</td><td>Engineering</td></tr>
+<tr><td>Redis 7+ (Upstash or Railway)</td><td>Latest stable</td><td>High — leaderboard, rate limiting</td><td>Engineering</td></tr>
+<tr><td>SendGrid API</td><td>v3</td><td>Critical — email delivery</td><td>Engineering</td></tr>
+<tr><td>Nodemailer + SMTP</td><td>Latest stable</td><td>Medium — fallback only</td><td>Engineering</td></tr>
+</table>
+<h3 id="83-external-dependencies">8.3 External Dependencies</h3>
+<table>
+<tr><th>Dependency</th><th>Type</th><th>Risk Level</th><th>Mitigation</th></tr>
+<tr><td>SendGrid email delivery</td><td>SaaS (Tier 1 critical)</td><td>High</td><td>Nodemailer SMTP fallback pre-configured; switch within 14 days if needed</td></tr>
+<tr><td>Supabase / Railway PostgreSQL hosting</td><td>SaaS (Tier 1 critical)</td><td>High</td><td>Daily automated S3 backups; migration plan to AWS RDS documented</td></tr>
+<tr><td>Vercel / Railway compute hosting</td><td>SaaS (Tier 2)</td><td>Medium</td><td>Cloudflare Workers or AWS Lightsail as alternative; 14-day migration plan</td></tr>
+<tr><td>Redis (Upstash or Railway)</td><td>SaaS (Tier 2)</td><td>Medium</td><td>Direct PostgreSQL fallback for leaderboard; degraded performance acceptable</td></tr>
+<tr><td>Legal / Compliance review (external counsel)</td><td>Organizational</td><td>Medium</td><td>BRD approved; legal review must complete within 2 weeks of PRD approval</td></tr>
+</table>
+<h3 id="84-assumptions">8.4 Assumptions</h3>
+<table>
+<tr><th>#</th><th>Assumption</th><th>If Wrong, Impact</th><th>Verification Date</th></tr>
+<tr><td>A1</td><td>Email claim conversion rate ≥ 10% (guests willing to enter email for permanent pet ownership)</td><td>Core retention loop fails; need to pivot to anonymous token model</td><td>MVP launch + 4 weeks</td></tr>
+<tr><td>A2</td><td>Day-7 retention ≥ 25% (training and competition mechanics sufficient to drive return)</td><td>Core loop insufficient; must add daily quests, push notifications, or social features</td><td>MVP launch + 6 weeks</td></tr>
+<tr><td>A3</td><td>Pixel pet generation combination space &gt; 1 billion unique combinations visually distinguishable to users</td><td>Rarity perception fails; need to expand attribute dimensions or introduce hand-drawn elements</td><td>EDD completion (pre-launch)</td></tr>
+<tr><td>A4</td><td>Email client pre-scan issue (Gmail/Outlook auto-clicking) is fully mitigated by 6-digit password flow</td><td>Auth mechanism unreliable; need TOTP fallback or alternate verification</td><td>Technical PoC completion</td></tr>
+<tr><td>A5</td><td>SendGrid delivery rates remain above 98% with proper SPF/DKIM setup</td><td>Claim conversion drops; email becomes unreliable identity layer</td><td>Ongoing monitoring post-launch</td></tr>
+<tr><td>A6</td><td>DAU &gt; 1,000 achievable within 8 months, justifying trading marketplace launch</td><td>Marketplace never reaches viable liquidity; trading revenue model fails</td><td>8 months post-launch</td></tr>
+</table>
+<h3 id="85-backward-compatibility">8.5 Backward Compatibility</h3>
+<p>This is a new product with no existing users or data. All backward compatibility considerations are N/A for v1.</p>
+<p>For v2 and beyond: all API changes must maintain backward compatibility for at least one major version cycle. Deprecation notices must be provided 90 days before breaking changes.</p>
+<hr>
+<h2 id="9-success-metrics">§9 Success Metrics</h2>
+<h3 id="91-north-star-metric">9.1 North Star Metric</h3>
+<blockquote><p><strong>Alignment note (F2)</strong>: The primary North Star is <strong>MAAPO</strong>, aligned with BRD §7.1. DAP is the primary <em>leading/input</em> metric. See §1.4 for the full rationale and the relationship between the two metrics.</p></blockquote>
+<p><strong>Monthly Active Arena Pet Owners (MAAPO)</strong>: The number of distinct claimed pet owners who completed at least 1 arena battle in the past 30 days.</p>
+<p><strong>Rationale</strong>: MAAPO captures the product&#x27;s core competitive value loop at a meaningful time horizon. An owner counted in MAAPO has:</p>
+<ol><li>Successfully claimed a pet (email claim conversion worked)</li><li>Trained their pet enough to compete (training loop is active)</li><li>Returned within 30 days to enter the arena (retention is working)</li><li>Participated in the competitive ecosystem that drives leaderboard and social sharing</li></ol>
+<p><strong>MAAPO Target trajectory</strong>:</p>
+<ul><li>Month 1: MAAPO ≥ 50</li><li>Month 3: MAAPO ≥ 200</li><li>Month 6: MAAPO ≥ 500</li><li>Month 12: MAAPO ≥ 1,000</li></ul>
+<p><strong>Leading Metric: Daily Active Pets (DAP)</strong> — The number of claimed pets that receive at least one interaction (training action, food feeding, or arena battle entry) in a given 24-hour UTC period. DAP is the daily operational signal that predicts MAAPO trajectory.</p>
+<p><strong>DAP Target trajectory</strong> (leading indicator):</p>
+<ul><li>Week 4: DAP ≥ 100</li><li>Month 3: DAP ≥ 500</li><li>Month 6: DAP ≥ 1,000</li><li>Month 12: DAP ≥ 2,000</li></ul>
+<h3 id="92-guardrail-metrics">9.2 Guardrail Metrics</h3>
+<p>Metrics that must not degrade while improving the North Star:</p>
+<table>
+<tr><th>Guardrail Metric</th><th>Threshold</th><th>Why It Matters</th></tr>
+<tr><td>Claim password email delivery rate</td><td>≥ 98%</td><td>If email fails, the claim funnel collapses entirely</td></tr>
+<tr><td>Claim form error rate</td><td>≤ 2%</td><td>High error rates indicate UX or backend issues blocking conversion</td></tr>
+<tr><td>Arena battle fair play rate</td><td>≥ 95% non-bot battles</td><td>Bot infestation degrades competitive integrity and drives human players away</td></tr>
+<tr><td>P99 API latency</td><td>&lt; 200ms</td><td>Slow API = poor game feel; players abandon laggy games</td></tr>
+<tr><td>Spam complaint rate (SendGrid)</td><td>&lt; 0.1%</td><td>High spam rates trigger SendGrid IP throttling, killing email delivery</td></tr>
+<tr><td>Leaderboard page UV/DAU ratio</td><td>≥ 20%</td><td>Measures social discovery and competitive motivation (BRD §7.2 O2)</td></tr>
+<tr><td>Arena social share rate</td><td>≥ 5%</td><td>Measures virality and organic growth from battle result sharing (BRD §7.2 O4)</td></tr>
+</table>
+<h3 id="93-go--no-go-criteria">9.3 Go / No-Go Criteria</h3>
+<table>
+<tr><th>Stage</th><th>Metric</th><th>Go Threshold</th><th>No-Go / Pivot Threshold</th><th>Review Date</th></tr>
+<tr><td>Alpha → Beta</td><td>Email claim conversion rate</td><td>≥ 7%</td><td>&lt; 3%</td><td>MVP launch + 4 weeks</td></tr>
+<tr><td>Alpha → Beta</td><td>Day-3 retention</td><td>≥ 30%</td><td>&lt; 10%</td><td>MVP launch + 4 weeks</td></tr>
+<tr><td>Beta → GA</td><td>Day-7 retention</td><td>≥ 25%</td><td>&lt; 10%</td><td>MVP launch + 6 weeks</td></tr>
+<tr><td>Beta → GA</td><td>Arena daily battles</td><td>≥ 50 battles/day <em>(minimum Beta exit threshold; see note below)</em></td><td>&lt; 20 battles/day</td><td>MVP launch + 8 weeks</td></tr>
+<tr><td>GA → Marketplace launch</td><td>DAU</td><td>≥ 1,000 sustained 2 weeks</td><td>—</td><td>Post-GA evaluation</td></tr>
+</table>
+<blockquote><p><strong>Arena daily battles target clarification (F3)</strong>: The ≥ 50 battles/day threshold in the Beta → GA row above is the <em>minimum Beta exit threshold</em>, measured at week 8 post-MVP-launch. This is distinct from BRD Objective O2&#x27;s <em>sustained success target</em> of 100 arena battles/day at the 3-month mark post-GA. Both targets are valid at their respective measurement points: 50/day to graduate from Beta, 100/day to confirm the competitive loop is healthy at month 3.</p></blockquote>
+<p><strong>Kill criteria</strong> (from BRD §10.2):</p>
+<ul><li>K1: Claim conversion &lt; 3% at week 4 despite UX optimization → evaluate Pivot to anonymous token or Kill</li><li>K2: Day-7 retention &lt; 10% at week 6 despite intervention → evaluate core gameplay overhaul or Kill</li><li>K3: Legal blocks email claim mechanism in target markets with no workaround → Kill and redesign identity layer</li><li>K4: Technical PoC shows infrastructure cost &gt; $500/month at MVP scale → redesign technical approach</li></ul>
+<h2 id="94-experiment--ab-test-plan實驗與-ab-測試計畫">§9.4 Experiment &amp; A/B Test Plan（實驗與 A/B 測試計畫）</h2>
+<table>
+<tr><th>Test ID</th><th>Hypothesis</th><th>Variant A (Control)</th><th>Variant B (Test)</th><th>Primary Metric</th><th>Sample Size</th><th>Duration</th></tr>
+<tr><td>AB-001</td><td>Showing rarity before claim increases conversion</td><td>Claim CTA shown after 30s</td><td>Rarity badge shown prominently before claim CTA</td><td>Email claim conversion rate</td><td>1,000 visitors/arm</td><td>2 weeks</td></tr>
+<tr><td>AB-002</td><td>Reducing claim steps increases conversion</td><td>3-step claim (email → email sent → enter code)</td><td>2-step claim (email → modal with code entry)</td><td>Email claim conversion rate</td><td>1,000 visitors/arm</td><td>2 weeks</td></tr>
+<tr><td>AB-003</td><td>Showing opponent&#x27;s pet stats before battle increases arena entries</td><td>Enter arena → battle directly</td><td>Enter arena → preview opponent stats → confirm</td><td>Arena entry rate</td><td>500 sessions/arm</td><td>2 weeks</td></tr>
+<tr><td>AB-004</td><td>Post-battle share prompt increases virality</td><td>Share button on result screen (passive)</td><td>Share prompt modal 2 seconds after result</td><td>Share click rate</td><td>500 battles/arm</td><td>2 weeks</td></tr>
+</table>
+<h2 id="95-definition-of-done完成定義">§9.5 Definition of Done（完成定義）</h2>
+<p><strong>Product DoD</strong>:</p>
+<ul><li style="list-style:none"><input type="checkbox" disabled> All P0 User Stories have ≥ 3 passing acceptance criteria tests</li><li style="list-style:none"><input type="checkbox" disabled> Email claim flow works end-to-end across Chrome, Firefox, Safari, and Edge</li><li style="list-style:none"><input type="checkbox" disabled> Arena race mode produces valid battle records stored and displayed correctly</li><li style="list-style:none"><input type="checkbox" disabled> Global leaderboard updates within 30 seconds of battle completion</li><li style="list-style:none"><input type="checkbox" disabled> All analytics events fire correctly and are captured in the analytics pipeline</li><li style="list-style:none"><input type="checkbox" disabled> Privacy policy and age confirmation are present on claim form</li><li style="list-style:none"><input type="checkbox" disabled> Admin portal allows pet management and leaderboard moderation</li></ul>
+<p><strong>Engineering DoD</strong>:</p>
+<ul><li style="list-style:none"><input type="checkbox" disabled> Unit test coverage ≥ 80% for all business logic modules</li><li style="list-style:none"><input type="checkbox" disabled> All P0 features have E2E tests passing in CI</li><li style="list-style:none"><input type="checkbox" disabled> P99 API latency &lt; 200ms verified under 100 RPS load test</li><li style="list-style:none"><input type="checkbox" disabled> FCP &lt; 1.5s on Lighthouse audit (simulated fast 3G)</li><li style="list-style:none"><input type="checkbox" disabled> CLS &lt; 0.1 on Lighthouse audit</li><li style="list-style:none"><input type="checkbox" disabled> No Critical or High severity findings from security scan (OWASP ZAP or equivalent)</li><li style="list-style:none"><input type="checkbox" disabled> All P0 feature flags are configured with kill switch capability</li><li style="list-style:none"><input type="checkbox" disabled> Database migrations are reversible (down migrations exist for all schema changes)</li><li style="list-style:none"><input type="checkbox" disabled> SendGrid fallback to Nodemailer SMTP tested and confirmed functional</li><li style="list-style:none"><input type="checkbox" disabled> GDPR data deletion endpoint tested (email replaced with hash within 7 days)</li></ul>
+<hr>
+<h2 id="10-rollout-plan">§10 Rollout Plan</h2>
+<h3 id="101-alpha--beta--ga-table">10.1 Alpha / Beta / GA Table</h3>
+<table>
+<tr><th>Phase</th><th>Audience</th><th>Duration</th><th>Entry Criteria</th><th>Exit Criteria</th><th>Key Activities</th></tr>
+<tr><td><strong>Alpha</strong></td><td>Internal team + 20 invited beta testers (itch.io pixel art community volunteers)</td><td>2 weeks</td><td>All P0 features deployed; no Critical bugs; email delivery functional</td><td>Claim conversion ≥ 7%; Day-3 retention ≥ 30%; no P0-blocking bugs</td><td>Internal testing, load testing at 100 RPS, email delivery validation, accessibility audit</td></tr>
+<tr><td><strong>Beta</strong></td><td>itch.io listing (unlisted) + Discord pixel art server invite (~500 users)</td><td>2 weeks</td><td>Alpha exit criteria met; Beta monitoring dashboards live</td><td>Day-7 retention ≥ 25%; arena daily battles ≥ 50; P99 API &lt; 200ms confirmed</td><td>Performance monitoring, A/B test AB-001 and AB-002 launch, leaderboard moderation test</td></tr>
+<tr><td><strong>GA</strong></td><td>Public launch: itch.io official listing + Twitter announcement</td><td>Ongoing</td><td>Beta exit criteria met; legal compliance confirmed; admin portal fully operational</td><td>DAP ≥ 100 within 2 weeks of GA</td><td>itch.io public listing, Twitter/Discord announcement, leaderboard featured, social share campaign</td></tr>
+</table>
+<h3 id="102-feature-flag-specification">10.2 Feature Flag Specification</h3>
+<p>Every P0 feature has a kill switch. Feature flags are evaluated server-side (not client-side) to prevent reverse engineering.</p>
+<table>
+<tr><th>Feature Flag</th><th>Feature</th><th>Default State</th><th>Kill Switch Action</th><th>Owner</th></tr>
+<tr><td><code>FF_GUEST_PET_DISPLAY</code></td><td>Random pixel pet display on page load</td><td><strong>ON</strong></td><td>OFF: Show static placeholder &quot;Game coming soon&quot; page</td><td>Engineering</td></tr>
+<tr><td><code>FF_EMAIL_CLAIM</code></td><td>Email claim flow (password + unique URL)</td><td><strong>ON</strong></td><td>OFF: Disable claim button; show &quot;Feature temporarily unavailable&quot; message</td><td>Engineering</td></tr>
+<tr><td><code>FF_TRAINING_SYSTEM</code></td><td>Daily pet training actions</td><td><strong>ON</strong></td><td>OFF: Training buttons disabled with &quot;Temporarily disabled for maintenance&quot; tooltip</td><td>Engineering</td></tr>
+<tr><td><code>FF_FOOD_SYSTEM</code></td><td>Food item feeding</td><td><strong>ON</strong></td><td>OFF: Food inventory hidden; existing buffs still calculate (no data loss)</td><td>Engineering</td></tr>
+<tr><td><code>FF_ARENA_RACE</code></td><td>Racing arena mode</td><td><strong>ON</strong></td><td>OFF: Arena entry disabled with &quot;Arena under maintenance&quot; message; existing records preserved</td><td>Engineering</td></tr>
+<tr><td><code>FF_LEADERBOARD</code></td><td>Global leaderboard</td><td><strong>ON</strong></td><td>OFF: Leaderboard page shows &quot;Leaderboard temporarily unavailable&quot;; pet pages still accessible</td><td>Engineering</td></tr>
+<tr><td><code>FF_ADMIN_PORTAL</code></td><td>Admin backend portal</td><td><strong>ON</strong></td><td>OFF: Admin routes return 503; emergency direct DB access only</td><td>Engineering</td></tr>
+<tr><td><code>FF_ARENA_SUMO</code></td><td>Sumo arena mode (P1)</td><td><strong>OFF</strong> (enabled when ready)</td><td>N/A — starts disabled</td><td>Engineering</td></tr>
+<tr><td><code>FF_BATTLE_RECORDS</code></td><td>Shareable battle records pages (P0)</td><td><strong>ON</strong></td><td>OFF: Battle records pages return 503; existing records preserved; share URLs show &quot;temporarily unavailable&quot; message</td><td>Engineering</td></tr>
+<tr><td><code>FF_RARITY_DISPLAY</code></td><td>Rarity scoring display (P1)</td><td><strong>OFF</strong> (enabled when ready)</td><td>N/A — starts disabled</td><td>Engineering</td></tr>
+<tr><td><code>FF_MARKETPLACE</code></td><td>Pet trading marketplace (P2)</td><td><strong>OFF</strong> (enabled at DAU &gt; 1,000)</td><td>OFF: Marketplace hidden entirely</td><td>Engineering</td></tr>
+</table>
+<hr>
+<h2 id="11-data-requirements">§11 Data Requirements</h2>
+<h3 id="111-new-data-created">11.1 New Data Created</h3>
+<table>
+<tr><th>Data Entity</th><th>Description</th><th>Retention Policy</th></tr>
+<tr><td><code>Pet</code></td><td>Core pet record: seed, generated attributes, rarity, stats, owner reference, creation timestamp</td><td>Permanent (core product asset)</td></tr>
+<tr><td><code>User</code> (email owner)</td><td>Email address (or hash after deletion), creation timestamp, pet references</td><td>Until user deletion request; email replaced with hash within 7 days of deletion</td></tr>
+<tr><td><code>ClaimToken</code></td><td>6-digit password + expiry + used flag + pet reference</td><td>Deleted 72 hours after creation or after first use</td></tr>
+<tr><td><code>PetAccessToken</code></td><td>Long-lived unique URL token (≥ 32 bytes) per pet</td><td>Permanent while pet is active; invalidated on ownership transfer or explicit revoke</td></tr>
+<tr><td><code>BattleRecord</code></td><td>Battle result: pet IDs, mode, outcome, stats at time of battle, timestamp, AI flag</td><td>Permanent (supports leaderboard and historical integrity)</td></tr>
+<tr><td><code>LeaderboardSnapshot</code></td><td>Periodic Redis → PostgreSQL snapshots of top 500 ranking</td><td>12-month rolling retention; older snapshots purged</td></tr>
+<tr><td><code>FoodItem</code></td><td>Food inventory per pet: item type, quantity, active buff expiry</td><td>Active until consumed; buff record retained 30 days for audit</td></tr>
+<tr><td><code>AdminAuditLog</code></td><td>All admin actions: actor, timestamp, action type, target entity, old value, new value</td><td>2-year retention (compliance)</td></tr>
+<tr><td><code>AnalyticsEvent</code></td><td>Raw event stream per §7.8 event map</td><td>90 days hot; 2-year cold archive</td></tr>
+</table>
+<h3 id="112-data-dictionary">11.2 Data Dictionary</h3>
+<table>
+<tr><th>Field</th><th>Table</th><th>Type</th><th>Constraints</th><th>Description</th></tr>
+<tr><td><code>pet_id</code></td><td>pets</td><td>UUID</td><td>PK, NOT NULL</td><td>Globally unique pet identifier</td></tr>
+<tr><td><code>pet_seed</code></td><td>pets</td><td>BIGINT</td><td>UNIQUE, NOT NULL</td><td>Deterministic generation seed; uniqueness guaranteed at DB level</td></tr>
+<tr><td><code>rarity</code></td><td>pets</td><td>ENUM</td><td>NOT NULL</td><td>&#x27;COMMON&#x27;, &#x27;RARE&#x27;, &#x27;EPIC&#x27;, &#x27;LEGENDARY&#x27;</td></tr>
+<tr><td><code>stat_speed</code></td><td>pets</td><td>SMALLINT</td><td>NOT NULL, DEFAULT 10, CHECK (1-100)</td><td>Base speed stat (training increases this)</td></tr>
+<tr><td><code>stat_strength</code></td><td>pets</td><td>SMALLINT</td><td>NOT NULL, DEFAULT 10, CHECK (1-100)</td><td>Base strength stat</td></tr>
+<tr><td><code>stat_stamina</code></td><td>pets</td><td>SMALLINT</td><td>NOT NULL, DEFAULT 10, CHECK (1-100)</td><td>Base stamina stat</td></tr>
+<tr><td><code>level</code></td><td>pets</td><td>SMALLINT</td><td>NOT NULL, DEFAULT 1, CHECK (1-100)</td><td>Derived from total training actions completed; formula: FLOOR(total_training_actions / 10) capped at 100; used in leaderboard composite score and trade price formula</td></tr>
+<tr><td><code>owner_email_hash</code></td><td>pets</td><td>VARCHAR(64)</td><td>NULLABLE</td><td>SHA-256 hash of owner email; NULL if unclaimed</td></tr>
+<tr><td><code>access_token_hash</code></td><td>pet_access_tokens</td><td>VARCHAR(64)</td><td>UNIQUE, NOT NULL</td><td>SHA-256 hash of the unique URL token</td></tr>
+<tr><td><code>claim_code</code></td><td>claim_tokens</td><td>VARCHAR(6)</td><td>NOT NULL</td><td>6-digit numeric code</td></tr>
+<tr><td><code>claim_code_expires_at</code></td><td>claim_tokens</td><td>TIMESTAMPTZ</td><td>NOT NULL</td><td>15 minutes from creation</td></tr>
+<tr><td><code>claim_code_used</code></td><td>claim_tokens</td><td>BOOLEAN</td><td>NOT NULL, DEFAULT FALSE</td><td>Prevents token reuse</td></tr>
+<tr><td><code>battle_outcome</code></td><td>battle_records</td><td>ENUM</td><td>NOT NULL</td><td>&#x27;WIN&#x27;, &#x27;LOSS&#x27;, &#x27;DRAW&#x27;</td></tr>
+<tr><td><code>is_ai_match</code></td><td>battle_records</td><td>BOOLEAN</td><td>NOT NULL, DEFAULT FALSE</td><td>True if opponent was AI</td></tr>
+<tr><td><code>arena_mode</code></td><td>battle_records</td><td>ENUM</td><td>NOT NULL</td><td>&#x27;RACE&#x27;, &#x27;SUMO&#x27;</td></tr>
+</table>
+<h3 id="113-data-quality-requirements">11.3 Data Quality Requirements</h3>
+<table>
+<tr><th>Requirement</th><th>Specification</th></tr>
+<tr><td>Pet seed uniqueness</td><td>Database-level UNIQUE constraint on <code>pet_seed</code>; application-level retry on collision (max 3 retries)</td></tr>
+<tr><td>Battle record immutability</td><td>No UPDATE or DELETE allowed on <code>battle_records</code> after creation; append-only table</td></tr>
+<tr><td>Owner transfer atomicity</td><td>Pet ownership transfer uses database transactions; partial transfers must roll back completely</td></tr>
+<tr><td>Leaderboard eventual consistency</td><td>Maximum 30-second lag acceptable; Redis sorted set is authoritative; PostgreSQL is the durable backup</td></tr>
+<tr><td>Email PII handling</td><td>Raw email never stored in battle records, analytics events, or logs; only in <code>users</code> table and <code>claim_tokens</code></td></tr>
+</table>
+<h3 id="114-pii-personally-identifiable-information-inventory">11.4 PII (Personally Identifiable Information) Inventory</h3>
+<table>
+<tr><th>Data Element</th><th>Classification</th><th>Storage Location</th><th>Encryption</th><th>Access Control</th><th>Retention</th><th>GDPR Basis</th></tr>
+<tr><td><strong>Email address</strong></td><td>PII (HIGH)</td><td><code>users</code> table, <code>claim_tokens</code></td><td>Encrypted at rest (AES-256)</td><td><code>auth</code> BC only; no cross-BC exposure</td><td>Account lifetime + 7 days (deletion)</td><td>Legitimate interest (service delivery)</td></tr>
+<tr><td><strong>Email hash (post-deletion)</strong></td><td>Pseudonymous PII</td><td><code>users</code> table</td><td>Encrypted at rest</td><td><code>auth</code> BC only</td><td>Indefinite (leaderboard integrity)</td><td>Legitimate interest</td></tr>
+<tr><td><strong>Pet access token</strong></td><td>Sensitive (not PII)</td><td><code>pet_access_tokens</code> table</td><td>Token stored as hash; raw token only in user&#x27;s browser</td><td><code>auth</code> BC only</td><td>Permanent (enables pet access)</td><td>Contract</td></tr>
+<tr><td><strong>IP address (hashed)</strong></td><td>Pseudonymous PII</td><td><code>admin_audit_log</code>, <code>security_events</code></td><td>SHA-256 hash; raw IP never stored</td><td>Security team only</td><td>90 days</td><td>Legitimate interest (security)</td></tr>
+</table>
+<hr>
+<h2 id="12-open-questions">§12 Open Questions</h2>
+<table>
+<tr><th>#</th><th>Question</th><th>Strategic Impact</th><th>Owner</th><th>Resolution Deadline</th></tr>
+<tr><td>OQ1</td><td>When a player deletes their email (GDPR right to erasure), the pet becomes &quot;unclaimed&quot; — should the pet be re-claimable by a new player, or permanently locked? This affects both GDPR compliance and the rarity economy (freed Legendary pets could be claimed by anyone).</td><td>High</td><td>PM + Legal</td><td>Before Beta launch</td></tr>
+<tr><td>OQ2</td><td>Should arena matchmaking be real-time (WebSocket connections, higher infrastructure complexity) or asynchronous (pet &quot;sends&quot; to arena, result available in minutes, simpler infrastructure)? Real-time increases PCU infra costs but improves user experience. The choice fundamentally affects EDD architecture.</td><td>High</td><td>Engineering Lead</td><td>Before EDD kick-off</td></tr>
+<tr><td>OQ3</td><td>What is the competitive integrity policy for the leaderboard when we detect automated battle farming? Should we: (a) ban the pet entirely, (b) reset its leaderboard score only, or (c) flag for human review before action? The policy affects both the admin portal design and the player trust perception.</td><td>Medium</td><td>PM</td><td>Before GA launch</td></tr>
+<tr><td>OQ4</td><td>For the trading marketplace (P2), should trade be pet-for-pet barter only, or should we introduce an in-game currency? In-game currency creates better liquidity but adds virtual currency regulation risk across jurisdictions.</td><td>Medium</td><td>PM + Legal</td><td>Before trading marketplace design</td></tr>
+</table>
+<hr>
+<h2 id="13-glossary">§13 Glossary</h2>
+<table>
+<tr><th>Term</th><th>Definition</th></tr>
+<tr><td><strong>pixel-pet-arena</strong></td><td>The product: an HTML5 browser pet game with email-based claim authentication, arena battles, and procedurally generated pixel art pets</td></tr>
+<tr><td><strong>Email Claim Flow</strong></td><td>The user flow where a guest enters their email, receives a 6-digit claim password, enters it to permanently bind the pet to their email, and receives a unique pet URL</td></tr>
+<tr><td><strong>Unique Pet URL</strong></td><td>A URL containing a long-lived access token (≥ 32 random bytes) unique to each pet; the URL is the primary mechanism for a pet owner to access their pet across devices</td></tr>
+<tr><td><strong>Claim Password</strong></td><td>A 6-digit numeric one-time password sent to a user&#x27;s email during the claim flow; expires in 15 minutes; mitigates email client pre-scan vulnerabilities</td></tr>
+<tr><td><strong>Procedural Pixel Pet Generation</strong></td><td>Algorithm that combines multiple attribute dimensions (body, head, color palette, accessory, rarity trait, pattern) with a seed value to produce a deterministic but unique pixel art sprite</td></tr>
+<tr><td><strong>Rarity</strong></td><td>Tier classification of a pet&#x27;s attribute combination: Common (60%), Rare (25%), Epic (12%), Legendary (3%); determined at generation time</td></tr>
+<tr><td><strong>Arena</strong></td><td>The competitive game mode section where pet owners can enter their pets in battle against other players&#x27; pets (Race mode, Sumo mode)</td></tr>
+<tr><td><strong>Battle Record</strong></td><td>An immutable record of a single arena match: pet IDs, mode, outcome, stats at time of battle, date, and whether the opponent was AI</td></tr>
+<tr><td><strong>MAAPO</strong></td><td>Monthly Active Arena Pet Owners: claimed pet owners who completed ≥ 1 arena battle in the past 30 days. <strong>Primary North Star Metric</strong> (aligned with BRD §7.1). See §1.4 and §9.1.</td></tr>
+<tr><td><strong>DAP (Daily Active Pets)</strong></td><td>Leading/input metric: number of claimed pets with at least 1 interaction (training, feeding, arena entry) in a 24-hour UTC period. Drives MAAPO; monitored daily as the operational health signal.</td></tr>
+<tr><td><strong>Feature Flag</strong></td><td>A server-side configuration switch that enables or disables a feature without a code deployment; all P0 features have a kill switch feature flag</td></tr>
+<tr><td><strong>Bounded Context (BC)</strong></td><td>Architectural boundary unit (per BRD §5.5): <code>pet</code>, <code>auth</code>, <code>battle</code>, <code>ranking</code>, <code>marketplace</code>, <code>notification</code>; each BC owns its data and exposes a public API</td></tr>
+<tr><td><strong>Training Action</strong></td><td>A daily game action (run training, strength training, stamina training) that increments a pet&#x27;s corresponding stat; limited to 3 per day</td></tr>
+<tr><td><strong>Kill Criteria</strong></td><td>Quantitative thresholds (defined in §9.3) that trigger a project Pivot or Kill decision if not met within a specified timeframe</td></tr>
+<tr><td><strong>PCU</strong></td><td>Peak Concurrent Users: the maximum number of simultaneous active sessions; target 2,000 during arena events</td></tr>
+<tr><td><strong>DAU</strong></td><td>Daily Active Users: unique users (guest + claimed) who visit the site in a 24-hour period</td></tr>
+<tr><td><strong>Magic Link</strong></td><td>An authentication pattern where a single-use login URL is sent by email; pixel-pet-arena uses a modified version (6-digit password) to mitigate email client pre-scan vulnerabilities</td></tr>
+<tr><td><strong>Seed</strong></td><td>A numeric value used as input to the procedural generation algorithm; same seed always produces the same pet; unique seeds guarantee unique pets</td></tr>
+<tr><td><strong>Admin Portal</strong></td><td>The web-based backend interface accessible only to admin operators for managing pets, users, arena moderation, leaderboard management, and system configuration</td></tr>
+<tr><td><strong>FCP</strong></td><td>First Contentful Paint: the time from page load to when the first pixel art content is rendered; target &lt; 1.5 seconds</td></tr>
+</table>
+<hr>
+<h2 id="14-references">§14 References</h2>
+<table>
+<tr><th>Document</th><th>Location</th><th>Purpose</th></tr>
+<tr><td>Original Requirement Input (verbatim)</td><td><code>docs/req/idea-input.md</code></td><td>Source of truth for original intent; used for BUG vs ECR classification</td></tr>
+<tr><td>IDEA Document</td><td><code>docs/IDEA.md</code> (IDEA-PIXEL-PET-ARENA-20260503)</td><td>Product concept, market research, risk assessment, 5 Whys analysis</td></tr>
+<tr><td>Business Requirements Document</td><td><code>docs/BRD.md</code> (BRD-PIXEL-PET-ARENA-20260503)</td><td>Business objectives, stakeholder map, MoSCoW priorities, ROI model</td></tr>
+<tr><td>Phaser.js Documentation</td><td>https://phaser.io/docs</td><td>Frontend game framework API reference</td></tr>
+<tr><td>LittleJS (fallback engine)</td><td>https://github.com/KilledByAPixel/LittleJS</td><td>Lightweight HTML5 game engine alternative</td></tr>
+<tr><td>SendGrid API v3 Docs</td><td>https://docs.sendgrid.com</td><td>Transactional email delivery API</td></tr>
+<tr><td>GDPR Official Text</td><td>https://gdpr-info.eu</td><td>EU data protection regulation compliance</td></tr>
+<tr><td>CAN-SPAM Act</td><td>https://www.ftc.gov/tips-advice/business-center/guidance/can-spam-act-compliance-guide-business</td><td>US email marketing compliance</td></tr>
+<tr><td>COPPA Rule</td><td>https://www.ftc.gov/legal-library/browse/rules/childrens-online-privacy-protection-rule-coppa</td><td>US children&#x27;s online privacy compliance</td></tr>
+<tr><td>WCAG 2.1 Guidelines</td><td>https://www.w3.org/TR/WCAG21/</td><td>Web accessibility standard reference</td></tr>
+<tr><td>OWASP Top 10</td><td>https://owasp.org/www-project-top-ten/</td><td>Security vulnerability reference for review</td></tr>
+</table>
+<hr>
+<h2 id="15-requirements-traceability-matrix-rtm">§15 Requirements Traceability Matrix (RTM)</h2>
+<blockquote><p><strong>BRD RTM cross-reference note</strong>: BRD §3.4 RTM should be updated with the US-IDs from this table as a follow-up action (post-PRD approval). The BRD RTM currently contains placeholder requirement references. Responsibility: PM, target completion within 1 week of PRD approval.</p></blockquote>
+<table>
+<tr><th>User Story ID</th><th>Feature</th><th>Priority</th><th>BRD Objective</th><th>MoSCoW</th><th>Feature Flag</th><th>Business Risk if Missing</th><th>Test Coverage</th></tr>
+<tr><td>US-PET-001</td><td>Random pixel pet display (guest)</td><td>P0</td><td>O1</td><td>Must</td><td><code>FF_GUEST_PET_DISPLAY</code></td><td>Acquisition funnel cannot start</td><td>E2E + Visual Regression</td></tr>
+<tr><td>US-PET-002</td><td>Procedural generation (&gt;1B combinations)</td><td>P0</td><td>O1, O4</td><td>Must</td><td><code>FF_PET_GENERATION</code></td><td>Uniqueness/rarity perception fails</td><td>Unit + Integration</td></tr>
+<tr><td>US-AUTH-001</td><td>Email claim flow (password + URL)</td><td>P0</td><td>O1, O3</td><td>Must</td><td><code>FF_EMAIL_CLAIM</code></td><td>Core identity layer absent; no persistence</td><td>E2E + Integration + Security</td></tr>
+<tr><td>US-AUTH-002</td><td>Returning pet owner access</td><td>P0</td><td>O1</td><td>Must</td><td><code>FF_EMAIL_CLAIM</code></td><td>Claimed owners cannot return; Day-7 retention collapses</td><td>E2E</td></tr>
+<tr><td>US-TRAIN-001</td><td>Pet training system</td><td>P0</td><td>O1, O2, O3</td><td>Must</td><td><code>FF_TRAINING_SYSTEM</code></td><td>No Day-7 return motivation</td><td>E2E + Integration</td></tr>
+<tr><td>US-FOOD-001</td><td>Special food items</td><td>P0</td><td>O1, O2</td><td>Must</td><td><code>FF_FOOD_SYSTEM</code></td><td>Reduced training depth; item economy absent</td><td>E2E + Integration</td></tr>
+<tr><td>US-ARENA-001</td><td>Arena racing competition</td><td>P0</td><td>O2, O3</td><td>Must</td><td><code>FF_ARENA_RACE</code></td><td>No competitive hook; leaderboard meaningless</td><td>E2E + Integration + Performance</td></tr>
+<tr><td>US-ARENA-002</td><td>Sumo arena mode</td><td>P1</td><td>O2</td><td>Should</td><td><code>FF_ARENA_SUMO</code></td><td>Reduced arena variety (acceptable for v1)</td><td>E2E + Integration</td></tr>
+<tr><td>US-BOARD-001</td><td>Global leaderboard</td><td>P0</td><td>O2, O4</td><td>Must</td><td><code>FF_LEADERBOARD</code></td><td>No social comparison; competitive motivation absent</td><td>E2E + Integration</td></tr>
+<tr><td>US-RECORD-001</td><td>Battle records page (shareable URL)</td><td><strong>P0</strong> <em>(promoted from P1; see §1.3 note)</em></td><td>O4</td><td>Must</td><td><code>FF_BATTLE_RECORDS</code></td><td>Viral sharing mechanism absent; lower k-factor</td><td>E2E + Integration</td></tr>
+<tr><td>US-RARITY-001</td><td>Rarity scoring display</td><td>P1</td><td>O4</td><td>Should</td><td><code>FF_RARITY_DISPLAY</code></td><td>Collection drive weaker; rarity value not communicated</td><td>Visual Regression + E2E</td></tr>
+<tr><td>US-TRADE-001</td><td>Pet trading marketplace</td><td>P2</td><td>O5</td><td>Could</td><td><code>FF_MARKETPLACE</code></td><td>Revenue model delayed (acceptable; requires DAU &gt; 1,000)</td><td>E2E + Integration</td></tr>
+<tr><td>US-ADMIN-001</td><td>Admin pet management</td><td>P0</td><td>O2</td><td>Must</td><td><code>FF_ADMIN_PORTAL</code></td><td>No moderation capability; bot infestation risk</td><td>E2E + Security</td></tr>
+<tr><td>US-ADMIN-002</td><td>Admin leaderboard moderation</td><td>P0</td><td>O2, O4</td><td>Must</td><td><code>FF_ADMIN_PORTAL</code></td><td>Leaderboard integrity fails under bot attack</td><td>E2E + Integration</td></tr>
+<tr><td>US-ADMIN-003</td><td>Admin runtime parameter tuning</td><td>P1</td><td>O2</td><td>Should</td><td><code>FF_ADMIN_PORTAL</code></td><td>Platform safety parameters (rate limits, rarity weights) cannot be adjusted without code deployments; slow response to live bot attacks</td><td>E2E</td></tr>
+<tr><td>US-ADMIN-004</td><td>GDPR data deletion processing</td><td>P0</td><td>O1</td><td>Must</td><td><code>FF_ADMIN_PORTAL</code></td><td>GDPR non-compliance risk; legal liability</td><td>E2E + Integration</td></tr>
+<tr><td>US-ADMIN-005</td><td>Suspicious battle detection</td><td>P0</td><td>O2</td><td>Must</td><td><code>FF_ADMIN_PORTAL</code></td><td>Automated bot detection absent; moderator workload unbounded</td><td>E2E + Integration</td></tr>
+<tr><td>US-ADMIN-006</td><td>Game Economy Configuration</td><td>P1</td><td>O2</td><td>Should</td><td><code>FF_ADMIN_PORTAL</code></td><td>Game economy balance (food buffs, arena costs) cannot be tuned post-launch without engineering effort; misbalanced economy risks player churn</td><td>E2E + Integration</td></tr>
+</table>
+<hr>
+<h2 id="16-approval-sign-off">§16 Approval Sign-off</h2>
+<table>
+<tr><th>Role</th><th>Name</th><th>Approval Status</th><th>Date</th><th>Comments</th></tr>
+<tr><td>Executive Sponsor (Product Director or CTO)</td><td>TBD</td><td>Pending</td><td></td><td></td></tr>
+<tr><td>Product Lead / PM</td><td>TBD</td><td>Pending</td><td></td><td></td></tr>
+<tr><td>Engineering Lead</td><td>TBD</td><td>Pending</td><td></td><td></td></tr>
+<tr><td>Design Lead</td><td>TBD</td><td>Pending</td><td></td><td></td></tr>
+<tr><td>Legal / Compliance</td><td>TBD</td><td>Pending</td><td></td><td>GDPR/COPPA review must complete before Alpha</td></tr>
+<tr><td>Data / Analytics</td><td>TBD</td><td>Pending</td><td></td><td>Analytics event map review required</td></tr>
+</table>
+<hr>
+<h2 id="17-privacy-by-design">§17 Privacy by Design</h2>
+<h3 id="171-privacy-by-design--seven-principles">17.1 Privacy by Design — Seven Principles</h3>
+<table>
+<tr><th>Principle</th><th>Implementation in pixel-pet-arena</th></tr>
+<tr><td><strong>1. Proactive, not reactive</strong></td><td>Privacy risks (GDPR, COPPA) assessed at BRD stage; legal review scheduled before MVP development begins; age confirmation and consent built into claim flow from day one</td></tr>
+<tr><td><strong>2. Privacy as default</strong></td><td>No optional tracking or marketing consent is pre-checked; email is used only for claim password and access link recovery; no behavioral advertising by default</td></tr>
+<tr><td><strong>3. Privacy embedded into design</strong></td><td>Email stored only in the <code>auth</code> bounded context; battle records, leaderboard, and analytics reference only pseudonymous pet IDs — never raw email; cross-BC communication carries pet ID, not email</td></tr>
+<tr><td><strong>4. Full functionality — positive sum</strong></td><td>Privacy protection does not reduce game functionality; GDPR deletion replaces email with hash while preserving pet access via the unique URL token; the pet continues to function after email deletion</td></tr>
+<tr><td><strong>5. End-to-end security</strong></td><td>Email encrypted at rest (AES-256); tokens stored as SHA-256 hashes; TLS 1.2+ for all data in transit; no raw IP addresses logged (IP → SHA-256 hash at the logging layer)</td></tr>
+<tr><td><strong>6. Visibility and transparency</strong></td><td>Privacy policy linked on the claim form; email claim form states exactly how email is used: &quot;Your email is used only to send your claim password and to allow you to recover your pet URL. We will not send marketing emails without separate consent.&quot;</td></tr>
+<tr><td><strong>7. Respect for user privacy</strong></td><td>Users can request email deletion at any time (GDPR Art. 17); COPPA age gate prevents under-13 data collection; users can export their pet data (GDPR Art. 20); all PII access is logged</td></tr>
+</table>
+<h3 id="172-pii-inventory">17.2 PII Inventory</h3>
+<table>
+<tr><th>PII Element</th><th>Data Subject</th><th>Collection Point</th><th>Purpose</th><th>Legal Basis</th><th>Retention</th></tr>
+<tr><td>Email address</td><td>Pet owner</td><td>Claim form</td><td>Claim password delivery; access link recovery</td><td>Contract (service delivery)</td><td>Account lifetime; deleted on user request (within 7 days)</td></tr>
+<tr><td>Email hash (post-deletion)</td><td>Former pet owner</td><td>Automated on deletion</td><td>Leaderboard history integrity (pseudonymous link to battle records)</td><td>Legitimate interest</td><td>Indefinite</td></tr>
+<tr><td>IP address (hashed at log ingestion)</td><td>Any visitor</td><td>Web server</td><td>Security audit; rate limit enforcement</td><td>Legitimate interest</td><td>90 days</td></tr>
+</table>
+<h3 id="173-gdpr-rights-matrix">17.3 GDPR Rights Matrix</h3>
+<table>
+<tr><th>GDPR Right</th><th>Article</th><th>Implementation</th><th>Response Time</th><th>Owner</th></tr>
+<tr><td>Right of Access</td><td>Art. 15</td><td>User can request a data export from the pet management page; system generates a JSON file with email, pet data, and battle records</td><td>30 days</td><td>Engineering (automated)</td></tr>
+<tr><td>Right to Erasure</td><td>Art. 17</td><td>&quot;Delete My Data&quot; option on pet management page; email replaced with SHA-256 hash within 7 days; unique URL continues to function; pet becomes &quot;unclaimed&quot;</td><td>7 days</td><td>Engineering (automated)</td></tr>
+<tr><td>Right to Portability</td><td>Art. 20</td><td>Data export includes structured JSON of all personal data and pet records</td><td>30 days</td><td>Engineering (automated)</td></tr>
+<tr><td>Right to Restrict Processing</td><td>Art. 18</td><td>User can deactivate email-based communications; pet data remains but email is suppressed from all outbound systems</td><td>24 hours</td><td>Engineering</td></tr>
+<tr><td>Right to Object</td><td>Art. 21</td><td>Users can object to leaderboard display of their pet; pet is removed from public leaderboard (battle records retained for system integrity)</td><td>5 business days</td><td>Engineering + Admin</td></tr>
+<tr><td>Right to Rectification</td><td>Art. 16</td><td>Users can update their email address; old email replaced with hash; new email bound to same pets</td><td>24 hours</td><td>Engineering</td></tr>
+</table>
+<h3 id="174-consent-management-schema">17.4 Consent Management Schema</h3>
+<table>
+<tr><th>Consent Type</th><th>Scope</th><th>Collection Method</th><th>Withdrawal Method</th><th>Storage</th></tr>
+<tr><td>Age confirmation (COPPA)</td><td>&quot;I am at least 13 years old&quot;</td><td>Checkbox on claim form (required)</td><td>Not withdrawable once claimed (legal requirement for data processing); users can delete account</td><td><code>users.coppa_age_confirmed</code> (BOOLEAN, NOT NULL)</td></tr>
+<tr><td>Service email consent</td><td>Claim password and access link recovery only</td><td>Explicit statement on claim form (not a checkbox — described as necessary for service)</td><td>Email deletion request (GDPR Art. 17)</td><td>Implicit in account creation; revoked by account deletion</td></tr>
+<tr><td>Marketing email consent</td><td>Future newsletter or promotional emails</td><td>Separate opt-in checkbox (unchecked by default) — not collected in v1</td><td>Unsubscribe link in all marketing emails</td><td><code>users.marketing_consent</code> (BOOLEAN, DEFAULT FALSE) — v2</td></tr>
+<tr><td>Analytics tracking</td><td>Behavioral analytics via event map (§7.8)</td><td>Privacy policy disclosure on first visit; no separate consent required (legitimate interest basis for non-PII events)</td><td>Not individually withdrawable in v1; cookie policy provides general opt-out mechanism</td><td>Analytics system (pseudonymous pet IDs only)</td></tr>
+</table>
+<hr>
+<h2 id="18-accessibility-requirements">§18 Accessibility Requirements</h2>
+<p>All accessibility requirements follow WCAG 2.1 Level AA standard.</p>
+<table>
+<tr><th>A11y ID</th><th>Requirement</th><th>WCAG Criterion</th><th>Test Method</th></tr>
+<tr><td>A11y-01</td><td>All interactive elements (claim button, training buttons, arena entry, food feeding) have a visible focus indicator meeting a 3:1 contrast ratio against adjacent colors</td><td>1.4.11, 2.4.7</td><td>Automated (axe-core) + Manual keyboard test</td></tr>
+<tr><td>A11y-02</td><td>All non-decorative images (pet sprites, food items, rarity badges) have descriptive alt text (e.g., <code>alt=&quot;Green dragon pixel pet, Epic rarity, Level 12&quot;</code>)</td><td>1.1.1</td><td>Automated (axe-core)</td></tr>
+<tr><td>A11y-03</td><td>The claim form is fully operable via keyboard alone; tab order is logical (email input → submit → age checkbox); no keyboard traps</td><td>2.1.1, 2.1.2</td><td>Manual keyboard-only test</td></tr>
+<tr><td>A11y-04</td><td>All form inputs and buttons have associated labels; claim form fields have descriptive labels and error messages that are programmatically associated (aria-describedby for errors)</td><td>1.3.1, 3.3.1</td><td>Automated (axe-core)</td></tr>
+<tr><td>A11y-05</td><td>Color alone is not used to convey rarity information; rarity tiers use both color and text/icon (e.g., gold border + &quot;LEGENDARY&quot; text label)</td><td>1.4.1</td><td>Manual visual inspection</td></tr>
+<tr><td>A11y-06</td><td>Text elements meet minimum contrast ratios: normal text 4.5:1, large text 3:1, UI components 3:1 against their background</td><td>1.4.3, 1.4.11</td><td>Automated (Lighthouse + axe-core)</td></tr>
+<tr><td>A11y-07</td><td>Pet animations and arena battle animations respect the OS <code>prefers-reduced-motion</code> setting; when enabled, animations are reduced to cross-fade or suppressed</td><td>2.3.3</td><td>Playwright test with <code>reducedMotion: true</code></td></tr>
+<tr><td>A11y-08</td><td>The leaderboard table has proper semantic markup (<code>&lt;table&gt;</code>, <code>&lt;th scope=&quot;col&quot;&gt;</code> for column headers); screen readers can navigate the leaderboard using table navigation commands</td><td>1.3.1</td><td>Manual screen reader test (NVDA/VoiceOver)</td></tr>
+<tr><td>A11y-09</td><td>Session timeouts (claim code expiry 15 minutes) warn users 2 minutes before expiry with an accessible notification; users can extend the session</td><td>2.2.1</td><td>Manual test + Automated</td></tr>
+<tr><td>A11y-10</td><td>All page titles are unique and descriptive; each pet page title includes the pet&#x27;s name and rarity (e.g., &quot;Sparky — Legendary Dragon</td><td>pixel-pet-arena&quot;)</td><td>2.4.2</td><td>Automated (axe-core)</td></tr>
+</table>
+<hr>
+<h2 id="19-admin-backend-requirements">§19 Admin Backend Requirements</h2>
+<h3 id="191-admin-portal-positioning">19.1 Admin Portal Positioning</h3>
+<p>The pixel-pet-arena Admin Portal is a separate web application accessible at <code>/admin</code> (or a subdomain like <code>admin.pixel-pet-arena.com</code>). It is exclusively for platform operators and is invisible to regular players.</p>
+<p><strong>Purpose</strong>: Enable a small operations team (1-3 operators) to maintain competitive integrity, manage platform health, respond to player support requests, and configure game parameters — all without requiring code deployments.</p>
+<p><strong>Technology</strong>: Server-side rendered web application (same backend as game API); separate authentication domain; separate session management.</p>
+<h3 id="192-admin-roles">19.2 Admin Roles</h3>
+<table>
+<tr><th>Role</th><th>Permissions</th><th>Typical User</th></tr>
+<tr><td><strong>Super Admin</strong></td><td>Full access to all modules; can create/deactivate admin accounts; can access audit logs; can perform data deletion (GDPR compliance actions)</td><td>Engineering Lead or Product Manager</td></tr>
+<tr><td><strong>Moderator</strong></td><td>Can view pet list, ban/unban pets, manage leaderboard (remove entries), view battle records, flag suspicious accounts; cannot change system configuration or access user email</td><td>Platform Operations</td></tr>
+<tr><td><strong>Analyst</strong></td><td>Read-only access to pet stats, battle records, leaderboard, and aggregate analytics; cannot take moderation actions</td><td>Data Analyst</td></tr>
+<tr><td><strong>Support Agent</strong></td><td>Can view specific pet details by ID or masked email; can trigger access link resend for verified users; cannot view raw email or perform bans</td><td>Customer Support</td></tr>
+</table>
+<h3 id="193-admin-portal-feature-modules">19.3 Admin Portal Feature Modules</h3>
+<table>
+<tr><th>Module</th><th>Description</th><th>Priority</th></tr>
+<tr><td><strong>Pet Management</strong></td><td>Paginated list of all pets; search by pet ID, owner email fragment; view full pet details; ban/unban from arena; flag for review</td><td>P0</td></tr>
+<tr><td><strong>Leaderboard Management</strong></td><td>View top 500 ranking; detect suspicious activity (&gt;50 battles/hour flagged automatically); remove entries; restore entries; view audit log of changes</td><td>P0</td></tr>
+<tr><td><strong>User Management</strong></td><td>View user accounts (masked email); view owned pets; process GDPR deletion requests; resend access links</td><td>P0</td></tr>
+<tr><td><strong>Battle Records</strong></td><td>View all battle records with filters (date range, mode, outcome, pet ID); identify bot-pattern battles (rapid sequential battles from same pet)</td><td>P0</td></tr>
+<tr><td><strong>Runtime Parameter Tuning</strong></td><td>Adjust max battles per hour, rarity weight percentages (maps to US-ADMIN-003)</td><td>P1</td></tr>
+<tr><td><strong>Game Economy Configuration</strong></td><td>Adjust food buff multipliers, arena entry cooldown, arena entry cost in food credits (maps to US-ADMIN-006)</td><td>P1</td></tr>
+<tr><td><strong>Email Delivery Monitor</strong></td><td>View SendGrid delivery status, bounce rates, spam complaint rates; trigger manual resend for failed deliveries</td><td>P1</td></tr>
+<tr><td><strong>Analytics Dashboard</strong></td><td>Real-time metrics: DAP, claim conversion funnel, arena daily battles, Day-7 retention cohort (read-only, pulls from analytics system)</td><td>P1</td></tr>
+<tr><td><strong>Audit Log</strong></td><td>Immutable, searchable log of all admin actions: actor, timestamp, action type, target, change details</td><td>P0</td></tr>
+</table>
+<h3 id="194-admin-user-stories">19.4 Admin User Stories</h3>
+<hr>
+<p><strong>US-ADMIN-004 — GDPR Data Deletion Processing</strong></p>
+<p><strong>Story</strong>: As a Super Admin, I want to process GDPR data deletion requests within the 7-day legal obligation window so that the platform remains compliant with EU data protection law.</p>
+<p><strong>REQ-ID</strong>: US-ADMIN-004</p>
+<p><strong>Priority</strong>: P0</p>
+<p><strong>Estimate</strong>: M — 8 SP (T-shirt: M = 5–8 SP)</p>
+<p><strong>Feature Flag</strong>: <code>FF_ADMIN_PORTAL</code></p>
+<p><strong>Linked Feature</strong>: Admin Backend</p>
+<p><strong>Acceptance Criteria</strong>:</p>
+<table>
+<tr><th>AC#</th><th>Criterion</th><th>Test Type</th></tr>
+<tr><td>AC-016-1</td><td>Given a deletion request in the User Management module, a Super Admin can trigger &quot;Delete User Data&quot; which replaces the email with a SHA-256 hash, revokes the PetAccessToken, and logs the action</td><td>E2E</td></tr>
+<tr><td>AC-016-2</td><td>Given the deletion is triggered, the system completes the email hashing within 24 hours (not the full 7-day window — completed within 1 day, reported as compliant within 7 days)</td><td>Integration</td></tr>
+<tr><td>AC-016-3</td><td>Given the deletion is complete, the pet becomes &quot;unclaimed&quot; and continues to display on the leaderboard with a pseudonymous identifier (no raw email exposed)</td><td>Integration</td></tr>
+<tr><td>AC-016-4</td><td>Given the deletion, an audit log entry records: Super Admin ID, timestamp, action type &quot;GDPR_DELETION&quot;, pet IDs affected, and the hashed email value</td><td>Integration</td></tr>
+</table>
+<hr>
+<p><strong>US-ADMIN-005 — Suspicious Battle Detection</strong></p>
+<p><strong>Story</strong>: As a Moderator, I want the system to automatically flag pets with anomalous battle rates so that I can efficiently identify and address bot activity.</p>
+<p><strong>REQ-ID</strong>: US-ADMIN-005</p>
+<p><strong>Priority</strong>: P0</p>
+<p><strong>Estimate</strong>: S — 3 SP (T-shirt: S = 1–3 SP)</p>
+<p><strong>Feature Flag</strong>: <code>FF_ADMIN_PORTAL</code></p>
+<p><strong>Linked Feature</strong>: Admin Backend</p>
+<p><strong>Acceptance Criteria</strong>:</p>
+<table>
+<tr><th>AC#</th><th>Criterion</th><th>Test Type</th></tr>
+<tr><td>AC-017-1</td><td>Given the Battle Records module, any pet that completes more than 50 battles within any 60-minute window is automatically flagged with a &quot;SUSPICIOUS&quot; badge</td><td>Integration</td></tr>
+<tr><td>AC-017-2</td><td>Given the flagged pets list, a Moderator can click a pet to view all its battles in the suspicious window (timestamps, opponents, outcomes)</td><td>E2E</td></tr>
+<tr><td>AC-017-3</td><td>Given a reviewed suspicious pet, the Moderator can: (a) dismiss the flag, (b) ban the pet from arena only, or (c) ban the pet from the entire platform</td><td>E2E</td></tr>
+<tr><td>AC-017-4</td><td>Given any moderation action taken, it is recorded in the audit log with the Moderator&#x27;s ID, timestamp, action taken, and reason text (required field, max 500 chars)</td><td>Integration</td></tr>
+</table>
+<hr>
+<p><strong>US-ADMIN-006 — Game Economy Configuration</strong></p>
+<p><strong>Story</strong>: As a Super Admin, I want to adjust game economy design parameters (food buff multipliers, arena entry cost, cooldown periods) through the admin portal so that I can tune the player economy without requiring an engineering deployment.</p>
+<p><strong>REQ-ID</strong>: US-ADMIN-006</p>
+<p><strong>Priority</strong>: P1</p>
+<p><strong>Estimate</strong>: M — 5 SP (T-shirt: M = 5–8 SP; lower end given config UI reuses audit infrastructure)</p>
+<p><strong>Feature Flag</strong>: <code>FF_ADMIN_PORTAL</code></p>
+<p><strong>Linked Feature</strong>: Admin Backend</p>
+<blockquote><p><strong>Scope note</strong>: This story covers game economy design parameters only. Runtime operational safety levers (max battles/hour, rarity weights) are governed by US-ADMIN-003. Do not duplicate those fields here.</p></blockquote>
+<p><strong>Acceptance Criteria</strong>:</p>
+<table>
+<tr><th>AC#</th><th>Criterion</th><th>Test Type</th></tr>
+<tr><td>AC-018-1</td><td>Given the Game Economy Configuration module, a Super Admin can edit economy design parameters only: food buff multipliers (float 0.5–5.0x per food type), arena entry cooldown period (integer minutes, range 0–60), and arena entry cost in food credits (integer 0–10, default 0)</td><td>E2E</td></tr>
+<tr><td>AC-018-2</td><td>Given a configuration change, the change is previewed (showing old value → new value) and requires confirmation before saving</td><td>E2E</td></tr>
+<tr><td>AC-018-3</td><td>Given a saved configuration, it takes effect within 5 minutes via config cache refresh; no service restart required</td><td>Integration</td></tr>
+<tr><td>AC-018-4</td><td>Given a configuration change, the audit log records the Super Admin ID, timestamp, field name, old value, new value</td><td>Integration</td></tr>
+</table>
+<hr>
+<h3 id="195-admin-audit-requirements">19.5 Admin Audit Requirements</h3>
+<p>All administrative actions must be logged immutably. The audit log cannot be edited or deleted by any admin role including Super Admin.</p>
+<table>
+<tr><th>Requirement</th><th>Specification</th></tr>
+<tr><td>Completeness</td><td>Every create, update, delete, and moderation action in the admin portal generates an audit record</td></tr>
+<tr><td>Immutability</td><td>Audit log records are append-only; no UPDATE or DELETE operations permitted at the database level</td></tr>
+<tr><td>Retention</td><td>Audit logs retained for minimum 2 years (compliance requirement for GDPR Art. 30 accountability)</td></tr>
+<tr><td>Fields</td><td><code>audit_id</code> (UUID), <code>actor_admin_id</code>, <code>actor_role</code>, <code>action_type</code>, <code>target_entity_type</code>, <code>target_entity_id</code>, <code>old_value_json</code>, <code>new_value_json</code>, <code>reason_text</code>, <code>ip_hash</code>, <code>created_at</code></td></tr>
+<tr><td>Search</td><td>Audit logs must be searchable by: actor, date range, action type, target entity ID; results return within 3 seconds for any 12-month window</td></tr>
+<tr><td>Export</td><td>Super Admin can export audit log as CSV for compliance reporting</td></tr>
+</table>
+<h3 id="196-admin-nfr">19.6 Admin NFR</h3>
+<table>
+<tr><th>NFR-ID</th><th>Requirement</th></tr>
+<tr><td>NFR-ADMIN-01</td><td>Admin portal requires authentication: email + password + TOTP (Time-based One-Time Password); admin accounts cannot use the same email claim flow as players</td></tr>
+<tr><td>NFR-ADMIN-02</td><td>Admin sessions expire after 4 hours of inactivity; active sessions expire after 8 hours regardless of activity</td></tr>
+<tr><td>NFR-ADMIN-03</td><td>Admin portal is served on a separate subdomain or path (<code>/admin</code>) with additional authentication middleware; it must not be accessible from the public game paths</td></tr>
+<tr><td>NFR-ADMIN-04</td><td>Admin portal API endpoints are separately rate-limited: max 100 requests per minute per admin account</td></tr>
+<tr><td>NFR-ADMIN-05</td><td>Admin actions that modify leaderboard or ban users must be confirmed with a secondary confirmation step (&quot;Are you sure? This action will be logged.&quot;)</td></tr>
+<tr><td>NFR-ADMIN-06</td><td>The admin portal must be usable by a single moderator handling 100 moderation actions per day without performance degradation; page loads &lt; 3 seconds for any admin page with up to 1 million pet records</td></tr>
+<tr><td>NFR-ADMIN-07</td><td>Admin portal access is restricted by IP allowlist in production (only company VPN or specified office IPs)</td></tr>
+</table>
+<hr>
+<p>&lt;!-- PRD generation complete --&gt;</p>
+<p>&lt;!-- Upstream: IDEA-PIXEL-PET-ARENA-20260503, BRD-PIXEL-PET-ARENA-20260503 --&gt;</p>
+<p>&lt;!-- Generated: 2026-05-03 --&gt;</p>
+<p>&lt;!-- Next steps: /gendoc pdd (UI/UX Design) or /gendoc edd (Engineering Design) --&gt;</p></main>
+  </div>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({startOnLoad:true,theme:'default',
+      flowchart:{curve:'basis',nodeSpacing:60,rankSpacing:80},
+      er:{layoutDirection:'TD',minEntityWidth:100,fontSize:12},
+      sequence:{actorMargin:60,messageMargin:30}});
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-go.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
