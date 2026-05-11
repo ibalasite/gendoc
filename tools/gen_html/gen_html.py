@@ -256,11 +256,23 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     .sidebar__section details .sidebar__label--sub ~ .sidebar__link {
       padding-left: 3.5rem;
     }
+    /* ─── Q-group: header 兩層等高 56px + 白條消除 ─── */
+    .top-nav { height: 56px; padding: 0 1.5rem; border-bottom: none; }
+    .nav-breadcrumb { display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.95rem; color: #cbd5e1; }
+    .nav-breadcrumb a { color: #fff; text-decoration: none; font-weight: 600; }
+    .nav-breadcrumb a:hover { color: #60a5fa; }
+    .doc-page-banner { height: 56px; padding: 0 2rem;
+      display: flex; align-items: center; border-top: none; }
+    .banner-title { font-size: 1.25rem; font-weight: 700;
+      line-height: 1; margin: 0; }
+
     /* ─── N1: sidebar tab switcher (📁 文件 / 📑 本頁目錄) ─── */
     /* `padding: 0` overrides style.css `.sidebar { padding: 1.5rem 0 }`.
-       Without it, tabs/panels inherit 24px top/bottom space and panel
-       flex child can't fully fill height → scrollbar truncated mid-list. */
-    .sidebar { position: relative; display: flex; flex-direction: column;
+       `top: 0` overrides style.css `.sidebar { top: var(--nav-h) }` —
+       N1 changed `position: sticky` → `relative` but the stale `top: 56px`
+       silently pushed sidebar 56px down → Q-group white gap. */
+    .sidebar { position: relative; top: 0; display: flex; flex-direction: column;
       overflow: hidden; padding: 0; }
     .sidebar__toggle { position: absolute; top: 6px; right: 6px;
       background: #f1f5f9; border: 1px solid #cbd5e1;
@@ -483,7 +495,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 </head>
 <body>
   <header class="top-nav">
-    <a href="index.html" class="nav-brand">__APP__</a>
+    <nav class="nav-breadcrumb">__BREADCRUMB__</nav>
     <div class="nav-controls">
       <div class="search-wrap">
         <input class="search-input" type="search" placeholder="搜尋文件...">
@@ -494,7 +506,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     </div>
   </header>
   <div class="doc-page-banner">
-    <p class="banner-breadcrumb">__BREADCRUMB__</p>
     <h1 class="banner-title">__BANNER__</h1>
   </div>
   <div class="page-wrapper">

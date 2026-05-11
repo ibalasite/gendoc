@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>AFTER — 兩層（深黑 breadcrumb + 深藍 title 等高，無白 gap）</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  background: #f8fafc; color: #1e293b; }
+
+/* ── Layer 1: 深黑 top-nav — 含 breadcrumb 路徑（取代原 logo）─── */
+.top-nav { position: sticky; top: 0; z-index: 100;
+  background: #0f172a; color: #fff;
+  padding: 0 1.5rem; height: 56px;
+  display: flex; align-items: center; justify-content: space-between;
+  /* 移除底邊框，跟下層深藍直接相鄰，無 white gap */
+}
+/* breadcrumb 取代原 nav-brand 位置 */
+.nav-breadcrumb { display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.875rem; color: #cbd5e1; }
+.nav-breadcrumb a { color: #fff; text-decoration: none;
+  font-weight: 600; }
+.nav-breadcrumb a:hover { color: #60a5fa; }
+.nav-breadcrumb .sep { color: #64748b; }
+.nav-breadcrumb .gh-link { color: #93c5fd; text-decoration: none;
+  margin-left: 0.5rem; font-weight: 500; }
+.nav-controls { display: flex; gap: 0.5rem; align-items: center; }
+.search-input { padding: 0.4rem 0.75rem; background: #1e293b; color: #fff;
+  border: 1px solid #334155; border-radius: 4px; font-size: 0.875rem;
+  width: 200px; }
+.nav-gh-link { background: #1e293b; color: #fff;
+  padding: 0.35rem 0.75rem; border: 1px solid #334155;
+  border-radius: 4px; text-decoration: none; font-size: 0.875rem; }
+.sidebar-toggle { background: #1e293b; color: #fff;
+  border: 1px solid #334155; padding: 0.35rem 0.625rem;
+  border-radius: 4px; cursor: pointer; }
+
+/* ── Layer 2: 深藍 banner — 只剩 H1 title，高度跟 top-nav 一樣 56px ── */
+.doc-page-banner { background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  color: #fff; padding: 0 2rem; height: 56px;
+  display: flex; align-items: center;
+  /* 跟上層深黑 + 下層 sidebar/main 都直接相鄰，no border, no gap */
+}
+.banner-title { font-size: 1.25rem; font-weight: 700;
+  line-height: 1; margin: 0; }
+
+/* ── Layer 3: sidebar + main ── */
+.page-wrapper { display: grid; grid-template-columns: 240px 4px 1fr;
+  min-height: 60vh; }
+.sidebar { background: #fff; border-right: 1px solid #e2e8f0;
+  padding: 1.5rem 0; }
+.sidebar__section { padding: 0 1rem; }
+.sidebar__label { font-size: 0.7rem; font-weight: 600;
+  color: #64748b; text-transform: uppercase; letter-spacing: 0.08em;
+  margin-bottom: 0.5rem; }
+.sidebar__link { display: block; padding: 0.375rem 0.75rem;
+  color: #334155; text-decoration: none; border-radius: 4px; margin: 1px 0; }
+.sidebar__link.active { background: #dbeafe; color: #1e3a8a; font-weight: 600; }
+.sidebar-resizer { background: #f1f5f9; }
+.doc-content { padding: 2rem 2.5rem; background: #f8fafc; }
+</style>
+</head>
+<body>
+
+<!-- Layer 1: 深黑 top-nav 含 breadcrumb -->
+<header class="top-nav">
+  <nav class="nav-breadcrumb">
+    <a href="#">erp-api-token-manager</a>
+    <span class="sep">›</span>
+    <span>文件中心</span>
+    <a href="#" class="gh-link">⌥ GitHub ↗</a>
+  </nav>
+  <div class="nav-controls">
+    <input class="search-input" type="search" placeholder="搜尋文件...">
+    <a href="#" class="nav-gh-link">⌥ GitHub</a>
+    <button class="sidebar-toggle">☰</button>
+  </div>
+</header>
+
+<!-- Layer 2: 深藍 banner 只有 H1，等高 56px -->
+<div class="doc-page-banner">
+  <h1 class="banner-title">erp-api-token-manager 文件中心</h1>
+</div>
+
+<!-- Layer 3: sidebar + main，直接接在 banner 下 -->
+<div class="page-wrapper">
+  <aside class="sidebar">
+    <div class="sidebar__section">
+      <div class="sidebar__label">文件</div>
+      <a class="sidebar__link active" href="#">🏠 首頁</a>
+      <a class="sidebar__link" href="#">💡 構想文件 (IDEA)</a>
+      <a class="sidebar__link" href="#">📋 商業需求文件 (BRD)</a>
+      <a class="sidebar__link" href="#">📝 產品需求文件 (PRD)</a>
+    </div>
+  </aside>
+  <div class="sidebar-resizer"></div>
+  <main class="doc-content">
+    <p>&lt;!--</p>
+    <p>DOC-ID: README-erp-api-token-manager-20260509</p>
+    <p>Version: v1.0</p>
+  </main>
+</div>
+
+</body>
+</html>

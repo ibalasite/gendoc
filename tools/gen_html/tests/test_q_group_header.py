@@ -55,15 +55,27 @@ def test_Q1_top_nav_uses_nav_breadcrumb_not_nav_brand():
 
 
 def test_Q1_nav_breadcrumb_has_separator_and_doc_center_text():
-    """`nav-breadcrumb` 含 `›` separator 跟 `文件中心` 文字。"""
-    tpl = _html_template(_read())
-    m = re.search(r'<nav\s+class="nav-breadcrumb">(.*?)</nav>', tpl, re.DOTALL)
-    assert m, 'nav-breadcrumb element not found'
+    """rendered page 內 nav-breadcrumb 含 `›` separator 跟 `文件中心` 文字
+    (`__BREADCRUMB__` placeholder 由 render_page 替換成 page-specific 路徑)."""
+    import importlib.util, pathlib
+    spec = importlib.util.spec_from_file_location('gh', GEN_HTML)
+    gh = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gh)
+    rendered = gh.render_page(
+        content='<p>test</p>',
+        title='Test',
+        banner='Test',
+        doc_pages=[('index', '首頁', '🏠')],
+        server_diagrams=[], frontend_diagrams=[], sub_docs={},
+        current='index', is_index=True,
+    )
+    m = re.search(r'<nav\s+class="nav-breadcrumb">(.*?)</nav>', rendered, re.DOTALL)
+    assert m, 'nav-breadcrumb element not in rendered page'
     body = m.group(1)
-    assert '›' in body or '&rsaquo;' in body or 'sep' in body, \
-        f'nav-breadcrumb should contain separator; body:\n{body}'
+    assert '›' in body, \
+        f'rendered nav-breadcrumb should contain › separator; body:\n{body}'
     assert '文件中心' in body, \
-        f'nav-breadcrumb should contain "文件中心"; body:\n{body}'
+        f'rendered nav-breadcrumb should contain "文件中心"; body:\n{body}'
 
 
 def test_Q1_nav_breadcrumb_inline_style_exists():
