@@ -1,0 +1,17 @@
+{
+  "index.html": {
+    "url": "index.html",
+    "title": "p1-p2-edge-pipe 文件中心",
+    "excerpt": "p1-p2-edge-pipe 文件中心請從左側導覽列選擇文件。文件導覽📄P1📄P2📊 專案健康狀態已完成 STEP0/20"
+  },
+  "p1.html": {
+    "url": "p1.html",
+    "title": "P1",
+    "excerpt": "graph TD\n  N0[&quot;PetPage (owner authenticated via Bearer token)&quot;]\n  N1[&quot;clicks TrainingEntry&quot;]\n  N2[&quot;TrainingPage /pet/:petId/t"
+  },
+  "p2.html": {
+    "url": "p2.html",
+    "title": "P2",
+    "excerpt": "graph TD\n  N0[&quot;PetPage (owner authenticated via Bearer token)&quot;]\n  N1[&quot;clicks &#x27;Data Rights&#x27; / GDPR link&quot;]\n  N2[&quot;Gdpr"
+  }
+}

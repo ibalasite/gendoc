@@ -662,3 +662,175 @@ EDD 文件中若引用 schema-style 內容（如 §3.4 BC Schema Ownership table
 3. 不再問做不做
 4. 一個一個問題討論：先確認問題理解，再討論修法，再 fix
 5. fix 完一個才談下一個
+## P. 真實破圖（visual-lock 找到、scan_visual 確認）
+
+> **2026-05-11 03:0X** scan_visual.mjs 對 pet+erp 全 260 個 mermaid+umock block 跑 Playwright + browser render 後找到。3 個必修（孤兒 stale 不算）。
+> **每個項目附 .md 原 fenced block + .html 內 render 後 mermaid/umock 文字**，方便回頭驗修法。
+
+> **規則**：修法時以 `tools/gen_html/tests/test_visual_lock.py` 245 個 fixture 全綠當 baseline，動到任何一個都會被擋下。
+
+---
+
+### P1. pet/frontend.html block #2
+
+- **狀態**：OPEN
+- **Source markdown**: `pet/docs/FRONTEND.md` — 第 3 個 diagram fenced block
+- **Root cause**：F2 ASCII → mermaid，edge label 含字面 `|`（`RUN | STRENGTH | STAMINA`）。commit `84326e2` 把 `_mermaid_fix_block` 套到 F2 emit point，`fix_flowchart_line.quote_edge_label` (gen_html.py:604-611) 的 regex `\|([^|]*)\|` 沿字面 `|` 切成 N 段，每段獨立判斷 → segment 含 `(`/`{`/`/` 觸發 quote-wrap → 引號炸碎。
+
+**輸入 .md fenced block（節錄前 30 行）**：
+
+```text
+```
+PetPage (owner authenticated via Bearer token)
+  ↓ clicks TrainingEntry
+TrainingPage /pet/:petId/train
+  │
+  ├─ TrainingActions shows 3 action cards (RUN / STRENGTH / STAMINA)
+  │    Each card shows current stat value and trains-remaining count
+  │    training_actions_per_day = 3 actions per UTC day
+  │
+  ├─ User clicks "Train" on a card
+  │    → POST /api/v1/pets/:petId/train  { trainingType: 'RUN' | 'STRENGTH' | 'STAMINA' }
+  │    ← { updatedStats, statDelta, actionsRemainingToday }
+  │
+  ├─ On success:
+  │    StatChangeIndicator appears: "+X Speed" floats up, visible for
+  │    training_stat_display_duration_seconds = 2 seconds
+  │    Stat bars animate to new values
+  │    usePet cache is invalidated → PetPage re-fetches
+  │
+  ├─ Error states:
+  │    HTTP 400 VALIDATION_ERROR → toast: "Invalid training type. Please try again."
+  │    HTTP 400 TRAINING_LIMIT_REACHED → all action cards disabled; DailyResetTimer shown
+  │    HTTP 400 STAT_AT_MAXIMUM → toast: "Stat is already at maximum (pet_stat_max = 100)"; card remains
+  │                                enabled for other stats not yet at max
+  │    HTTP 401 → handled globally: clearPetToken() + redirect to /
+  │    HTTP 403 NOT_OWNER → toast: "You do not own this pet." (should not occur in normal flow)
+  │    HTTP 404 PET_NOT_FOUND → toast: "Pet not found. Please reload and try again." (should not occur in normal flow)
+  │
+  └─ Exhausted (actionsRemainingToday = 0):
+       DailyResetTimer shows countdown to UTC 00:00 reset
+... (省略)
+```
+
+**輸出 .html（render 後 mermaid/umock 文字，節錄）**：
+
+```html
+<div class="diagram-container"><pre class="mermaid">graph TD
+  N0[&quot;PetPage (owner authenticated via Bearer token)&quot;]
+  N1[&quot;clicks TrainingEntry&quot;]
+  N2[&quot;TrainingPage /pet/:petId/train&quot;]
+  N3[&quot;TrainingActions shows 3 action cards (RUN / STRENGTH / STAMINA)&quot;]
+  N4[&quot;User clicks &#x27;Train&#x27; on a card&quot;]
+  N5[&quot;On success:&quot;]
+  N6[&quot;Error states:&quot;]
+  N7[&quot;Exhausted (actionsRemainingToday = 0):&quot;]
+  N8[&quot;DailyResetTimer shows countdown to UTC 00:00 reset&quot;]
+  N9[&quot;All action cards disabled&quot;]
+  N10[&quot;Neglect check: if last_trained_at &gt; training_neglect_threshold_days = 3 days ago&quot;]
+  N11[&quot;NeglectedState overlay renders on PetCanvas&quot;]
+  N3 --&gt;|&quot;Each card shows current stat value and trains-remaining count training_actions_per_day = 3 actions per UTC day&quot;| N4
+  N4 --&gt;|&quot;&#x27;→ POST /api/v1/pets/:petId/train  { trainingType: &#x27;RUN&#x27; &quot;| &#x27;STRENGTH&#x27; |&quot; &#x27;STAMINA&#x27; } ← { updatedStats, statDelta, actionsRemainingToday }&#x27;&quot;| N5
+  N5 --&gt;|&quot;StatChangeIndicator appears: &#x27;+X Speed&#x27; floats up, visible for training_stat_display_duration_seconds = 2 seconds Stat bars animate to new values usePet cache is invalidated → PetPage re-fetches&quot;| N6
+  N6 --&gt;|&quot;HTTP 400 VALIDATION_ERROR → toast: &#x27;Invalid training type. Please try again.&#x27; HTTP 400 TRAINING_LIMIT_REACHED → all action cards d...
+```
+
+---
+
+### P2. pet/frontend.html block #5
+
+- **狀態**：OPEN
+- **Source markdown**: `pet/docs/FRONTEND.md` — 第 6 個 diagram fenced block
+- **Root cause**：同 P1 機制：edge label 含字面 `|`（GDPR types `erasure | data_access | ...`）。
+
+**輸入 .md fenced block（節錄前 30 行）**：
+
+```text
+```
+PetPage (owner authenticated via Bearer token)
+  ↓ clicks "Data Rights" / GDPR link
+GdprPage /gdpr
+  │
+  ├─ GdprRequestForm
+  │    Type selector (radio / dropdown):
+  │      erasure | data_access | restrict_processing | object_leaderboard | rectification
+  │    → POST /api/v1/gdpr/request  { type: "erasure" | ... }   (auth: Bearer token)
+  │    ← { jobId, message }  HTTP 202 Accepted
+  │    jobId stored in component state; GdprStatusBanner activates
+  │
+  ├─ GdprStatusBanner (after submission)
+  │    Polls GET /api/v1/gdpr/request/status?jobId=<jobId>  (auth: Bearer token)
+  │    Displays current status: pending | processing | completed | failed
+  │    SLA copy displayed per request type:
+  │      erasure → "Processed within 7 days (gdpr_email_deletion_window_days = 7)"
+  │      data_access / portability → "Processed within 30 days (gdpr_data_access_response_days = 30; gdpr_data_portability_response_days = 30)"
+  │      restrict_processing → "Processed within 24 hours (gdpr_restrict_processing_response_hours = 24)"
+  │      object_leaderboard → "Processed within 5 business days (gdpr_object_leaderboard_response_business_days = 5)"
+  │      rectification → "Processed within 24 hours (gdpr_email_rectification_response_hours = 24)"
+  │
+  └─ Error states:
+       HTTP 400 VALIDATION_ERROR → inline form error: "Please select a valid request type."
+       HTTP 401 → redirect to / (token cleared)
+       HTTP 403 FORBIDDEN → "Your account is not authorized to view this request."
+       HTTP 404 NOT_FOUND → "Request not found."
+```
+```
+
+**輸出 .html（render 後 mermaid/umock 文字，節錄）**：
+
+```html
+<div class="diagram-container"><pre class="mermaid">graph TD
+  N0[&quot;PetPage (owner authenticated via Bearer token)&quot;]
+  N1[&quot;clicks &#x27;Data Rights&#x27; / GDPR link&quot;]
+  N2[&quot;GdprPage /gdpr&quot;]
+  N3[&quot;GdprRequestForm&quot;]
+  N4[&quot;GdprStatusBanner (after submission)&quot;]
+  N5[&quot;Error states:&quot;]
+  N6[&quot;HTTP 400 VALIDATION_ERROR  inline form error: &#x27;Please select a valid request type.&#x27;&quot;]
+  N7[&quot;HTTP 401  redirect to / (token cleared)&quot;]
+  N8[&quot;HTTP 403 FORBIDDEN  &#x27;Your account is not authorized to view this request.&#x27;&quot;]
+  N9[&quot;HTTP 404 NOT_FOUND  &#x27;Request not found.&#x27;&quot;]
+  N3 --&gt;|&quot;&#x27;Type selector (radio / dropdown): erasure &quot;| data_access | restrict_processing | object_leaderboard |&quot; rectification → POST /api/v1/gdpr/request  { type: &#x27;erasure&#x27; &quot;| ... }   (auth: Bearer token) ← { jobId, message }  HTTP 202 Accepted jobId stored in component state; GdprStatusBanner activates&quot;| N4
+  N4 --&gt;|&quot;&#x27;Polls GET /api/v1/gdpr/request/status?jobId=&lt;jobId&gt;  (auth: Bearer token) Displays current status: pending &quot;| processing | completed | failed SLA copy displayed per request type: erasure → &#x27;Processed within 7 days (gdpr_email_deletion_window_days = 7)&#x27; data_access / portability → &#x27;Processed within 30 days (gdpr_data_access_response_days = 30; gdpr_data_portability_response_days = 30)&#x27; restrict_processing ...
+```
+
+---
+
+### P3. erp/frontend.html block #1 (umock)
+
+- **狀態**：OPEN
+- **Source markdown**: `erp-api-token-manager/docs/FRONTEND.md` — 第 2 個 diagram fenced block
+- **Root cause**：ASCII testing-pyramid 偵測為 umock pyramid SVG，`_um_r_pyramid` emit `<svg viewBox="0 0 600 260">` **沒設 width/height attr**；CSS `.umock__pyramid { display:block; max-width:100%; height:auto }` 但外層 `.diagram-container--umock { width: fit-content }` 對純 SVG 撐不開 → SVG `clientWidth/clientHeight` 都 0px 看不到。
+
+**輸入 .md fenced block（節錄前 30 行）**：
+
+```text
+```
+              ┌─────────────┐
+              │  E2E Tests  │   Playwright .NET 1.44
+              │   5–10%     │   Critical User Flows（建立 / 撤銷 / 審計）
+         ┌────┴─────────────┴────┐
+         │  Integration Tests    │   xUnit + WebApplicationFactory
+         │     20–30%            │   PageModel ↔ Use Case ↔ DB（Testcontainers PostgreSQL）
+    ┌────┴───────────────────────┴────┐
+    │  Unit Tests                     │   xUnit + FluentAssertions
+    │     60–70%                      │   PageModel 單元 / Domain Service / Validator
+    └─────────────────────────────────┘
+```
+```
+
+**輸出 .html（render 後 mermaid/umock 文字，節錄）**：
+
+```html
+<div class="diagram-container diagram-container--umock"><div class="diagram-container"><svg class="umock__pyramid" viewBox="0 0 600 260" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="pyramid"><polygon points="220.0,10.0 380.0,10.0 410.0,86.0 190.0,86.0" fill="#dbeafe" stroke="#1e40af" stroke-width="1.5"/><text x="300.0" y="34.0" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" font-weight="600" fill="#0f172a">E2E Tests</text><text x="300.0" y="52.0" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" fill="#1e3a8a">5–10%</text><text x="300.0" y="70.0" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" fill="#475569">Playwright .NET 1.44 Critical User Flows（建立 / 撤銷 / 審計）</text><polygon points="190.0,90.0 410.0,90.0 490.0,166.0 110.0,166.0" fill="#bfdbfe" stroke="#1e40af" stroke-width="1.5"/><text x="300.0" y="114.0" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" font-weight="600" fill="#0f172a">Integration Tests</text><text x="300.0" y="132.0" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" fill="#1e3a8a">20–30%</text><text x="300.0" y="150.0" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" fill="#475569">xUnit + WebApplicationFactory PageModel ↔ Use Case ↔ DB（Testcontainers PostgreSQL）</text><polygon points="110.0,170.0 490.0,170.0 570.0,246.0 30.0,246.0" fill="#93c5fd" stroke="#1e40af" stroke-width="1.5"/><text x="300.0" y="194.0" tex...
+```
+
+---
+
+### Status Tracker
+
+| ID | Status | Fix Commit |
+|---|---|---|
+| P1 | OPEN | — |
+| P2 | OPEN | — |
+| P3 | OPEN | — |

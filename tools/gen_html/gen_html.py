@@ -605,13 +605,19 @@ def _mermaid_fix_block(lines):
         # Edge label |content| with special chars (parens / slash / semicolon / etc.)
         # → 改成 |"content"|
         def quote_edge_label(m):
-            content = m.group(1)
-            if content.startswith('"') and content.endswith('"'):
-                return '|' + content + '|'
+            # m.group(1) is the inner of |"..."| (quoted form);
+            # m.group(2) is the inner of |...| (unquoted, no pipe inside).
+            if m.group(1) is not None:
+                # Already quoted (with possible literal | inside) — leave alone.
+                # This prevents corruption of F2 _ascii_to_mermaid_td output
+                # whose labels are already correctly quoted (e.g.
+                # pet/frontend.html blocks 2 & 5).
+                return m.group(0)
+            content = m.group(2)
             if any(c in content for c in '()/;{}'):
-                return '|"' + content.replace('"', "'") + '"|'
+                return '|"' + content + '"|'
             return '|' + content + '|'
-        line = re.sub(r'\|([^|]*)\|', quote_edge_label, line)
+        line = re.sub(r'\|"([^"]*)"\||\|([^|]*)\|', quote_edge_label, line)
         return line
 
     def fix_sequence_line(line):
@@ -1427,7 +1433,8 @@ def _um_r_pyramid(n):
                 f'{detail}</text>'
             )
     svg = (
-        f'<svg class="umock__pyramid" viewBox="0 0 {svg_w} {svg_h}" '
+        f'<svg class="umock__pyramid" width="{svg_w}" height="{svg_h}" '
+        f'viewBox="0 0 {svg_w} {svg_h}" '
         f'xmlns="http://www.w3.org/2000/svg" role="img" aria-label="pyramid">'
         + ''.join(elements) +
         '</svg>'
