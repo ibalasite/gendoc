@@ -46,7 +46,7 @@ Key capabilities:
 | `gendoc-config` | `/gendoc-config` | Interactive two-level menu: configure client_type, has_admin_backend, review strategy, restart step; supports multi-edit loop with mandatory-field check (Step 4c) before save |
 | `gendoc-align-check` | `/gendoc-align-check` | Cross-document alignment scan (ALIGN) — use `gendoc-align-verify` to confirm fix completeness |
 | `gendoc-align-fix` | `/gendoc-align-fix` | Auto-fix alignment issues |
-| `gendoc-gen-html` | `/gendoc-gen-html` | Generate HTML documentation site v3.0 (HTML) — converts all docs/*.md + docs/diagrams/*.md to HTML pages; 3-section sidebar (文件 / Server UML / Frontend UML) |
+| `gendoc-gen-html` | `/gendoc-gen-html` | Generate HTML documentation site (HTML) — converts all docs/*.md + docs/diagrams/*.md to HTML pages; 3-section sidebar (文件 / Server UML / Frontend UML); per-page sidebar TOC tab + scroll-spy + collapsible + RWD; image/diagram lightbox with zoom/pan; subdir HTML path auto-rewriter; assets/ auto-sync from canonical; UI Mock DSL + ASCII parser (layered-arch / pyramid / 2-column / form-row / tables) → inline SVG + mermaid; emit-time Mermaid bracket sanitizer (no `<br/>`, no spurious `[guard]` rewrites); HTML comment / metadata separator / whitespace strip |
 | `gendoc-gen-contracts` | `/gendoc-gen-contracts` | Generate machine-readable specs: OpenAPI 3.1, JSON Schema, Pact contracts, IaC (Helm/docker-compose), Seed Code skeleton (CONTRACTS) |
 | `gendoc-gen-mock` | `/gendoc-gen-mock` | Generate FastAPI Mock Server from API.md — 1:1 endpoint mapping, realistic fake data, Windows/Mac ready, Postman-importable (MOCK; skipped for api-only) |
 | `gendoc-gen-prototype` | `/gendoc-gen-prototype` | Interactive HTML prototype — UI flow (web/game) or API Explorer with mock engine (api-only) |
@@ -55,7 +55,7 @@ Key capabilities:
 | `gendoc-repair` | `/gendoc-repair` | DRYRUN-aware backfill — brings any incomplete project to the same state as `gendoc-auto` + `gendoc-flow` would produce. Requires `docs/BRD.md` to exist. Binary gate: if `.gendoc-rules/*.json` absent or DRYRUN not in completed_steps → Branch A (complete upstream steps → run DRYRUN); otherwise → Branch B (per-step independent retry: each step maintains its own `fail_count`, fails immediately trigger repair + add to next round; step permanently abandoned after 3 consecutive failures; other steps are unaffected) |
 | `gendoc-rebuild-templates` | `/gendoc-rebuild-templates` | Rebuild all document templates from scratch |
 | `gendoc-refresh-docs` | `/gendoc-refresh-docs` | Update project documentation to reflect current state — scans directory, reads memory, diffs against README + PRD, fixes stale descriptions, adds missing items, rebuilds HTML; supports free-form args for targeted updates |
-| `gendoc-guard` | `/gendoc-guard <skill>` | Skill execution compliance monitor — wraps any skill with session resume, PreToolUse whitelist enforcement (SECS), and PostToolUse execution history |
+| `gendoc-guard` | `/gendoc-guard <skill>` | Skill execution compliance monitor — wraps any skill with session resume, PreToolUse whitelist enforcement (SECS), and PostToolUse execution history; priming v3 injected at three points (task start / SessionStart resume / Stop hook reason) to bias the model toward accuracy-first reporting; checkpoint exemption so the wrapper's own Step 3 self-clean is never self-blocked; Stop-hook dodge detection blocks enumerations that contain skip-intent vocabulary |
 | `gendoc-upgrade` | `/gendoc-upgrade` | Manual skill upgrade |
 | `reviewtemplate` | `/reviewtemplate <TYPE>` | Review & iteratively fix a template three-file set (TYPE.md + .gen.md + .review.md) |
 
@@ -89,6 +89,8 @@ git clone https://github.com/ibalasite/gendoc.git ~/.claude/skills/gendoc
 git clone https://github.com/ibalasite/gendoc.git "$env:USERPROFILE\.claude\skills\gendoc"
 & "$env:USERPROFILE\.claude\skills\gendoc\setup.ps1"
 ```
+
+> `setup.ps1` forces UTF-8 stdout (`PYTHONIOENCODING=utf-8`, `PYTHONUTF8=1`, `Console.OutputEncoding=UTF8`) so hook registration on zh-TW (cp950) / zh-CN (cp936) Windows succeeds without manual env tweaks.
 
 ### Uninstall
 
@@ -443,15 +445,21 @@ gendoc/
 │   ├── _gendoc-update-worker.py   # Background update worker
 │   ├── gendoc-settings-hook       # settings.json editor (bash wrapper)
 │   └── gendoc-settings-hook.py    # settings.json editor (Python)
-├── tools/
-│   └── bin/                       # Pipeline tools + gendoc-guard hook scripts
-│       ├── gen_html.py            # HTML documentation site generator
-│       ├── dryrun_core.py         # DRYRUN parameter extraction engine
+├── tools/                          # Source-of-truth packages — each tools/<pkg>/
+│   │                                #   may carry build.sh / build.ps1 picked up
+│   │                                #   by setup `_deploy_tools` (per-package build)
+│   ├── gen_html/                   # HTML site generator package + visual TDD tests
+│   ├── dryrun_core/                # DRYRUN parameter extraction package + tests
+│   ├── guard/                      # gendoc-guard simulators & rule tests
+│   └── bin/                        # Deployed runtime executables
+│       ├── gen_html.py             # HTML documentation site generator (~4k LOC)
+│       ├── dryrun_core.py          # DRYRUN parameter extraction engine
 │       ├── review.sh / review_integration.sh  # DRYRUN output validation
+│       ├── get-upstream.sh         # Upstream file/section reader (pipeline.json driven)
 │       ├── gendoc-guard-blocker.py      # PreToolUse SECS whitelist hook (exit 2 = block)
 │       ├── gendoc-guard-history.py      # PostToolUse execution history hook
 │       ├── gendoc-guard-session-start.py # SessionStart resume injection hook
-│       └── gendoc-guard-stop.py         # Stop hook — queue + macOS notification
+│       └── gendoc-guard-stop.py         # Stop hook — queue + macOS notification + dodge detection
 ├── skills/                        # Source of truth for all SKILL.md files
 │   ├── gendoc-auto/
 │   ├── gendoc-flow/

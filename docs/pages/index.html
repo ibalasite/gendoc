@@ -22,11 +22,289 @@
     }
     .sidebar__section details[open] > summary::before { transform: rotate(90deg); }
     .sidebar__section details .sidebar__link { padding-left: 1.75rem; font-size: 0.8125rem; }
+    .sidebar__section details details > summary { padding-left: 1.75rem; }
+    .sidebar__section details details .sidebar__link { padding-left: 2.5rem; }
+    /* B5/B8: labels inside details are sub-labels — indent past their parent <summary>. */
+    .sidebar__section details > .sidebar__label {
+      padding-left: 2.25rem;
+    }
+    .sidebar__section details details > .sidebar__label {
+      padding-left: 3rem;
+    }
+    /* B5: sub-label inside diagrams folding for prefix groups (Activity / Class / ...) */
+    .sidebar__label--sub {
+      padding: 0.25rem 1rem 0.125rem 3rem;
+      font-size: 0.6875rem; font-weight: 600;
+      color: var(--text-muted); text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    /* B5: links following a sub-label indent further still */
+    .sidebar__section details .sidebar__label--sub ~ .sidebar__link {
+      padding-left: 3.5rem;
+    }
+    /* ─── Q-group: header 兩層等高 56px + 白條消除 ─── */
+    .top-nav { height: 56px; padding: 0 1.5rem; border-bottom: none; }
+    .nav-breadcrumb { display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.95rem; color: #cbd5e1; }
+    .nav-breadcrumb a { color: #fff; text-decoration: none; font-weight: 600; }
+    .nav-breadcrumb a:hover { color: #60a5fa; }
+    /* U-group: current page anchor — clickable to scroll back to top */
+    .nav-breadcrumb__current { color: #fff; cursor: pointer; }
+    .nav-breadcrumb__current:hover { color: #60a5fa; }
+    .doc-page-banner { height: 56px; padding: 0 2rem;
+      display: flex; align-items: center; border-top: none; }
+    .banner-title { font-size: 1.25rem; font-weight: 700;
+      line-height: 1; margin: 0; }
+    /* R-group: main 上方留白縮減（從 style.css 預設 2.5rem 改 1rem，
+       讓 main content 緊接 banner，跟 sidebar 視覺對齊）*/
+    .doc-content { padding-top: 1rem; }
+    /* V-group: anchor jump（TOC / sidebar / URL hash）必須避開 sticky top-nav，
+       否則被點到的 heading / table / cell 永遠卡在 nav 底下看不到。
+       64px = top-nav 高 56px + 8px 視覺呼吸；scope 限 .doc-content 內 [id]
+       元素，避免影響 sidebar / nav 內部結構。 */
+    .doc-content [id] { scroll-margin-top: 64px; }
+
+    /* ─── N1 + Q + R + T: sidebar tab switcher (📁 文件 / 📑 本頁目錄) ─── */
+    /* T-group: sidebar 永遠 sticky 在左邊（top-nav 下方），tabs 釘 sidebar 頂端
+       不卷，panel 自己內部捲。`align-self: start` 讓 grid item 不被 row 拉長。
+       `overflow: visible` — wrapper 自己不卷（避免 tabs 被 panel scroll 帶走）。
+       Q-group 原意：top: 0 蓋過 style.css `top: var(--nav-h)`，但 T 後改成
+       top: 56px（top-nav 高度）讓 sticky 在 nav 下方啟動。 */
+    .sidebar { position: sticky; top: 56px;
+      height: calc(100vh - 56px); align-self: start;
+      display: flex; flex-direction: column;
+      overflow: visible; padding: 0; }
+    .sidebar__toggle { position: absolute; top: 6px; right: 6px;
+      background: #f1f5f9; border: 1px solid #cbd5e1;
+      padding: 2px 6px; border-radius: 4px;
+      cursor: pointer; font-size: 11px; line-height: 1;
+      color: #475569; z-index: 3; }
+    .sidebar__toggle:hover { background: #e2e8f0; }
+    .sidebar__tabs { display: flex; gap: 2px; padding: 4px 32px 0 4px;
+      border-bottom: 1px solid #e2e8f0; background: #f8fafc;
+      flex: 0 0 auto; }
+    .sidebar__tab { flex: 1; padding: 6px 8px; font-size: 12px;
+      border: 1px solid transparent; border-bottom: none;
+      border-radius: 4px 4px 0 0; cursor: pointer; background: transparent;
+      color: #64748b; font-family: inherit; text-align: center;
+      transition: background-color 150ms, color 150ms; }
+    .sidebar__tab:hover { color: #1e293b; background: #f1f5f9; }
+    .sidebar__tab.active { background: #fff; color: #1e3a8a;
+      border-color: #e2e8f0; font-weight: 600; margin-bottom: -1px; }
+    /* T-group: panel 自己內部捲（sidebar wrapper 不卷，tabs 不會被擠走）。
+       scrollbar-width: thin + ::-webkit-scrollbar 6px = 細到幾乎不擾眼。 */
+    .sidebar__panel { display: none; flex: 1 1 auto; overflow-y: auto;
+      overflow-x: hidden; padding: 0.5rem 0; font-size: 0.875rem;
+      scrollbar-width: thin; }
+    .sidebar__panel.active { display: block; }
+    .sidebar__panel::-webkit-scrollbar { width: 6px; }
+    .sidebar__panel::-webkit-scrollbar-thumb {
+      background: rgba(0,0,0,0.18); border-radius: 3px; }
+    .sidebar__panel::-webkit-scrollbar-thumb:hover {
+      background: rgba(0,0,0,0.32); }
+    .sidebar__panel::-webkit-scrollbar-track { background: transparent; }
+    /* TOC list rendering inside the toc panel */
+    .sidebar__panel .toc-list { list-style: none; padding: 0; margin: 0; }
+    .sidebar__panel .toc-list li { margin: 0; }
+    .toc__link { display: block; padding: 0.25rem 0.75rem;
+      color: #475569; text-decoration: none; font-size: 0.8125rem;
+      border-left: 2px solid transparent; margin: 1px 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .toc__link:hover { background: #f1f5f9; color: #1e293b; }
+    .toc__link.active { background: #eff6ff; color: #1e3a8a;
+      border-left-color: #3b82f6; font-weight: 500; }
+    .toc__link--h3 { padding-left: 1.5rem; font-size: 0.78rem; color: #64748b; }
+    /* Sidebar collapsed state — keep a 32px rail visible so the toggle
+       button stays clickable; hide tabs + panels. Overrides style.css's
+       .page-wrapper.sidebar-collapsed { grid-template-columns: 0 4px 1fr; }
+       to keep the rail. */
+    .page-wrapper.sidebar-collapsed { grid-template-columns: 32px 4px 1fr; }
+    .page-wrapper.sidebar-collapsed .sidebar {
+      width: 32px; min-width: 32px;
+      visibility: visible; padding: 0; overflow: visible;
+    }
+    .page-wrapper.sidebar-collapsed .sidebar__tabs,
+    .page-wrapper.sidebar-collapsed .sidebar__panel { display: none; }
+    .page-wrapper.sidebar-collapsed .sidebar__toggle { left: 4px; right: 4px; }
+    /* RWD — auto-collapse on phones (<768px). Only kicks in when no
+       explicit `.sidebar-expanded` flag is set; tap the toggle to expand. */
+    @media (max-width: 768px) {
+      .page-wrapper:not(.sidebar-expanded) {
+        grid-template-columns: 32px 4px 1fr;
+      }
+      .page-wrapper:not(.sidebar-expanded) .sidebar {
+        width: 32px; min-width: 32px;
+      }
+      .page-wrapper:not(.sidebar-expanded) .sidebar__tabs,
+      .page-wrapper:not(.sidebar-expanded) .sidebar__panel { display: none; }
+    }
+    /* G-Q2 + LB1: lightbox cloned-diagram visibility under zoom container.
+       The canonical style.css sets `.lightbox__zoom-content > * { position:
+       absolute }` which collapses the cloned .diagram-container to 0×0;
+       its child SVG with `width:100%` then renders empty. Force a sensible
+       explicit width so the cloned content is actually visible. */
+    .lightbox__zoom-content .diagram-container {
+      width: 80vw;
+      max-width: 1400px;
+      min-width: 60vw;
+    }
+    .lightbox__zoom-content .diagram-container svg {
+      width: 100%;
+      height: auto;
+      max-height: 80vh;
+      display: block;
+    }
+    .lightbox__zoom-content .diagram-container .mermaid {
+      width: 100%;
+      max-width: none;
+    }
+    .lightbox__zoom-content svg {
+      height: auto;
+    }
+    /* G-Q5: prevent flex/grid child main.doc-content from expanding to its
+       content's intrinsic size when a PUML SVG / pre.mermaid has wide
+       content. Without min-width:0, the flex item's default min-width is
+       its min-content (i.e. SVG natural width), which pushes <main> to
+       3000px+ on PUML pages and breaks layout.
+
+       Pair with `<pre> { max-width: 100% }` so wide source content scrolls
+       inside the <pre> block instead of expanding the page. */
+    main.doc-content {
+      min-width: 0;
+    }
+    .doc-content pre {
+      max-width: 100%;
+    }
+    .doc-content .diagram-container {
+      max-width: 100%;
+      overflow-x: auto;
+    }
+
+    /* ─── UI Mock DSL (stage 9) ─── */
+    .umock { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #1e293b; }
+    .umock__page, .umock__modal, .umock__card {
+      border: 1.5px solid #94a3b8; border-radius: 8px; background: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin: 1rem 0;
+      overflow: hidden;
+    }
+    .umock__card-title { padding: 0.625rem 1rem; font-weight: 600; font-size: 0.95rem;
+      background: #f8fafc; border-bottom: 1.5px solid #94a3b8; color: #1e293b; }
+    .umock__page-title { padding: 0.75rem 1rem; font-weight: 600; font-size: 1.05rem;
+      background: #f8fafc; border-bottom: 1.5px solid #94a3b8; }
+    /* `.diagram-container` (assets/style.css) defaults to text-align: center
+       which is right for SVG/mermaid but wrong for umock body text. Reset
+       to start so individual umock elements decide their own alignment.
+       Also constrain width to content so umock card mirrors ASCII source
+       proportions (rather than stretching to full doc-content width). */
+    .diagram-container--umock {
+      text-align: start;
+      width: fit-content;
+      max-width: 100%;
+    }
+    .diagram-container--umock .umock__card,
+    .diagram-container--umock .umock__page,
+    .diagram-container--umock .umock__modal {
+      width: fit-content;
+      max-width: 100%;
+    }
+    /* Outer-alignment modifiers — applied via attrs.align detected from
+       the source ASCII's leading/trailing whitespace within `│ ... │`. */
+    .umock__card-title--center, .umock__page-title--center,
+    .umock__text--center, .umock__info--center, .umock__hint--center,
+    .umock__actions--center { text-align: center; }
+    .umock__card-title--right, .umock__page-title--right,
+    .umock__text--right, .umock__info--right, .umock__hint--right,
+    .umock__actions--right { text-align: right; }
+    .umock__modal { max-width: 540px; }
+    .umock__modal-titlebar { display: flex; justify-content: space-between; align-items: center;
+      padding: 0.75rem 1rem; background: #f1f5f9; border-bottom: 1.5px solid #94a3b8; }
+    .umock__modal-title { font-weight: 600; font-size: 1rem; }
+    .umock__modal-close { color: #94a3b8; font-size: 1.1rem; cursor: default; }
+    .umock__modal-body, .umock__page > .umock__section,
+    .umock__card { padding: 0.75rem 1rem; }
+    .umock__navbar { display: flex; gap: 1rem; align-items: center;
+      padding: 0.625rem 1rem; background: #1e293b; color: #f1f5f9;
+      border-radius: 8px 8px 0 0; }
+    .umock__sidenav { float: left; width: 12rem; padding: 0.75rem;
+      background: #f8fafc; border-right: 1px solid #e2e8f0; min-height: 200px; }
+    .umock__sidenav .umock__item { padding: 0.375rem 0.5rem; border-radius: 4px;
+      color: #475569; font-size: 0.875rem; }
+    .umock__sidenav .umock__item:hover { background: #e2e8f0; }
+    .umock__page > *:not(.umock__navbar):not(.umock__sidenav) { margin-left: 12.5rem;
+      padding: 0.75rem 1rem; }
+    .umock__page::after { content: ""; display: block; clear: both; }
+    .umock__section { padding: 0.75rem 0; }
+    .umock__section-title { margin: 0 0 0.5rem 0; font-size: 1rem; font-weight: 600; }
+    .umock__section-subtitle { color: #64748b; font-size: 0.875rem; margin-bottom: 0.5rem; }
+    .umock__field { margin: 0.5rem 0; }
+    .umock__field-label { display: block; font-size: 0.85rem; color: #334155;
+      margin-bottom: 0.25rem; font-weight: 500; }
+    .umock__field-required { color: #dc2626; margin-left: 0.125rem; }
+    .umock__input, .umock__search {
+      display: block; width: 100%; padding: 0.5rem 0.625rem; font-size: 0.9rem;
+      border: 1px solid #94a3b8; border-radius: 4px; background: #fff;
+      color: #475569; box-sizing: border-box;
+    }
+    .umock__btn { display: inline-block; padding: 0.4rem 0.9rem; margin: 0.125rem;
+      font-size: 0.875rem; font-weight: 500; border: 1px solid transparent;
+      border-radius: 4px; cursor: default; background: #e2e8f0; color: #334155; }
+    .umock__btn--primary { background: #2563eb; color: #fff; }
+    .umock__btn--secondary { background: #fff; color: #475569; border-color: #cbd5e1; }
+    .umock__btn--danger { background: #dc2626; color: #fff; }
+    .umock__actions { padding: 0.5rem 0;
+      border-top: 1px solid #f1f5f9; }
+    .umock__badge { display: inline-block; padding: 0.125rem 0.5rem;
+      border-radius: 999px; font-size: 0.75rem; font-weight: 500;
+      background: #e2e8f0; color: #475569; }
+    .umock__badge--active { background: #dcfce7; color: #166534; }
+    .umock__badge--inactive { background: #fee2e2; color: #991b1b; }
+    .umock__badge--warning { background: #fef3c7; color: #92400e; }
+    .umock__hint { color: #64748b; font-size: 0.8rem; margin: 0.25rem 0 0.5rem 0; }
+    .umock__info { background: #eff6ff; border-left: 3px solid #3b82f6;
+      padding: 0.5rem 0.75rem; margin: 0.5rem 0; color: #1e3a8a; font-size: 0.875rem; }
+    /* Plain body text row in UI mock: monospace, preserve whitespace,
+       left-aligned, no background. Maps to ASCII content rows that aren't
+       semantic markers (ⓘ / helper:). */
+    .umock__text { padding: 0.125rem 1rem; margin: 0; color: #1e293b;
+      font-family: 'Menlo','Consolas','Courier New',monospace;
+      font-size: 0.85rem; white-space: pre; }
+    /* Higher specificity than `.doc-content pre` (assets/style.css) so the
+       umock dark-canvas background isn't overridden by the generic `pre`
+       rule when umock is rendered inside `.doc-content`. */
+    .doc-content pre.umock__code, pre.umock__code { background: #1e293b; color: #f1f5f9; padding: 0.75rem;
+      border-radius: 4px; overflow-x: auto; font-size: 0.8rem;
+      font-family: ui-monospace, "SF Mono", Consolas, monospace; }
+    .umock__code code { background: none; color: inherit; padding: 0; }
+    .umock__table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.9rem; }
+    .umock__table th, .umock__table td { padding: 0.75rem 0.875rem; text-align: left;
+      border-bottom: 1px solid #cbd5e1; }
+    .umock__table th { background: #f8fafc; font-weight: 600; color: #334155;
+      border-bottom: 2px solid #94a3b8; }
+    .umock__table tbody tr:hover { background: #f8fafc; }
+    .umock__pagination { padding: 0.5rem 0; color: #64748b; font-size: 0.8rem; text-align: right; }
+    .umock__tabs { display: flex; gap: 0.5rem; padding: 0.25rem 0; border-bottom: 1px solid #e2e8f0; }
+    .umock__tab { padding: 0.375rem 0.75rem; color: #475569; font-size: 0.875rem;
+      border-bottom: 2px solid transparent; }
+    .umock__tab:first-child { border-bottom-color: #2563eb; color: #1e40af; font-weight: 500; }
+    .umock__filter-bar { display: flex; gap: 0.5rem; align-items: center;
+      padding: 0.5rem 0; }
+    .umock__divider { border: 0; border-top: 1px solid #e2e8f0; margin: 0.5rem 0; }
+    .umock__meta-line { color: #64748b; font-size: 0.8rem; margin: 0.125rem 0; }
+    .umock__row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .umock__row-cell { font-size: 0.875rem; color: #334155; }
+    .umock__avatar { width: 1.75rem; height: 1.75rem; border-radius: 50%;
+      background: #94a3b8; display: inline-block; }
+    .umock__logo { font-weight: 700; letter-spacing: 0.02em; }
+    .umock__spacer { flex: 1; }
+    .umock__pyramid { display: block; max-width: 100%; height: auto; }
+    /* generic fallback for unknown types */
+    .umock__x { padding: 0.5rem; border: 1px dashed #cbd5e1; border-radius: 4px;
+      color: #64748b; font-size: 0.875rem; margin: 0.25rem 0; }
   </style>
 </head>
 <body>
   <header class="top-nav">
-    <a href="index.html" class="nav-brand">gendoc</a>
+    <nav class="nav-breadcrumb"><a href="index.html">gendoc</a> › 文件中心 <span style="margin-left:1rem"><a href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener" style="color:var(--banner-link)">⌥ GitHub ↗</a></span></nav>
     <div class="nav-controls">
       <div class="search-wrap">
         <input class="search-input" type="search" placeholder="搜尋文件...">
@@ -37,31 +315,29 @@
     </div>
   </header>
   <div class="doc-page-banner">
-    <p class="banner-breadcrumb"><a href="index.html">gendoc</a> › 文件中心 <span style="margin-left:1rem"><a href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener" style="color:var(--banner-link)">⌥ GitHub ↗</a></span></p>
     <h1 class="banner-title">gendoc 文件中心</h1>
   </div>
   <div class="page-wrapper">
     <aside class="sidebar" aria-label="文件導覽">
-      <div class="sidebar__section">
-<div class="sidebar__label">文件</div>
+      <button class="sidebar__toggle" id="sidebarCollapseBtn" type="button" aria-label="收合 / 展開側欄" title="收合 / 展開">⇤</button><div class="sidebar__tabs" role="tablist"><button class="sidebar__tab active" data-tab="docs" type="button" role="tab" aria-selected="true">📁 文件</button><button class="sidebar__tab" data-tab="toc" type="button" role="tab" aria-selected="false">📑 本頁目錄</button></div><div class="sidebar__panel active" data-panel="docs" role="tabpanel"><div class="sidebar__section">
 <a class="sidebar__link active" href="index.html">🏠 首頁</a>
 <a class="sidebar__link" href="prd.html">📝 產品需求文件 (PRD)</a>
 <a class="sidebar__link" href="todo.html">📄 Todo</a>
-</div>
+</div></div><div class="sidebar__panel" data-panel="toc" role="tabpanel"><ul class="toc-list"><li><a class="toc__link" href="#overview">Overview</a></li><li><a class="toc__link" href="#skills">Skills</a></li><li><a class="toc__link toc__link--h3" href="#supported-document-types">Supported Document Types</a></li><li><a class="toc__link" href="#quick-start">Quick Start</a></li><li><a class="toc__link toc__link--h3" href="#install-macos--linux--wsl">Install (macOS / Linux / WSL)</a></li><li><a class="toc__link toc__link--h3" href="#install-windows-native">Install (Windows native)</a></li><li><a class="toc__link toc__link--h3" href="#uninstall">Uninstall</a></li><li><a class="toc__link" href="#usage">Usage</a></li><li><a class="toc__link" href="#auto-update">Auto-Update</a></li><li><a class="toc__link" href="#design-principles">Design Principles</a></li><li><a class="toc__link" href="#pipeline-architecture--single-source-of-truth-ssot">Pipeline Architecture — Single Source of Truth (SSOT)</a></li><li><a class="toc__link toc__link--h3" href="#pipelinejson-structure">pipeline.json Structure</a></li><li><a class="toc__link toc__link--h3" href="#how-it-works">How It Works</a></li><li><a class="toc__link toc__link--h3" href="#validation-layers">Validation Layers</a></li><li><a class="toc__link" href="#document-architecture--sdlc-foundation">Document Architecture — SDLC Foundation</a></li><li><a class="toc__link toc__link--h3" href="#theoretical-basis">Theoretical Basis</a></li><li><a class="toc__link" href="#template-architecture">Template Architecture</a></li><li><a class="toc__link toc__link--h3" href="#pipeline">Pipeline</a></li><li><a class="toc__link toc__link--h3" href="#文件上下層關係document-hierarchy">文件上下層關係（Document Hierarchy）</a></li><li><a class="toc__link" href="#repository-structure">Repository Structure</a></li><li><a class="toc__link" href="#review-strategies">Review Strategies</a></li><li><a class="toc__link" href="#requirements">Requirements</a></li><li><a class="toc__link" href="#contributing">Contributing</a></li><li><a class="toc__link" href="#license">License</a></li></ul></div>
     </aside>
     <div class="sidebar-resizer" id="sidebarResizer"></div>
-    <main class="doc-content"><h1>gendoc</h1>
+    <main class="doc-content"><h1 id="gendoc">gendoc</h1>
 <p><a href="LICENSE" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'badge-fallback',textContent:this.alt}))"></a></p>
 <p><a href="https://github.com/ibalasite/gendoc" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey" alt="Platform" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'badge-fallback',textContent:this.alt}))"></a></p>
 <p><a href="https://claude.ai/code" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/Claude%20Code-skill-blueviolet" alt="Claude Code" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'badge-fallback',textContent:this.alt}))"></a></p>
 <p><strong>AI-driven engineering document generation system for Claude Code.</strong> One command generates a complete implementation blueprint — IDEA, BRD, PRD, <strong>CONSTANTS</strong>, PDD, VDD, EDD, ARCH, <strong>DRYRUN</strong>, API, Schema, FRONTEND, AUDIO, ANIM, <strong>CLIENT_IMPL</strong>, <strong>ADMIN_IMPL</strong>, <strong>RESOURCE</strong>, test-plan, BDD, RTM, Runbook, LOCAL_DEPLOY, CONTRACTS (OpenAPI/JSON Schema/Pact/IaC/Seed Code), MOCK, <strong>PROTOTYPE</strong>, and an HTML documentation site — all output consolidated under <code>docs/blueprint/</code> for portability — each document inheriting knowledge from all upstream docs automatically. For game projects (<code>client_type=game</code>), AUDIO and ANIM design documents are also generated. CLIENT_IMPL is generated for any project with a client (<code>client_type ≠ api-only</code>) and auto-routes to the correct engine: Cocos Creator / Unity WebGL / React / Vue / HTML5. ADMIN_IMPL is generated when <code>has_admin_backend=true</code>.</p>
 <hr>
-<h2>Overview</h2>
+<h2 id="overview">Overview</h2>
 <p><code>gendoc</code> is a Claude Code skill suite that automates the full engineering documentation lifecycle. Using a three-layer template architecture (<code>TYPE.md</code> structure + <code>TYPE.gen.md</code> generation rules + <code>TYPE.review.md</code> review criteria), it generates and iteratively reviews production-quality engineering documents from an initial idea through deployment runbooks.</p>
 <p>Key capabilities:</p>
 <ul><li><strong>Cumulative upstream reading</strong> — every doc reads all ancestor docs, never just its direct parent</li><li><strong>Universal generation</strong> — <code>/gendoc &lt;type&gt;</code> for any document type, driven by templates</li><li><strong>Universal review loop</strong> — <code>/reviewdoc &lt;type&gt;</code> with configurable strategy (rapid / standard / exhaustive / tiered / custom)</li><li><strong>Reliable breakpoint resume</strong> — <code>review_progress</code> schema tracks each review round; any step can be safely interrupted and resumed at the exact round</li><li><strong>Quality status tracking</strong> — <code>passed</code> / <code>degraded</code> / <code>failed</code> per step; CRITICAL/HIGH findings block completion, MEDIUM/LOW log as degraded</li><li><strong>Three-value project type</strong> — <code>game</code> (AUDIO+ANIM+UI prototype) / <code>web</code> (SaaS/App, UI prototype) / <code>api-only</code> (API Explorer prototype); auto-detected from IDEA/BRD/PRD keywords, re-verified after PRD generation (P-14)</li><li><strong>Interactive prototypes</strong> — <code>/gendoc-gen-prototype</code> generates a clickable HTML prototype for any project type: UI flow prototype (web/game) or API Explorer with mock responses (api-only, like Postman)</li><li><strong>Implementation-ready UML (1:1 standard)</strong> — <code>/gendoc-gen-diagrams</code> generates all 9 Server UML types + 16 Frontend UML types (Step 2B, auto-triggered when <code>client_type ≠ none</code> and <code>FRONTEND.md</code> exists) with enough precision that a developer can implement the entire system from diagrams alone: exact attribute types, full method signatures, enum values fully listed, cardinality + role labels on every relation, exact method names + typed params on every sequence arrow, <code>trigger [guard] / action</code> on every state transition (no <code>&lt;br/&gt;</code> in stateDiagram-v2), swimlanes per actor in activity diagrams, technology + version + port on every component/deployment node</li><li><strong>Cross-browser Mermaid enforcement</strong> — all diagram-generating templates prohibit <code>&lt;br/&gt;</code> in <code>stateDiagram-v2</code> transition labels (Safari/Firefox break) and <code>sequenceDiagram</code> participant aliases; experimental charts (<code>pie</code> / <code>xychart-beta</code> / <code>bar</code>) are banned in favour of <code>graph TD</code> or HTML tables</li><li><strong>Pipeline integrity check</strong> — P-15 verifies all expected steps have a record before marking complete</li><li><strong>5-way client engine routing</strong> — <code>CLIENT_IMPL</code> detects <code>CLIENT_ENGINE</code> from EDD §3.3 and generates engine-specific scene structure, asset loading, AudioManager, and VFX specs for Cocos Creator / Unity WebGL / React / Vue / HTML5; aliases <code>cocos</code>, <code>unity</code>, <code>react-impl</code>, <code>vue-impl</code> all resolve to CLIENT_IMPL</li><li><strong>pipeline.json as single source of truth</strong> — <code>gendoc-config</code> step picker, <code>gendoc-shared</code> STEP_SEQUENCE / STEP_ORDER / Review Loop list all read <code>pipeline.json</code> dynamically at runtime; adding a new pipeline step requires editing only <code>pipeline.json</code> — all skills auto-update</li><li><strong>Context-isolated review loops</strong> — <code>gendoc-flow</code> Phase D-2 wraps each document&#x27;s review→fix loop in an Agent subagent, preventing 12+ documents × 5 rounds of review output from bloating the main Claude context; results returned as compact REVIEW_LOOP_RESULT</li><li><strong>Centralized state file guard</strong> — <code>gendoc-shared</code> is the single executable entry point for R-01 guard logic; <code>gendoc-config</code> is the sole creator of state files; <code>gendoc-auto</code> and <code>gendoc-flow</code> delegate via one-line Skill call</li><li><strong>Uniform review loops</strong> — IDEA and BRD review loops in <code>gendoc-auto</code> use the same Phase D-2 pattern as <code>gendoc-flow</code>: main Claude directly drives Review→Fix→Round Summary→Commit per round with full output visibility</li><li><strong>Local Developer Platform (Production Parity)</strong> — <code>/gendoc cicd</code> generates a complete CI/CD platform design: Gitea (local git server, Port 3000) + Jenkins on k3s (CI, Port 8080) + ArgoCD (CD GitOps, Port 8443); dev-tool ports are fully separate from the app&#x27;s single Port 80; <code>make dev-tools-up</code> starts everything in one command; non-developers can run the full pipeline without knowing Kubernetes; local environment uses the exact same toolchain as production (only scale and TLS differ) — compliant with 12-Factor App #10 Dev/Prod Parity</li><li><strong>Developer Daily Operations Manual</strong> — <code>/gendoc developer-guide</code> generates the day-to-day developer operations handbook that pairs with <code>local-deploy</code>: covers the complete daily workflow (git push → Jenkins trigger → pipeline monitoring → ArgoCD sync → app verification), CI/CD troubleshooting (Jenkins not triggered, stage failed, ArgoCD OutOfSync, Gitea webhook issues), quick-reference make targets (<code>make dev-status</code> / <code>make dev-logs</code> / <code>make dev-restart</code>), common local environment issues with step-by-step fixes, and environment maintenance procedures (secret rotation, image cleanup, full reset); distinct from <code>runbook.md</code> which targets production on-call SREs</li><li><strong>Auto-update via SessionStart hook</strong> — harness-enforced, LLM-independent, runs in background</li><li><strong>Windows native support</strong> — Python-based hook for Windows, bash for macOS/Linux</li></ul>
 <hr>
-<h2>Skills</h2>
+<h2 id="skills">Skills</h2>
 <table>
 <tr><th>Skill</th><th>Command</th><th>Purpose</th></tr>
 <tr><td><code>gendoc</code></td><td><code>/gendoc &lt;type&gt;</code></td><td>Generate any document type</td></tr>
@@ -69,10 +345,9 @@
 <tr><td><code>gendoc-auto</code></td><td><code>/gendoc-auto</code></td><td>Full pipeline entry point: IDEA + BRD generation, then hands off to gendoc-flow</td></tr>
 <tr><td><code>gendoc-flow</code></td><td><code>/gendoc-flow</code></td><td>Template-driven orchestrator (PRD→HTML full pipeline) with reliable breakpoint resume, P-14/P-15</td></tr>
 <tr><td><code>gendoc-config</code></td><td><code>/gendoc-config</code></td><td>Interactive two-level menu: configure client_type, has_admin_backend, review strategy, restart step; supports multi-edit loop with mandatory-field check (Step 4c) before save</td></tr>
-<tr><td><code>gendoc-gen-dryrun</code></td><td><code>/gendoc dryrun</code> or via <code>gendoc-flow</code></td><td>Generate quantitative baseline MANIFEST.md + .gendoc-rules/*.json from EDD/PRD/ARCH — lock numbers that review loops enforce (D-DRYRUN)</td></tr>
 <tr><td><code>gendoc-align-check</code></td><td><code>/gendoc-align-check</code></td><td>Cross-document alignment scan (ALIGN) — use <code>gendoc-align-verify</code> to confirm fix completeness</td></tr>
 <tr><td><code>gendoc-align-fix</code></td><td><code>/gendoc-align-fix</code></td><td>Auto-fix alignment issues</td></tr>
-<tr><td><code>gendoc-gen-html</code></td><td><code>/gendoc-gen-html</code></td><td>Generate HTML documentation site v3.0 (HTML) — converts all docs/<em>.md + docs/diagrams/</em>.md to HTML pages; 3-section sidebar (文件 / Server UML / Frontend UML)</td></tr>
+<tr><td><code>gendoc-gen-html</code></td><td><code>/gendoc-gen-html</code></td><td>Generate HTML documentation site (HTML) — converts all docs/<em>.md + docs/diagrams/</em>.md to HTML pages; 3-section sidebar (文件 / Server UML / Frontend UML); per-page sidebar TOC tab + scroll-spy + collapsible + RWD; image/diagram lightbox with zoom/pan; subdir HTML path auto-rewriter; assets/ auto-sync from canonical; UI Mock DSL + ASCII parser (layered-arch / pyramid / 2-column / form-row / tables) → inline SVG + mermaid; emit-time Mermaid bracket sanitizer (no <code>&lt;br/&gt;</code>, no spurious <code>[guard]</code> rewrites); HTML comment / metadata separator / whitespace strip</td></tr>
 <tr><td><code>gendoc-gen-contracts</code></td><td><code>/gendoc-gen-contracts</code></td><td>Generate machine-readable specs: OpenAPI 3.1, JSON Schema, Pact contracts, IaC (Helm/docker-compose), Seed Code skeleton (CONTRACTS)</td></tr>
 <tr><td><code>gendoc-gen-mock</code></td><td><code>/gendoc-gen-mock</code></td><td>Generate FastAPI Mock Server from API.md — 1:1 endpoint mapping, realistic fake data, Windows/Mac ready, Postman-importable (MOCK; skipped for api-only)</td></tr>
 <tr><td><code>gendoc-gen-prototype</code></td><td><code>/gendoc-gen-prototype</code></td><td>Interactive HTML prototype — UI flow (web/game) or API Explorer with mock engine (api-only)</td></tr>
@@ -81,33 +356,34 @@
 <tr><td><code>gendoc-repair</code></td><td><code>/gendoc-repair</code></td><td>DRYRUN-aware backfill — brings any incomplete project to the same state as <code>gendoc-auto</code> + <code>gendoc-flow</code> would produce. Requires <code>docs/BRD.md</code> to exist. Binary gate: if <code>.gendoc-rules/*.json</code> absent or DRYRUN not in completed_steps → Branch A (complete upstream steps → run DRYRUN); otherwise → Branch B (per-step independent retry: each step maintains its own <code>fail_count</code>, fails immediately trigger repair + add to next round; step permanently abandoned after 3 consecutive failures; other steps are unaffected)</td></tr>
 <tr><td><code>gendoc-rebuild-templates</code></td><td><code>/gendoc-rebuild-templates</code></td><td>Rebuild all document templates from scratch</td></tr>
 <tr><td><code>gendoc-refresh-docs</code></td><td><code>/gendoc-refresh-docs</code></td><td>Update project documentation to reflect current state — scans directory, reads memory, diffs against README + PRD, fixes stale descriptions, adds missing items, rebuilds HTML; supports free-form args for targeted updates</td></tr>
-<tr><td><code>gendoc-guard</code></td><td><code>/gendoc-guard &lt;skill&gt;</code></td><td>Skill execution compliance monitor — wraps any skill with session resume, PreToolUse whitelist enforcement (SECS), and PostToolUse execution history</td></tr>
+<tr><td><code>gendoc-guard</code></td><td><code>/gendoc-guard &lt;skill&gt;</code></td><td>Skill execution compliance monitor — wraps any skill with session resume, PreToolUse whitelist enforcement (SECS), and PostToolUse execution history; priming v3 injected at three points (task start / SessionStart resume / Stop hook reason) to bias the model toward accuracy-first reporting; checkpoint exemption so the wrapper&#x27;s own Step 3 self-clean is never self-blocked; Stop-hook dodge detection blocks enumerations that contain skip-intent vocabulary</td></tr>
 <tr><td><code>gendoc-upgrade</code></td><td><code>/gendoc-upgrade</code></td><td>Manual skill upgrade</td></tr>
 <tr><td><code>reviewtemplate</code></td><td><code>/reviewtemplate &lt;TYPE&gt;</code></td><td>Review &amp; iteratively fix a template three-file set (TYPE.md + .gen.md + .review.md)</td></tr>
 </table>
-<h3>Supported Document Types</h3>
+<h3 id="supported-document-types">Supported Document Types</h3>
 <p><code>idea</code> · <code>brd</code> · <code>prd</code> · <code>constants</code> · <code>pdd</code> · <code>vdd</code> · <code>edd</code> · <code>arch</code> · <code>dryrun</code> · <code>api</code> · <code>schema</code> · <code>frontend</code> · <code>audio</code> · <code>anim</code> · <code>client-impl</code> · <code>admin-impl</code> · <code>resource</code> · <code>test-plan</code> · <code>bdd</code> · <code>rtm</code> · <code>runbook</code> · <code>local-deploy</code> · <code>cicd</code> · <code>developer-guide</code> · <code>readme</code> · <code>contracts</code> · <code>mock</code> · <code>prototype</code></p>
 <blockquote><p><code>audio</code> and <code>anim</code> are only generated for <code>client_type=game</code> projects (games, HTML5 game engines).</p></blockquote>
 <blockquote><p><code>client-impl</code> is generated for any project with a client (<code>client_type ≠ api-only</code>). Aliases: <code>cocos</code>, <code>unity</code>, <code>react-impl</code>, <code>vue-impl</code>, <code>client_impl</code>.</p></blockquote>
 <blockquote><p><code>cicd</code> generates the full CI/CD pipeline design document — Jenkinsfile skeleton, Shared Make Targets, PR Gate, Jenkins on k3s, ArgoCD GitOps, <strong>Local Developer Platform</strong> (Gitea + production parity).</p></blockquote>
 <blockquote><p><code>developer-guide</code> generates the developer daily operations manual — pairs with <code>local-deploy</code> (setup) to cover day-to-day workflow: git push → CI trigger → pipeline monitoring → ArgoCD sync → app verification; CI/CD troubleshooting; local quick commands; common issues; environment maintenance.</p></blockquote>
 <hr>
-<h2>Quick Start</h2>
-<h3>Install (macOS / Linux / WSL)</h3>
+<h2 id="quick-start">Quick Start</h2>
+<h3 id="install-macos--linux--wsl">Install (macOS / Linux / WSL)</h3>
 <pre><code class="language-bash"># 1. Clone + install in one go
 git clone https://github.com/ibalasite/gendoc.git ~/.claude/skills/gendoc
 ~/.claude/skills/gendoc/setup
 
 # 2. Restart Claude Code — skills are now available</code></pre>
-<h3>Install (Windows native)</h3>
+<h3 id="install-windows-native">Install (Windows native)</h3>
 <pre><code class="language-powershell"># Requires: Git for Windows + Python 3
 git clone https://github.com/ibalasite/gendoc.git &quot;$env:USERPROFILE\.claude\skills\gendoc&quot;
 &amp; &quot;$env:USERPROFILE\.claude\skills\gendoc\setup.ps1&quot;</code></pre>
-<h3>Uninstall</h3>
+<blockquote><p><code>setup.ps1</code> forces UTF-8 stdout (<code>PYTHONIOENCODING=utf-8</code>, <code>PYTHONUTF8=1</code>, <code>Console.OutputEncoding=UTF8</code>) so hook registration on zh-TW (cp950) / zh-CN (cp936) Windows succeeds without manual env tweaks.</p></blockquote>
+<h3 id="uninstall">Uninstall</h3>
 <pre><code class="language-bash">~/.claude/skills/gendoc/setup uninstall   # macOS/Linux
 # Or: &amp; &quot;$env:USERPROFILE\.claude\skills\gendoc\setup.ps1&quot; uninstall   # Windows</code></pre>
 <hr>
-<h2>Usage</h2>
+<h2 id="usage">Usage</h2>
 <pre><code class="language-bash"># Full pipeline — start a new project
 /gendoc-auto &quot;I want to build an AI-powered customer service bot&quot;
 
@@ -138,12 +414,12 @@ git clone https://github.com/ibalasite/gendoc.git &quot;$env:USERPROFILE\.claude
 # Manual upgrade
 /gendoc-upgrade</code></pre>
 <hr>
-<h2>Auto-Update</h2>
+<h2 id="auto-update">Auto-Update</h2>
 <p>After <code>./setup</code>, a <strong>SessionStart hook</strong> is registered in <code>~/.claude/settings.json</code>. Every time Claude Code starts a session, the harness automatically runs <code>git pull + install</code> in the background (throttled to once per hour). No LLM involvement — 100% reliable.</p>
 <pre><code class="">Session start → harness triggers hook → git pull (background) → skills updated</code></pre>
 <p>Manual update: <code>/gendoc-upgrade</code> or <code>~/.claude/skills/gendoc/setup upgrade</code></p>
 <hr>
-<h2>Design Principles</h2>
+<h2 id="design-principles">Design Principles</h2>
 <p>gendoc enforces three non-negotiable architectural principles on all generated documents:</p>
 <p><strong>1. HA / SCALE / SPOF / BCP from Day One</strong></p>
 <p>Every generated system has ≥ 2 replicas at minimum. There is no &quot;small&quot; or &quot;single-instance&quot; mode. Cost is the minimum number of servers required to eliminate all single points of failure.</p>
@@ -174,7 +450,7 @@ git clone https://github.com/ibalasite/gendoc.git &quot;$env:USERPROFILE\.claude
 <ul><li>Domain layer must not import any ORM / DB / HTTP / external SDK</li><li>Application layer must not directly <code>new</code> any Infrastructure concrete class (use DIP via constructor injection)</li><li>All 5 SOLID principles must be named with concrete class/interface examples in EDD §3.1b</li></ul>
 <p>References: Robert C. Martin <em>Clean Architecture</em> (2017) · <em>Agile Software Development</em> SOLID chapters (2002)</p>
 <hr>
-<h2>Pipeline Architecture — Single Source of Truth (SSOT)</h2>
+<h2 id="pipeline-architecture--single-source-of-truth-ssot">Pipeline Architecture — Single Source of Truth (SSOT)</h2>
 <p>The DRYRUN step enforces a <strong>Single Source of Truth (SSOT)</strong> architecture for all quantitative metrics and document specification rules. It reads upstream docs (EDD/PRD/ARCH) to derive a quantitative baseline, writes <code>MANIFEST.md</code> + <code>.gendoc-rules/*.json</code>, and provides the quality gates that all downstream review loops enforce.</p>
 <p>The pipeline has two phases separated by the DRYRUN gate:</p>
 <pre><code class="">DRYRUN 前的 step（內容層）                Gate          DRYRUN 后的 step（技術文件層）
@@ -183,7 +459,7 @@ IDEA → BRD → PRD → EDD → ARCH    →    DRYRUN    →    API → SCHEMA 
                               reads EDD/PRD/ARCH, derives
                               quantitative baseline, writes
                               .gendoc-rules/*.json</code></pre>
-<h3>pipeline.json Structure</h3>
+<h3 id="pipelinejson-structure">pipeline.json Structure</h3>
 <p><code>templates/pipeline.json</code> is the single definition file for every pipeline step. Its actual structure is:</p>
 <pre><code class="language-json">{
   &quot;version&quot;: &quot;1.0&quot;,
@@ -200,7 +476,7 @@ IDEA → BRD → PRD → EDD → ARCH    →    DRYRUN    →    API → SCHEMA 
   ]
 }</code></pre>
 <p>Each step entry has a flat <code>spec_rules</code> object — key/value pairs where values may reference DRYRUN-derived parameters (e.g. <code>{rest_endpoint_count}</code>). There is no <code>metrics[]</code> array and no nested <code>quantitative_specs</code> / <code>content_mapping</code> / <code>cross_file_validation</code> sub-objects.</p>
-<h3>How It Works</h3>
+<h3 id="how-it-works">How It Works</h3>
 <p><strong><code>dryrun_core.py</code> — Parameter Extraction</strong></p>
 <p><code>dryrun_core.py</code> reads EDD, PRD, and ARCH, then calls <code>extract_parameters()</code> which extracts 7 quantitative parameters via dedicated private methods:</p>
 <pre><code class="language-python">def extract_parameters(self):
@@ -215,11 +491,11 @@ IDEA → BRD → PRD → EDD → ARCH    →    DRYRUN    →    API → SCHEMA 
     }</code></pre>
 <p>These parameters are substituted into each step&#x27;s <code>spec_rules</code> values and written to <code>.gendoc-rules/&lt;step-id&gt;-rules.json</code>. Downstream review loops read those files as quality gates.</p>
 <p><strong>Adding a new step</strong>: edit <code>pipeline.json</code> + add the three-file template set (<code>.md</code>, <code>.gen.md</code>, <code>.review.md</code>) — no code changes needed.</p>
-<h3>Validation Layers</h3>
+<h3 id="validation-layers">Validation Layers</h3>
 <p>The DRYRUN output (<code>MANIFEST.md</code> + <code>.gendoc-rules/<em>.json</code>) is validated by <code>tools/bin/review.sh</code>, which implements 20 <code>measure_</em></code> functions covering structural checks (placeholder count, section count, endpoint count, required sections, etc.) and cross-document consistency.</p>
 <p>See <code>tools/bin/review.sh</code> for all 20 built-in quantitative rules. Each rule includes a <code>suggested_fix</code> hint for automated or manual remediation.</p>
 <hr>
-<h2>Document Architecture — SDLC Foundation</h2>
+<h2 id="document-architecture--sdlc-foundation">Document Architecture — SDLC Foundation</h2>
 <p>gendoc&#x27;s document pipeline is grounded in established <strong>Software Development Lifecycle (SDLC)</strong> theory. The Requirements Engineering and Design phases are decomposed into four distinct layers, each answering a single question for a specific audience:</p>
 <table>
 <tr><th>Layer</th><th>Documents</th><th>Question</th><th>Audience</th></tr>
@@ -229,7 +505,7 @@ IDEA → BRD → PRD → EDD → ARCH    →    DRYRUN    →    API → SCHEMA 
 <tr><td><strong>L4 — Architecture / Detailed Design</strong></td><td>EDD · ARCH · API · SCHEMA</td><td><strong>How to build</strong> — system architecture &amp; implementation</td><td>Engineers, DevOps</td></tr>
 </table>
 <p>Each layer speaks to its audience in its own language. Downstream layers inherit and refine upstream decisions via gendoc&#x27;s <strong>cumulative upstream reading</strong> mechanism — ensuring SCHEMA.md cannot contradict API.md, and EDD.md cannot contradict PRD.md.</p>
-<h3>Theoretical Basis</h3>
+<h3 id="theoretical-basis">Theoretical Basis</h3>
 <p><strong>International Standards</strong></p>
 <ul><li><strong>ISO/IEC/IEEE 29148:2018</strong> — Requirements Engineering life cycle: BRS → StRS → SyRS hierarchy maps directly to L1 → L2</li><li><strong>ISO/IEC/IEEE 42010:2011</strong> — Architecture Description: establishes L4 as a separate artifact from L1–L3 requirements</li><li><strong>IEEE Std 830-1998</strong> — SRS &quot;what, not how&quot; principle: canonical basis for L2 / L4 separation</li></ul>
 <p><strong>Academic References</strong></p>
@@ -240,13 +516,13 @@ IDEA → BRD → PRD → EDD → ARCH    →    DRYRUN    →    API → SCHEMA 
 <ul><li>Hong et al., &quot;MetaGPT&quot; (<em>ICLR 2024</em>, arXiv:2308.00352) — SOP-encoded multi-agent pipeline (PRD → System Design → Code) outperforms single-LLM approaches, validating layered document decomposition as a prerequisite for reliable AI software engineering</li><li>Qian et al., &quot;ChatDev&quot; (<em>ACL 2024</em>, arXiv:2307.07924) — multi-agent SDLC automation following requirements → design → implementation phases; confirms ambiguous upstream documents cause cascading implementation failures</li></ul>
 <blockquote><p><strong>Core insight</strong>: Decomposing SDLC into explicit document layers is not bureaucratic overhead — it is the structural prerequisite for reliable AI-assisted development. Ambiguous upstream documents cause cascading failures downstream; precise layered specifications enable AI agents (and human engineers) to implement without guesswork.</p></blockquote>
 <hr>
-<h2>Template Architecture</h2>
+<h2 id="template-architecture">Template Architecture</h2>
 <pre><code class="">templates/
 ├── &lt;TYPE&gt;.md          ← document structure skeleton
 ├── &lt;TYPE&gt;.gen.md      ← AI generation rules (Iron Law: must be read first)
 └── &lt;TYPE&gt;.review.md   ← review criteria &amp; quality gates</code></pre>
 <p>The <strong>Iron Law</strong>: no document is generated without reading both <code>TYPE.md</code> AND <code>TYPE.gen.md</code> first. Templates are the single source of truth — editing a template immediately changes behavior of all <code>/gendoc</code> and <code>/reviewdoc</code> calls.</p>
-<h3>Pipeline</h3>
+<h3 id="pipeline">Pipeline</h3>
 <div class="diagram-container"><pre class="mermaid">flowchart TD
     INPUT([任意輸入\n文字 · URL · 圖片 · Repo]) --&gt; AUTO
     subgraph AUTO[&quot;/gendoc-auto — 入口&quot;]
@@ -296,7 +572,7 @@ IDEA → BRD → PRD → EDD → ARCH    →    DRYRUN    →    API → SCHEMA 
     class NAIM adminNode
     class INPUT,DONE ioNode</pre></div>
 <blockquote><p><strong>✦ 藍色節點</strong>（PDD / VDD / FRONTEND / CLIENT_IMPL / RESOURCE / BDD-client / MOCK / PROTOTYPE）：<code>client_type ≠ api-only</code> 時啟用。<strong>✧ 粉紅節點</strong>（AUDIO / ANIM）：<code>client_type = game</code> 專屬。<strong>◆ 紫色節點</strong>（ADMIN_IMPL）：<code>has_admin_backend = true</code> 才啟用。<strong>★ 黃色節點</strong>：special_skill（不走三專家，直接呼叫 Skill）。</p></blockquote>
-<h3>文件上下層關係（Document Hierarchy）</h3>
+<h3 id="文件上下層關係document-hierarchy">文件上下層關係（Document Hierarchy）</h3>
 <div class="diagram-container"><pre class="mermaid">graph TD
     REQ([docs/req/ 原始素材])
     L0[&quot;L0 IDEA.md&quot;]
@@ -352,7 +628,7 @@ IDEA → BRD → PRD → EDD → ARCH    →    DRYRUN    →    API → SCHEMA 
 <blockquote><p><strong>✦ 藍色節點</strong>（PDD / VDD / FRONTEND / CLIENT_IMPL / RESOURCE / BDD-client / MOCK / PROTOTYPE）：<code>client_type ≠ api-only</code> 時啟用。<strong>✧ 粉紅節點</strong>（AUDIO / ANIM）：<code>client_type = game</code> 專屬。<strong>◆ 紫色節點</strong>（ADMIN_IMPL）：<code>has_admin_backend = true</code> 才啟用。<strong>★ 黃色節點</strong>：special_skill（不走三專家，直接呼叫 Skill）。</p></blockquote>
 <p>Each document accumulates knowledge from <strong>all</strong> ancestors (skips silently if missing). Blue nodes only run when <code>client_type ≠ api-only</code>.</p>
 <hr>
-<h2>Repository Structure</h2>
+<h2 id="repository-structure">Repository Structure</h2>
 <pre><code class="">gendoc/
 ├── SKILL.md            # /gendoc entry skill
 ├── setup               # Unified tool: install / uninstall / upgrade (macOS/Linux)
@@ -364,15 +640,21 @@ IDEA → BRD → PRD → EDD → ARCH    →    DRYRUN    →    API → SCHEMA 
 │   ├── _gendoc-update-worker.py   # Background update worker
 │   ├── gendoc-settings-hook       # settings.json editor (bash wrapper)
 │   └── gendoc-settings-hook.py    # settings.json editor (Python)
-├── tools/
-│   └── bin/                       # Pipeline tools + gendoc-guard hook scripts
-│       ├── gen_html.py            # HTML documentation site generator
-│       ├── dryrun_core.py         # DRYRUN parameter extraction engine
+├── tools/                          # Source-of-truth packages — each tools/&lt;pkg&gt;/
+│   │                                #   may carry build.sh / build.ps1 picked up
+│   │                                #   by setup `_deploy_tools` (per-package build)
+│   ├── gen_html/                   # HTML site generator package + visual TDD tests
+│   ├── dryrun_core/                # DRYRUN parameter extraction package + tests
+│   ├── guard/                      # gendoc-guard simulators &amp; rule tests
+│   └── bin/                        # Deployed runtime executables
+│       ├── gen_html.py             # HTML documentation site generator (~4k LOC)
+│       ├── dryrun_core.py          # DRYRUN parameter extraction engine
 │       ├── review.sh / review_integration.sh  # DRYRUN output validation
+│       ├── get-upstream.sh         # Upstream file/section reader (pipeline.json driven)
 │       ├── gendoc-guard-blocker.py      # PreToolUse SECS whitelist hook (exit 2 = block)
 │       ├── gendoc-guard-history.py      # PostToolUse execution history hook
 │       ├── gendoc-guard-session-start.py # SessionStart resume injection hook
-│       └── gendoc-guard-stop.py         # Stop hook — queue + macOS notification
+│       └── gendoc-guard-stop.py         # Stop hook — queue + macOS notification + dodge detection
 ├── skills/                        # Source of truth for all SKILL.md files
 │   ├── gendoc-auto/
 │   ├── gendoc-flow/
@@ -386,7 +668,7 @@ IDEA → BRD → PRD → EDD → ARCH    →    DRYRUN    →    API → SCHEMA 
     ├── gendoc-redesign-decisions.md  # Architecture design decisions log
     └── pages/                     # Generated HTML site (GitHub Pages)</code></pre>
 <hr>
-<h2>Review Strategies</h2>
+<h2 id="review-strategies">Review Strategies</h2>
 <p>Configure via <code>/gendoc-config</code>:</p>
 <table>
 <tr><th>Strategy</th><th>Max Rounds</th><th>Stop Condition</th></tr>
@@ -397,7 +679,7 @@ IDEA → BRD → PRD → EDD → ARCH    →    DRYRUN    →    API → SCHEMA 
 <tr><td><code>custom</code></td><td>unlimited</td><td>user-defined condition</td></tr>
 </table>
 <hr>
-<h2>Requirements</h2>
+<h2 id="requirements">Requirements</h2>
 <table>
 <tr><th>Platform</th><th>Requirements</th></tr>
 <tr><td>macOS / Linux</td><td>Git, Python 3, Claude Code</td></tr>
@@ -405,10 +687,10 @@ IDEA → BRD → PRD → EDD → ARCH    →    DRYRUN    →    API → SCHEMA 
 <tr><td>Windows (WSL / git-bash)</td><td>Same as macOS/Linux</td></tr>
 </table>
 <hr>
-<h2>Contributing</h2>
+<h2 id="contributing">Contributing</h2>
 <ol><li>Edit skill files in <code>skills/&lt;skill-name&gt;/SKILL.md</code> or templates in <code>templates/</code></li><li>Commit and push to remote</li><li>On any machine: run <code>/gendoc-upgrade</code> or <code>~/.claude/skills/gendoc/setup upgrade</code></li><li>Test with Claude Code — SessionStart hook auto-pulls every hour</li></ol>
 <hr>
-<h2>License</h2>
+<h2 id="license">License</h2>
 <p>MIT © ibalasite</p><section style="margin-top:2.5rem"><h2 style="font-size:1rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem">文件導覽</h2><div class="index-grid"><a class="index-card" href="prd.html"><span class="index-card__icon">📝</span><span class="index-card__title">產品需求文件 (PRD)</span></a><a class="index-card" href="todo.html"><span class="index-card__icon">📄</span><span class="index-card__title">Todo</span></a></div></section><section style="margin-top:3rem;padding:1.5rem;background:#fff;border:1px solid var(--border);border-radius:8px;"><h2 style="margin-top:0">📊 專案健康狀態</h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;margin-top:1rem"><div style="text-align:center;padding:1rem;background:var(--page-bg);border-radius:6px"><div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem">已完成 STEP</div><div style="font-size:1.5rem;font-weight:700;color:var(--accent)">0/20</div></div></div></section></main>
   </div>
   <script type="module">
