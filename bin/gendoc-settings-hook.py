@@ -11,6 +11,12 @@ Usage:
 """
 import json, os, sys, tempfile
 
+# Force UTF-8 stdout/stderr so prints containing CJK chars or emojis don't
+# crash on Windows where default encoding is often cp950 / cp936.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+
 SETTINGS     = os.path.join(os.path.expanduser("~"), ".claude", "settings.json")
 MARKER       = "gendoc-session-update"
 GUARD_MARKER = "gendoc-guard"

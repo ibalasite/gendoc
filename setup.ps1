@@ -10,6 +10,21 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+# Force UTF-8 across the whole setup pipeline. Without this, Windows Python
+# defaults stdout to cp950 (zh-TW) / cp936 (zh-CN), so any print containing
+# CJK or emoji (e.g. the hook installer's "✅ ... 已加入") raises
+# UnicodeEncodeError and aborts setup. Apply at both env and console layers
+# so child Python procs and PowerShell's own buffer both stay UTF-8.
+$env:PYTHONIOENCODING = "utf-8"
+$env:PYTHONUTF8 = "1"
+try {
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    $OutputEncoding = [System.Text.Encoding]::UTF8
+} catch {
+    # Older Windows PowerShell hosts may reject this; ignore — env vars above
+    # are sufficient for the Python subprocesses we actually care about.
+}
 $RepoUrl         = "https://github.com/ibalasite/gendoc.git"
 $RuntimeDir      = Join-Path $env:USERPROFILE ".claude\skills\gendoc"
 $SkillsSrc       = Join-Path $RuntimeDir "skills"
