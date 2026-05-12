@@ -124,6 +124,9 @@ function Register-Hooks {
 
     Log "[deploy] register guard hooks (PreToolUse / PostToolUse / Stop)..."
     & $py $SettingsHook add-guard $ToolsBin
+
+    Log "[deploy] register UTF-8 env (single source for all Python subprocs)..."
+    & $py $SettingsHook add-env
 }
 
 function Do-Install {
@@ -151,6 +154,7 @@ function Do-Uninstall {
     if (Test-Path $SettingsHook) {
         & $py $SettingsHook remove
         & $py $SettingsHook remove-guard
+        & $py $SettingsHook remove-env
     }
 
     Log "[uninstall] remove copied skills..."

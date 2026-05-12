@@ -65,6 +65,7 @@ do_uninstall() {
   if [[ -f "$SETTINGS_HOOK" ]]; then
     "$PY" "$SETTINGS_HOOK" remove
     "$PY" "$SETTINGS_HOOK" remove-guard
+    "$PY" "$SETTINGS_HOOK" remove-env
   fi
 
   log "[uninstall] 移除 copied skills..."
@@ -159,6 +160,8 @@ _register_hook() {
   "$PY" "$SETTINGS_HOOK" add "$HOOK_CMD"
   log "[deploy] 註冊 guard hooks (PreToolUse / PostToolUse / Stop)..."
   "$PY" "$SETTINGS_HOOK" add-guard "$RUNTIME_DIR/tools/bin"
+  log "[deploy] 註冊 UTF-8 env（單一來源管理 Python 子行程編碼）..."
+  "$PY" "$SETTINGS_HOOK" add-env
 }
 
 # ── dispatch ──────────────────────────────────────────────────────────────────

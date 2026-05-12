@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Safely add/remove hooks from ~/.claude/settings.json.
+Safely add/remove hooks + env from ~/.claude/settings.json.
 Cross-platform (macOS, Linux, Windows). Uses atomic write + dedup.
 
 Usage:
@@ -8,6 +8,8 @@ Usage:
   python3 gendoc-settings-hook.py remove                   # SessionStart hook
   python3 gendoc-settings-hook.py add-guard <tools_dir>    # 3 guard hooks
   python3 gendoc-settings-hook.py remove-guard             # 3 guard hooks
+  python3 gendoc-settings-hook.py add-env                  # UTF-8 env (one-shot)
+  python3 gendoc-settings-hook.py remove-env               # UTF-8 env
 """
 import json, os, sys, tempfile
 
@@ -201,6 +203,54 @@ def cmd_remove_guard():
     print(f"[gendoc-hook] 已移除 {removed} 個 guard hook entries")
 
 
+# ── UTF-8 env (single source for all Python subprocesses Claude Code spawns) ──
+#
+# Claude Code injects ~/.claude/settings.json `env` into every spawned
+# subprocess (Bash tool, hook scripts, inline python3). Setting
+# PYTHONIOENCODING=utf-8 + PYTHONUTF8=1 here once removes the need for any
+# individual script to call sys.stdout.reconfigure(encoding="utf-8") — new
+# Python scripts added later "just work" on Windows cp950 / cp936 terminals.
+#
+# Merge-style: respects pre-existing `env` keys the user set themselves,
+# only writes our two keys if absent (or with our exact value).
+
+ENV_KEYS = {
+    "PYTHONIOENCODING": "utf-8",
+    "PYTHONUTF8": "1",
+}
+
+
+def cmd_add_env():
+    data = load()
+    env = data.setdefault("env", {})
+    added, kept = [], []
+    for k, v in ENV_KEYS.items():
+        if env.get(k) == v:
+            kept.append(k)
+        else:
+            env[k] = v
+            added.append(k)
+    save(data)
+    if added:
+        print(f"[gendoc-hook] env 已寫入：{', '.join(added)}")
+    if kept:
+        print(f"[gendoc-hook] env 已存在略過：{', '.join(kept)}")
+
+
+def cmd_remove_env():
+    data = load()
+    env = data.get("env", {})
+    removed = []
+    for k, v in ENV_KEYS.items():
+        if env.get(k) == v:
+            del env[k]
+            removed.append(k)
+    if "env" in data and not data["env"]:
+        del data["env"]
+    save(data)
+    print(f"[gendoc-hook] env 已移除：{', '.join(removed) if removed else '無'}")
+
+
 # ── dispatch ──────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -217,6 +267,10 @@ if __name__ == "__main__":
         cmd_add_guard(sys.argv[2])
     elif action == "remove-guard":
         cmd_remove_guard()
+    elif action == "add-env":
+        cmd_add_env()
+    elif action == "remove-env":
+        cmd_remove_env()
     else:
-        print("用法：gendoc-settings-hook.py {add <command>|remove|add-guard <tools_dir>|remove-guard}")
+        print("用法：gendoc-settings-hook.py {add <command>|remove|add-guard <tools_dir>|remove-guard|add-env|remove-env}")
         sys.exit(1)
