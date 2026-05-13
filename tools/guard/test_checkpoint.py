@@ -8,6 +8,11 @@
 - 有 checkpoint + 任一 empty commit → BLOCK
 - 有 checkpoint + 非 git repo → PASS
 - Checkpoint 一次性消耗（用過再 rm 應 BLOCK）
+
+新增（2026-05-13）— Windows cp950 / rebase edge case 修補後：
+- git binary missing（FileNotFoundError）→ PASS（信 checkpoint）
+- invalid baseline → BLOCK 但 checkpoint **不被消耗**（用戶可修完 root cause 重試）
+- invalid baseline → 修正 baseline → 重試 PASS（驗證 single-pass 而非 single-shot）
 """
 from __future__ import annotations
 
@@ -173,7 +178,7 @@ def main():
     if not case_with_repo('checkpoint+invalid-baseline', False, setup_bad_baseline):
         fails += 1
 
-    # 8. Checkpoint 一次性消耗：第一次 PASS，第二次 BLOCK
+    # 8. Checkpoint 一次性消耗：第一次 PASS，第二次 BLOCK（sanity 通過時的 single-shot）
     print('\n[一次性消耗驗證]')
     cwd0 = os.getcwd()
     tmp, init_sha = _setup_git_repo()
@@ -184,7 +189,73 @@ def main():
         r2 = b.evaluate_bash(CLEANUP_CMD)
         ok = (r1 is None) and (r2 is not None)
         mark = '✅' if ok else '❌'
-        print(f'  {mark} [single-use] 1st={r1}  2nd={r2}')
+        print(f'  {mark} [single-use-on-pass] 1st={r1}  2nd={r2}')
+        if not ok:
+            fails += 1
+    finally:
+        os.chdir(cwd0)
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    # 9. Layer 1: git binary missing（FileNotFoundError）→ PASS（信 checkpoint）
+    print('\n[Layer 1: FileNotFoundError → PASS]')
+    cwd0 = os.getcwd()
+    tmp, init_sha = _setup_git_repo()
+    try:
+        _write_guard(start_commit=init_sha)
+        _write_checkpoint()
+        # Monkey-patch subprocess.check_output → FileNotFoundError
+        original_check_output = b.subprocess.check_output
+        def fake_no_git(*args, **kwargs):
+            raise FileNotFoundError("No such file: git")
+        b.subprocess.check_output = fake_no_git
+        try:
+            result = b.evaluate_bash(CLEANUP_CMD)
+            ok = result is None
+        finally:
+            b.subprocess.check_output = original_check_output
+        mark = '✅' if ok else '❌'
+        print(f'  {mark} [git-missing] result={result}  want=PASS')
+        if not ok:
+            fails += 1
+    finally:
+        os.chdir(cwd0)
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    # 10. Layer 2: invalid baseline → BLOCK 且 checkpoint **不被消耗**
+    print('\n[Layer 2: sanity-fail → checkpoint 保留]')
+    cwd0 = os.getcwd()
+    tmp, init_sha = _setup_git_repo()
+    try:
+        _write_guard(start_commit='deadbeef' * 5)  # 不可達 baseline
+        _write_checkpoint()
+        result = b.evaluate_bash(CLEANUP_CMD)
+        checkpoint_preserved = os.path.isfile('.gendoc-guard-checkpoint')
+        ok = (result is not None) and checkpoint_preserved
+        mark = '✅' if ok else '❌'
+        print(
+            f'  {mark} [bad-baseline-preserves-ckpt] '
+            f'block={result is not None} ckpt_preserved={checkpoint_preserved}'
+        )
+        if not ok:
+            fails += 1
+    finally:
+        os.chdir(cwd0)
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    # 11. Layer 2 end-to-end: bad baseline → BLOCK → 修 baseline → 重試 PASS
+    print('\n[Layer 2: 修完 root cause 可重試]')
+    cwd0 = os.getcwd()
+    tmp, init_sha = _setup_git_repo()
+    try:
+        _write_guard(start_commit='deadbeef' * 5)
+        _write_checkpoint()
+        r1 = b.evaluate_bash(CLEANUP_CMD)  # 1st: bad → BLOCK
+        # User fixes baseline by updating guard file
+        _write_guard(start_commit=init_sha)
+        r2 = b.evaluate_bash(CLEANUP_CMD)  # 2nd: fixed → PASS（checkpoint 還在）
+        ok = (r1 is not None) and (r2 is None)
+        mark = '✅' if ok else '❌'
+        print(f'  {mark} [retry-after-fix] 1st-blocked={r1 is not None}  2nd-passed={r2 is None}')
         if not ok:
             fails += 1
     finally:
@@ -192,7 +263,7 @@ def main():
         shutil.rmtree(tmp, ignore_errors=True)
 
     print('\n' + '=' * 78)
-    print(f'TOTAL: {8 - fails} PASS / {fails} FAIL')
+    print(f'TOTAL: {11 - fails} PASS / {fails} FAIL')
     print('=' * 78)
     return 0 if fails == 0 else 1
 

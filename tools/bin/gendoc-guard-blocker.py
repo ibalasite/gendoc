@@ -85,7 +85,9 @@ def no_fake_commits() -> bool:
     - 0 commit since baseline → True（沒做事也算合理結束）
     - 全部 commit 都有實質 diff → True
     - 任一 empty commit → False（假做事）
-    - 取不到 baseline / git 失敗 / 非 git repo → True（信 checkpoint）/ False（保守）
+    - 取不到 baseline / 非 git repo → True（信 checkpoint）
+    - git binary 缺失（FileNotFoundError）→ True（純環境問題，無法做假也無法驗證）
+    - git 回 non-zero（CalledProcessError，例如 baseline 被 rebase）→ False（保守）
     """
     try:
         guard = json.load(open(GUARD_FILE, encoding='utf-8'))
@@ -100,8 +102,12 @@ def no_fake_commits() -> bool:
             ['git', 'rev-list', f'{start}..HEAD'],
             stderr=subprocess.DEVNULL,
         ).decode().strip()
+    except FileNotFoundError:
+        # git 不在 PATH（Windows native 常見）→ 無法驗證但也無法做假 → 信 checkpoint
+        return True
     except Exception:
-        return False  # baseline 不可達 / rebase 過 → 保守拒絕
+        # git 存在但 baseline 不可達 / rebase 過 → 保守拒絕
+        return False
     commits = [c for c in rev_out.split('\n') if c.strip()]
     if not commits:
         return True  # 0 commit → pass
@@ -111,8 +117,10 @@ def no_fake_commits() -> bool:
                 ['git', 'show', '--shortstat', '--format=', c],
                 stderr=subprocess.DEVNULL,
             ).decode().strip()
+        except FileNotFoundError:
+            return True   # git 中途消失（極罕見），與上同理
         except Exception:
-            return False
+            return False  # git 存在但拒看 commit → 保守
         if not stat:
             return False  # empty commit = 假做事
     return True
@@ -146,16 +154,17 @@ def evaluate_bash(cmd: str) -> str | None:
     """Return BLOCK reason (str) or None if PASS. Single source of truth."""
     # ── Cleanup checkpoint exemption（在所有規則最前面）
     # Wrapper Step 3a 寫 checkpoint，3b 跑 rm。3b 的 cmd 含保護檔名會
-    # 走到這裡——若 checkpoint 存在且 sanity 通過，放行該 cmd 一次。
+    # 走到這裡——sanity 通過才消耗 checkpoint 並放行；若 sanity fail
+    # 不消耗 checkpoint，讓使用者修完 root cause 後可重試（避免 user
+    # 一次失敗就要手動刪 .gendoc-guard.json 才能脫困）。
     if any(pf in cmd for pf in PROTECTED_FILES):
-        if os.path.isfile(CHECKPOINT_FILE):
+        if os.path.isfile(CHECKPOINT_FILE) and no_fake_commits():
             try:
-                os.remove(CHECKPOINT_FILE)  # 一次性消耗
+                os.remove(CHECKPOINT_FILE)  # sanity OK 才消耗
             except Exception:
                 pass
-            if no_fake_commits():
-                return None
-            # sanity fail → 落入下面 T1-A
+            return None
+        # 沒 checkpoint / sanity fail → 落入下面 T1-A
     # T1-A：保護檔名 substring（最強）
     for pf in PROTECTED_FILES:
         if pf in cmd:
