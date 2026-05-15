@@ -390,12 +390,13 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 
 CI Pipeline 測試閘門（必須定義每個觸發條件）：
 
-```
-PR Created → Unit Test → Integration Test → SAST Scan → Build
-PR Merged  → E2E Test (Staging) → Smoke Test (Staging)
-Nightly    → Load Test + Security DAST
-Weekly     → Soak Test + Stress Test + Full Security Scan
-Release    → Soak Test + Stress Test + UAT Gate
+```mermaid
+flowchart TD
+  PR_Created["PR Created"] --> Unit["Unit Test"] --> Integration["Integration Test"] --> SAST["SAST Scan"] --> Build["Build"]
+  PR_Merged["PR Merged"] --> E2E["E2E Test\n(Staging)"] --> Smoke["Smoke Test\n(Staging)"]
+  Nightly["Nightly"] --> Load["Load Test\n+ Security DAST"]
+  Weekly["Weekly"] --> SoakW["Soak Test\n+ Stress Test\n+ Full Security Scan"]
+  Release["Release"] --> SoakR["Soak Test\n+ Stress Test\n+ UAT Gate"]
 ```
 
 測試執行時間目標（PR CI 必須在 10 分鐘內完成）：

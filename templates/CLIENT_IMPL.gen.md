@@ -341,21 +341,20 @@ src/
 
 生成每個主要場景的 Node 樹，格式：
 
-```
-[場景名稱] Node 樹：
-Canvas
-  ├── UILayer（Layer: UI）
-  │     ├── TopBar（cc.Node + UITransform）
-  │     │     ├── lblScore（cc.Label）
-  │     │     └── btnPause（cc.Button）
-  │     └── Popup（cc.Node + cc.BlockInputEvents）
-  ├── GameLayer（Layer: Default）
-  │     ├── Player（cc.Node + PlayerController.ts）
-  │     │     ├── Body（cc.Sprite + AnimationComponent）
-  │     │     └── AttackEffect（cc.ParticleSystem）
-  │     └── Enemies（cc.Node 容器）
-  └── BgLayer（Layer: Background）
-        └── Background（cc.TiledMap 或 cc.Sprite）
+```mermaid
+graph TD
+  Canvas --> UILayer["UILayer\n(Layer: UI)"]
+  UILayer --> TopBar["TopBar\n(cc.Node + UITransform)"]
+  TopBar --> lblScore["lblScore\n(cc.Label)"]
+  TopBar --> btnPause["btnPause\n(cc.Button)"]
+  UILayer --> Popup["Popup\n(cc.Node + cc.BlockInputEvents)"]
+  Canvas --> GameLayer["GameLayer\n(Layer: Default)"]
+  GameLayer --> Player["Player\n(cc.Node + PlayerController.ts)"]
+  Player --> Body["Body\n(cc.Sprite + AnimationComponent)"]
+  Player --> AttackEffect["AttackEffect\n(cc.ParticleSystem)"]
+  GameLayer --> Enemies["Enemies\n(cc.Node 容器)"]
+  Canvas --> BgLayer["BgLayer\n(Layer: Background)"]
+  BgLayer --> Background["Background\n(cc.TiledMap 或 cc.Sprite)"]
 ```
 
 規則：
@@ -365,53 +364,50 @@ Canvas
 
 #### Unity WebGL：
 
-```
-Scene Hierarchy：
-[Scene: GameMain]
-  ── GameManager（GameManager.cs）
-  ── AudioManager（AudioManager.cs）
-  ── UIRoot（Canvas, CanvasScaler）
-  │    ├── HUD（HUDController.cs）
-  │    │    ├── ScoreText（TextMeshProUGUI）
-  │    │    └── PauseButton（Button）
-  │    └── PopupPanel（PopupManager.cs）
-  ── GameWorld
-  │    ├── Player（PlayerController.cs, Rigidbody2D, Animator）
-  │    │    └── AttackVFX（ParticleSystem）
-  │    └── EnemySpawner（EnemySpawner.cs）
-  └── Environment
-       └── TileMap（Tilemap, TilemapRenderer）
+```mermaid
+graph TD
+  Scene["Scene: GameMain"] --> GameMgr["GameManager\n(GameManager.cs)"]
+  Scene --> AudioMgr["AudioManager\n(AudioManager.cs)"]
+  Scene --> UIRoot["UIRoot\n(Canvas, CanvasScaler)"]
+  UIRoot --> HUD["HUD\n(HUDController.cs)"]
+  HUD --> ScoreText["ScoreText\n(TextMeshProUGUI)"]
+  HUD --> PauseBtn["PauseButton\n(Button)"]
+  UIRoot --> PopupPanel["PopupPanel\n(PopupManager.cs)"]
+  Scene --> GameWorld["GameWorld"]
+  GameWorld --> Player["Player\n(PlayerController.cs, Rigidbody2D, Animator)"]
+  Player --> AttackVFX["AttackVFX\n(ParticleSystem)"]
+  GameWorld --> EnemySpawner["EnemySpawner\n(EnemySpawner.cs)"]
+  Scene --> Environment["Environment"]
+  Environment --> TileMap["TileMap\n(Tilemap, TilemapRenderer)"]
 ```
 
 #### React：
 
-```
-頁面 / 組件樹：
-<App>（App.tsx, React Router v6）
-  <Layout>（Layout.tsx）
-  │  <Header>（Header.tsx）
-  │  <Outlet />（Router Outlet）
-  │    ├── <HomePage>（pages/HomePage.tsx）
-  │    │    ├── <HeroBanner>（components/HeroBanner.tsx）
-  │    │    └── <FeatureGrid>（components/FeatureGrid.tsx）
-  │    └── <GamePage>（pages/GamePage.tsx）
-  │         ├── <GameCanvas>（components/GameCanvas.tsx）
-  │         └── <GameHUD>（components/GameHUD.tsx）
-  └── <Footer>（Footer.tsx）
+```mermaid
+graph TD
+  App["App\n(App.tsx, React Router v6)"] --> Layout["Layout\n(Layout.tsx)"]
+  Layout --> Header["Header\n(Header.tsx)"]
+  Layout --> Outlet["Outlet\n(Router Outlet)"]
+  Outlet --> HomePage["HomePage\n(pages/HomePage.tsx)"]
+  HomePage --> HeroBanner["HeroBanner\n(components/HeroBanner.tsx)"]
+  HomePage --> FeatureGrid["FeatureGrid\n(components/FeatureGrid.tsx)"]
+  Outlet --> GamePage["GamePage\n(pages/GamePage.tsx)"]
+  GamePage --> GameCanvas["GameCanvas\n(components/GameCanvas.tsx)"]
+  GamePage --> GameHUD["GameHUD\n(components/GameHUD.tsx)"]
+  App --> Footer["Footer\n(Footer.tsx)"]
 ```
 
 #### Vue：
 
-```
-視圖 / 組件樹：
-<App>（App.vue, Vue Router）
-  <RouterView />
-    ├── <HomeView>（views/HomeView.vue）
-    │    ├── <HeroBanner>（components/HeroBanner.vue）
-    │    └── <FeatureList>（components/FeatureList.vue）
-    └── <GameView>（views/GameView.vue）
-         ├── <GameCanvas>（components/GameCanvas.vue）
-         └── <GameHUD>（components/GameHUD.vue）
+```mermaid
+graph TD
+  App["App\n(App.vue, Vue Router)"] --> RouterView["RouterView"]
+  RouterView --> HomeView["HomeView\n(views/HomeView.vue)"]
+  HomeView --> HeroBanner["HeroBanner\n(components/HeroBanner.vue)"]
+  HomeView --> FeatureList["FeatureList\n(components/FeatureList.vue)"]
+  RouterView --> GameView["GameView\n(views/GameView.vue)"]
+  GameView --> GameCanvas["GameCanvas\n(components/GameCanvas.vue)"]
+  GameView --> GameHUD["GameHUD\n(components/GameHUD.vue)"]
 ```
 
 #### HTML5：
@@ -576,13 +572,18 @@ element.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500 });
 
 ### §5.3 動畫狀態機生成規則
 
-若 ANIM.md 描述狀態機則提取後填入 §5.3；否則依 CLIENT_ENGINE 生成基本狀態的狀態轉換文字圖，至少包含以下狀態（視遊戲類型調整）：
+若 ANIM.md 描述狀態機則提取後填入 §5.3；否則依 CLIENT_ENGINE 生成基本狀態的狀態轉換圖，至少包含以下狀態（視遊戲類型調整）：
 
-```
-Idle → Walk（移動觸發）
-Walk → Attack（攻擊觸發）
-Attack → Idle（攻擊結束）
-Any → Die（死亡觸發）
+```mermaid
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Walk : 移動觸發
+  Walk --> Idle : 停止移動
+  Walk --> Attack : 攻擊觸發
+  Attack --> Idle : 攻擊結束
+  Idle --> Die : 死亡觸發
+  Walk --> Die : 死亡觸發
+  Attack --> Die : 死亡觸發
 ```
 
 ### §5.4 動畫效能規範生成規則

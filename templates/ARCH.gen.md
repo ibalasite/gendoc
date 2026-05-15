@@ -160,27 +160,27 @@ type UserService interface {
 
 ### §3 分層設計（含依賴方向）
 
-```
-┌──────────────────────────────────────┐
-│           Controller Layer            │
-│  (HTTP handler / gRPC / WebSocket)   │
-│  → 輸入驗證、路由、不含業務邏輯       │
-├──────────────────────────────────────┤
-│            Service Layer              │
-│  → 業務規則、事務邊界、跨 Repo 協調   │
-├──────────────────────────────────────┤
-│           Repository Layer            │
-│  → DB 操作封裝，只返回 Domain 物件    │
-├──────────────────────────────────────┤
-│         Infrastructure Layer          │
-│  → Redis、NATS、外部 API、Email 等    │
-└──────────────────────────────────────┘
+```mermaid
+flowchart TD
+  CL["Controller Layer\n(HTTP handler / gRPC / WebSocket)\n→ 輸入驗證、路由、不含業務邏輯"]
+  SL["Service Layer\n→ 業務規則、事務邊界、跨 Repo 協調"]
+  RL["Repository Layer\n→ DB 操作封裝，只返回 Domain 物件"]
+  IL["Infrastructure Layer\n→ Redis、NATS、外部 API、Email 等"]
+  DB[(Database)]
 
-依賴方向：Controller → Service → Repository → DB
-         Service → Infrastructure（透過 Interface）
+  CL --> SL
+  SL --> RL
+  RL --> DB
+  SL -->|"透過 Interface"| IL
+
+  style CL fill:#dbeafe,stroke:#3b82f6
+  style SL fill:#dcfce7,stroke:#22c55e
+  style RL fill:#fef9c3,stroke:#eab308
+  style IL fill:#fce7f3,stroke:#ec4899
+```
+
 禁止：Repository 呼叫 Service
 禁止：Controller 直接存取 DB
-```
 
 ### §3.1~§3.3 C4 Model
 
@@ -304,10 +304,14 @@ graph TB
 | Request Transform | Header 注入 Correlation ID | 追蹤 |
 
 Circuit Breaker 狀態機（熔斷器）：
-```
-Closed ──(錯誤率 > 閾值)──► Open ──(等待 Timeout)──► Half-Open
-  ▲                                                       │
-  └──────────────(測試請求成功)──────────────────────────┘
+
+```mermaid
+stateDiagram-v2
+  [*] --> Closed
+  Closed --> Open : 錯誤率 > 閾值（超過10次請求）
+  Open --> HalfOpen : 等待 Timeout（30秒）
+  HalfOpen --> Closed : 測試請求成功
+  HalfOpen --> Open : 測試請求失敗
 ```
 - 錯誤閾值：50%（超過 10 次請求）
 - Open 持續時間：30 秒

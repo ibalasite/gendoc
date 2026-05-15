@@ -256,12 +256,14 @@ _ADMIN_FRAMEWORK（Admin 後台技術棧，下游 ADMIN_IMPL 讀取）：
 | DIP  | Dependency Inversion | （高層模組依賴 Interface；`ApplicationService` 依賴 `IUserRepository`，具體實作由 DI Container 注入）|
 
 **Dependency Rule（依賴方向，必填）**
-```
-Presentation  →  Application  →  Domain  ←  Infrastructure
-                                    ↑
-                          （介面定義在 Domain；
-                           實作在 Infrastructure；
-                           Domain 不引用 Infrastructure）
+
+```mermaid
+graph LR
+  Presentation --> Application
+  Application --> Domain
+  Infrastructure -->|"實作 Domain 介面\n（Domain 不引用 Infrastructure）"| Domain
+  style Domain fill:#dcfce7,stroke:#22c55e
+  style Infrastructure fill:#fce7f3,stroke:#ec4899
 ```
 
 **生成驗證（填完後自我檢查）**：
@@ -1167,14 +1169,17 @@ hpa:
 
 ### §9 CI/CD 設計
 
-```
-GitHub Actions Pipeline：
-  push/PR → main：
-    lint → test（unit + integration，含 coverage 報告）
-    → build Docker image（multi-stage）
-    → deploy to Rancher Desktop k8s（local）
-    → k6 load test（通過 §7 門檻）
-    → build HTML docs → deploy GitHub Pages
+```mermaid
+flowchart TD
+  trigger["push / PR → main"]
+  lint["lint"]
+  test["test\n（unit + integration，含 coverage 報告）"]
+  build["build Docker image\n（multi-stage）"]
+  deploy["deploy to Rancher Desktop k8s\n（local）"]
+  k6["k6 load test\n（通過 §7 門檻）"]
+  docs["build HTML docs\n→ deploy GitHub Pages"]
+
+  trigger --> lint --> test --> build --> deploy --> k6 --> docs
 ```
 
 ### §9.5 Threat Model（STRIDE 分析）

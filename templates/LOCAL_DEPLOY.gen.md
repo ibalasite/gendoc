@@ -512,20 +512,28 @@ LOCAL_DEPLOY.md 必須包含服務啟動和關閉的依賴順序圖：
 
 **啟動順序（Dependency Graph）**：
 
-```
-[Infrastructure Layer]
-  PostgreSQL → Redis → NATS
-          ↓
-[Application Layer]
-  Wait: PostgreSQL ready (pg_isready / SELECT 1)
-  Wait: Redis ready (PING)
-  Wait: NATS ready (health check endpoint)
-          ↓
-  UserService → OrderService → PaymentService
-  (無依賴)    (依賴 UserSvc)  (依賴 OrderSvc)
-          ↓
-[Gateway Layer]
-  API Gateway (等所有 Application Layer 服務通過 /health)
+```mermaid
+flowchart TD
+  subgraph Infra["Infrastructure Layer"]
+    PG["PostgreSQL\n(pg_isready / SELECT 1)"]
+    Redis["Redis\n(redis-cli PING)"]
+    NATS["NATS\n(health check endpoint)"]
+  end
+  subgraph App["Application Layer"]
+    US["UserService\n（無依賴）"]
+    OS["OrderService\n（依賴 UserSvc）"]
+    PS["PaymentService\n（依賴 OrderSvc）"]
+  end
+  subgraph GW["Gateway Layer"]
+    GWay["API Gateway\n（等所有 App Layer /health）"]
+  end
+
+  PG --> US
+  Redis --> US
+  NATS --> US
+  US --> OS
+  OS --> PS
+  PS --> GWay
 ```
 
 **每個服務的就緒判斷（readiness gate）**：
