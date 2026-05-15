@@ -370,3 +370,5 @@ After(async function (this: ApiWorld) {
 | 錯誤路徑覆蓋 | 每個 endpoint 至少有 1 個錯誤 Scenario（4XX/5XX） | 補充錯誤 Scenario |
 | Modulith 架構 BDD | `features/architecture/` 目錄存在，@modulith @p0 Scenario **≥ 5 個**（HC-1 Schema 隔離 / HC-2 Public Interface / HC-3 Event Contract / HC-4 Redis Namespace / HC-5 DAG verify 各至少 1 個）| 依 BDD.md §18 生成缺失 Modulith Feature；5 個 HC 每個至少對應 1 個 Scenario |
 | Event Contract 覆蓋 | @event-contract Scenario 覆蓋所有跨 BC Domain Event consumer pair（來自 EDD §4.6.1，Consumer BC(s) 非空的每個 pair 各對應 ≥1 個 Scenario）| 依 BDD.md §18.3 補充 Pact consumer 驗證 Scenario；若 EDD §4.6.1 缺失先標注 BLOCKED |
+| AI Gencode — Step Definition Stubs | `features/step_definitions/` 目錄存在對應語言的 stub 檔；每個 `.feature` 中的 Given/When/Then 均有對應 stub（`return 'pending'` 或語言等效）；無 step 文字找不到 definition 的錯誤 | 依 §Step Definitions 生成規則補全缺失 stub；`world.{ext}` 和 `hooks.{ext}` 同步生成 |
+| AI Gencode — Step stub 品質 | 每個 stub 含 inline 註解指向對應的 API endpoint（例如 `// POST /api/v1/claim — 見 API.md §5.1.2`）；stub 不含任何業務邏輯實作（只有 pending/TODO） | 為每個 stub 補充 API endpoint 引用注釋 |

@@ -234,6 +234,20 @@ upstream-alignment:
 **Fix**: 在 SCHEMA.md Document Control 補充 `Owning BC / Service` 欄位，標注每張 Table 所屬 BC（與 EDD §3.4 Bounded Context Map 保持一致）；若多張 Table 屬於同一 BC，可在章節標題標注「BC: {BC_NAME}」。
 
 
+### Layer 8: AI Gencode 就緒度（由 AI Codegen Readiness Reviewer 主審，共 2 項）
+
+> 確保 SCHEMA.md 包含讓 AI 直接生成可執行程式碼所需的結構性元素。文件邏輯完整不等於 AI Gencode 就緒。
+
+#### [HIGH] 31 — Seed Data 缺失或不具代表性
+**Check**: SCHEMA.md 是否有 `## Seed Data` 章節？其中每個核心業務表（非純 audit/log 表）是否有 ≥ 2 筆 `INSERT INTO` 範例？範例值是否為真實格式（合法 UUID、ISO 8601 datetime、合法 enum 值），而非 `'xxx'` / `'test'` / `'string'` 等無意義佔位符？INSERT 順序是否滿足 FK 依賴？
+**Risk**: 缺少 seed data，AI codegen 工具必須自行推導初始資料，易生成違反 FK 或 enum 約束的 seed，導致本地環境啟動失敗；人工 debug seed 問題通常需要 30–60 分鐘。
+**Fix**: 依 `SCHEMA.gen.md §Seed Data 生成規則` 補充 Seed Data 章節；確保每個核心表至少有「正常狀態」＋「邊界/特殊狀態」各一筆；INSERT 順序按 FK 依賴排列（父表先於子表）。
+
+#### [HIGH] 32 — Down Migration 缺失或為佔位符
+**Check**: `§8.1 Migration 實作清單` 中每筆 migration 的 `-- Rollback:` 行是否填有**可執行的 SQL**（`DROP TABLE IF EXISTS`、`DROP INDEX IF EXISTS`、`ALTER TABLE DROP COLUMN` 等）？是否存在 `TBD`、空行、或描述性文字而非實際 SQL？
+**Risk**: 缺少 rollback SQL，AI codegen 工具在生成 migration runner 時無法包含 down() 函數，導致 CI rollback 測試無法自動化；生產事故回滾時需人工撰寫 rollback SQL，增加 MTTR。
+**Fix**: 依 `SCHEMA.gen.md §Down Migration 生成規則` 補全每筆 migration 的 `-- Rollback:` 行；確認 DROP 操作順序與 CREATE 相反（先刪有 FK 依賴的表）。
+
 ---
 
 ## Self-Check：章節完整性驗證

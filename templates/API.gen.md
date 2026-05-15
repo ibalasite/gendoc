@@ -160,6 +160,33 @@ API Versioning & Deprecation Policy（§15）、Client SDK & Code Generation（�
 - Response 成功碼（含 JSON 範例）
 - 錯誤回應表格（HTTP Code、Error Code、說明）
 
+**AI Gencode 必要元素（強制，每個 endpoint 均需包含）：**
+
+讀取 `.gendoc-state.json` 的 `lang_stack` 欄位，依語言生成對應的 DTO / Schema 定義，緊接在 Request Body 表格之後。
+
+**lang_stack 對應規則：**
+
+| lang_stack | DTO 格式 | 範例 |
+|-----------|---------|------|
+| `node-ts` / `nextjs` / `nestjs` | TypeScript `interface` | `interface XxxRequest { field: string; }` |
+| `java` / `spring-boot` | Java `record` 或 `@Schema` class | `record XxxRequest(String field) {}` |
+| `python` / `fastapi` / `django` | Pydantic `BaseModel` | `class XxxRequest(BaseModel): field: str` |
+| `go` / `gin` / `echo` | Go `struct` + json tag | `type XxxRequest struct { Field string \`json:"field"\` }` |
+| `php` / `laravel` | PHP FormRequest 或 DTO class | `class XxxRequest extends FormRequest { ... }` |
+| 其他 | 依最接近的語言慣例生成 | — |
+
+**型別對應原則（lang_stack 無關）：**
+- SCHEMA varchar/text → lang 對應字串型別
+- SCHEMA int/bigint → lang 對應整數型別
+- SCHEMA timestamptz → lang 對應字串（格式：ISO 8601）或 datetime 型別
+- SCHEMA enum → lang 對應 enum/union type/const（禁止用裸字串）
+- 選填欄位用該語言的 Optional/nullable 語法標記
+
+**Iron Rule（AI Gencode）**：
+- DTO 欄位型別必須與 SCHEMA.md 欄位型別對應
+- enum 欄位必須用 lang 原生 enum 或等效（禁止裸字串）
+- **禁止**以「見 Request Body 表格」代替 DTO 定義；DTO 必須明確列出所有欄位
+
 **Iron Rule（L2-D）— Per-Endpoint Possible Errors 表格（強制）：**
 
 每個 endpoint block 末尾必須包含「**Possible Errors**」章節，以表格格式列出該 endpoint **特定**的錯誤情境（不得只在全局 §5.1 Error Response Schema 列出）：
@@ -611,6 +638,8 @@ API.md 中的每個請求 endpoint，必須聲明多欄位同時驗證失敗時�
 | 範例值真實 | 所有 example 欄位使用真實格式（非 "string" / "1" / "test"） | 替換為符合業務語義的範例值 |
 | HA Resilience 覆蓋 | §14 HA 核查清單 6 項全部回答（Timeout/Retry/冪等/RateLimit CB/Graceful Shutdown）| 補充缺失說明 |
 | Admin API 完整性（條件） | has_admin_backend=true 時：§18 Admin API 覆蓋 auth/users/roles/audit-logs 全部端點 | 補充缺失端點 |
+| AI Gencode — DTO Schema | 每個 endpoint 有依 lang_stack 生成的 Request/Response DTO（TS interface / Java record / Pydantic / Go struct / PHP DTO）；enum 欄位用語言原生 enum/union；與 SCHEMA 型別對應 | 依 lang_stack 對應規則補充 DTO block |
+| AI Gencode — JSON 範例 | 每個 endpoint 的 Request + Response 均有完整 JSON 範例（非 placeholder，值真實可執行）| 依業務語義補全範例值 |
 
 ### Admin Backend 條件步驟（has_admin_backend=true 時執行）
 

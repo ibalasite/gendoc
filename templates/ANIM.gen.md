@@ -247,6 +247,94 @@ if 無法偵測 → 三個引擎章節全部展開
 
 ---
 
+### Step 11：State Machine Transition Table + TypeScript Class Skeleton（AI Gencode 必要元素，強制）
+
+> **目的**：ANIM.md 的文字描述不足以讓 AI codegen 工具生成正確的 Phaser/遊戲引擎動畫程式碼；必須補充結構化的 transition table 和 class skeleton，供 AI 直接參照生成。
+
+在 ANIM.md 的 `## §11 AI Gencode 參考骨架` 章節（新建）生成以下內容：
+
+**11.1 State Machine Transition Table**
+
+從 §2（骨骼動畫）和 §3（幀動畫）的狀態說明提取所有 state，建立 transition table：
+
+| From State | Trigger Event | To State | Guard Condition | Duration / Timing |
+|-----------|--------------|---------|----------------|------------------|
+| `idle` | `onClick` / `onTouch` | `interacting` | — | 立即 |
+| `interacting` | `animationComplete` | `idle` | 300ms 後 | 自動 |
+| `idle` | `battleStart` | `battle_enter` | arena session active | 立即 |
+| `battle_enter` | `animationComplete` | `battle_active` | — | 600ms 後 |
+| `battle_active` | `battleEnd(win)` | `level_up` | win flag = true | 立即 |
+| `battle_active` | `battleEnd(lose)` | `idle` | win flag = false | 立即 |
+| `idle` | `neglectCheck` | `neglect` | last_trained > NEGLECT_THRESHOLD_DAYS | 立即 |
+| （依實際 PRD 場景繼續補充…）| | | | |
+
+**11.2 TypeScript Class Skeleton（Phaser 3）**
+
+```typescript
+// ── AnimationStateMachine ─────────────────────────────────────────
+// 依 ANIM.md §11.1 Transition Table 實作；每個 state 對應一個 Phaser anim key
+// anim key 命名規則：`{species}-{state}`（例如 `cat-idle`、`cat-battle-active`）
+
+type AnimState =
+  | 'idle'
+  | 'interacting'
+  | 'battle_enter'
+  | 'battle_active'
+  | 'level_up'
+  | 'neglect';
+
+interface AnimTransitionEvent {
+  type: 'onClick' | 'onTouch' | 'animationComplete' | 'battleStart' | 'battleEnd' | 'neglectCheck';
+  payload?: { win?: boolean };
+}
+
+class PetAnimationStateMachine {
+  private current: AnimState = 'idle';
+  private sprite!: Phaser.GameObjects.Sprite;
+  private scene!: Phaser.Scene;
+  private species!: string;   // 動畫 key prefix，例如 'cat'
+
+  constructor(sprite: Phaser.GameObjects.Sprite, scene: Phaser.Scene, species: string) {
+    this.sprite  = sprite;
+    this.scene   = scene;
+    this.species = species;
+    this.playAnim('idle');
+  }
+
+  dispatch(event: AnimTransitionEvent): void {
+    // TODO: 依 §11.1 Transition Table 實作 state 切換邏輯
+    // 每個 case 切換 this.current 並呼叫 this.playAnim(nextState)
+  }
+
+  private playAnim(state: AnimState): void {
+    const key = `${this.species}-${state.replace('_', '-')}`;
+    this.sprite.play(key, true);
+  }
+
+  get currentState(): AnimState { return this.current; }
+}
+
+// ── Phaser Scene Lifecycle Stubs ──────────────────────────────────
+// 實作於 src/game/scenes/PetScene.ts（或對應引擎的 Scene 類別）
+
+function preloadAssets(this: Phaser.Scene, species: string): void {
+  // TODO: 依 §8 資產規格載入 spritesheet
+  // this.load.spritesheet(`${species}-idle`, `assets/sprites/${species}/idle.png`, { frameWidth: 32, frameHeight: 32 });
+}
+
+function createScene(this: Phaser.Scene, species: string): PetAnimationStateMachine {
+  const sprite = this.add.sprite(400, 300, `${species}-idle`);
+  // TODO: 定義所有 anim keys（依 §3 幀動畫清單）
+  return new PetAnimationStateMachine(sprite, this, species);
+}
+
+function updateScene(this: Phaser.Scene, stateMachine: PetAnimationStateMachine): void {
+  // TODO: 通常為空（state machine 為 event-driven）；若需 polling 放此處
+}
+```
+
+---
+
 ## 品質門（Quality Gate）
 
 | 檢查項 | 標準 |
@@ -258,6 +346,8 @@ if 無法偵測 → 三個引擎章節全部展開
 | 引擎代碼 | §7 代碼無裸 placeholder，版本/路徑均已填具體值 |
 | 效能預算 | §9 所有欄位填具體數值，LOD 三級已定義 |
 | 命名規範 | 所有 ID 符合 SKEL-xxx / FRAME-xxx / TWN-xxx / PTL-xxx / SHD-xxx 格式 |
+| AI Gencode — Transition Table | §11.1 Transition Table 存在；所有 PRD P0 狀態均有對應行；Duration/Timing 填具體值 |
+| AI Gencode — TS Class Skeleton | §11.2 TypeScript class skeleton 存在；AnimState type 覆蓋所有狀態；無裸 placeholder |
 
 若任何檢查未通過，在 ANIM.md 末尾附加警告區塊：
 ```markdown

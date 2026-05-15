@@ -235,6 +235,20 @@ upstream-alignment:
 期望：`"ok"` 或 `200`。
 
 
+### Layer N+1: AI Gencode 就緒度（由 AI Codegen Readiness Reviewer 主審，共 2 項）
+
+> 確保 LOCAL_DEPLOY.md 附帶的 secrets.example.env 足夠完整，讓 AI `cp secrets.example.env secrets.env` 後即可啟動，無需人工補推任何環境變數。
+
+#### [HIGH] — secrets.example.env 不完整或含真實密鑰
+**Check**: 專案根目錄是否存在 `secrets.example.env`（或等效的 `.env.example`）？其中是否列出 LOCAL_DEPLOY.md §3（Environment Variables）表格中所有 **Required=Yes** 的變數？所有敏感欄位值是否為假值/placeholder（如 `any-dummy-string`、`replace-me`、空值）而非真實密鑰？是否有任何 JWT secret、API key、encryption key 等真實憑證出現在 example 檔案中？
+**Risk**: `secrets.example.env` 不完整，AI codegen 工具執行 `ai-quickstart.sh` 時缺少必要環境變數導致服務啟動失敗；若含真實密鑰，可能因 git commit 洩漏憑證（即使加入 .gitignore 也有 git history 洩漏風險）。
+**Fix**: 依 `LOCAL_DEPLOY.gen.md §AI Gencode 品質要求` 補全 `secrets.example.env`；對照 §3 env var 表格的每個 Required=Yes 項逐一確認；含生成指令的說明行（如 `# 用 openssl rand -hex 32 生成`）；在 `.gitignore` 確認已排除 `secrets.env`、`*.env`、`.env.*`。
+
+#### [HIGH] — 指令含裸 placeholder 無法直接執行
+**Check**: LOCAL_DEPLOY.md 所有 shell 指令（`kubectl apply`、`helm install`、`pnpm install` 等）是否可直接 copy-paste 執行，無需替換任何 `<placeholder>`、`YOUR_VALUE`、`{REPLACE_ME}` 等手動填寫項？所有 k8s 資源名稱、namespace、image tag 是否使用具體預設值或以 `$ENV_VAR` 方式注入？
+**Risk**: 裸 placeholder 導致 AI codegen 工具執行指令時語法錯誤（kubectl 收到未替換的 `<namespace>` 會報 flag parse error）；新工程師平均需要 20–40 分鐘找出所有需要替換的 placeholder。
+**Fix**: 將所有裸 placeholder 替換為具體預設值（如 `<namespace>` → `pixel-pet-arena-local`）或以 `$K8S_NAMESPACE` env var 方式注入（在 secrets.example.env 提供 `K8S_NAMESPACE=pixel-pet-arena-local` 預設值）。
+
 ---
 
 ## Self-Check：章節完整性驗證

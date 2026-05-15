@@ -208,6 +208,20 @@ pass-conditions:
 **Fix**: 補充 ANIM-T-SHADER 跨平台截圖對比測試。
 
 
+### Layer N+1: AI Gencode 就緒度（由 AI Codegen Readiness Reviewer 主審，共 2 項）
+
+> 確保 ANIM.md 包含讓 AI 直接生成遊戲引擎動畫程式碼所需的結構性元素。純文字描述不足以讓 AI 生成正確的狀態機實作。
+
+#### [CRITICAL] — State Machine Transition Table 缺失
+**Check**: ANIM.md 的 `§11 AI Gencode 參考骨架`（或等效章節）是否包含完整的 State Machine Transition Table？是否所有 PRD P0 遊戲狀態均有對應行（From State / Trigger Event / To State / Guard Condition / Duration）？Duration/Timing 欄位是否填有具體數值（非 TBD 或文字描述）？
+**Risk**: 缺少 Transition Table，AI codegen 工具無法推導正確的狀態切換邏輯，易生成遺漏 Guard Condition 或 timing 錯誤的 state machine；遊戲狀態機 bug 通常難以用 unit test 捕捉，需人工逐幀調試（2-4 小時/bug）。
+**Fix**: 依 `ANIM.gen.md §Step 11` 從 §2（骨骼動畫）和 §3（幀動畫）的狀態說明提取所有 state，補充完整 Transition Table；確認 Duration 欄填有具體毫秒數或事件名稱。
+
+#### [CRITICAL] — TypeScript Class Skeleton 缺失（Phaser 3 專案）
+**Check**: ANIM.md 的 `§11.2` 是否包含 TypeScript class skeleton（`AnimState` type、`PetAnimationStateMachine class`、`preloadAssets`、`createScene`、`updateScene` 函數骨架）？`AnimState` union type 是否覆蓋所有 Transition Table 中的 state？skeleton 是否含 `// TODO:` 指引而非空殼？
+**Risk**: 缺少 class skeleton，AI codegen 工具必須從零設計 Phaser scene 架構，易生成不符合 Phaser 3 lifecycle 的程式碼（如在 constructor 而非 create() 建立 sprite）；Phaser 架構錯誤通常在 headless E2E 測試中才會發現，修復成本高。
+**Fix**: 依 `ANIM.gen.md §Step 11.2` 生成完整 TypeScript class skeleton；確認 `AnimState` 覆蓋所有 Transition Table 中的狀態；`dispatch()` 方法含 transition table 的 TODO 指引。
+
 ---
 
 ## Self-Check：章節完整性驗證

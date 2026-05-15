@@ -265,6 +265,20 @@ upstream-alignment:
 **Fix**: 在 §14 HA 核查清單補充「Event Consumer 冪等性：消費前先查 `processed_event_id`，已處理則直接 ACK 不執行業務邏輯」；引用 EDD §3.4 Domain Event Schema 的 `event_id` 欄位。
 
 
+### Layer 10: AI Gencode 就緒度（由 AI Codegen Readiness Reviewer 主審，共 2 項）
+
+> 確保 API.md 包含讓 AI 直接生成對應語言 controller/handler skeleton 所需的結構性元素。
+
+#### [HIGH] 37 — 缺少 DTO Schema 定義（lang_stack 對應語言）
+**Check**: 每個 endpoint block 是否包含依 `lang_stack` 生成的 Request/Response DTO 定義（TypeScript `interface`、Java `record`、Python Pydantic `BaseModel`、Go `struct`、PHP DTO 等）？DTO 欄位是否與 SCHEMA.md 欄位型別對應（varchar → string、int → number、timestamptz → ISO 8601 string、enum → 語言原生 enum/union）？是否有用裸字串代替 enum 欄位？
+**Risk**: 缺少 DTO Schema，AI codegen 工具必須從 Request Body 表格自行推導型別，易生成型別不安全的程式碼（如 any、object、dict）；enum 欄位若用裸字串，靜態分析工具無法驗證合法值，需人工 review 每個賦值。
+**Fix**: 依 `API.gen.md §AI Gencode 必要元素` 的 `lang_stack 對應規則`，為每個 endpoint 補充 DTO block；確認 enum 欄位使用語言原生 enum/union；選填欄位使用該語言的 Optional/nullable 語法。
+
+#### [MEDIUM] 38 — JSON 範例缺失或含無意義佔位符
+**Check**: 每個 endpoint 是否同時提供 Request **和** Response 的完整 JSON 範例（非僅描述欄位）？範例值是否為業務語義真實格式（非 `"string"`、`"1"`、`true`、`null` 等無意義值）？錯誤 Response 是否有至少一個 `{ "code": "...", "message": "..." }` 格式的範例？
+**Risk**: 缺少真實 JSON 範例，AI codegen 工具生成的 mock server / test fixture 使用無意義值，導致 E2E 和 integration test 使用不真實的測試資料，掩蓋邊界條件 bug。
+**Fix**: 為每個缺少 JSON 範例的 endpoint 補充 Request + Response 範例；值從 `SCHEMA.md §Seed Data` 的真實資料中取樣（確保 JSON 範例與 seed data 一致）；error response 範例從 `§5 Error Handling` 取對應的 error code。
+
 ---
 
 ## Self-Check：章節完整性驗證

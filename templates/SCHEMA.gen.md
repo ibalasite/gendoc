@@ -382,6 +382,53 @@ ZPOPMIN matchmaking:queue:standard
 
 ---
 
+## Seed Data 生成規則（AI Gencode 必要元素，強制）
+
+> **目的**：讓 AI codegen 工具能直接使用 seed 資料初始化本地資料庫，無需人工推導測試資料。
+
+在 SCHEMA.md 的 `## Seed Data` 章節（若不存在則建立）生成下列內容：
+
+1. 每個核心業務表（非純 audit/log 表）至少產生 **2-3 筆具代表性 INSERT**
+2. INSERT 必須覆蓋：**正常狀態**（最常見使用情境）+ **至少一種邊界/特殊狀態**（如 banned、archived、max level 等）
+3. 使用真實格式的範例值（UUID、ISO 8601 datetime、合法 enum 值）；禁止 `'xxx'` / `'test'` / `'string'` 等無意義佔位符
+4. INSERT 順序必須滿足 FK 依賴（先插父表，再插子表）
+5. 若有 ENUM type，INSERT 值必須使用已定義的 enum 值
+
+```sql
+-- ===== Seed Data（本地開發 + CI 測試用）=====
+-- 執行前提：所有 migration 已完成（migration up）
+
+-- BC: Identity
+INSERT INTO claim_identities (id, claim_code, email_hash, status, created_at) VALUES
+  ('11111111-0000-0000-0000-000000000001', 'ALPHA01', 'hash_email_a', 'active',   NOW()),
+  ('11111111-0000-0000-0000-000000000002', 'ALPHA02', 'hash_email_b', 'banned',   NOW() - INTERVAL '7 days');
+
+-- BC: Pet（依賴 claim_identities）
+INSERT INTO pets (id, claim_identity_id, name, species, rarity, level, created_at) VALUES
+  ('22222222-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000001', 'Fluffball', 'cat', 'rare',   10, NOW()),
+  ('22222222-0000-0000-0000-000000000002', '11111111-0000-0000-0000-000000000001', 'Zappster',  'dog', 'common',  1, NOW());
+
+-- （依各專案 BC 繼續補充…）
+```
+
+此 Seed Data 區塊同步作為 `docs/db/seed.sql` 的來源（若專案已有 `docs/db/` 目錄則也寫入獨立檔案）。
+
+---
+
+## Down Migration 生成規則（AI Gencode 必要元素，強制）
+
+> **目的**：確保每個 up migration 都有對應的 rollback 路徑，AI codegen 可直接生成 rollback scripts。
+
+`§8.1 Migration 實作清單` 每筆記錄的 `-- Rollback:` 行必須填入**可執行的 SQL**，不得留空或填 `TBD`：
+
+- `CREATE TABLE` → `DROP TABLE IF EXISTS <name> CASCADE;`
+- `CREATE INDEX` → `DROP INDEX IF EXISTS <index_name>;`
+- `ALTER TABLE ADD COLUMN` → `ALTER TABLE <name> DROP COLUMN IF EXISTS <col>;`
+- `CREATE TYPE` → `DROP TYPE IF EXISTS <type_name>;`
+- `ALTER TABLE ADD CONSTRAINT` → `ALTER TABLE <name> DROP CONSTRAINT IF EXISTS <constraint_name>;`
+
+---
+
 ## Quality Gate（生成後自檢，交 Review Agent 前必須全部通過）
 
 在將文件交給 Review Agent 之前，Gen Agent 必須驗證以下項目。**任何一項不合格，必須先修復再繼續**。
@@ -399,3 +446,5 @@ ZPOPMIN matchmaking:queue:standard
 | ER 圖與表格一致 | ERD Mermaid 圖中的表格和欄位與下方文字定義一致 | 修正不一致之處 |
 | HA Replication 覆蓋 | §16 HA 核查清單 5 項全部回答（Replication/讀寫分離/Lag/連線池/Shard Key）| 補充缺失說明 |
 | BC 隔離（HC-1） | Document Control Owning BC 已填；§9.5 跨 BC 引用無 DB-level FK；§16 BC 隔離 4 項已全部通過 | 執行 Step 0，移除跨 BC FK，補充 §9.5 清單 |
+| AI Gencode — Seed Data | `## Seed Data` 章節存在；每個核心表 ≥ 2 筆 INSERT；值為合法具體值（非 xxx/test）；順序滿足 FK | 依 Seed Data 生成規則補寫 |
+| AI Gencode — Down Migration | `§8.1` 每筆 migration 的 `-- Rollback:` 填有可執行 SQL（非空、非 TBD） | 依 Down Migration 生成規則補全 |

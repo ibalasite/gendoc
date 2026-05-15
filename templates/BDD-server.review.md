@@ -172,6 +172,20 @@ upstream-alignment:
 **Fix**: 依 BDD.md §18.1 / §18.2 為各 BC 補充冷啟動 Scenario，Given 設定其他 BC 為 WireMock stub，Then 驗證 ApplicationContext 啟動成功且 health 端點回傳 up。
 
 
+### Layer N+1: AI Gencode 就緒度（由 AI Codegen Readiness Reviewer 主審，共 2 項）
+
+> 確保 BDD feature files 附帶 step definition stubs，讓 AI 可直接填入實作邏輯，無需從零推導 step 對應關係。
+
+#### [HIGH] — Step Definition Stubs 缺失或不完整
+**Check**: `features/step_definitions/`（或 `features/steps/`）目錄是否存在？是否包含對應語言的 stub 檔（`.ts`、`.py`、`.go`、`.java` 等）？每個 `.feature` 檔案中的 Given/When/Then 文字是否都有對應的 stub function（`return 'pending'` 或語言等效）？是否有 step 文字在 stub 中找不到對應（即執行 cucumber 時會出現 undefined step）？
+**Risk**: 缺少 step stubs，AI codegen 工具必須從 Given/When/Then 文字推導函數簽名，易生成簽名不一致的 step（大小寫/空格差異即導致 undefined step）；工程師需手動對應每個 step，通常佔據 BDD 導入初期 30–50% 的時間。
+**Fix**: 依 `BDD-server.gen.md §Step Definitions 生成規則` 為每個 `.feature` 生成對應 stub 檔；每個 stub 函數含 `// TODO: 實作參見 API.md §<section>` 的指引；`world.{ext}` 和 `hooks.{ext}` 同步生成。
+
+#### [MEDIUM] — Step Stubs 缺少 API 引用注釋
+**Check**: 每個 step stub 函數是否含 inline 注釋，指向對應的 API endpoint（例如 `// POST /api/v1/claim — 見 API.md §5.1.2`）？若 step 對應的是資料庫狀態設定（Given），是否有注釋指向對應的 SCHEMA.md table？
+**Risk**: 缺少 API 引用注釋，工程師在填入 step 實作時需重新查閱 API.md，增加上下文切換成本；AI codegen 工具在補全 step 時可能呼叫錯誤的 API endpoint（路徑/method 不符）。
+**Fix**: 為每個 step stub 補充 1 行 inline 注釋，格式：`// <HTTP_METHOD> <path> — 見 API.md §<section>`；Given 步驟補充：`// DB: <table_name> — 見 SCHEMA.md §<section>`。
+
 ---
 
 ## Self-Check：BDD-server 完整性驗證

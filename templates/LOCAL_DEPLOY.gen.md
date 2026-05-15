@@ -569,6 +569,8 @@ LOCAL_DEPLOY.md 必須包含服務啟動和關閉的依賴順序圖：
 | Docker Compose 單一 port（has_admin_backend=true）| §19 含 nginx proxy service + nginx.conf + 驗證指令（含 /admin deep link reload 驗證）| 依 §19.1 補充 nginx proxy 方案 |
 | Ephemeral 密碼 Bootstrap | §3.5 Secret Bootstrap 存在；bootstrap-secrets.sh + bootstrap-secrets.ps1 使用 `openssl rand`（非靜態值）；`.gitignore` 涵蓋 `*.env`、`secrets.env` | 補寫 §3.5，修正 bootstrap script 使用隨機生成 |
 | 無 .env 進 git | `.gitignore` 包含 `*.env`、`secrets.env`、`.env.*` 規則 | 在 .gitignore 補充缺漏規則 |
+| AI Gencode — secrets.example.env 完整性 | `secrets.example.env` 存在；每個 Required 環境變數都有對應行；值全為假值/placeholder（無真實密鑰）；有一行 `cp secrets.example.env secrets.env` 說明 | 依 §3 env var 表格重新生成 secrets.example.env 完整清單 |
+| AI Gencode — 指令 copy-paste 可執行 | 所有 `kubectl apply`、`helm install`、`pnpm install` 等指令可直接執行，無需人工替換任何 `<placeholder>` | 將所有裸 placeholder 替換為具體預設值或以 env var 方式注入 |
 
 ---
 
