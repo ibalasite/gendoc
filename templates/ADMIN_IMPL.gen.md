@@ -531,6 +531,87 @@ location /api/admin/ {
 
 ---
 
+## §Auth 雙因子認證（2FA）登入流程骨架（has_admin_backend=true 強制）
+
+> **觸發條件**：`has_admin_backend = true`（有後台的任何專案）。
+> **通用原則**：不綁定 TOTP 實作，具體 2FA 方式依 SCHEMA.md admin table 欄位決定（totp / sms_otp / email_otp）。
+
+### 兩步驟登入架構
+
+```
+Step 1 — 帳密驗證：
+  POST {admin_auth_login_endpoint}    ← 從 API.md §Admin 段讀取實際路徑
+  Request:  { email: string, password: string }
+  Response: { step: '2fa_required', tempToken: string }
+             tempToken 規格：短效期（5min），scope 標記為 '2fa_pending'
+  Error:    401 INVALID_CREDENTIALS
+
+Step 2 — 2FA 驗證（OTP / TOTP / SMS，依 SCHEMA.md admin table 欄位決定）：
+  POST {admin_auth_2fa_endpoint}      ← 從 API.md §Admin 段讀取實際路徑
+  Request:  { tempToken: string, otp_code: string }
+  Response: { accessToken: string（15min）, expiresIn: 900 }
+             + Set-Cookie: refreshToken=...（7d, HttpOnly, Secure, SameSite=Strict）
+  Error:    401 INVALID_OTP / 401 TOKEN_EXPIRED
+```
+
+### 前端骨架（lang_stack 分支）
+
+**lang_stack = TypeScript（Vue 3 / React）**：
+
+```typescript
+// 登入頁面核心邏輯（Vue 3 Composition API 示意，React 同理）
+const loginStep = ref<'password' | '2fa'>('password');
+const tempToken  = ref('');
+const otpCode    = ref('');
+
+async function submitPassword(email: string, password: string) {
+  const { data } = await api.post('{admin_auth_login_endpoint}', { email, password });
+  // endpoint 從 API.md §Admin 段讀取，不硬碼
+  if (data.step === '2fa_required') {
+    tempToken.value = data.tempToken;
+    loginStep.value = '2fa';
+  }
+}
+
+async function submit2FA() {
+  const { data } = await api.post('{admin_auth_2fa_endpoint}', {
+    tempToken: tempToken.value,
+    otp_code:  otpCode.value,
+  });
+  // 依 stores 結構（Pinia / Zustand）存入 accessToken
+  authStore.setToken(data.accessToken, data.expiresIn);
+  router.push('/dashboard');
+}
+```
+
+**Session Refresh 骨架（lang_stack 分支）**：
+
+```typescript
+// TypeScript → axios response interceptor
+api.interceptors.response.use(undefined, async (error) => {
+  if (error.response?.status === 401 && !error.config._retry) {
+    error.config._retry = true;
+    // 使用 HttpOnly cookie 換新 accessToken（endpoint 從 API.md 讀取）
+    await api.post('{admin_auth_refresh_endpoint}');
+    return api(error.config);
+  }
+  return Promise.reject(error);
+});
+```
+
+```java
+// Java（Spring Security）→ OncePerRequestFilter
+// 在 doFilterInternal 中：若 JWT 過期 → 讀 refreshToken cookie → 換新 accessToken → 重試
+```
+
+### 生成規則（鐵律）
+
+- `{admin_auth_login_endpoint}` 等佔位符必須替換為 API.md §Admin 段的真實路徑
+- 2FA 欄位名稱（`otp_code` / `totp_code` / `sms_code`）依 SCHEMA.md admin table 欄位決定
+- 若 SCHEMA.md admin table 無 2FA 相關欄位 → 兩步驟簡化為單步驟（省略 step 2）
+
+---
+
 ## Quality Gate（生成完成後自我驗證）
 
 ```
@@ -548,6 +629,8 @@ location /api/admin/ {
 ✅ §13 國際化：若專案多語言，語言代碼表格已填入完整語言清單；若單語言，已填入「本專案單語言，略過此節」，無殘留 {{其他語言}} placeholder
 ✅ §14 效能目標：bundle size 有具體數值（< 150KB gzipped）+ 首屏時間（< 2s）+ 無殘留 {{N}} placeholder
 ✅ Self-Check Checklist 全部通過（14/14）（Step 17 = AI 生成時自查（14 項，#9 拆分為 9a/9b）；骨架 §16 = 開發者交付前驗收自查（13 項））
+✅ AI Gencode — §Auth 2FA 骨架：ADMIN_IMPL.md 含兩步驟 login + tempToken 設計；endpoint 路徑引用 API.md（非硬碼）
+✅ AI Gencode — Session Refresh：含對應 lang_stack 的 token refresh 骨架（axios interceptor / Spring Filter 等）
 ```
 
 ---

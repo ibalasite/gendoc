@@ -1041,6 +1041,48 @@ PostgreSQL -->|"PVC: db-data\n100Gi / SSD"| Storage[("PersistentVolume\nStorageC
    - 同一 `topic_name` 只能屬於一個 Owning BC（無重複 topic）
    - 如果 Event 只在 BC 內部使用（non-cross-BC），可標注為 `（BC-internal，不跨 BC 消費）` 並省略
 
+### §4.7 核心演算法規格（Core Algorithm Spec）
+
+**觸發條件**（符合任一即強制生成此 section）：
+- `client_type == game`（遊戲系統必有複雜算法）
+- PRD 含以下關鍵字：「排行榜」「對戰」「隨機」「程序生成」「加密」「雜湊」「積分」「推薦」「匹配」
+- API 中任一 endpoint 涉及 2 個以上 DB table 寫入 + 計算邏輯
+
+**每個核心演算法必須包含以下 6 欄表格**（每個演算法一份）：
+
+| 欄位 | 要求 |
+|------|------|
+| 演算法名稱 | 對應 API endpoint 路徑 或 Domain Service class 名稱（從 API.md / Class Diagram 讀取）|
+| 輸入（Input） | 每個參數：名稱、型別、有效範圍（欄位名稱從 SCHEMA.md 讀取）|
+| 輸出（Output） | 每個回傳值：名稱、型別、格式 |
+| Pseudocode | ≥ 5 行，使用 `lang_stack` 對應語言語法，含邊界條件判斷 |
+| 複雜度 | Time O(?) / Space O(?) |
+| Test Vector | ≥ 2 組具體 input → output 真實數值（可直接貼入 `.test` 檔）|
+
+**PRD 特徵 → 必須生成的演算法規格**（根據 PRD 關鍵字自動識別）：
+
+| PRD 特徵關鍵字 | 必須生成的演算法規格 |
+|--------------|-------------------|
+| 排行榜 / leaderboard | 積分計算規則 + Redis sorted set 操作邏輯（ZADD key score member）|
+| 對戰 / battle / arena | 勝負判定邏輯 + 隨機種子策略（seed 來源 + seeded-RNG 選型）|
+| 程序生成 / procedural | 生成算法 + 對稱/鏡像策略 + seed 固定性保證（相同 seed → 相同結果）|
+| 限流 / rate limit | sliding window 或 token bucket 選一，含 Redis key 結構（來自 SCHEMA.md Redis 欄）|
+| 信用 / 點數 / 積分 | 計算公式 + overflow guard（MAX 值） + underflow guard（MIN=0）|
+| 推薦 / 匹配 | 匹配分數計算公式 + 候選人篩選邏輯（含 ELO/MMR 或等效策略）|
+| 加密 / 雜湊 / token | 算法選型（bcrypt/Argon2/HMAC-SHA256） + 參數（cost factor / key size）|
+
+**Pseudocode 鐵律**：
+- 禁止「// 詳見業務規格」或「// TODO: 實作」作為 pseudocode
+- 必須使用真實 table / column / Redis key 名稱（從 SCHEMA.md 讀取）
+- test vector 必須包含邊界值（0、最大值、空集合、負數等）
+- lang_stack = TypeScript 時：TypeScript 語法；= Java 時：Java 語法；其餘類推
+
+**Quality Gate**（§4.7 相關）：
+- 觸發條件成立時：§4.7 必須存在，且每個核心演算法均有 6 欄
+- Pseudocode ≥ 5 行，≥ 2 組 test vector，含 table/key 真實名稱
+
+---
+
 ### §5 BDD 設計
 
 依 PRD 每個 AC 規劃 Gherkin Scenario：

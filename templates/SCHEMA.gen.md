@@ -429,6 +429,72 @@ INSERT INTO pets (id, claim_identity_id, name, species, rarity, level, created_a
 
 ---
 
+## Admin Seed SQL 生成規則（has_admin_backend=true 時強制）
+
+> **目的**：讓 AI codegen 工具能建立初始 admin 帳號，無需手動生成密碼 hash 或 MFA secret。
+
+**生成方式（讀 SCHEMA.md，不硬碼表名）**：
+
+1. 掃描 SCHEMA.md §Admin BC 下的所有 table，找出 admin user 主表（含 email + password_hash 欄位者）
+2. 若主表含 `totp_secret` / `mfa_secret` / `otp_secret` 等欄位 → 強制附 MFA 初始化說明
+3. 若 SCHEMA 有 admin role table → 補 role INSERT + role assignment INSERT
+4. 密碼 hash 欄位**必須引用 ENV var**，不得硬碼任何 hash 值
+
+**通用 SQL 格式**（table / column 名稱全部從 SCHEMA.md 讀取，以下為佔位示意）：
+
+```sql
+-- ===== Admin Bootstrap Seed（has_admin_backend=true）=====
+-- 執行前提：所有 migration 已完成
+-- ENV 設定：見下方「ENV 注入說明」
+
+-- Step 1：Admin User（table 名稱從 SCHEMA.md §Admin BC 讀取）
+INSERT INTO {admin_user_table}
+  (id, email, password_hash, {mfa_column_if_exists}, status, created_at)
+VALUES (
+  gen_random_uuid(),
+  'admin@example.com',
+  '${ADMIN_PASSWORD_HASH}',     -- bcrypt hash，由 ENV 注入（見下方生成指令）
+  '${ADMIN_MFA_SECRET}',        -- 僅在 schema 有 mfa/totp 欄位時生成此行
+  'active',
+  NOW()
+);
+
+-- Step 2：Admin Roles（若 SCHEMA 有 role table）
+INSERT INTO {admin_role_table} (id, name, description) VALUES
+  (gen_random_uuid(), 'super_admin', '全功能存取'),
+  (gen_random_uuid(), 'operator',   '唯讀 + 操作');
+
+-- Step 3：Role Assignment（若 SCHEMA 有 assignment table）
+INSERT INTO {admin_role_assignment_table} (admin_user_id, role_id)
+  SELECT au.id, ar.id
+  FROM {admin_user_table} au, {admin_role_table} ar
+  WHERE au.email = 'admin@example.com' AND ar.name = 'super_admin';
+```
+
+**ENV 注入說明區塊**（強制附在 SQL 之後）：
+
+```bash
+# 密碼 hash 生成（依 lang_stack 選一）
+# Node.js: node -e "const b=require('bcryptjs');b.hash(process.env.ADMIN_INIT_PASSWORD,12).then(console.log)"
+# Python:  python3 -c "import bcrypt; print(bcrypt.hashpw(b'your_password', bcrypt.gensalt(12)).decode())"
+# Java:    BCrypt.hashpw(password, BCrypt.gensalt(12))
+
+# MFA secret 生成（若 schema 有 mfa/totp 欄位）
+export ADMIN_MFA_SECRET=$(python3 -c "import base64,os; print(base64.b32encode(os.urandom(20)).decode())")
+
+# QR Code URI 格式（掃入 Authenticator App）
+# otpauth://totp/{AppName}:admin@example.com?secret=${ADMIN_MFA_SECRET}&issuer={AppName}
+
+# 第一次登入後強制更換密碼（需系統實作 force_password_change flag）
+```
+
+**生成規則（鐵律）**：
+- `{admin_user_table}` 等佔位符必須替換為 SCHEMA.md 中的真實 table 名稱
+- 若 SCHEMA.md 無 admin table（純 API-only 或無後台），整個 section 跳過
+- MFA 欄位行只在 SCHEMA.md 該 table 確實有此欄位時生成，否則移除
+
+---
+
 ## Quality Gate（生成後自檢，交 Review Agent 前必須全部通過）
 
 在將文件交給 Review Agent 之前，Gen Agent 必須驗證以下項目。**任何一項不合格，必須先修復再繼續**。
@@ -448,3 +514,5 @@ INSERT INTO pets (id, claim_identity_id, name, species, rarity, level, created_a
 | BC 隔離（HC-1） | Document Control Owning BC 已填；§9.5 跨 BC 引用無 DB-level FK；§16 BC 隔離 4 項已全部通過 | 執行 Step 0，移除跨 BC FK，補充 §9.5 清單 |
 | AI Gencode — Seed Data | `## Seed Data` 章節存在；每個核心表 ≥ 2 筆 INSERT；值為合法具體值（非 xxx/test）；順序滿足 FK | 依 Seed Data 生成規則補寫 |
 | AI Gencode — Down Migration | `§8.1` 每筆 migration 的 `-- Rollback:` 填有可執行 SQL（非空、非 TBD） | 依 Down Migration 生成規則補全 |
+| AI Gencode — Admin Seed SQL | has_admin_backend=true 時：admin user + role + assignment INSERT 均存在；password_hash 欄引用 ENV 不硬碼 | 依 Admin Seed SQL 生成規則補寫 |
+| AI Gencode — MFA Init 說明 | admin table 含 mfa/totp 欄位時：seed SQL 後附 ENV 生成指令 + QR URI 格式說明 | 補充 ENV 注入說明區塊 |

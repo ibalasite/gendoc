@@ -356,6 +356,218 @@ After(async function (this: ApiWorld) {
 
 ---
 
+## §A World Fixture Factory（AI Gencode 強制）
+
+> **目的**：讓 AI codegen 能生成可執行的 Given step，直接 seed DB 前置資料，不依賴人工推斷。
+
+### §A.1 World 介面（具體版，非 TODO）
+
+以下為 world.ts 的**完整實作介面**，替換上方 TODO 骨架中的 `db` 定義。
+
+`db` 的完整介面：
+
+```typescript
+// FixtureMap key = SCHEMA.md §BC ownership 的 BC 名稱（不寫死）
+interface FixtureMap {
+  [bcName: string]: Record<string, unknown>[];
+}
+
+interface DbHelper {
+  // 依 SCHEMA.md FK 順序 INSERT 測試資料
+  seed(map: FixtureMap): Promise<void>;
+  // TRUNCATE 所有 business tables（排除 audit/log tables）
+  clean(): Promise<void>;
+  // 供 Then step 直接查 DB 驗證狀態
+  query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<{ rows: T[] }>;
+}
+```
+
+`redis` 的介面（**SCHEMA.md 含 Redis key pattern 時才生成**）：
+
+```typescript
+interface RedisHelper {
+  set(key: string, value: string, ttl?: number): Promise<void>;
+  get(key: string): Promise<string | null>;
+  del(key: string): Promise<void>;
+}
+```
+
+Auth helper 介面（**強制**）：
+
+```typescript
+interface AuthHelper {
+  // role 名稱從 SCHEMA.md role table 讀取（不寫死 'admin'/'player'）
+  loginAs(role: string, overrides?: Record<string, unknown>): Promise<string>; // 回傳 JWT
+  // has_admin_backend=true 時生成
+  loginAsAdmin(email: string, password: string, otpCode?: string): Promise<string>;
+}
+```
+
+World 必備屬性（**依 SCHEMA.md 主鍵欄位動態生成**）：
+
+```typescript
+// 通用屬性
+lastResponse: { status: number; body: unknown };
+authToken: string | null;
+// 每個 BC 的主鍵屬性，依 SCHEMA.md 生成
+// 例：petId, userId, listingId — 名稱從 SCHEMA.md 各 BC 主表讀取
+db: DbHelper;
+redis?: RedisHelper;  // SCHEMA.md 含 Redis 時生成
+auth: AuthHelper;
+```
+
+### §A.2 Fixture 資料規則（通用鐵律）
+
+| 規則 | 說明 |
+|------|------|
+| UUID 格式 | `'{domain_prefix}-{sequence:03}'`，如 `'user-001'`，確保跨 scenario 不衝突 |
+| 時間欄位 | `new Date().toISOString()`，禁止硬碼字串 |
+| ENUM 值 | 必須使用 SCHEMA.md 中已定義的合法 enum 值 |
+| 禁止 PII | 使用 `test@example.com`、`test-user-001` 等明顯測試資料 |
+| FK 順序 | seed() 依 SCHEMA.md FK 依賴順序執行（parent BC 先插） |
+| 禁止共享狀態 | 每個 scenario 必須獨立 seed，Before hook 呼叫 clean() |
+
+### §A.3 Before Hook（具體版）
+
+```typescript
+// hooks.ts — 具體版
+BeforeAll(async () => {
+  // 1. 建立 DB 連線 pool（連線字串從 ENV 讀取）
+  // 2. 執行 migration（若 test DB 未 up）
+  // 3. SCHEMA.md 含 Redis 時：await redis.flushDb()（測試用 DB，非生產 DB）
+});
+
+Before(async function (this: AppWorld) {
+  await this.db.clean();  // TRUNCATE 所有 business tables
+  // SCHEMA.md 含 Redis：可選擇 flushDb 或逐 key 清理
+});
+
+AfterAll(async () => {
+  // 關閉 DB pool + Redis client
+});
+```
+
+---
+
+## §B Step Definition 實作配方（AI Gencode 強制）
+
+> **目的**：提供 Given/When/Then 三種 step 的具體程式碼骨架，AI codegen 可直接套用。
+
+### §B.1 Given — 建立前置狀態（fixture seeding）
+
+```typescript
+// 模式：seed DB → 儲存 ID 到 world 供後續 step 使用
+Given('{string} user exists with {string}', async function(this: AppWorld, role, email) {
+  await this.db.seed({
+    // key = SCHEMA.md BC 名稱；欄位名從 SCHEMA.md 對應表讀取
+    identity: [{ id: 'user-001', email, status: 'active', created_at: new Date().toISOString() }],
+  });
+  this.authToken = await this.auth.loginAs(role);
+});
+```
+
+### §B.2 When — 呼叫 API（必須捕獲完整 response）
+
+```typescript
+// 模式：呼叫 API → 捕獲 response（含 4xx/5xx，不 throw）→ 儲存到 world
+When('the client calls {string} {string}', async function(this: AppWorld, method, path) {
+  this.lastResponse = await this.client.request({
+    method: method.toLowerCase() as 'get' | 'post' | 'put' | 'delete' | 'patch',
+    url: path,   // path 從 API.md 讀取（不硬碼）
+    headers: this.authToken ? { Authorization: `Bearer ${this.authToken}` } : {},
+  }).then(r => ({ status: r.status, body: r.data }))
+    .catch(e => ({ status: e.response?.status ?? 0, body: e.response?.data ?? null }));
+});
+```
+
+### §B.3 Then — 斷言 HTTP 狀態 + DB 狀態
+
+```typescript
+// HTTP 狀態斷言
+Then('the response status is {int}', function(this: AppWorld, expectedStatus) {
+  assert.strictEqual(this.lastResponse.status, expectedStatus,
+    `Expected ${expectedStatus}, got ${this.lastResponse.status}: ${JSON.stringify(this.lastResponse.body)}`);
+});
+
+// DB 狀態斷言（直接查 DB 驗證業務結果）
+Then('the {string} record has {string} equal to {string}', async function(
+  this: AppWorld, table, column, expectedValue
+) {
+  // table / column 從 SCHEMA.md 讀取（Cucumber expression 動態傳入）
+  const result = await this.db.query(
+    `SELECT ${column} FROM ${table} WHERE id = $1`,
+    [this.lastEntityId]   // lastEntityId 由 Given step 寫入 world
+  );
+  assert.ok(result.rows.length > 0, `No row found in ${table}`);
+  assert.strictEqual(String(result.rows[0][column]), expectedValue);
+});
+```
+
+### §B.4 Rate Limit Fixture 模式（SCHEMA.md 含 Redis key 時）
+
+```typescript
+// 預填 rate limit 計數器到閾值前一步，讓 When step 直接觸發 429
+Given('{int} requests already made this window', async function(this: AppWorld, count) {
+  // key pattern 從 SCHEMA.md Redis Key Patterns 欄讀取（不硬碼 prefix）
+  const key = `{rate_limit_key_pattern}`.replace('{entityId}', this.lastEntityId);
+  const ttl = Number(process.env['RATE_LIMIT_WINDOW_SECONDS'] ?? 3600);  // 從 CONSTANTS.md 讀取
+  await this.redis!.set(key, String(count), ttl);
+});
+```
+
+### §B.5 Multi-step Response ID 串接模式
+
+```typescript
+// When step 建立資源後，儲存回傳 ID 供後續 step 使用
+When('the client creates a {string}', async function(this: AppWorld, resourceType) {
+  this.lastResponse = await this.client.post(
+    `{endpoint_from_api_md}`,   // endpoint 從 API.md 讀取
+    { /* request body from API.md DTO */ },
+    { headers: { Authorization: `Bearer ${this.authToken}` } }
+  ).then(r => ({ status: r.status, body: r.data }))
+   .catch(e => ({ status: e.response?.status ?? 0, body: e.response?.data ?? null }));
+
+  // 儲存 ID 供後續步驟使用（欄位名從 API.md response schema 讀取）
+  if (this.lastResponse.status === 201) {
+    this.lastEntityId = (this.lastResponse.body as Record<string, string>)['id'];
+  }
+});
+```
+
+---
+
+## §C Redis Fixture（SCHEMA.md 含 Redis 時強制）
+
+> **觸發條件**：SCHEMA.md 存在 `Redis Key Patterns` 或等效 section（描述 Redis key 命名規則）。
+
+### §C.1 Redis Helper 實作骨架
+
+```typescript
+// world.ts — redis 屬性實作骨架
+import { createClient, RedisClientType } from 'redis';
+
+// 在 World constructor 中初始化（BeforeAll 後）
+const redisClient: RedisClientType = createClient({
+  url: process.env['REDIS_TEST_URL'] ?? 'redis://localhost:6379/15',  // DB 15 = 測試專用
+});
+
+this.redis = {
+  set: (key, value, ttl) => ttl
+    ? redisClient.setEx(key, ttl, value).then(() => undefined)
+    : redisClient.set(key, value).then(() => undefined),
+  get: (key) => redisClient.get(key),
+  del: (key) => redisClient.del(key).then(() => undefined),
+};
+```
+
+### §C.2 Key 命名規則
+
+- **嚴格引用** SCHEMA.md 的 Redis key pattern（禁止自行推斷 key 格式）
+- BeforeAll：`await redisClient.flushDb()` — 清空測試用 Redis DB
+- 測試用 DB index 必須與生產 DB index 不同（通常使用 DB 14 / DB 15）
+
+---
+
 ## Quality Gate（生成後自檢，交 Review Agent 前必須全部通過）
 
 在將文件交給 Review Agent 之前，Gen Agent 必須驗證以下項目。**任何一項不合格，必須先修復再繼續**。
@@ -372,3 +584,6 @@ After(async function (this: ApiWorld) {
 | Event Contract 覆蓋 | @event-contract Scenario 覆蓋所有跨 BC Domain Event consumer pair（來自 EDD §4.6.1，Consumer BC(s) 非空的每個 pair 各對應 ≥1 個 Scenario）| 依 BDD.md §18.3 補充 Pact consumer 驗證 Scenario；若 EDD §4.6.1 缺失先標注 BLOCKED |
 | AI Gencode — Step Definition Stubs | `features/step_definitions/` 目錄存在對應語言的 stub 檔；每個 `.feature` 中的 Given/When/Then 均有對應 stub（`return 'pending'` 或語言等效）；無 step 文字找不到 definition 的錯誤 | 依 §Step Definitions 生成規則補全缺失 stub；`world.{ext}` 和 `hooks.{ext}` 同步生成 |
 | AI Gencode — Step stub 品質 | 每個 stub 含 inline 註解指向對應的 API endpoint（例如 `// POST /api/v1/claim — 見 API.md §5.1.2`）；stub 不含任何業務邏輯實作（只有 pending/TODO） | 為每個 stub 補充 API endpoint 引用注釋 |
+| AI Gencode — World fixture interface | world.ts 含完整 `db.seed / db.clean / db.query` 介面定義（非 TODO 占位）；Before hook 呼叫 `db.clean()` | 依 §A.1 World 介面補寫；Before hook 補 clean() 呼叫 |
+| AI Gencode — Step 實作配方 | BDD-server.md 含 §B Given/When/Then 三種具體程式碼骨架（非 TODO）；When step 以 `.catch` 捕獲 4xx/5xx | 依 §B Step Implementation Pattern 補寫 |
+| AI Gencode — Redis fixture（有 Redis 時） | SCHEMA.md 含 Redis key pattern 的專案：world.ts 含 `redis.set/get/del` 介面；BeforeAll 有 flushDb | 依 §C Redis Fixture 補寫 |

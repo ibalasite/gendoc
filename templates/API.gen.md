@@ -203,6 +203,37 @@ API Versioning & Deprecation Policy（§15）、Client SDK & Code Generation（�
 
 **禁止**：只在 §5.1 全局錯誤清單列出錯誤，而 endpoint block 本身無 Possible Errors 表格；禁止在 Possible Errors 表格中填寫與該 endpoint 無關的通用錯誤（例如 GET endpoint 填 409 CONFLICT）。
 
+**業務邏輯步驟（Business Logic Steps）— 複雜 endpoint 強制**
+
+觸發條件（endpoint 符合以下任一即強制）：
+- 涉及 2 個以上 DB table 寫入
+- 涉及 Redis 操作（rate limit / cache / pub-sub）
+- 涉及外部服務呼叫（Email / Payment / SMS 等）
+- 涉及演算法計算（非簡單 CRUD）
+
+格式（numbered list，**每步驟必須標注操作對象**）：
+
+```markdown
+**業務邏輯步驟：**
+
+1. 驗證 JWT → 解析 `{主體 ID 欄位}`（欄位名稱從 SCHEMA.md 讀取）
+2. 查詢 `{table_name}`（FROM SCHEMA.md）確認 `{condition_column}` 符合前置條件
+3. 讀取 Redis `{redis_key_pattern}`（key pattern FROM SCHEMA.md Redis 欄）—— 若計數 ≥ 閾值 → 429 RATE_LIMITED
+4. BEGIN TRANSACTION
+5. INSERT INTO `{table_A}` (`{col1}`, `{col2}`) VALUES (...)（欄位名稱 FROM SCHEMA.md）
+6. UPDATE `{table_B}` SET `{col}` = `{new_value}` WHERE `{pk}` = :id
+7. PUBLISH Domain Event `{EventName}`（名稱 FROM EDD §4.6 Domain Events 表）Payload: `{payload_fields}`
+8. COMMIT
+9. INCR Redis `{redis_key_pattern}` EX `{ttl_seconds}`（TTL FROM CONSTANTS.md）
+10. 回傳 `{HTTP_STATUS}` + `{response_schema_name}`（schema FROM §DTO 定義）
+```
+
+**鐵律**：
+- 步驟中的 table / column / Redis key 名稱必須與 SCHEMA.md **完全一致**（禁止自行推斷名稱）
+- 禁止「驗證業務規則」等模糊描述，必須明確說明**驗證欄位名 + 條件值**
+- BEGIN/COMMIT 必須明確標注哪些步驟在 transaction 內
+- 純 GET（無寫入）endpoint 若無 Redis / 外部呼叫，可省略此 section
+
 **標準錯誤碼覆蓋（per-endpoint 依業務邏輯選用，不強制全部）：**
 
 | HTTP Code | Error Code | 說明 |
@@ -640,6 +671,7 @@ API.md 中的每個請求 endpoint，必須聲明多欄位同時驗證失敗時�
 | Admin API 完整性（條件） | has_admin_backend=true 時：§18 Admin API 覆蓋 auth/users/roles/audit-logs 全部端點 | 補充缺失端點 |
 | AI Gencode — DTO Schema | 每個 endpoint 有依 lang_stack 生成的 Request/Response DTO（TS interface / Java record / Pydantic / Go struct / PHP DTO）；enum 欄位用語言原生 enum/union；與 SCHEMA 型別對應 | 依 lang_stack 對應規則補充 DTO block |
 | AI Gencode — JSON 範例 | 每個 endpoint 的 Request + Response 均有完整 JSON 範例（非 placeholder，值真實可執行）| 依業務語義補全範例值 |
+| AI Gencode — 業務邏輯步驟 | 涉及 2+ table 寫入 / Redis / 外部呼叫 / 演算法的 endpoint 必須有「業務邏輯步驟」numbered list；每步標注操作對象；table/key 名稱與 SCHEMA.md 一致 | 依業務邏輯步驟格式補寫 |
 
 ### Admin Backend 條件步驟（has_admin_backend=true 時執行）
 

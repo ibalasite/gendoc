@@ -268,69 +268,189 @@ if 無法偵測 → 三個引擎章節全部展開
 | `idle` | `neglectCheck` | `neglect` | last_trained > NEGLECT_THRESHOLD_DAYS | 立即 |
 | （依實際 PRD 場景繼續補充…）| | | | |
 
-**11.2 TypeScript Class Skeleton（Phaser 3）**
+**11.2 Engine-Aware Class Skeleton（依 CLIENT_ENGINE 分支）**
+
+> **生成規則**：讀取 `.gendoc-state.json` 的 `client_engine` 欄位，依引擎選擇對應骨架。
+
+**CLIENT_ENGINE = Phaser（Phaser 3）**：
 
 ```typescript
 // ── AnimationStateMachine ─────────────────────────────────────────
-// 依 ANIM.md §11.1 Transition Table 實作；每個 state 對應一個 Phaser anim key
-// anim key 命名規則：`{species}-{state}`（例如 `cat-idle`、`cat-battle-active`）
+// 依 ANIM.md §11.1 Transition Table 實作；每個 state 對應一個引擎 anim key
+// key 命名規則：從 ANIM.md §3 幀動畫清單讀取（不硬碼 key 格式）
 
-type AnimState =
-  | 'idle'
-  | 'interacting'
-  | 'battle_enter'
-  | 'battle_active'
-  | 'level_up'
-  | 'neglect';
+// AnimState = §11.1 所有 "From State" + "To State" 的聯集（從 Transition Table 讀取）
+type AnimState = /* 從 §11.1 Transition Table 讀取，例如：*/
+  | 'idle' | 'interacting' | 'battle_enter' | 'battle_active' | 'level_up' | 'neglect';
 
 interface AnimTransitionEvent {
-  type: 'onClick' | 'onTouch' | 'animationComplete' | 'battleStart' | 'battleEnd' | 'neglectCheck';
-  payload?: { win?: boolean };
+  // type = §11.1 所有 "Trigger Event" 的聯集（從 Transition Table 讀取）
+  type: string;
+  payload?: Record<string, unknown>;
 }
 
-class PetAnimationStateMachine {
+class AnimationStateMachine {
   private current: AnimState = 'idle';
-  private sprite!: Phaser.GameObjects.Sprite;
-  private scene!: Phaser.Scene;
-  private species!: string;   // 動畫 key prefix，例如 'cat'
+  private sprite: Phaser.GameObjects.Sprite;
+  private scene: Phaser.Scene;
+  private entityKey: string;  // 動畫 key prefix（從 §3 幀動畫清單讀取）
 
-  constructor(sprite: Phaser.GameObjects.Sprite, scene: Phaser.Scene, species: string) {
-    this.sprite  = sprite;
-    this.scene   = scene;
-    this.species = species;
-    this.playAnim('idle');
+  constructor(sprite: Phaser.GameObjects.Sprite, scene: Phaser.Scene, entityKey: string) {
+    this.sprite = sprite;
+    this.scene  = scene;
+    this.entityKey = entityKey;
+    this.playAnim(this.current);
   }
 
   dispatch(event: AnimTransitionEvent): void {
-    // TODO: 依 §11.1 Transition Table 實作 state 切換邏輯
-    // 每個 case 切換 this.current 並呼叫 this.playAnim(nextState)
+    // 依 §11.1 Transition Table 逐行實作（每個 From+Trigger → To 的映射）
+    // Guard Condition 對應 if 判斷；Duration 對應 delayedCall 或 animationComplete 事件
+    // 範例結構（以 §11.1 第一行為例，其餘行照此模式展開）：
+    // if (this.current === 'idle' && event.type === 'onClick') {
+    //   this.current = 'interacting';
+    //   this.playAnim('interacting');
+    // }
   }
 
   private playAnim(state: AnimState): void {
-    const key = `${this.species}-${state.replace('_', '-')}`;
-    this.sprite.play(key, true);
+    // key 格式從 §3 幀動畫清單讀取（FRAME-xxx 的「動畫名稱」欄）
+    this.sprite.play(`${this.entityKey}-${state}`, true);
   }
 
   get currentState(): AnimState { return this.current; }
 }
+```
 
-// ── Phaser Scene Lifecycle Stubs ──────────────────────────────────
-// 實作於 src/game/scenes/PetScene.ts（或對應引擎的 Scene 類別）
+**Phaser Scene Lifecycle（具體版，依 §3 幀動畫清單 + CONSTANTS.md 填值）**：
 
-function preloadAssets(this: Phaser.Scene, species: string): void {
-  // TODO: 依 §8 資產規格載入 spritesheet
-  // this.load.spritesheet(`${species}-idle`, `assets/sprites/${species}/idle.png`, { frameWidth: 32, frameHeight: 32 });
+```typescript
+// src/game/scenes/{EntityName}Scene.ts
+
+function preloadAssets(this: Phaser.Scene, entityKey: string): void {
+  // 逐一讀取 ANIM.md §3 幀動畫清單，為每個 FRAME-xxx 生成 load 呼叫
+  // frameWidth / frameHeight 從 CONSTANTS.md 的 SPRITE_CONFIG（或等效常數）讀取
+  this.load.spritesheet(
+    `${entityKey}-idle`,                          // FRAME-xxx 的「動畫名稱」
+    `assets/sprites/${entityKey}/idle.png`,       // FRAME-xxx 的「圖集路徑」
+    { frameWidth: SPRITE_W, frameHeight: SPRITE_H }  // 從 CONSTANTS.md 讀取，不硬碼數字
+  );
+  // （§3 每條記錄生成一行 this.load.spritesheet）
 }
 
-function createScene(this: Phaser.Scene, species: string): PetAnimationStateMachine {
-  const sprite = this.add.sprite(400, 300, `${species}-idle`);
-  // TODO: 定義所有 anim keys（依 §3 幀動畫清單）
-  return new PetAnimationStateMachine(sprite, this, species);
+function createScene(this: Phaser.Scene, entityKey: string): AnimationStateMachine {
+  // 逐一讀取 ANIM.md §3 幀動畫清單，為每個 FRAME-xxx 生成 anims.create 呼叫
+  this.anims.create({
+    key: `${entityKey}-idle`,
+    frames: this.anims.generateFrameNumbers(`${entityKey}-idle`, { start: 0, end: IDLE_FRAMES - 1 }),
+    frameRate: IDLE_FPS,  // 從 CONSTANTS.md 讀取（FRAME-xxx 的「幀率」欄）
+    repeat: -1,           // loop 欄位 = true → -1；false → 0
+  });
+  // （§3 每條記錄生成一個 anims.create 塊）
+
+  const sprite = this.add.sprite(this.scale.width / 2, this.scale.height / 2, `${entityKey}-idle`);
+  return new AnimationStateMachine(sprite, this, entityKey);
 }
 
-function updateScene(this: Phaser.Scene, stateMachine: PetAnimationStateMachine): void {
-  // TODO: 通常為空（state machine 為 event-driven）；若需 polling 放此處
+function updateScene(_scene: Phaser.Scene, sm: AnimationStateMachine): void {
+  // 通常為空（狀態機為 event-driven）
+  // 若 PRD 有 idle timeout 功能：在此計時並 dispatch neglectCheck 事件
+  // sm.tickIdleTimeout(this.game.loop.delta);  // 閾值從 CONSTANTS.md 讀取
 }
+```
+
+**CLIENT_ENGINE = Cocos Creator（2.x / 3.x）**：
+
+```typescript
+// AnimationController.ts（cc.Component）
+@ccclass('AnimationController')
+export class AnimationController extends cc.Component {
+  private _current: string = 'idle';
+
+  playAnim(state: string): void {
+    // Cocos 2.x：this.getComponent(cc.Animation).play(state);
+    // Cocos 3.x：this.getComponent(animation.Animation).play(state);
+    // state key = ANIM.md §3 幀動畫清單的「動畫名稱」欄
+  }
+}
+```
+
+**CLIENT_ENGINE = Unity（WebGL build）**：
+
+```csharp
+// AnimationController.cs（MonoBehaviour）
+public class AnimationController : MonoBehaviour {
+  private Animator _animator;
+  private string _current = "idle";
+
+  void Awake() { _animator = GetComponent<Animator>(); }
+
+  public void PlayAnim(string state) {
+    // state = ANIM.md §3 幀動畫清單的「動畫名稱」欄
+    _animator.SetTrigger(state);
+    _current = state;
+  }
+}
+```
+
+---
+
+**11.3 程序生成資產演算法骨架（觸發條件：PRD 含「程序生成」「procedural」關鍵字）**
+
+> **觸發條件**：PRD 含「procedural generation」「程序生成」「pixel art generated」「seeded random」等關鍵字時強制生成此節。
+
+必須包含以下 4 個要素：
+
+1. **輸入規格**：seed（唯一識別符 hash）+ palette（色票陣列來源，引用 VDD design tokens）
+2. **演算法核心**：seeded-RNG 策略 + 填色邏輯 + 對稱/鏡像策略（如 PRD 要求對稱）
+3. **輸出格式**：依 lang_stack 選擇（TypeScript → Canvas ImageData；Java → BufferedImage；Python → PIL.Image）
+4. **Test Vector**：≥ 2 組 seed + palette → 預期 pixel 結果（可貼入 .test.ts）
+
+**TypeScript 骨架範例**（lang_stack = TypeScript 時）：
+
+```typescript
+// src/game/utils/proceduralAsset.ts
+
+// seeded LCG（Linear Congruential Generator）— seed 固定 → 結果固定
+function seededRng(seed: number): () => number {
+  let s = seed;
+  return () => { s = (1664525 * s + 1013904223) & 0xFFFFFFFF; return (s >>> 0) / 0xFFFFFFFF; };
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+// 主函式：依 seed 生成 {W}×{H} px 圖案（W/H 從 CONSTANTS.md 讀取）
+export function generateProceduralAsset(
+  seed: number,
+  palette: string[],  // 色票陣列，來自 VDD.md design tokens
+  width: number,      // 從 CONSTANTS.md 讀取（不硬碼）
+  height: number
+): ImageData {
+  const data = new Uint8ClampedArray(width * height * 4);
+  const rng  = seededRng(seed);
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < Math.ceil(width / 2); x++) {  // 左半邊生成，右半邊鏡像
+      const colorIdx = Math.floor(rng() * palette.length);
+      const [r, g, b] = hexToRgb(palette[colorIdx]);
+      const setPixel = (px: number) => {
+        const i = (y * width + px) * 4;
+        data[i] = r; data[i+1] = g; data[i+2] = b; data[i+3] = 255;
+      };
+      setPixel(x);
+      setPixel(width - 1 - x);  // 左右鏡像
+    }
+  }
+  return new ImageData(data, width, height);
+}
+
+// Test Vector（直接貼入 proceduralAsset.test.ts）：
+// generateProceduralAsset(0, ['#000000', '#FFFFFF'], 4, 2)
+//   seed=0, rng序列: [0.000..., ...]  → pixel[0,0] = #000000
+// generateProceduralAsset(42, ['#FF0000', '#0000FF'], 4, 2)
+//   seed=42 → 依 LCG 公式計算第一個 rng() → 決定 pixel[0,0] 顏色
 ```
 
 ---
@@ -347,7 +467,8 @@ function updateScene(this: Phaser.Scene, stateMachine: PetAnimationStateMachine)
 | 效能預算 | §9 所有欄位填具體數值，LOD 三級已定義 |
 | 命名規範 | 所有 ID 符合 SKEL-xxx / FRAME-xxx / TWN-xxx / PTL-xxx / SHD-xxx 格式 |
 | AI Gencode — Transition Table | §11.1 Transition Table 存在；所有 PRD P0 狀態均有對應行；Duration/Timing 填具體值 |
-| AI Gencode — TS Class Skeleton | §11.2 TypeScript class skeleton 存在；AnimState type 覆蓋所有狀態；無裸 placeholder |
+| AI Gencode — engine-aware Class Skeleton | §11.2 骨架使用 CLIENT_ENGINE 對應的具體 API 呼叫（Phaser: anims.create；Cocos: Animation；Unity: Animator）；dispatch() 含依 §11.1 展開的骨架注釋；無裸 TODO |
+| AI Gencode — 程序生成骨架（game + procedural）| PRD 含程序生成關鍵字時：§11.3 存在；含 seededRng 函式 + 主生成函式 + ≥ 2 組 test vector |
 
 若任何檢查未通過，在 ANIM.md 末尾附加警告區塊：
 ```markdown

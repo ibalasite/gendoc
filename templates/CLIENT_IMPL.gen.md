@@ -454,6 +454,72 @@ DOM 結構（index.html）：
 
 ---
 
+### §3.3 Engine 初始化設定骨架（ENGINE_CONFIG）
+
+> **目的**：AI codegen 能直接生成 `src/config.ts` / `src/main.ts`，無需人工查找引擎 API。
+
+**生成規則**：依 CLIENT_ENGINE 生成對應的初始化骨架。**所有數值引用 CONSTANTS.md / VDD.md，不硬碼。**
+
+#### Phaser.js：
+
+```typescript
+// src/config.ts
+import Phaser from 'phaser';
+// 所有 Scene class 名稱從 §3.2 Scene 生命週期表讀取（不硬碼）
+
+export const gameConfig: Phaser.Types.Core.GameConfig = {
+  type: Phaser.AUTO,          // WebGL 優先，降級 Canvas
+  width:  GAME_WIDTH,         // 從 CONSTANTS.md 讀取（例如 GAME_CONFIG.width）
+  height: GAME_HEIGHT,        // 從 CONSTANTS.md 讀取
+  backgroundColor: BG_COLOR,  // 從 VDD.md design token 讀取（不硬碼 hex）
+  parent: 'game-canvas',      // 從 FRONTEND.md DOM 結構讀取 canvas element id
+  render: {
+    antialias: false,         // pixel art 關 antialias（若 PDD 有 pixel art 需求）
+    pixelArt:  true,          // 依 PDD pixel art 要求設定（true/false）
+  },
+  physics: {
+    default: 'arcade',        // 依 PRD 是否有物理碰撞需求決定；無碰撞需求則省略整個 physics 欄
+    arcade:  { gravity: { y: 0 }, debug: false },
+  },
+  scene: [/* §3.2 Scene 生命週期表中所有 Scene 類，按啟動順序排列 */],
+};
+
+// src/main.ts
+import { gameConfig } from './config';
+const game = new Phaser.Game(gameConfig);
+```
+
+#### Cocos Creator：
+```typescript
+// main.ts（Cocos Creator 3.x）
+// GameConfig 由 Cocos Creator Editor 管理（project.json / cocos-project.json）
+// 代碼層只需確認 Canvas 解析度與 VDD.md design token 一致：
+// ProjectSettings > General > Design Resolution Width/Height 對應 CONSTANTS.md GAME_WIDTH/HEIGHT
+// ProjectSettings > General > Fit Mode 依 PDD 的螢幕適配策略設定（SHOW_ALL / EXACT_FIT / FIXED_WIDTH 等）
+```
+
+#### Unity（WebGL Build）：
+```csharp
+// PlayerSettings 由 Unity Editor 管理，以下為代碼層驗證項目：
+// Build Settings > WebGL > Resolution and Presentation > Default Canvas Width/Height
+//   → 對應 CONSTANTS.md GAME_WIDTH / GAME_HEIGHT
+// PlayerSettings.defaultWebScreenWidth = GAME_WIDTH;
+// PlayerSettings.defaultWebScreenHeight = GAME_HEIGHT;
+```
+
+#### React / Vue：
+```typescript
+// React: src/App.tsx / Vue: src/App.vue
+// 無 GameConfig 概念；解析度由 CSS viewport 控制
+// 確認 CSS 中的 --game-width / --game-height 變數來自 VDD.md design tokens
+// 確認路由設定對應 CLIENT_IMPL.md §3.1 路由表
+```
+
+**Quality Gate（ENGINE_CONFIG）**：
+| AI Gencode — ENGINE_CONFIG 骨架 | §3.3 存在；各 CLIENT_ENGINE 骨架的數值引用 CONSTANTS.md / VDD.md，不硬碼 |
+
+---
+
 ## Step 5：§4 資源載入策略生成規則（5-way）
 
 #### Cocos Creator：
