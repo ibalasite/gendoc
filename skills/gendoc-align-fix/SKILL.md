@@ -182,8 +182,9 @@ else:
 
 ```bash
 # _LAYER 從 skill 呼叫方式解析：
-# /gendoc-align-fix docs → _LAYER=docs
-# /gendoc-align-fix code → _LAYER=code
+# /gendoc-align-fix docs    → _LAYER=docs
+# /gendoc-align-fix code    → _LAYER=code
+# /gendoc-align-fix gencode → _LAYER=gencode  ← AI Gencode 就緒度補強
 # /gendoc-align-fix all 或無參數 → _LAYER=all
 # [AI: 從使用者的呼叫文字解析 _LAYER 值，預設為 "all"]
 _LAYER="all"  # 將被 AI 從呼叫參數覆寫
@@ -225,7 +226,7 @@ _SCHEMA="${_SCHEMA:-$_DOCS/SCHEMA.md}"
 
 從 `docs/ALIGN_REPORT.md` 提取問題清單，排序規則：
 1. 先按 severity（CRITICAL → HIGH → MEDIUM → LOW）
-2. 同 severity 按 layer（docs → doc-code → code-test → doc-test）
+2. 同 severity 按 layer（docs → doc-code → code-test → doc-test → gencode）
 3. 若 `_LAYER` 非 all，只保留指定 layer 的問題
 
 ---
@@ -431,6 +432,266 @@ spawn Agent，傳入所有 Doc→Test 的 findings：
 
 每個修復後：執行相關測試確認 PASS → commit：`test(gendoc)[align-fix]: doc-test — <描述>`
 ---
+
+---
+
+---
+
+### Layer: gencode — AI Gencode 就緒度補強
+
+> **範圍定義**：gencode fix 只修文件與 scaffolding 骨架檔，不寫業務邏輯實作。
+> 目標：讓每份文件本身包含足夠的結構性元素（SQL、TypeScript interface、state machine table、step stubs 等），使 AI codegen 工具可以直接從文件生成骨架程式碼，不需人工補推導。
+
+從 ALIGN_REPORT.md 的 `Dimension 6 — AI Gencode Readiness` 區塊讀取所有 findings，依下列各類型執行修復。
+
+每個修復後：verify（重新跑 align-check D6 對應掃描確認分數提升）→ commit：`docs(gendoc)[align-fix]: gencode — <描述>`
+
+---
+
+#### SCHEMA — down migration + seed data
+
+**觸發條件**：SCHEMA finding 含「缺少 down migration」或「缺少 seed 範例」
+
+修復步驟：
+
+1. 讀取 `docs/SCHEMA.md` 所有 `CREATE TABLE` 定義
+2. 在 SCHEMA.md 的 `## Migration` 章節（若不存在則建立）補充：
+
+```sql
+-- ===== Down Migration（用於回滾）=====
+-- 順序與 CREATE TABLE 相反（先刪有 FK 依賴的表）
+DROP TABLE IF EXISTS <table_n> CASCADE;
+DROP TABLE IF EXISTS <table_n-1> CASCADE;
+...
+DROP TYPE IF EXISTS <enum_type>;
+```
+
+3. 在 SCHEMA.md 的 `## Seed Data` 章節（若不存在則建立）補充：
+
+```sql
+-- ===== Seed Data 範例（本地開發用）=====
+-- 每個核心表至少 2-3 筆代表性資料，覆蓋不同狀態值
+INSERT INTO <table_name> (<col1>, <col2>, ...) VALUES
+  (<val_a1>, <val_a2>, ...),  -- 範例：正常狀態
+  (<val_b1>, <val_b2>, ...);  -- 範例：邊界/特殊狀態
+```
+
+4. 若專案已有 `docs/db/` 目錄，同步在該目錄建立 `seed.sql` 和 `down.sql` 獨立檔案
+
+**禁止**：不修改已有的 `CREATE TABLE` 定義；不刪任何現有 SQL
+
+---
+
+#### API — TypeScript interface + JSON 範例補充
+
+**觸發條件**：API finding 含「缺少 TypeScript interface」或「缺少 JSON 範例」
+
+修復步驟：
+
+1. 讀取 `docs/API.md` 所有 endpoint，找出缺少以下元素的 endpoint：
+   - Request body 的 TypeScript interface
+   - Response body 的 TypeScript interface
+   - 完整 JSON 範例（request + response）
+
+2. 在 API.md 每個 endpoint 的 Request / Response 區段補充：
+
+```typescript
+// Request DTO
+interface <EndpointName>Request {
+  fieldName: string;        // 說明
+  optionalField?: number;   // 說明
+}
+
+// Response DTO
+interface <EndpointName>Response {
+  id: string;
+  status: 'active' | 'inactive';
+  createdAt: string;  // ISO 8601
+}
+```
+
+以及對應的 JSON 範例：
+```json
+// Request 範例
+{ "fieldName": "example", "optionalField": 42 }
+
+// Response 範例（200 OK）
+{ "id": "uuid-v4", "status": "active", "createdAt": "2026-01-01T00:00:00Z" }
+```
+
+3. 補充 Error response 範例（若現有 endpoint 無錯誤範例）：
+```json
+// 400 Bad Request
+{ "error": { "code": "VALIDATION_ERROR", "message": "fieldName is required" } }
+```
+
+**禁止**：不刪現有內容；TypeScript interface 只加在文件中（不建立 src/ 檔案）
+
+---
+
+#### ANIM / Phaser — TypeScript 骨架 + state machine table（game 專案）
+
+**觸發條件**：client_type == "game" 且 ANIM finding 含「缺少 class skeleton」或「缺少 state machine transition table」
+
+修復步驟：
+
+1. 讀取 `docs/ANIM.md` 中所有 state machine 描述（state 名稱、觸發條件、轉換目標）
+
+2. 在 ANIM.md 的 State Machine 章節補充 **Transition Table**：
+
+| From State | Trigger | To State | Guard Condition |
+|-----------|---------|---------|----------------|
+| `idle` | `onClick` | `interacting` | — |
+| `interacting` | `animationEnd` (300ms) | `idle` | — |
+| `battle` | `battleStart` | `battle_active` | arena session exists |
+| `battle_active` | `battleEnd` | `idle` | — |
+
+3. 在 ANIM.md 補充 **TypeScript Class Skeleton**（僅骨架，無業務邏輯實作）：
+
+```typescript
+// ── PetAnimationState Machine ─────────────────────────────────
+// 由 ANIM.md §<section> 定義；實作前請閱讀 state transition table
+type PetState = 'idle' | 'interacting' | 'level_up' | 'battle' | 'battle_active' | 'neglect';
+
+interface TransitionEvent {
+  type: 'onClick' | 'animationEnd' | 'battleStart' | 'battleEnd' | 'levelUp' | 'neglect';
+  payload?: Record<string, unknown>;
+}
+
+class PetAnimationStateMachine {
+  private current: PetState = 'idle';
+  private sprite!: Phaser.Physics.Arcade.Sprite;
+  private scene!: Phaser.Scene;
+
+  constructor(sprite: Phaser.Physics.Arcade.Sprite, scene: Phaser.Scene) {
+    // TODO: 初始化 sprite + 播放 idle 動畫
+  }
+
+  transition(event: TransitionEvent): void {
+    // TODO: 依 transition table 切換 state + 播放對應動畫
+  }
+
+  private playAnimation(state: PetState): void {
+    // TODO: 依 state 播放對應 Phaser anim key
+  }
+}
+
+// ── Phaser Scene Lifecycle Stubs ─────────────────────────────
+// 實作於 src/game/scenes/PetScene.ts
+function preloadAssets(this: Phaser.Scene): void {
+  // TODO: 載入 sprite sheet、audio、atlas（見 ANIM.md §Assets）
+}
+
+function createPetScene(this: Phaser.Scene): void {
+  // TODO: 建立 sprite、初始化 PetAnimationStateMachine、設定 input handler
+}
+
+function updatePetScene(this: Phaser.Scene): void {
+  // TODO: 每幀更新（通常為空，邏輯在 event-driven state machine）
+}
+```
+
+**禁止**：skeleton 只加在 ANIM.md（不在 src/ 建立檔案）；不填入任何業務邏輯實作
+
+---
+
+#### BDD/Tests — Step Definition Stubs 建立
+
+**觸發條件**：BDD finding 含「缺少 step definition stub」
+
+修復步驟：
+
+1. 列出所有 `features/*.feature`（server）和 `features/client/*.feature`（若有）
+2. 解析每個 feature 檔案中所有唯一的 Given / When / Then / And 文字
+3. 在 `features/steps/` 目錄建立對應的 stub 檔（格式：`<feature-name>.steps.ts`）：
+
+```typescript
+// features/steps/claim-flow.steps.ts
+// ⚠️ 自動生成的 step definition stub — 由 gendoc-align-fix gencode 產生
+// 每個 step 均為 PendingError 狀態，需在實作 src/ 後逐一補全
+
+import { Given, When, Then } from '@cucumber/cucumber';
+
+Given('a new player visits the claim page', async function () {
+  // TODO: 實作參見 API.md §5.1 Claim Flow
+  return 'pending';
+});
+
+When('they submit a valid claim code {string}', async function (code: string) {
+  // TODO: POST /api/v1/claim — 見 API.md §5.1.2
+  return 'pending';
+});
+
+Then('they should receive a pet with rarity {string}', async function (rarity: string) {
+  // TODO: 驗證 response.pet.rarity — 見 CONSTANTS.md §rarity
+  return 'pending';
+});
+```
+
+4. 建立 `features/support/world.ts`（若不存在）：
+
+```typescript
+// features/support/world.ts
+// Cucumber World 設定 — API client + DB connection
+import { setWorldConstructor, World } from '@cucumber/cucumber';
+
+class AppWorld extends World {
+  apiBaseUrl = process.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
+  // TODO: 加入 DB client、auth token 等共享狀態
+}
+
+setWorldConstructor(AppWorld);
+```
+
+**禁止**：stub 只填 `return 'pending'`，不實作業務邏輯；不修改已有的 step definition 內容
+
+---
+
+#### CI/CD — YAML 完整性補強
+
+**觸發條件**：CI/CD finding 含「缺少完整 YAML workflow」
+
+修復步驟：
+
+1. 讀取 `docs/CICD.md`，找出只有文字描述但缺少 YAML 程式碼區塊的 workflow 章節
+2. 在對應章節補充完整的 GitHub Actions YAML（依 CICD.md 描述的 job 邏輯生成）
+3. 若 `.github/workflows/` 目錄不存在對應 YAML 檔，同步建立同名 `.yml` 檔（只包含 workflow 骨架，job steps 填 `run: echo "TODO"`）
+
+**注意**：YAML 骨架優先保障結構正確（triggers、jobs、env matrix），steps 內容可為 TODO stub
+
+---
+
+#### LOCAL_DEPLOY — .env.example 生成
+
+**觸發條件**：LOCAL_DEPLOY finding 含「缺少 .env.example」
+
+修復步驟：
+
+1. 讀取 `docs/LOCAL_DEPLOY.md` 中所有環境變數表格（通常在「Key environment variables」章節）
+2. 在專案根目錄生成 `.env.example`：
+
+```bash
+# .env.example — 由 gendoc-align-fix gencode 從 LOCAL_DEPLOY.md 生成
+# 複製為 .env.local 並填入真實值後即可啟動
+
+# ── API (apps/api/.env.local) ────────────────────────────────
+DATABASE_URL=             # 由 supabase start 輸出，格式：postgresql://postgres:postgres@localhost:54322/postgres
+REDIS_URL=redis://localhost:6379
+JWT_SECRET=               # 用 node -e "console.log(require('crypto').randomBytes(64).toString('base64url'))" 生成
+EMAIL_ENCRYPTION_KEY=     # 用 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))" 生成
+SENDGRID_API_KEY=any-dummy-string-for-local
+ADMIN_TOTP_ISSUER=pixel-pet-arena-local
+
+# ── Player Frontend (apps/player/.env.local) ─────────────────
+VITE_API_BASE_URL=http://localhost:3000
+
+# ── Admin Frontend (apps/admin/.env.local) ───────────────────
+VITE_API_BASE_URL=http://localhost:3000
+```
+
+3. 同步在 LOCAL_DEPLOY.md 加入提示行（若未有）：「`cp .env.example .env.local` 後填入真實值」
+
+**禁止**：`.env.example` 不得包含任何真實的密鑰、token 或憑證；所有敏感欄位值留空或使用明確的 placeholder
 
 ---
 

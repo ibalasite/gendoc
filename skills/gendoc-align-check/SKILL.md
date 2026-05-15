@@ -680,6 +680,180 @@ _HAS_DEPENDENCY=$(echo "$_EDD_CONTENT" | grep -c '"\.\.\>"' || echo 0)
 
 ---
 
+## Step 6.8：Dimension 6 — AI Gencode Readiness（AI 代碼生成就緒度）
+
+直接執行（不 spawn Agent）：逐一掃描關鍵文件，評估每層文件能讓 AI 直接生成可執行程式碼的就緒度（0–100%）。
+
+**評估邏輯**：AI codegen 就緒度 ≠ 文件完整度。文件可能邏輯完整但缺少 AI 生成程式碼所需的結構性元素（code skeleton、type definition、transition table、seed script 等）。
+
+```bash
+_CWD="$(pwd)"
+python3 - "$_CWD" <<'PYEOF'
+import os, re, sys, json
+
+cwd          = sys.argv[1]
+docs_dir     = os.path.join(cwd, "docs")
+features_dir = os.path.join(cwd, "features")
+
+state = {}
+try:
+    state = json.load(open(os.path.join(cwd, ".gendoc-state.json")))
+except:
+    pass
+client_type = state.get("client_type", "none")
+
+findings = []
+scores   = {}
+
+def scan_file(path):
+    try:
+        return open(path, encoding="utf-8").read()
+    except:
+        return ""
+
+# ── SCHEMA ───────────────────────────────────────────────────────
+schema_txt = scan_file(os.path.join(docs_dir, "SCHEMA.md"))
+if schema_txt:
+    s = 0
+    if re.search(r'CREATE TABLE', schema_txt):                              s += 25
+    if re.search(r'CREATE (UNIQUE )?INDEX', schema_txt):                    s += 15
+    if re.search(r'DROP TABLE|-- down|-- Down|rollback', schema_txt, re.I): s += 20
+    if re.search(r'INSERT INTO|seed|example data', schema_txt, re.I):      s += 20
+    if re.search(r'redis|TTL|EXPIRE', schema_txt, re.I):                   s += 10
+    if re.search(r'node-pg|drizzle|migration', schema_txt, re.I):          s += 10
+    scores['SCHEMA'] = min(s, 100)
+    if s < 50:
+        missing = []
+        if not re.search(r'DROP TABLE|down|rollback', schema_txt, re.I): missing.append("down migration")
+        if not re.search(r'INSERT INTO|seed', schema_txt, re.I):         missing.append("seed 範例")
+        findings.append(f"[CRITICAL] SCHEMA: AI gencode 就緒度 {s}% — 缺少 {', '.join(missing) or '關鍵結構'}")
+    elif s < 70:
+        findings.append(f"[HIGH] SCHEMA: AI gencode 就緒度 {s}% — 建議補充 seed data + down migration")
+
+# ── API ──────────────────────────────────────────────────────────
+api_txt = scan_file(os.path.join(docs_dir, "API.md"))
+if api_txt:
+    a = 0
+    if re.search(r'```json', api_txt):                              a += 20
+    if re.search(r'interface |type [A-Z]', api_txt):               a += 15
+    if re.search(r'error[_.]code|ERROR_CODE', api_txt, re.I):      a += 15
+    if re.search(r'rate.?limit|x-rate', api_txt, re.I):            a += 10
+    if api_txt.count('```') >= 10:                                  a += 20
+    if re.search(r'zod|joi|class-validator', api_txt, re.I):       a += 10
+    if re.search(r'Authorization: Bearer|JWT', api_txt):            a += 10
+    scores['API'] = min(a, 100)
+    if a < 60:
+        findings.append(f"[HIGH] API: AI gencode 就緒度 {a}% — 缺少 TypeScript interface 定義或 JSON request/response 範例")
+    elif a < 75:
+        findings.append(f"[MEDIUM] API: AI gencode 就緒度 {a}% — 建議補充 Zod/joi schema 定義")
+
+# ── Phaser/ANIM（game 專案）──────────────────────────────────────
+if client_type == "game":
+    anim_txt = scan_file(os.path.join(docs_dir, "ANIM.md"))
+    if anim_txt:
+        g = 0
+        if re.search(r'state.?machine|stateMachine|FSM', anim_txt, re.I): g += 20
+        if re.search(r'class [A-Z].*\{|interface [A-Z]', anim_txt):       g += 25
+        if re.search(r'preload\(|create\(|update\(', anim_txt):           g += 15
+        if re.search(r'```(ts|js|typescript|javascript)', anim_txt):      g += 20
+        if re.search(r'frame|spritesheet|atlas', anim_txt, re.I):         g += 10
+        if re.search(r'transition.*→|→.*transition', anim_txt):           g += 10
+        scores['Phaser/ANIM'] = min(g, 100)
+        if g < 50:
+            findings.append(f"[CRITICAL] Phaser/ANIM: AI gencode 就緒度 {g}% — 缺少 TypeScript class skeleton + state machine transition table")
+        elif g < 70:
+            findings.append(f"[HIGH] Phaser/ANIM: AI gencode 就緒度 {g}% — 缺少 scene lifecycle 骨架（preload/create/update）")
+
+# ── BDD / Step Definitions ────────────────────────────────────────
+feature_files = []
+try:
+    feature_files = [f for f in os.listdir(features_dir) if f.endswith('.feature')]
+except:
+    pass
+steps_dir = os.path.join(features_dir, "steps")
+has_step_stubs = (
+    os.path.isdir(steps_dir) and
+    any(f.endswith(('.ts', '.js')) for f in os.listdir(steps_dir))
+) if os.path.isdir(steps_dir) else False
+b = 0
+if feature_files:                                                        b += 30
+if has_step_stubs:                                                       b += 40
+if os.path.isdir(os.path.join(features_dir, "support")):                b += 15
+if feature_files:
+    first_txt = scan_file(os.path.join(features_dir, feature_files[0]))
+    if re.search(r'Background:|Scenario Outline:', first_txt):          b += 15
+scores['BDD/Tests'] = min(b, 100)
+if not has_step_stubs:
+    findings.append(f"[HIGH] BDD/Tests: AI gencode 就緒度 {b}% — features/steps/ 無 step definition stub；AI 需從零推導實作邏輯")
+
+# ── CI/CD ──────────────────────────────────────────────────────────
+cicd_txt = scan_file(os.path.join(docs_dir, "CICD.md"))
+if cicd_txt:
+    c = 0
+    if re.search(r'```yaml', cicd_txt):                   c += 35
+    if re.search(r'on:\s*(push|pull_request)', cicd_txt): c += 20
+    if re.search(r'^  env:', cicd_txt, re.M):             c += 20
+    if re.search(r'^jobs:', cicd_txt, re.M):              c += 15
+    if re.search(r'matrix:', cicd_txt):                   c += 10
+    scores['CI/CD'] = min(c, 100)
+    if c < 60:
+        findings.append(f"[HIGH] CI/CD: AI gencode 就緒度 {c}% — CICD.md 缺少完整 YAML workflow 程式碼區塊")
+
+# ── LOCAL_DEPLOY ─────────────────────────────────────────────────
+local_txt = scan_file(os.path.join(docs_dir, "LOCAL_DEPLOY.md"))
+if local_txt:
+    l = 0
+    if re.search(r'\.env\.example|\.env\.local', local_txt):                      l += 15
+    if os.path.exists(os.path.join(cwd, ".env.example")):                         l += 15
+    if re.search(r'docker.compose|kubectl|helm|k8s', local_txt, re.I):            l += 20
+    if re.search(r'supabase start|migration up|pnpm install', local_txt):         l += 20
+    if re.search(r'seed|db:seed', local_txt, re.I):                               l += 15
+    if local_txt.count('```bash') >= 5:                                            l += 15
+    scores['LOCAL_DEPLOY'] = min(l, 100)
+    if l < 55:
+        findings.append(f"[HIGH] LOCAL_DEPLOY: AI gencode 就緒度 {l}% — 缺少 .env.example 或 docker/k8s manifest 程式碼區塊")
+
+# ── 輸出 ──────────────────────────────────────────────────────────
+print("\n=== Dimension 6 — AI Gencode Readiness ===\n")
+print(f"{'Layer':<16} | Score | 狀態")
+print(f"{'-'*16}-+-------+----------")
+for layer, score in sorted(scores.items(), key=lambda x: x[1]):
+    status = "🔴 需補強" if score < 60 else ("⚠️  可提升" if score < 80 else "✅ 就緒")
+    print(f"{layer:<16} | {score:>4}% | {status}")
+overall = int(sum(scores.values()) / len(scores)) if scores else 0
+print(f"\n整體 AI Gencode 就緒度：{overall}%")
+if findings:
+    print("\nFindings：")
+    for f in findings:
+        print(f"  {f}")
+else:
+    print("\n  ✅ 所有層就緒度達標（≥ 80%）")
+print(f"\n__D6_OVERALL__={overall}")
+print(f"__D6_CRITICAL__={sum(1 for f in findings if '[CRITICAL]' in f)}")
+print(f"__D6_HIGH__={sum(1 for f in findings if '[HIGH]' in f)}")
+print(f"__D6_MEDIUM__={sum(1 for f in findings if '[MEDIUM]' in f)}")
+PYEOF
+```
+
+判斷規則：
+- 任一層 `< 60%` → `[CRITICAL]` 或 `[HIGH]`（依層重要性，見上方）
+- 整體 `< 65%` → Step 7 報告標記 `🔴`
+- 整體 `65–79%` → `⚠️`
+- 整體 `≥ 80%` → `✅`
+
+**各層評分細則**：
+
+| 層 | 關鍵 AI Gencode 元素 | 缺少時嚴重度 |
+|----|---------------------|-------------|
+| SCHEMA | DDL + down migration + seed data | CRITICAL |
+| API | JSON 範例 + TS interface + error code | HIGH |
+| Phaser/ANIM | class skeleton + state machine table + scene hooks | CRITICAL |
+| BDD/Tests | step definition stubs (`features/steps/`) | HIGH |
+| CI/CD | 完整 YAML workflow 區塊 | HIGH |
+| LOCAL_DEPLOY | .env.example + docker/k8s manifest | HIGH |
+
+---
+
 ## Step 7：彙整報告輸出
 
 主 Claude 收集所有 Agent 回傳結果，輸出以下格式：
@@ -695,8 +869,9 @@ _HAS_DEPENDENCY=$(echo "$_EDD_CONTENT" | grep -c '"\.\.\>"' || echo 0)
 ║  Code → Test      0       4      2     1     7   ⚠️           ║
 ║  Doc → Test       2       1      0     0     3   🔴           ║
 ║  UML/RTM 品質     0       1      2     0     3   ⚠️           ║
+║  AI Gencode       1       2      1     0     4   ⚠️  68%      ║
 ╠══════════════════════════════════════════════════════════════╣
-║  總計             3      11      8     2    24                 ║
+║  總計             4      13      9     2    28                 ║
 ╠══════════════════════════════════════════════════════════════╣
 
 Dimension 1 — Doc → Doc 對齊問題
@@ -716,6 +891,20 @@ Dimension 3 — Code → Test 對齊問題
 Dimension 4 — Doc → Test 對齊問題
   [CRITICAL] PRD AC-07 無 BDD Scenario 且無 test
   ...
+
+Dimension 6 — AI Gencode Readiness
+  Layer           | Score | 狀態
+  SCHEMA          |  90%  | ✅ 就緒
+  API             |  80%  | ✅ 就緒
+  CI/CD           |  85%  | ✅ 就緒
+  LOCAL_DEPLOY    |  75%  | ⚠️  可提升
+  BDD/Tests       |  45%  | 🔴 需補強
+  Phaser/ANIM     |  45%  | 🔴 需補強（game 專案）
+  整體 AI Gencode 就緒度：68%
+
+  [CRITICAL] Phaser/ANIM: AI gencode 就緒度 45% — 缺少 TypeScript class skeleton + state machine transition table
+  [HIGH] BDD/Tests: AI gencode 就緒度 45% — features/steps/ 無 step definition stub
+  [MEDIUM] LOCAL_DEPLOY: 建議補充 .env.example 實際內容
 
 ╠══════════════════════════════════════════════════════════════╣
 ║  建議執行：/gendoc-align-fix all  修復所有問題               ║
