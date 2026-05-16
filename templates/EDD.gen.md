@@ -241,6 +241,74 @@ _ADMIN_FRAMEWORK（Admin 後台技術棧，下游 ADMIN_IMPL 讀取）：
 > 的工具選型基準。下游 gen.md 均從 `EDD §3.3 技術棧總覽` 讀取，此處必須填入具體值，不得留 placeholder。
 > `_CLIENT_ENGINE` 和 `_ADMIN_FRAMEWORK` 為新增必填欄位，gendoc-flow 在 EDD 完成後自動提取並鎖定至 state。
 
+### §3.3.x SSoT Authority 宣告（所有下游文件強制遵守）
+
+EDD §3.3 是整個專案技術決策的**唯一真實來源（Single Source of Truth）**。
+以下四條規則所有下游文件（LOCAL_DEPLOY、CLIENT_IMPL、ADMIN_IMPL、API、SCHEMA、BDD）強制遵守，
+違反者視為對齊缺口（D8 cross-document conflict）。
+
+#### 規則 1：Package 命名權威（消除目錄命名衝突）
+
+EDD §3.3 宣告的 package name 是唯一合法名稱。下游文件引用時**必須完全一致，不得自行改名**：
+
+| 應用 | `package.json name` | `apps/` 目錄名 | `pnpm --filter` |
+|-----|---------------------|--------------|----------------|
+| API Server | `{PROJECT_SLUG}-api` | `apps/api/` | `--filter {PROJECT_SLUG}-api` |
+| Player Frontend | `{PROJECT_SLUG}-web` | `apps/web/` | `--filter {PROJECT_SLUG}-web` |
+| Admin Frontend（has_admin_backend=true 時）| `{PROJECT_SLUG}-admin` | `apps/admin/` | `--filter {PROJECT_SLUG}-admin` |
+
+❌ 禁止：下游文件出現非 EDD 授權的名稱（如 `apps/player/`、`--filter player-app`、`apps/player-app/` 等）
+✅ 要求：`{PROJECT_SLUG}` 從 BRD/PRD 的專案標識取得；三個 app 名稱格式固定為 `{PROJECT_SLUG}-{api|web|admin}`
+
+#### 規則 2：計算公式權威（消除跨文件公式矛盾）
+
+任何業務計算公式（scoring、ranking、level multiplier、rate limit threshold 等）在 EDD 定義後即為**唯一合法版本**：
+- **EDD**（本文件）：完整公式 + 所有變數定義（含具體數值） → 唯一定義位置
+- **下游文件**（API.md、SCHEMA.md、BDD feature 等）：只引用「見 EDD §x.y 公式定義」，**不得重新定義或改寫公式**
+
+❌ 禁止：API.md 自行定義與 EDD 不同的公式版本
+✅ 要求：API.md 寫「leaderboard_score 計算邏輯見 EDD §{GameMechanics}.leaderboard」
+
+#### 規則 3：Package 選型唯一性（消除「A or B」模糊）
+
+§3.3 技術棧總覽的每個選型欄位必須是**唯一確定的值**，不得保留多選模糊：
+
+❌ 禁止：
+- `快取客戶端：ioredis 或 @upstash/redis（二選一）`
+- `bcrypt cost factor：≥ 12`
+- `ORM：Prisma / TypeORM（視需求）`
+
+✅ 要求：
+- `快取客戶端：ioredis`（選定後即不可更改）
+- `bcrypt cost factor：12`（精確整數）
+- `ORM：Prisma`（選定後即不可更改）
+
+#### 規則 4：Item Catalog 完整性（消除 API enum 無對應定義）
+
+任何 API endpoint 的 request/response body 含 `buffType / itemType / foodType / itemKey / rewardType` 等有限值 enum 欄位時，
+EDD 必須提供**完整 item catalog 表格**（不得以「由 application layer 定義」或只列名稱代替）：
+
+| item key（英文，即 enum 合法值）| 對應 stat 效果（精確 +N）| 持續時間（秒）| 使用條件 |
+|--------------------------------|--------------------------|------------|--------|
+| `{item_key_a}` | `{stat_field}: +{delta}` | `{duration_sec}` | `{condition 或 none}` |
+| `{item_key_b}` | `{stat_field}: +{delta}` | `{duration_sec}` | `{condition 或 none}` |
+
+❌ 禁止：「食物 catalog 詳見 application layer」或「支援多種 buff（種類待定）」等模糊說法
+❌ 禁止：只列名稱不列 stat 效果數值（AI 生成 validation 時無法對齊）
+
+---
+
+**Quality Gate 新增（§3.3.x 四項）**：
+
+| 檢查項 | 合格標準 |
+|--------|---------|
+| Package 命名唯一性 | §3.3.x 授權表存在；三個 app 均為 `{PROJECT_SLUG}-{api\|web\|admin}` 格式；無自行發明的名稱 |
+| Package 選型唯一性 | §3.3 每個依賴項只有一個選定值；無「A 或 B」、「≥N」等模糊說法 |
+| 公式唯一定義 | 所有業務計算公式在 EDD 定義一次；下游文件引用而非重新定義 |
+| Item Catalog 完整性 | 所有 API enum 欄位有對應的完整 catalog 表格（含 stat 效果 + duration 具體數值）|
+
+---
+
 ### §3.1b Clean Architecture & SOLID 原則
 
 **生成目標**：填入 EDD §3.1b SOLID 原則對應表，每個原則的「本系統實作方式」欄位必須具體引用本系統的 class / interface 名稱，禁止保留通用說明文字。
