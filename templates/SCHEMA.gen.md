@@ -151,6 +151,79 @@ Data Retention & GDPR Lifecycle Policy（§17）、Database Observability & Heal
 
 ## Part 3：CREATE TABLE SQL 生成規則
 
+### 每張 TABLE 的完整 DDL 區塊（Part 3 強制格式）
+
+每張 TABLE 對應 SCHEMA.md 中一個**完整且不可分割**的 DDL 程式碼區塊。
+AI 複製整個區塊即可建表，不需拼湊分散的片段。
+
+區塊結構（固定順序，無的省略即可）：
+1. 區塊標頭注釋（table 名稱 + BC 名稱 + 一句業務描述）
+2. ENUM type 定義（若欄位有有限值集合 → 用 `CREATE TYPE`；否則省略此部分）
+3. `CREATE TABLE`（所有欄位 + 所有 constraint）
+4. `CREATE INDEX`（依 EDD §Query Patterns 決定）
+5. `COMMENT ON TABLE / COLUMN`（每張 table 至少一行；業務欄位補 COMMENT ON COLUMN）
+
+完整區塊範例：
+
+```sql
+-- ── {table_name}（{BC 名稱}）──────────────────────────────────────
+-- {一句業務描述，引用 EDD §Domain Model 或 PRD AC}
+
+-- 有限值欄位時生成；無限值欄位時省略以下 CREATE TYPE
+CREATE TYPE {concept}_enum AS ENUM (   -- 來自 EDD §{State Machine 章節}
+  '{value_a}',   -- {說明}
+  '{value_b}'    -- {說明}
+);
+
+CREATE TABLE {table_name} (
+  id          UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+  {col_name}  {concept}_enum  NOT NULL DEFAULT '{default_value}',
+  {fk_col}    UUID            NOT NULL,              -- 同 BC FK
+  {num_col}   INTEGER         NOT NULL DEFAULT 0 CHECK ({num_col} >= 0),
+  created_at  TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+  deleted_at  TIMESTAMPTZ                            -- 軟刪除（EDD §Soft Delete）
+);
+
+CREATE INDEX {table_name}_{col}_idx ON {table_name}({col}) WHERE deleted_at IS NULL;
+
+COMMENT ON TABLE  {table_name}             IS '{業務描述}';
+COMMENT ON COLUMN {table_name}.{col_name}  IS '合法值：{value_a}/{value_b}，來源：EDD §{章節}';
+COMMENT ON COLUMN {table_name}.{fk_col}    IS 'FK to {other_bc}.{other_table}';
+```
+
+---
+
+### ENUM vs CHECK constraint 決策規則
+
+| 上游信號 | 決定 | 理由 |
+|---------|------|------|
+| EDD/PRD 明確定義值集合，且未來不頻繁新增 | `CREATE TYPE {concept}_enum AS ENUM (...)` | 型別安全、INSERT 自動驗證 |
+| 值集合預期頻繁動態新增（如用戶自定義分類） | `VARCHAR(50) + CHECK` 或 lookup table | ENUM 加值需 ALTER TYPE migration |
+| 多張 table 的欄位引用**同一個上游 EDD 概念**（同一 State Machine 或業務規則） | **共用 `CREATE TYPE`，多表引用同一個 type 名稱** | 避免同一概念出現多個不同名的重複定義 |
+
+### ENUM 去重規則（防止多張表重複定義相同概念）
+
+生成任何 `CREATE TYPE` 之前，先執行以下掃描：
+
+1. 建立「ENUM 概念表」：掃描所有 BC 的所有欄位，找出「有限值集合」欄位
+2. 依**上游來源（EDD 章節引用）**分組：若兩個欄位引用同一個 EDD §State Machine 或 §業務規則 → 視為同一概念
+3. 同一概念 → 只生成一個 `CREATE TYPE`，命名用業務概念而非 table 名：`{concept}_enum`
+4. 不同概念（來源不同）→ 各自生成獨立 `CREATE TYPE`
+
+**共用 ENUM 的位置**：若一個 ENUM type 被多張 table 使用，移出各 table 的 DDL 區塊，統一放到 `## §0 Shared ENUM Types` 章節（置於所有 CREATE TABLE 之前）：
+
+```sql
+-- §0 Shared ENUM Types（被多張 table 引用的共用型別）
+-- 來源：EDD §{RaritySystem}（{table_a} + {table_b} 共用此概念）
+CREATE TYPE {concept}_enum AS ENUM ('{value_a}', '{value_b}', '{value_c}');
+```
+
+**命名規則（防止混淆）**：
+- 共用 ENUM（多 table 引用）：`{concept}_enum`（如 `rarity_enum`、`status_enum`）
+- 專屬 ENUM（單 table 使用）：`{table}_{col}_enum`（如 `arena_session_phase_enum`）
+
+---
+
 每張表提供完整標準 SQL，格式包含：
 - 表頭注釋（表名、用途、生成工具）
 - 所有欄位（含型別、NOT NULL、DEFAULT、CHECK constraint）
@@ -178,6 +251,20 @@ $$ LANGUAGE plpgsql;
 - Partial Index：加 WHERE 條件（如 `WHERE deleted_at IS NULL`）
 - Covering Index：INCLUDE 常用查詢欄位
 - Composite Index：多欄位組合（依查詢順序排列）
+
+### 上游信號 → DDL 構造對照表
+
+生成每張 TABLE 前，掃描以下上游信號，決定加入哪些 DDL 構造：
+
+| 上游信號（識別字）| 讀取來源 | 對應 DDL 構造 |
+|----------------|---------|--------------|
+| 欄位描述含「只能是 A/B/C」「合法值：...」「狀態：...」等離散值集合 | EDD §Domain Model、EDD §State Machine、PRD 業務規則 | `CREATE TYPE {concept}_enum AS ENUM (...)` + 欄位使用 ENUM 型別 |
+| 欄位描述含「常用 filter」「依此排序」「高頻查詢條件」 | EDD §Query Patterns、EDD §HA Design | `CREATE INDEX {table}_{col}_idx ON {table}({col})` |
+| 欄位描述含「必須唯一」「不得重複」「每個 X 只有一個 Y」 | EDD §業務規則、PRD AC | `UNIQUE ({col})` 或 `CREATE UNIQUE INDEX` |
+| 欄位描述含「必須 > 0」「不得為負」「上限 N」等數值約束 | EDD §業務規則 | `CHECK ({col} > 0)` constraint |
+| 欄位描述含「稽核」「誰在什麼時間做了什麼」 | EDD §Audit / §Domain Events | `created_by UUID REFERENCES {admin_table}(id)` + `action_type VARCHAR` |
+| 欄位描述含「軟刪除」「可恢復」「不實際 DELETE」 | EDD §Soft Delete / §Data Lifecycle | `deleted_at TIMESTAMPTZ NULL` + Partial Index `WHERE deleted_at IS NULL` |
+| Cross-BC 欄位（欄位引用另一 BC 的主鍵） | SCHEMA.md 各 BC 主鍵定義 | `{fk_col} UUID NOT NULL` + `COMMENT ON COLUMN ... IS 'FK to {other_bc}.{other_table}'`（不加 REFERENCES，跨 BC 邊界） |
 
 ---
 
@@ -394,6 +481,9 @@ ZPOPMIN matchmaking:queue:standard
 4. INSERT 順序必須滿足 FK 依賴（先插父表，再插子表）
 5. 若有 ENUM type，INSERT 值必須使用已定義的 enum 值
 
+❌ 禁止：「執行 pnpm db:seed 即可」或「詳見 seed script」等模糊說明
+❌ 禁止：`{value}` placeholder 不算具體範例，必須填入真實格式的值
+
 ```sql
 -- ===== Seed Data（本地開發 + CI 測試用）=====
 -- 執行前提：所有 migration 已完成（migration up）
@@ -516,3 +606,6 @@ export ADMIN_MFA_SECRET=$(python3 -c "import base64,os; print(base64.b32encode(o
 | AI Gencode — Down Migration | `§8.1` 每筆 migration 的 `-- Rollback:` 填有可執行 SQL（非空、非 TBD） | 依 Down Migration 生成規則補全 |
 | AI Gencode — Admin Seed SQL | has_admin_backend=true 時：admin user + role + assignment INSERT 均存在；password_hash 欄引用 ENV 不硬碼 | 依 Admin Seed SQL 生成規則補寫 |
 | AI Gencode — MFA Init 說明 | admin table 含 mfa/totp 欄位時：seed SQL 後附 ENV 生成指令 + QR URI 格式說明 | 補充 ENV 注入說明區塊 |
+| AI Gencode — 每張 TABLE 完整 DDL 區塊 | 每張 table 有一個不可分割的完整 DDL 區塊（含 ENUM if any + CREATE TABLE + INDEX + COMMENT），AI 可複製整個區塊直接建表，無需拼湊 | 依 Part 3「完整 DDL 區塊」格式補全 |
+| AI Gencode — 上游信號覆蓋 | 每個觸發 DDL 構造的上游信號都有對應 DDL；特別是 INDEX 和 COMMENT 無遺漏 | 依「上游信號→DDL 構造對照表」逐一核對 |
+| AI Gencode — ENUM 去重 | 同一概念無重複 `CREATE TYPE`；共用 ENUM 集中在 §0 Shared ENUM Types；各 table 直接引用共用 type 名稱 | 依 ENUM 去重規則重新掃描所有 BC |
