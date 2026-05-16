@@ -139,6 +139,24 @@ if EDD §3.3 包含 "HTML5" 或 為空  → _CLIENT_ENGINE = "HTML5"
 
 ## Step 3：§2 專案結構生成規則（5-way engine routing）
 
+### §2.0 目錄命名一致性（前置強制規則，所有 engine 路由共用）
+
+CLIENT_IMPL.md 所有 `apps/` 路徑、`package.json name`、`pnpm --filter`、tsconfig paths alias
+**必須與 EDD §3.3.x Package 命名權威表完全一致**，不得自行命名：
+
+| 欄位 | 正確值 | 錯誤舉例 |
+|------|-------|---------|
+| apps/ 目錄名 | `apps/web/`（由 EDD §3.3.x 授權） | `apps/player/`、`apps/player-app/` |
+| package.json name | `{PROJECT_SLUG}-web` | `player-app`、`frontend` |
+| pnpm --filter | `--filter {PROJECT_SLUG}-web` | `--filter player-app` |
+| tsconfig paths | `"@/*": ["./src/*"]`（固定格式，路徑相對於 apps/web/src） | （alias 本身可自定義，但不得引入新的 apps/ 目錄名）|
+
+**生成 §2 任何目錄結構之前，必須先讀取 EDD §3.3.x**，確認 client app 的 package name 和 apps/ 目錄名。
+
+Quality Gate：CLIENT_IMPL 所有 apps/ 路徑與 EDD §3.3.x 授權名稱完全一致；無自行命名的新目錄名
+
+---
+
 ### Cocos Creator 路由
 
 ```
