@@ -528,12 +528,125 @@ app.include_router({bc_name}_router, prefix='/api/{version}')
 
 ---
 
+#### Go + Gin（`lang_stack=go`）
+
+**目錄結構**（標準 Go project layout，`{module-name}` 從 EDD §3.3 讀取）：
+
+```
+apps/api/                          # 或 monorepo 根目錄（由 EDD §3.3 決定）
+├── cmd/
+│   └── server/
+│       └── main.go                # 入口點：初始化 app + 啟動 HTTP server
+├── internal/
+│   └── {bc-name}/                 # 依 BC 分組（對應 SCHEMA.md §BC 清單）
+│       ├── handler/               # gin.HandlerFunc（HTTP 層，只做 bind/validate/respond）
+│       │   └── {bc-name}_handler.go
+│       ├── service/               # 業務邏輯（無 Gin 依賴，接受 primitive/struct）
+│       │   └── {bc-name}_service.go
+│       ├── repository/            # 資料存取（database/sql 或 GORM）
+│       │   └── {bc-name}_repository.go
+│       └── model/                 # 資料模型（對應 SCHEMA.md table）
+│           └── {bc-name}_model.go
+├── pkg/
+│   ├── middleware/                # 共用 Gin middleware（auth/ratelimit/logger）
+│   ├── config/                    # 環境變數讀取（viper 或 godotenv）
+│   └── database/                  # DB 連線 pool（database/sql 或 gorm.Open）
+├── go.mod                         # module 名稱從 EDD §3.3 讀取
+└── Makefile                       # build / test / run targets
+```
+
+**Gin Middleware 掛載順序**（`main.go`，**順序不可調換**）：
+
+```go
+r := gin.New()
+
+// 順序 1：最優先 — 請求 log（含 latency、status）
+r.Use(gin.Logger())
+
+// 順序 2：panic recovery（避免 crash 整個 server）
+r.Use(gin.Recovery())
+
+// 順序 3：跨域設定（CORS header 必須在 auth 之前）
+r.Use(middleware.CORS())
+
+// 順序 4：限流（在 auth 之前，防止暴力破解）
+r.Use(middleware.RateLimit())
+
+// 順序 5：JWT 驗證（只對需要 auth 的 route group 套用）
+authGroup := r.Group("/api/{version}")
+authGroup.Use(middleware.Auth())
+
+// 順序 6：依 SCHEMA.md BC 清單 register route（{version} 從 CONSTANTS.md 讀取）
+handler.Register{BcName}Routes(authGroup)
+```
+
+**重要約束**：
+- `internal/` 下的 BC 目錄對應 SCHEMA.md Bounded Context 清單
+- `handler/` 禁止直接執行業務邏輯（只做 binding / validation / response）
+- `service/` 禁止 import `github.com/gin-gonic/gin`
+- `go.mod` module 名稱由 EDD §3.3 技術棧總覽決定，不寫死
+
+---
+
+#### PHP + Laravel（`lang_stack=php`）
+
+**目錄結構**（Laravel 標準 layout）：
+
+```
+apps/api/
+├── app/
+│   └── Http/
+│       ├── Controllers/
+│       │   └── {BcName}/          # 依 BC 分組（對應 SCHEMA.md §BC 清單）
+│       │       └── {BcName}Controller.php
+│       ├── Middleware/             # Auth, RateLimit, CORS
+│       └── Requests/              # FormRequest（input validation）
+│           └── {BcName}/
+├── app/Services/                  # 業務邏輯（不依賴 Request/Response）
+│   └── {BcName}Service.php
+├── app/Models/                    # Eloquent Model（對應 SCHEMA.md table）
+│   └── {BcName}.php
+├── app/Repositories/              # 資料存取（Repository Pattern）
+│   └── {BcName}Repository.php
+├── routes/
+│   └── api.php                    # Route 定義（api_version 從 CONSTANTS.md 讀取）
+├── database/
+│   ├── migrations/                # 對應 SCHEMA.md CREATE TABLE，順序與 FK 依賴一致
+│   └── seeders/                   # 對應 SCHEMA.md Seed Data
+└── composer.json
+```
+
+**Laravel Middleware 掛載順序**（`bootstrap/app.php` 或 `Kernel.php`，**順序不可調換**）：
+
+```php
+// 順序 1：CORS（必須在所有 middleware 之前）
+\Fruitcake\Cors\HandleCors::class,
+
+// 順序 2：速率限制（ThrottleRequests）
+'throttle:api',
+
+// 順序 3：JWT / Sanctum 認證
+'auth:sanctum',
+
+// Route 定義（api_version 從 CONSTANTS.md §api_version 讀取）
+Route::prefix('api/{version}')->group(function () {
+    // 依 SCHEMA.md BC 清單 register controller
+});
+```
+
+**重要約束**：
+- `Controller` 只處理 HTTP bind/validate/response，業務邏輯放 `Service`
+- `Model` 對應 SCHEMA.md 每張 table；關聯（`hasMany`/`belongsTo`）依 SCHEMA.md FK 定義
+- Migration 檔案順序必須與 SCHEMA.md CREATE TABLE 依賴順序一致（被依賴的表先跑）
+
+---
+
 **Quality Gate 新增項目**：
 
 | 檢查項 | 合格標準 |
 |--------|---------|
-| AI Gencode — Backend 目錄樹 | §3.8 存在；lang_stack 對應的目錄樹完整；無模糊 TODO 路徑 |
-| AI Gencode — Plugin 掛載順序 | Fastify 專案含 6 步 plugin register 順序；ENV 必須最先的說明已包含 |
+| AI Gencode — Backend 目錄樹 | §3.8 存在；lang_stack 對應的目錄樹完整（TypeScript/Java/Python/Go/PHP 各有獨立分支）；無模糊 TODO 路徑 |
+| AI Gencode — Plugin/Middleware 掛載順序 | TypeScript(Fastify) 含 6 步 plugin 順序；Go(Gin) 含 6 步 middleware 順序；PHP(Laravel) 含 3 步 middleware 順序；各框架 ENV/CORS/Auth 順序說明已包含 |
 
 ---
 
