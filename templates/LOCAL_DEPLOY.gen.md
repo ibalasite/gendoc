@@ -238,6 +238,24 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 - port-forward 表：所有指令使用真實 namespace 和真實 port
 - 若純後端：移除 web-app 列
 
+### §6.0 Monorepo Package 命名一致性（前置強制規則）
+
+生成本章節（含 §6、§15 Inner Loop、§18 AI Quick Start）所有 pnpm / make 開發指令前，
+**必須先讀取 EDD §3.3.x Package 命名權威表**，確認三個 app 的 package name，
+並在本文件所有 `--filter` 參數及目錄路徑中使用完全一致的名稱。
+
+| 正確（EDD §3.3.x 授權）| 錯誤（舉例，非窮舉）|
+|----------------------|-------------------|
+| `pnpm --filter {PROJECT_SLUG}-web dev` | `pnpm --filter player-app dev` |
+| `pnpm --filter {PROJECT_SLUG}-api start` | `pnpm --filter apps/api start` |
+| `cd apps/web && pnpm dev` | `cd apps/player && pnpm dev` |
+
+❌ 禁止：在任何指令中出現 EDD §3.3.x 未授權的 app 名稱（如 `player-app`、`admin-app`、`apps/player/` 等）
+
+Quality Gate：本文件所有 `--filter` 目標名稱與 EDD §3.3.x 授權名稱完全一致；無自行發明的 app name
+
+---
+
 ### §6 Development Commands
 
 三個分類（Image & Deployment、觀察 & 偵錯、測試）的 `make` 指令**必須**提供等同底層 kubectl/nerdctl 命令：
