@@ -449,6 +449,88 @@ AfterAll(async () => {
 
 ---
 
+## §B.0 Given Step 唯一合法模式（所有專案強制鐵律）
+
+Given step 建立前置狀態的**唯一合法模式**是直接 DB seed（引用 §A World fixture 介面）：
+
+```typescript
+// ✅ 唯一合法模式
+Given('{string} exists', async function(this: AppWorld) {
+  await this.db.seed({
+    '{bc_name_from_schema}': [{ id: 'entity-001', status: 'active', ... }]
+    //  ↑ key = SCHEMA.md BC 名稱  ↑ id 固定格式字串（非 uuid()）
+  });
+});
+```
+
+### 禁止的 Anti-patterns（明確列舉，AI 不得生成以下任何模式）
+
+**❌ Anti-pattern 1：在 Given step 呼叫 API endpoint 建立資料**
+
+```typescript
+// ❌ 禁止
+Given('{string} exists', async function(this: AppWorld) {
+  this.lastResponse = await this.client.post('/api/entity', { ... }); // API 呼叫
+});
+```
+
+原因：Given 依賴 API 實作；API 改動會讓 Given 失敗，導致測試 cascade 崩潰。
+
+---
+
+**❌ Anti-pattern 2：Factory helper 帶隨機資料**
+
+```typescript
+// ❌ 禁止
+Given('{string} exists', async function(this: AppWorld) {
+  const entity = EntityFactory.create();  // 隨機資料，不可重現
+});
+```
+
+原因：隨機值導致 test vector 不可重現；ENUM 值可能隨機到無效值。
+
+---
+
+**❌ Anti-pattern 3：跨 scenario 共享狀態（缺少 Before clean）**
+
+```typescript
+// ❌ 禁止（第一個 scenario 的 seed 污染第二個 scenario）
+// Before hook 必須每次 clean，見 §A.3
+```
+
+原因：未 clean 的前一 scenario seed 資料會使下一個 scenario 狀態不確定。
+
+---
+
+**❌ Anti-pattern 4：直接寫 SQL 字串而非 seed() 介面**
+
+```typescript
+// ❌ 禁止
+await this.db.query("INSERT INTO entities VALUES (...)", [...]);
+```
+
+原因：`seed()` 封裝了 FK 依賴排序，繞過它會導致 FK violation。
+
+---
+
+### 唯一合法模式（完整規則）
+
+```typescript
+// ✅ 永遠用 this.db.seed({ '{bc_name_from_schema}': [{ ...fixed_values }] })
+// ✅ id 欄位用固定格式字串（'entity-001'），不用 uuid()
+// ✅ ENUM 欄位用 SCHEMA.md 定義的合法值（引用 type alias，不寫字串 literal）
+// ✅ 時間欄位用 new Date().toISOString()（不寫死日期字串）
+// ✅ FK 欄位用與父表 seed 一致的固定 id（'parent-001' 等）
+```
+
+**Quality Gate**：
+
+| 檢查項 | 合格標準 |
+|--------|---------|
+| AI Gencode — Given 唯一模式 | 所有 Given step 使用 `this.db.seed()`；無 API 呼叫、factory、隨機資料、裸 SQL |
+
+---
+
 ## §B Step Definition 實作配方（AI Gencode 強制）
 
 > **目的**：提供 Given/When/Then 三種 step 的具體程式碼骨架，AI codegen 可直接套用。
