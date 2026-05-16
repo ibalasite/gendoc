@@ -342,6 +342,133 @@ Schema Ownership Table（**必填**，每個 BC 填入具體 Schema / Table 名�
 - 不得省略 Ingress / LB 層（以為直接打 API Port 即可）
 - Mermaid 語法不得有未閉合的 `subgraph`
 
+### §3.8 Backend 目錄結構與 Plugin 掛載骨架（lang_stack 分支，強制）
+
+**觸發條件**：`lang_stack` 包含任何 backend 語言（typescript / java / python / go / php）
+
+**目標**：讓 AI codegen 可直接生成與 monorepo tsconfig / build tool 相容的骨架，
+避免「看起來對但路徑不對」的錯誤。所有路徑、框架名稱從 `EDD §3.3 技術棧總覽` 讀取，不寫死。
+
+---
+
+#### TypeScript + Fastify（`lang_stack=typescript`, `framework=fastify`）
+
+**目錄結構**（全部引用 EDD §3.3 決定的 monorepo 根目錄名稱）：
+
+```
+apps/api/
+├── src/
+│   ├── server.ts              # 入口點：buildApp() + listen()
+│   ├── app.ts                 # Fastify instance 建立 + plugin 依序 register
+│   ├── plugins/               # 核心 plugin（有執行順序依賴，見下方順序規則）
+│   │   ├── env.ts             # 環境變數驗證（@fastify/env 或 dotenv-safe）
+│   │   ├── db.ts              # PostgreSQL pool（@fastify/postgres）
+│   │   ├── redis.ts           # Redis client（僅 SCHEMA.md 含 Redis 時生成）
+│   │   └── auth.ts            # JWT 驗證（@fastify/jwt）
+│   ├── routes/                # 依 BC 分組（對應 SCHEMA.md §BC 清單）
+│   │   └── {bc-name}/
+│   │       ├── index.ts       # route 掛載（prefixing）
+│   │       └── schema.ts      # TypeBox/Zod DTO schema
+│   ├── services/              # 業務邏輯（可測試，不依賴 Fastify）
+│   │   └── {bc-name}.service.ts
+│   └── types/
+│       └── fastify.d.ts       # 擴充 FastifyInstance（db, redis 型別宣告）
+├── test/
+│   └── setup.ts               # supertest / vitest 測試配置
+├── package.json
+└── tsconfig.json              # paths 含 "@/*": ["./src/*"] alias
+```
+
+**Plugin 掛載順序**（`app.ts`，**順序不可調換**）：
+
+```typescript
+// 順序 1：最優先 — 其他 plugin 需讀 ENV
+fastify.register(envPlugin);
+
+// 順序 2：DB 連接
+fastify.register(dbPlugin);
+
+// 順序 3：有 Redis 才生成此行（從 SCHEMA.md 判斷）
+fastify.register(redisPlugin);
+
+// 順序 4：依賴 db（session/token 驗證）
+fastify.register(authPlugin);
+
+// 順序 5：API version 從 CONSTANTS.md §api_version 讀取
+fastify.register(routes, { prefix: `/api/{api_version}` });
+
+// 順序 6：最後 — 全域錯誤攔截
+fastify.setErrorHandler(errorHandler);
+```
+
+**重要約束**：
+- `routes/` 中每個 BC 子目錄對應 SCHEMA.md 的一個 Bounded Context
+- `services/` 層禁止直接引用 Fastify，只接受 primitive 參數
+- `tsconfig.json paths` 必須含 `"@/*": ["./src/*"]` alias
+
+---
+
+#### Java + Spring Boot（`lang_stack=java`）
+
+**目錄結構**（Maven standard layout，`{base-package}` 從 EDD §3.3 讀取）：
+
+```
+apps/api/src/main/java/{base-package}/
+├── Application.java           # @SpringBootApplication 入口
+├── config/                    # Spring Config（DB, Redis, Security）
+│   ├── DatabaseConfig.java
+│   ├── RedisConfig.java       # 僅 SCHEMA.md 含 Redis 時生成
+│   └── SecurityConfig.java
+└── {bc-name}/                 # 依 BC 分組（對應 SCHEMA.md §BC 清單）
+    ├── controller/            # @RestController
+    ├── service/               # @Service（業務邏輯）
+    ├── repository/            # @Repository（JPA）
+    └── entity/                # @Entity（對應 SCHEMA.md table）
+```
+
+**Spring Boot 自動組態順序**（說明，無需手動 register）：
+1. `application.yml` 讀取（DB, Redis, JWT 設定）
+2. Spring Security filter chain（`SecurityConfig.java`）
+3. `@RestController` 自動掃描（由 `@SpringBootApplication` 觸發）
+
+---
+
+#### Python + FastAPI（`lang_stack=python`）
+
+**目錄結構**：
+
+```
+apps/api/
+├── main.py                    # FastAPI app 建立 + router include
+├── core/
+│   ├── config.py              # pydantic Settings（讀 .env）
+│   ├── database.py            # SQLAlchemy session
+│   └── security.py            # JWT 驗證 dependency
+└── {bc-name}/
+    ├── router.py              # APIRouter
+    ├── schemas.py             # Pydantic models
+    └── service.py             # 業務邏輯
+```
+
+**Router include 順序**（`main.py`，`{version}` 從 CONSTANTS.md §api_version 讀取）：
+
+```python
+app.include_router(auth_router,      prefix='/api/{version}')
+app.include_router({bc_name}_router, prefix='/api/{version}')
+# ... 依 SCHEMA.md BC 清單順序繼續
+```
+
+---
+
+**Quality Gate 新增項目**：
+
+| 檢查項 | 合格標準 |
+|--------|---------|
+| AI Gencode — Backend 目錄樹 | §3.8 存在；lang_stack 對應的目錄樹完整；無模糊 TODO 路徑 |
+| AI Gencode — Plugin 掛載順序 | Fastify 專案含 6 步 plugin register 順序；ENV 必須最先的說明已包含 |
+
+---
+
 ### §4 Security 設計
 
 **OWASP Top 10 對應（每項必填具體對策）**
