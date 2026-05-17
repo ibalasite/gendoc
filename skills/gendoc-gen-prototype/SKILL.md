@@ -714,15 +714,42 @@ HTML 結構規範：
 
   <script>
   // ─── API_EXPLORER_SPEC（內嵌）────────────────────────
-  // 依 API_EXPLORER_SPEC 生成完整 JS 資料物件，包含：
-  // - groups[]（endpoint 分組）
-  // - 每個 endpoint 的 id, method, path, summary, params, request_body, responses[]
-  // - MOCK_DB：{ entity_name: example_array }（從 SCHEMA entity examples 組裝，≥3 筆）
+  // ★ Iron Law A：統一資料模型（禁止 HTML 字串型 responses）
+  // responses[] 一律存 JSON 物件；params 有限制時必填 enum[]；
+  // 每個 endpoint 標 auth_required（boolean）+ mock_entity（對應 MOCK_DB key）
+  //
+  // 必須採用此結構：
+  // const SPEC = {
+  //   base_url: "https://api.example.com",
+  //   auth: { type: "bearer", header: "Authorization", placeholder: "Bearer <token>" },
+  //   groups: [{
+  //     id: "group-id", name: "分組名", color: "#HEX",
+  //     endpoints: [{
+  //       id: "ep-id", method: "GET|POST|PUT|PATCH|DELETE",
+  //       path: "/resource/{id}", summary: "簡述", description: "詳述",
+  //       auth_required: true,        // ← 必填
+  //       mock_entity: "entityName",  // ← 對應 MOCK_DB key（無實體填 null）
+  //       params: [{
+  //         name: "id", in: "path|query|header",
+  //         type: "string|number|boolean", required: true,
+  //         description: "說明",
+  //         enum: ["a","b"]  // ← 有值限制時必填，否則省略
+  //       }],
+  //       request_body: { /* 典型請求 JSON 物件，非字串 */ },
+  //       responses: [{
+  //         code: 200, description: "成功",
+  //         example: { /* 完整 JSON 物件，禁止 HTML 字串 */ }
+  //       }]
+  //     }]
+  //   }]
+  // };
 
-  const SPEC = { /* 完整 API_EXPLORER_SPEC 資料 */ };
+  const SPEC = { /* 依上述結構填入完整資料 */ };
 
   const MOCK_DB = {
-    // 每個 Entity 至少 3 筆擬真範例資料（非 lorem ipsum）
+    // ★ Iron Law F：每個 entity ≥ 3 筆擬真資料，涵蓋不同狀態（active/inactive/banned…）
+    // mockRequest() 必須：path param 在 MOCK_DB 找不到 → 404
+    //                    列表 endpoint 支援 query param 過濾（status/type/rarity…）
   };
 
   // ─── Mock Engine ─────────────────────────────────────
@@ -739,26 +766,57 @@ HTML 結構規範：
   }
 
   // ─── 參數表單渲染 ──────────────────────────────────
-  // 每個參數渲染成一個 .param-row，含：
-  // [必填標記] [參數名] [說明] [輸入控制項]
+  // 每個參數渲染成一個 .param-row，含：[必填標記] [參數名] [說明] [輸入控制項]
   //
-  // 輸入控制項設計（雙模式）：
-  //   若 param.enum 存在（或從 SCHEMA 推斷出枚舉值）：
-  //     <datalist id="param-{name}-opts"> + <input list="...">
-  //     同時顯示快選 Chips（點擊直接填入）
-  //   否則：
-  //     單純 <input type="text|number"> + default value 預填
+  // ★ Iron Law D：URL 預覽（必須實作）
+  //   endpoint 標題下方顯示 <div id="url-preview-{epId}" class="url-preview">
+  //   每個 param input 的 keyup 均觸發 updateUrlPreview(ep)：
+  //     let url = (SPEC.base_url||'') + ep.path;
+  //     ep.params.filter(p=>p.in==='path').forEach(p=>{
+  //       const v=document.getElementById(`param-${ep.id}-${p.name}`)?.value;
+  //       if(v) url=url.replace(`{${p.name}}`,v);
+  //     });
+  //     const qs=ep.params.filter(p=>p.in==='query')
+  //       .map(p=>{const v=document.getElementById(`param-${ep.id}-${p.name}`)?.value;
+  //                return v?`${p.name}=${encodeURIComponent(v)}`:null})
+  //       .filter(Boolean).join('&');
+  //     if(qs) url+='?'+qs;
+  //     document.getElementById(`url-preview-${ep.id}`).textContent=`${ep.method} ${url}`;
   //
-  // Request Body 區塊：
+  // ★ Iron Law E：Enum 參數 Chips（param.enum 存在時必渲染）
+  //   <datalist> + <input list> + 快選 Chips（點擊填入 input + 觸發 URL 預覽）
+  //   否則：單純 <input type="text|number"> + default value 預填
+  //
+  // ★ Iron Law C：Request Body 可編輯 Textarea（禁止唯讀 code block）
   //   若 endpoint 有 request_body：
-  //     顯示 Presets 下拉選單（從 spec 的 request_body examples 組裝）
-  //     + 可編輯的 <textarea>（JSON 格式，預設填入第一個 preset）
-  //     選 preset 後自動填入 textarea，使用者可繼續修改
+  //     Presets 下拉 + <textarea>（JSON 格式）；keyup 時 JSON.parse 驗證：
+  //     無效 → red border + 錯誤訊息（不阻擋 Try It，但警告使用者）
+  //
+  // ★ Iron Law B：Possible Responses 靜態必可見（<details>/<summary>，零 JS）
+  //   ep.responses.forEach(r => {
+  //     const plain = JSON.stringify(r.example||{}, null, 2);
+  //     html += `<details class="resp-item">
+  //       <summary>
+  //         <span class="status-badge">${r.code}</span>
+  //         <span>${escapeHtml(r.description)}</span>
+  //       </summary>
+  //       <div class="resp-example-block">
+  //         <div class="resp-example-header">
+  //           <span>JSON</span>
+  //           <button data-copy="${plain.replace(/"/g,'&quot;')}"
+  //                   onclick="copyCode(this,this.dataset.copy)">複製</button>
+  //         </div>
+  //         <pre>${jsonHighlight(plain)}</pre>
+  //       </div>
+  //     </details>`;
+  //   });
+  //   ← 禁止只顯示 code+description；r.example 必須從 JSON 物件 render（非 HTML 字串）
 
   function renderEndpoint(epId) {
     // 更新 URL hash：#endpoint-{epId}（deep link）
     location.hash = 'endpoint-' + epId;
-    // 渲染 endpoint 詳情 + 參數表單 + Try It 按鈕 + response 面板
+    // 渲染順序：method badge + path + URL preview → description → params（含 enum chips）
+    //           → request body textarea → Try It 按鈕 → Possible Responses（<details>）
   }
 
   // ─── Try It ───────────────────────────────────────
@@ -812,10 +870,13 @@ HTML 結構規範：
 
 **品質要求（生成後自我驗證）：**
 - [ ] docs/pages/prototype/api-explorer/index.html 存在且可在 file:// 開啟
-- [ ] MOCK_DB 每個 entity 有 ≥ 3 筆擬真資料（非 lorem ipsum）
+- [ ] **[Iron Law A] 資料模型**：`SPEC.groups[].endpoints[].responses[]` 存 JSON 物件（禁 HTML 字串）；params 有限制時含 `enum[]`；每個 endpoint 標 `auth_required` + `mock_entity`
+- [ ] **[Iron Law B] Possible Responses 靜態可見**：每個 response code 用 `<details>/<summary>` 渲染 — 不展開可見 code+description，展開可見完整 example JSON + 複製按鈕 — **禁止只顯示 code+description**
+- [ ] **[Iron Law C] Request Body 可編輯**：可編輯 `<textarea>`（非唯讀 code block）；JSON keyup 驗證：invalid → red border + 錯誤訊息
+- [ ] **[Iron Law D] URL 預覽**：填入 path/query param 後 URL preview 即時更新（顯示 `METHOD base_url/path?query=val`）
+- [ ] **[Iron Law E] Enum Chips**：`params[].enum` 存在 → 渲染可點擊 chips，點擊填入 input + 觸發 URL 預覽
+- [ ] **[Iron Law F] MOCK_DB 覆蓋度**：每個 entity ≥ 3 筆，涵蓋不同狀態；path param 找不到 → 404；列表 endpoint 支援 query param 過濾
 - [ ] 所有 endpoint 的 params 均有對應輸入欄位
-- [ ] 枚舉型參數有 Chips 快選 + 可自由輸入
-- [ ] Request Body 有 Presets 下拉 + 可編輯 textarea
 - [ ] "Try It" 按鈕可執行，顯示 ≥200ms 模擬延遲 + mock 回應
 - [ ] 回應面板顯示 status code badge + formatted JSON
 - [ ] **所有 Copy 按鈕使用 `data-copy` attribute 傳遞複製內容，`onclick="copyCode(this, this.dataset.copy)"` 觸發** — **禁止**將 JSON 直接嵌入 `onclick="copyCode(this, \`...\`)"` 屬性，因為 JSON 的 `"` 字元會提早終止 HTML attribute，導致 JSON 內容外漏成可見文字；`data-copy` 值需做 `replace(/"/g, '&quot;')` HTML 轉義
@@ -823,7 +884,7 @@ HTML 結構規範：
 - [ ] "Copy as cURL" 按鈕可用，複製後命令包含 auth header
 - [ ] Hash routing 可用：`#endpoint-{id}` 直接開啟對應 endpoint
 - [ ] Auth token 持久化（localStorage）：重新整理後保留
-- [ ] 無 401 mock（auth 啟用時帶入 token）
+- [ ] `auth_required: true` endpoint 無 token → Try It 回傳 401（auth gate 不得移除）
 - [ ] sidebar 搜尋可過濾 endpoint 列表
 
 完成後輸出：
@@ -1184,15 +1245,18 @@ API Explorer（_PROTO_MODE = api-explorer / full）：
 ### A. API Explorer 品質審查（_PROTO_MODE = api-explorer / full）
 
 - [ ] A-1: **Endpoint 覆蓋** — API_EXPLORER_SPEC 所有 endpoint 是否都在 sidebar 列出且可點擊？
-- [ ] A-2: **Mock 擬真** — MOCK_DB 每個 entity 是否有 ≥ 3 筆擬真資料（非 lorem ipsum / placeholder）？
-- [ ] A-3: **雙模式參數輸入** — 枚舉型參數是否有 Chips 快選 + 可自由打值的 input？非枚舉是否有 default 預填？
-- [ ] A-4: **Request Body Presets** — POST/PUT endpoint 是否有 Presets 下拉 + 可編輯 textarea？選 preset 後 textarea 是否自動填入？
+- [ ] A-2: **[Iron Law F] Mock 擬真** — MOCK_DB 每個 entity 是否有 ≥ 3 筆擬真資料（非 lorem ipsum / placeholder）？path param 找不到 → 是否回傳 404？列表 endpoint 是否支援 query param 過濾？
+- [ ] A-3: **[Iron Law E] Enum Chips** — `params[].enum` 存在時是否渲染可點擊 chips？點擊後是否自動填入 input 並更新 URL 預覽？
+- [ ] A-4: **[Iron Law C] Request Body 可編輯** — POST/PUT endpoint 的 request body 是否為可編輯 `<textarea>`（非唯讀 code block）？輸入非法 JSON 時是否顯示 red border + 錯誤訊息？
 - [ ] A-5: **Try It 可用** — 點擊 Try It 是否顯示 ≥200ms spinner + 顯示 mock response（JSON）？
 - [ ] A-6: **Status Code Badge** — response panel 是否顯示正確顏色的 status badge（200=綠/400=橙/401=紅/500=深紅）？
 - [ ] A-7: **cURL 複製** — "Copy as cURL" 按鈕是否可用，命令是否包含 auth header（auth 啟用時）？
 - [ ] A-8: **Hash Deep Link** — `#endpoint-{id}` 是否可直接開啟對應 endpoint？分享連結是否有效？
 - [ ] A-9: **Auth 持久化** — Auth token 是否透過 localStorage 持久化（重新整理後保留）？
 - [ ] A-10: **無 JS 語法錯誤** — index.html inline script 是否無明顯語法錯誤？
+- [ ] A-11: **[Iron Law A] 資料模型** — `SPEC.responses[]` 是否存 JSON 物件（禁 HTML 字串）？每個 endpoint 是否標 `auth_required` + `mock_entity`？params 有限制時是否含 `enum[]`？
+- [ ] A-12: **[Iron Law B] Possible Responses 靜態可見** — 每個 response code 是否用 `<details>/<summary>` 渲染？不展開可見 code+desc，展開可見完整 example JSON + 複製按鈕？**禁止只顯示 code+description 無 example**
+- [ ] A-13: **[Iron Law D] URL 預覽** — 填入 path/query param 後 URL preview 是否即時更新？顯示完整 `METHOD base_url/path?qs=val`？
 
 **完成後輸出（格式嚴格）：**
 PROTOTYPE_REVIEW_RESULT:
