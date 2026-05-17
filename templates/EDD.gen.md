@@ -1391,6 +1391,35 @@ PostgreSQL -->|"PVC: db-data\n100Gi / SSD"| Storage[("PersistentVolume\nStorageC
 
 ---
 
+### §5 Endpoint Inventory Table（必填）
+
+> **強制規則**：此表是 API.gen.md 的輸入清單。缺少此表 → API.md 生成時將漏掉 Endpoint，直接導致 F-002/F-017 類對齊失敗。
+
+列出本系統所有對外 REST Endpoint，每一列對應一個 BC 定義的操作：
+
+| Method | Path | BC | 說明 | API.md 章節（待補） |
+|--------|------|----|------|-------------------|
+| `GET` | `/health` | BC-0 Infrastructure | Health check | § — |
+| `POST` | `/auth/login` | BC-1 Auth | 登入 | § — |
+| `POST` | `/auth/logout` | BC-1 Auth | 登出 | § — |
+| `POST` | `/auth/refresh` | BC-1 Auth | Token 更新 | § — |
+| `GET` | `/.well-known/jwks.json` | BC-1 Auth | JWK Set 公鑰 | § — |
+
+（依 PRD 功能逐一展開；每個 BC §3.4 定義的操作必須在此出現；`API.md 章節` 欄由 API.gen.md 回填）
+
+**生成規則**：
+- 從 PRD 所有 User Stories 的 AC 推斷所有 REST Endpoint
+- 路徑格式必須與 §3.4 BC 定義一致（不得加 /api/ 前綴，除非 BRD 明確要求）
+- 若 BC 有多個 Endpoint，每個獨立一列
+- 此表行數 = `rest_endpoint_count`（DRYRUN 計算基線的來源）
+
+**Quality Gate**：
+- [ ] 此表行數（不含 header）≥ PRD P0 功能所需的最少 Endpoint 數
+- [ ] 每個 BC（§3.4）至少有 1 列對應 Endpoint
+- [ ] 無重複的 Method + Path 組合
+
+---
+
 ### §5 BDD 設計
 
 依 PRD 每個 AC 規劃 Gherkin Scenario：
@@ -1809,6 +1838,29 @@ PII 禁止記錄規則必須明確定義（email/phone/password 等欄位不得�
 - span 命名慣例：`<service>.<operation>`（e.g., `user-service.create_user`）
 - 業務屬性標注規範：`payment.amount`、`user.id` 等語意屬性
 - W3C Trace Context 傳播
+
+**★ Redis Key Namespace Table（必填，HC-4 強制）**
+
+> **強制規則（HC-4）**：所有 BC 使用 Redis 的 key prefix 必須集中定義於此，禁止各 BC 自行決定 key 結構（防止 BC 間 cache 互污染）。ARCH §3.3 必須引用此表。
+
+| BC | Key Pattern | TTL | 說明 |
+|----|-------------|-----|------|
+| BC-1 Auth | `auth:session:{user_id}` | 3600s | Session token cache |
+| BC-1 Auth | `auth:jwks` | 3600s | JWK Set cache |
+| BC-2 Rate Limit | `rl:{user_id}:{endpoint}:{window}` | 60s | Rate limiting sliding window |
+| BC-3（依 PRD 填入） | `{bc_prefix}:{resource}:{id}` | 300s | 依業務需求填入 |
+
+（依 §3.4 BC 定義，每個使用 Redis 的 BC 必須在此出現；不使用 Redis 的 BC 不列）
+
+**生成規則**：
+- key pattern 必須以 BC 短名作為 namespace 前綴（防止跨 BC key 碰撞）
+- 不同 BC 的 key prefix 不得重疊（例如不能同時有 `auth:*` 和 `auth_cache:*` 屬於不同 BC）
+- TTL 必須填寫具體數字，不得留「視情況」
+
+**Quality Gate**：
+- [ ] 所有使用 Redis 的 BC 均有對應 key namespace 定義
+- [ ] 無兩個不同 BC 使用相同 key prefix
+- [ ] 每個 key pattern 有明確 TTL
 
 ---
 

@@ -253,7 +253,8 @@
       "input": [
         "docs/PDD.md",
         "docs/VDD.md",
-        "docs/CONSTANTS.md"
+        "docs/CONSTANTS.md",
+        "docs/SCHEMA.md"
       ]
     },
     {

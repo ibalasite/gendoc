@@ -206,6 +206,11 @@ upstream-alignment:
 **Risk**: 裸 placeholder 讓工程師無法直接使用 API 文件，需要人工詢問填寫缺漏值，失去文件自動生成的價值。
 **Fix**: 對每個裸 placeholder，依上游文件或業務設定填入真實值；若真的無法確定，改為 `（待確認：描述）` 說明而非保留 `{{PLACEHOLDER}}`。
 
+#### [HIGH] EDD-01 — EDD §5 Endpoint 完整性
+**Check**: 逐一列出 EDD §5（API Design）中所有定義的操作（HTTP method + path），確認每一個在 API.md 均有對應的 endpoint 文件。缺失任一 EDD 定義的 endpoint → HIGH。
+**Risk**: EDD 是 API.md 生成的 canonical source；EDD 定義但 API.md 未文件化的 endpoint，工程師在實作時缺乏規格，容易自由推斷導致行為偏離設計。此類漏洞在 integration test 前難以被發現。
+**Fix**: 輸出缺漏清單：「EDD 定義但 API.md 未文件化：[method] [path] — BC: [bc_name]」；逐一在 API.md 對應 BC 章節補充 endpoint 定義，包含 request/response schema 和 error codes。
+
 ---
 
 ### Layer 8: UML 圖完整性（由 API Design Expert 主審，共 1 項）

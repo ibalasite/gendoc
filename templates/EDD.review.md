@@ -290,6 +290,23 @@ upstream-alignment:
 **Risk**: 共享 Redis Key 無 namespace 隔離，一個 BC 的快取操作可能影響其他 BC 狀態。
 **Fix**: 為每個 BC 分配獨立 Redis Key Prefix（如 `member:*`、`wallet:*`），並在設計中記錄每個 BC 的 Key Pattern。
 
+#### [CRITICAL] IC-01 — EDD 內部 Container 自洽性（§2.2 vs §3.4/§3.6/§3.7）
+**Check**: §2.2 Container Diagram 中每個服務，是否與下列三節完全一致？
+
+1. **§3.4 BC 定義**：若 §3.4 中某 BC（例如 BC-5 Admin）被定義為獨立 BC（有獨立 Schema / HA / Lifecycle），則 §2.2 必須顯示該 BC 為獨立 Container；不得將其合併入其他 Container。
+2. **§3.6 HA 要求**：若 §3.6 要求某服務 ≥2 replicas（即宣告其為獨立部署單元），則 §2.2 必須顯示該服務為獨立 Container（因為你無法對一個合併在其他 binary 內的服務單獨 scale）。
+3. **§3.7 Deployment Diagram**：若 §3.7 顯示某服務有獨立 Pod / 獨立 Deployment，則 §2.2 必須對應獨立 Container。
+
+**核查方式**：列出 §3.4 BC 清單，逐一確認 §2.2 是否有對應獨立 Container。有不一致 → CRITICAL（§2.2 是舊圖，需更新為以 §3.4/3.6/3.7 為準）。
+**Risk**: §2.2 的 Container 圖若與 §3.4/3.6/3.7 矛盾，下游文件（ARCH.md、ADMIN_IMPL.md）會複製錯誤的 Container 歸屬，導致連鎖對齊失敗（F-006 根因）。
+**Fix**: 以 §3.4 BC 定義 + §3.6 HA 要求 + §3.7 Deployment 為準，更新 §2.2 Container Diagram。§2.2 是最末 canonical source，不是最先 canonical source。
+
+#### [HIGH] IC-02 — Container Port 與 ARCH 不一致
+**Check**: §2.2 中每個服務的 port 宣告，是否與 ARCH.md §3.x 對應 Container/Service 的 port 完全一致？
+（若 EDD 先於 ARCH 生成，此項改在 ARCH review 中核查；此處用於 EDD re-review 時的回溯驗證）
+**Risk**: Port 不一致會導致 LOCAL_DEPLOY 的 smoke-test URL / ConfigMap 填入錯誤 port，進而無法連線。
+**Fix**: 以 EDD §3.3 技術棧中明確定義的 port 為準，同步更新 §2.2 和 ARCH.md。
+
 ---
 
 ## Self-Check：章節完整性驗證

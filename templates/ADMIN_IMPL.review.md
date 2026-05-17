@@ -370,6 +370,25 @@ pass-conditions:
 **Risk**: 欄位名稱不一致（如 SCHEMA 用 `role_code` 但 §5 用 `code`）會導致 API 對接時序列化錯誤，引發後端 400/422 回應。  
 **Fix**: 對照 SCHEMA.md 逐一修正 §5 TypeScript interface 的欄位名稱，確保大小寫和底線格式精確匹配。
 
+### [CRITICAL] ALN-03b：Role ENUM 值與 SCHEMA.md 不一致（A6r）
+**Check**: ADMIN_IMPL.md 中所有出現角色值的地方（§5.5 角色清單、TypeScript enum/union type、permission 矩陣的 role 欄），是否與 `docs/SCHEMA.md` 中 `users.role`（或等效 ENUM 欄位）的值**逐字符完全一致**？
+
+核查方式：
+1. 從 `docs/SCHEMA.md` 提取 role ENUM 完整值清單（例：`ENUM('super_admin','auditor','viewer')`）
+2. 掃描 ADMIN_IMPL.md 中所有出現的 role 值：
+   - §5.5 角色清單中每個 `role_code` 值
+   - TypeScript `Role` enum/union type 的每個值
+   - §8 API × Permission 矩陣中 role 欄的每個值
+3. 任何角色值在 SCHEMA.md ENUM 中找不到完全相同的值 → **CRITICAL**
+
+常見違規（自動偵測）：
+- SCHEMA 定義 `super_admin`，ADMIN_IMPL 使用 `admin`（缺少 `super_` 前綴）
+- SCHEMA 定義 `auditor`，ADMIN_IMPL 使用 `audit`（截斷）
+- ADMIN_IMPL 定義了 SCHEMA 不存在的 role 值（AI 自行發明）
+
+**Risk**: Role ENUM 不一致導致 RBAC 授權邏輯在執行時找不到對應角色，造成整個 Admin Portal 的 permission guard 失效（F-001 根因）；若 DB 資料用 SCHEMA 的值，ADMIN_IMPL 的 TypeScript 用不同的值，API 呼叫時 role 欄位永遠不匹配。
+**Fix**: 以 `docs/SCHEMA.md` ENUM 為唯一 canonical source，逐字替換 ADMIN_IMPL.md 中所有偏差的 role 值；若 ADMIN_IMPL 有 SCHEMA 不存在的 role，必須先在 SCHEMA.md 補充再重生成。
+
 ### ALN-04：與 PRD Admin 功能模組對齊
 
 **Check**: 確認 §7 頁面規格涵蓋 PRD 中所有提及的 Admin 功能模組（逐一對照）。  

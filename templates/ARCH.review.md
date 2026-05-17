@@ -223,6 +223,37 @@ upstream-alignment:
 **Risk**: 未隔離 Redis Namespace 導致服務提取後快取操作相互干擾（FLUSH 影響全域）；缺少 §7.1 則 HC-4 無法在 Design Review 中被機械式驗證。
 **Fix**: 新增 §7.1 並為每個 BC（§4 服務邊界表中的所有 BC）填入 Redis Key Pattern；確認所有 Key Pattern 不重疊；列出需要遷移隔離的現有 Key。
 
+#### [HIGH] AM-05 — BC Container 所有權缺口（ARCH vs EDD §3.4 不吻合）
+**Check**: ARCH §3.x（L2 Container Diagram + §4 服務邊界表）中每個 Container，是否對應 EDD §3.4 的某個 BC？執行雙向核查：
+- 方向 A（Container → BC）：ARCH 中有 Container 找不到 EDD §3.4 對應 BC → HIGH
+- 方向 B（BC → Container）：EDD §3.4 有 BC 沒有對應 ARCH Container（且無合部署說明）→ HIGH
+
+核查方式：列出 EDD §3.4 BC 清單（BC-1 至 BC-N），逐一對照 ARCH §3.x 的 Container 清單；再逐一對照反向。
+**Risk**: 無歸屬的 Container 是 gold-plating 或設計遺漏；無 Container 的 BC 意味著該 BC 的部署方式未明確，downstream（LOCAL_DEPLOY、CICD）會自行推斷造成偏差。
+**Fix**: 補充缺失的 BC → Container 對應；若 MVP 合部署，在 §4 服務邊界表加入備注「MVP 合部署於 [host_service]，BC 邊界已設計為可獨立拆分」。
+
+#### [CRITICAL] AM-06 — HA Replica 無法追溯至 BRD SLA（P2 架構原則）
+**Check**: BRD 定義的可用性 SLA（如 99.9%）是否可追溯至 ARCH §10 Scalability / §15 Review Checklist 中每個核心服務的最低副本數配置？
+驗核方式：
+1. 從 BRD 讀取 SLA 數字（如 99.9% → 最大年停機 8.76h → 對應所需 min replicas）
+2. ARCH §15 Review Checklist item 12 是否包含 `HA Min Replicas ≥ 2` 的驗核？
+3. ARCH §3.3 (L2 Container) 是否顯示每個核心服務（API、Worker、Cache）副本數 ≥ 2？
+
+任何核心服務副本數 < 2（單副本）→ CRITICAL（違反 HA 設計前提，任何 pod crash = 全站 downtime）。
+**Risk**: 單副本部署無法達成任何 SLA；BRD 承諾的 99.9% 在第一次 pod 重啟時即破功。
+**Fix**: 將所有核心服務 replica 設為 ≥ 2；在 ARCH §15 item 12 加入 BRD SLA → 副本數追溯說明。
+
+#### [CRITICAL] AM-07 — 跨 BC DB 直接存取（HC-1 違反）
+**Check**: ARCH §3.x Container Diagram 或 §4 服務邊界表中，是否有任何 Container 直接連接到不屬於自己 BC 的 DB Schema？
+驗核方式：
+1. 從 EDD §3.4 讀取每個 BC 的 Schema Ownership（BC-X owns tables: [T1, T2]）
+2. 逐一確認 ARCH 中每個 Container 的 DB 連線，只指向自己 BC 所擁有的 Schema/Tables
+3. 若 BC-5 Admin Container 有直接讀 BC-1 Auth 的 `users` table → CRITICAL（HC-1 違反）
+
+合法的跨 BC 資料存取只能透過：REST API 呼叫 或 Domain Event（§4 事件驅動設計）。
+**Risk**: 跨 BC 直接 DB 存取 = 破壞 Schema Ownership → BC 無法獨立演進 / 獨立部署 / 獨立 migration。
+**Fix**: 改為透過目標 BC 的 Public API 或 Domain Event 存取資料；ARCH §4 補充跨 BC 通訊設計。
+
 ---
 
 ## Self-Check：章節完整性驗證

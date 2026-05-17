@@ -7,6 +7,7 @@ upstream-docs:
     - docs/PDD.md        # 產品設計（畫面、互動、Design Token）
     - docs/VDD.md        # 視覺設計（品牌、色彩、資產）
     - docs/CONSTANTS.md  # 前端常數（Breakpoint、動畫時間等）
+    - docs/SCHEMA.md     # DB Schema（ENUM → TypeScript union type；BC 邊界型別）
   description: |
     核心上游由 get-upstream 工具讀取並返回 JSON。
     FRONTEND.gen.md 從 JSON 提取相關內容進行前端設計。
@@ -527,6 +528,68 @@ staleTime: CACHE_TTL.{ENTITY}_LIST  // 來自 CONSTANTS.md
 ### §15.2 Git Commit 規範
 
 保持 FRONTEND.md 的 `feat(frontend):`、`fix(frontend):` 格式不變。
+
+---
+
+## ★ Shared Domain Types（必須生成）
+
+> **觸發條件**：無條件，所有有 API 邊界的專案均必須生成此章節。
+> **強制規則**：TypeScript interface 必須從 `docs/SCHEMA.md` 提取，禁止 AI 自行推斷欄位或值。
+
+讀取 `docs/SCHEMA.md`，為所有有 API Endpoint 對應的表生成 TypeScript interface，
+存放於 FRONTEND.md 的 `§X Shared Domain Types` 章節（X = 所有其他章節之後的下一個序號）。
+
+### 型別對照規則（SCHEMA → TypeScript）
+
+| SCHEMA 型別 | TypeScript 型別 | 說明 |
+|-------------|-----------------|------|
+| `VARCHAR(n)` / `TEXT` | `string` | |
+| `INT` / `BIGINT` / `DECIMAL` | `number` | |
+| `BOOLEAN` | `boolean` | |
+| `TIMESTAMP` / `DATE` | `string` | ISO 8601 格式，附 JSDoc 說明 |
+| `UUID` | `string` | 附 JSDoc `/** UUID v4 */` |
+| `ENUM('a','b',...)` | `'a' \| 'b' \| ...` | **必須逐字複製 SCHEMA 的 ENUM 值，不得自行推斷** |
+| `JSONB` / `JSON` | `Record<string, unknown>` 或從 EDD §3 推斷具體型別 | |
+| `nullable` | 加 `\| null` | |
+
+### 強制覆蓋的 Entity 類型
+
+必須為以下各類型（若 SCHEMA 中存在）生成 TypeScript interface：
+- **用戶相關**：User、UserRole（ENUM → union type）、UserStatus
+- **認證相關**：Token、TokenRequest、RefreshToken
+- **業務主體**：對應 PRD P0 功能的核心資料表（從 SCHEMA 提取所有有 API 對應的表）
+- **稽核 / 日誌**：AuditLogEntry、AdminAction（若有）
+
+### 生成範例（users 表）
+
+若 SCHEMA.md 中 `users` 表定義 `role ENUM('super_admin', 'auditor', 'viewer')`：
+
+```typescript
+// ★ 此 interface 從 SCHEMA.md 的 users 表自動派生，禁止手動修改 ENUM 值
+export interface User {
+  id: string;            // UUID v4
+  email: string;
+  role: 'super_admin' | 'auditor' | 'viewer';  // ENUM 值必須與 SCHEMA 完全一致
+  status: 'active' | 'inactive' | 'suspended'; // 來自 SCHEMA ENUM
+  createdAt: string;     // ISO 8601
+  updatedAt: string;     // ISO 8601
+}
+```
+
+### 衝突處理
+
+若 SCHEMA.md 中 ENUM 值與 EDD §5.5 角色清單不一致：
+- 標記 `[UPSTREAM_CONFLICT] SCHEMA.md 與 EDD §5.5 ENUM 不一致`
+- **以 SCHEMA.md 為準**（DB 是 canonical source）
+- 在 FRONTEND.md 該 interface 上方加注：`// ⚠️ EDD §5.5 與此不一致，請先對齊後重生成`
+- **不得自行決定採用哪個值**
+
+### 品質門檻追加
+
+在「生成前自我檢核清單」追加：
+- [ ] `§X Shared Domain Types` 章節存在且非空
+- [ ] 所有 ENUM 型別已轉為 TypeScript union type，值與 SCHEMA.md 逐字一致
+- [ ] 無 `any` 型別出現在 Shared Domain Types 章節
 
 ---
 

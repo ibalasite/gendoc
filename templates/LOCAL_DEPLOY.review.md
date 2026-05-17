@@ -249,6 +249,23 @@ upstream-alignment:
 **Risk**: 裸 placeholder 導致 AI codegen 工具執行指令時語法錯誤（kubectl 收到未替換的 `<namespace>` 會報 flag parse error）；新工程師平均需要 20–40 分鐘找出所有需要替換的 placeholder。
 **Fix**: 將所有裸 placeholder 替換為具體預設值（如 `<namespace>` → `pixel-pet-arena-local`）或以 `$K8S_NAMESPACE` env var 方式注入（在 secrets.example.env 提供 `K8S_NAMESPACE=pixel-pet-arena-local` 預設值）。
 
+#### [HIGH] URL-01 — Smoke-Test / Callback URL 路徑與 API.md 不一致（A2r）
+**Check**: LOCAL_DEPLOY.md 中所有 smoke-test URL、ConfigMap callback URL、health check path，是否與 `docs/API.md` 中定義的路徑完全一致（逐字符比對，包括有無 `/api/` 前綴、有無 `/v1/` 版本前綴）？
+
+核查方式：
+1. 從 `docs/API.md` 提取所有 endpoint path（HTTP method + path）
+2. 逐一比對 LOCAL_DEPLOY.md 中出現的每個 URL path
+3. 有任何 URL 在 API.md 找不到完全相同的 path → HIGH
+
+常見錯誤模式（自動偵測）：
+- LOCAL_DEPLOY 使用 `/api/v1/auth/callback`，但 API.md 定義 `/auth/callback`（多加了 `/api/v1/` 前綴）
+- LOCAL_DEPLOY 使用 `/api/.well-known/jwks.json`，但 API.md 定義 `/.well-known/jwks.json`
+- LOCAL_DEPLOY 的 health check 使用 `/health` 但 API.md 定義 `/api/health`
+
+若 Ingress 做路徑重寫（strip prefix），LOCAL_DEPLOY §2 架構圖必須明確標示重寫規則；光說「使用 Ingress」不標示重寫規則 → HIGH。
+**Risk**: URL 路徑偏差導致 smoke-test 永遠 404；OAuth callback URL 不匹配導致 OAuth flow 中斷（F-004/F-005 根因）。
+**Fix**: 從 `docs/API.md` 逐字提取路徑，替換 LOCAL_DEPLOY.md 中所有偏差的 URL；若需 Ingress 路徑重寫，在 §2 架構圖標示 `rewrite-target` 規則。
+
 ---
 
 ## Self-Check：章節完整性驗證

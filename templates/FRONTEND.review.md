@@ -196,6 +196,23 @@ upstream-alignment:
 **Risk**: 業務域 State 和資料夾結構保留泛化佔位符，前端工程師無法直接參考建立 State 結構。
 **Fix**: 依 PRD 主要業務資源（如 `products`、`users`）填入至少一個具體的業務域 State 定義和資料夾名稱。
 
+#### [HIGH] SDT-01 — Shared Domain Types 與 SCHEMA.md ENUM 不一致（A4r）
+**Check**: FRONTEND.md `§X Shared Domain Types`（或等效章節）中每個 TypeScript interface 的 ENUM / union type 值，是否與 `docs/SCHEMA.md` 對應表的 ENUM 定義**逐字符完全一致**？
+
+核查方式：
+1. 從 `docs/SCHEMA.md` 提取所有 ENUM 定義（格式：表名、欄位名、ENUM 值清單）
+2. 在 FRONTEND.md 中找到對應的 TypeScript interface 的 union type 宣告
+3. 逐一比對每個 ENUM 值（大小寫、拼字、順序均需一致）
+
+常見錯誤模式（自動偵測）：
+- SCHEMA 定義 `role ENUM('super_admin','auditor','viewer')`，FRONTEND 寫成 `'admin' | 'user' | 'guest'`（AI 自行推斷）
+- SCHEMA 有 `status ENUM('active','inactive','suspended')`，FRONTEND 寫成 `'active' | 'disabled'`（值不完整或名稱不同）
+
+有任何 ENUM 值不一致 → HIGH。
+`§X Shared Domain Types` 章節完全缺失 → HIGH（應由 gen 規則保證存在，缺失則 gen 未正確執行）。
+`any` 型別出現在 Shared Domain Types 章節 → HIGH。
+**Risk**: TypeScript interface 與 DB ENUM 不一致導致 API 邊界型別錯誤（F-012 根因）；前端可能發送 DB 不認識的 role 值，造成 403 或資料寫入失敗，且 TypeScript 編譯不會報錯（因為 interface 與 DB 不同步）。
+**Fix**: 從 `docs/SCHEMA.md` 逐字提取 ENUM 值，重寫 FRONTEND.md 中對應 interface 的 union type；確認 ENUM 值順序、大小寫與 SCHEMA 一致。
 
 ---
 

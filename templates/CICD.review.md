@@ -297,12 +297,27 @@ service:
 
 ---
 
+### [HIGH] YAML-01 — Job 以純文字描述替代 YAML（A5r）
+**Check**: CICD.md 中每個 workflow job（GitHub Actions、GitLab CI、Jenkins Pipeline 等），是否都有完整可執行的 YAML 程式碼區塊？以下任一情況視為 HIGH：
+
+- Job 只有文字描述段落（如「此 job 執行 unit test，使用 JUnit runner」），缺乏對應 YAML
+- YAML 存在但 `steps` 下只有說明性 comment 而無 `run:` 或 `uses:` 指令
+- 使用 `@latest` 或 `@main` 作為 action 版本（應為具體版本號，如 `@v3`）
+- 整個 workflow 只有 `on:` trigger 定義，無 `jobs:` 內容
+
+核查方式：逐一掃描每個 `job:` 區塊，確認有實質可執行的 `steps:`。
+
+**Risk**: 純文字描述 job 無法在 CI 環境中執行（F-Dim6 根因：CI/CD readiness 35%）；AI codegen 工具讀取此文件時無法生成可執行的 workflow 檔案；開發者需手動重寫所有 job，遠比文件原始意圖更耗時。
+**Fix**: 為每個純文字 job 補充對應的完整 YAML 結構；若 steps 實作尚未確定，使用 `run: echo "TODO: <具體說明>"` 作為佔位（保持結構完整但標注待補）；將所有 `@latest` / `@main` 替換為具體版本號。
+
+---
+
 ## 審查完成標準
 
 | 級別 | 數量要求 |
 |------|---------|
 | CRITICAL | 0（所有 R-00/R-01/R-02/R-05/R-09 必須全數修復） |
-| HIGH | 0（首次生成）；後續迭代允許 ≤ 1（需附風險說明）；R-14/R-15/R-19 需全數修復 |
+| HIGH | 0（首次生成）；後續迭代允許 ≤ 1（需附風險說明）；R-14/R-15/R-19/YAML-01 需全數修復 |
 | MEDIUM | ≤ 2 |
 | LOW | 不限 |
 

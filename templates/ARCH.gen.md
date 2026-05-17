@@ -205,6 +205,20 @@ graph TB
   ThirdParty -->|Webhook/API| APIServer
 ```
 
+**★ BC Topology 對照規則（L2 Container Diagram 生成前置，強制執行）**
+
+> 目的：確保 ARCH Container Diagram 與 EDD BC 定義嚴格一致，防止 Container 歸屬模糊（F-006 根因）。
+
+1. **讀取 EDD §3.4 BC 定義清單**（含每個 BC 的部署模式、HA 要求、Schema Ownership）
+2. **每個有獨立部署需求的 BC 必須對應一個獨立 Container**（不得合併）：
+   - 判斷標準：BC 在 EDD §3.6 有 `min replicas ≥ 2` 要求 → 必為獨立 Container
+   - 判斷標準：BC 在 EDD §3.7 有獨立 Pod / Deployment → 必為獨立 Container
+   - 判斷標準：BC 擁有獨立 DB Schema（EDD §3.4 Schema Ownership）→ 建議獨立 Container
+3. **Port 分配必須與 EDD §3.3 技術棧（或 §2.2 修正版）一致**：若 EDD 定義 admin-api port 8081，ARCH Container Diagram 必須使用相同 port。
+4. **MVP 合部署例外**：若 EDD 明確說明某 BC 在 MVP 中與其他 BC 合部署（同一 binary），ARCH 必須記錄：
+   `「BC-X [bc_name]: MVP 合部署於 [host_service]；BC 邊界已設計為可獨立拆分（Spring Modulith HC-1/HC-3）」`
+5. **衝突輸出規則**：若 EDD §3.4 BC 清單與 EDD §2.2 Container Diagram 不一致，以 §3.4/§3.6/§3.7 為準（§2.2 視為舊圖），並在 ARCH 備注標記 `[NOTE: EDD §2.2 與 §3.4 不一致，本 ARCH 以 §3.4 為準]`。
+
 **L2 — Container Diagram（主要容器）**：
 
 ```mermaid

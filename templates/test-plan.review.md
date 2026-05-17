@@ -224,3 +224,29 @@ upstream-alignment:
 **Check**: §3.8 是否包含「Domain Event 重複投遞冪等性」測試場景？即：向同一 Consumer BC 投遞同一 `event_id` 的 Domain Event 兩次，驗證業務邏輯只執行一次（DB 記錄不重複）？若系統有跨 BC 事件驅動架構但無此測試，視為 MEDIUM。
 **Risk**: 無冪等性測試，MQ 的 At-least-once 重複投遞在測試中從未被驗證；生產因 Consumer 重啟或 MQ broker 重傳而觸發重複消費，導致重複付款、重複建立資源等資料異常。
 **Fix**: 在 §3.8 補充 `SM-TEST-HC3-IDEMPOTENCY`：使用 Testcontainers 跑 Consumer Service，投遞同一 event_id 兩次，斷言 DB 中業務記錄只有一筆；若 Consumer 使用 `processed_event_id` 去重表，同步驗證去重表的 INSERT 操作。
+
+---
+
+### Layer 8: AC 覆蓋率完整性（A3r — 強制輸出）
+
+#### [FAIL] AC-COV-01 — Must-Have（P0）AC 未全數覆蓋（A3r）
+**Check**: test-plan.md 是否輸出「未覆蓋 AC 清單」表格？此表是否涵蓋所有 PRD Must Have（P0）的 AC？
+
+核查方式：
+1. 從 `docs/PRD.md` 提取所有標記 `Must Have` / `P0` 的 AC（含 AC-ID 和描述）
+2. 逐一確認每個 P0 AC 在 test-plan.md 中有對應的測試案例（TC-ID）
+3. 輸出「未覆蓋 AC 清單」：
+
+| AC-ID | PRD 需求 | 說明 | 風險 |
+|-------|---------|------|------|
+| AC-XXX | 未對應任何 TC | ... | P0 未驗收 |
+
+若清單非空（有任何 P0 AC 未覆蓋）→ **FAIL**（非 HIGH/MEDIUM，直接 FAIL，test-plan.md 無法通過 Review）。
+**Risk**: P0 AC 無對應測試案例 = 核心功能從未被測試驗收，等同於「功能未完成」。允許 90% 覆蓋率意味著 10% 核心功能可以跳過驗收（F-008/F-009/F-015 根因）。
+**Fix**: 為每個未覆蓋的 P0 AC 補充對應的 TC；補充後重新提交 Review。空清單 = PASS。
+
+#### [HIGH] AC-COV-02 — Should-Have（P1）AC 覆蓋率不足 95%
+**Check**: Should-Have（P1）AC 覆蓋率是否達到 ≥ 95%？
+核查方式：計算 `(有對應 TC 的 P1 AC 數) / (全部 P1 AC 數)`；低於 95% → HIGH。
+**Risk**: P1 AC 大量未覆蓋意味著核心功能品質缺乏保障；與 P0 AC 不同，P1 的 5% 豁免用於合理縮減（如需人工驗收的 UX 項目），不得用於偷懶省略。
+**Fix**: 補充缺漏的 P1 AC 測試案例；若某 P1 AC 確實無法自動化，在未覆蓋清單中標注「人工驗收」並說明理由。

@@ -125,7 +125,7 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 
 **§1.3 Testing Philosophy：**
 - Shift-Left 原則：測試計畫在實作前建立
-- Risk-Based：Must-have 功能覆蓋率 ≥ 90%，Should-have ≥ 80%
+- Risk-Based：Must-have（P0）AC 覆蓋率 **100%**（P0 AC 無對應測試 = 未驗收，不得 merge）；Should-have（P1）AC 覆蓋率 ≥ 95%；Nice-to-have ≥ 80%
 - 自動化優先：除 UAT 外，所有類型整合 CI/CD
 
 **§1.4 品質目標（量化，來自 PRD §9 Success Metrics）：**

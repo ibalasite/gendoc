@@ -61,6 +61,21 @@ LOCAL_DEPLOY 每個步驟都必須可由 AI 指令驅動，無需互動式輸入
 若某上游文件不存在，靜默跳過；不得因上游缺失而降低覆蓋深度。
 docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取。
 
+## ★ 路徑來源強制規則（禁止自行推斷）
+
+**所有 URL / 路徑必須從 `docs/API.md` 原文提取，不得 AI 自行推斷或添加前綴。**
+
+| 禁止行為 | 正確做法 |
+|---------|---------|
+| 自行加上 `/api/` 或 `/api/v1/` 前綴 | 原文照抄：API.md 定義 `/auth/callback` → LOCAL_DEPLOY 使用 `/auth/callback` |
+| 推斷 JWKS 路徑為 `/api/.well-known/jwks.json` | 讀取 API.md 中的真實路徑（如 `/.well-known/jwks.json`）|
+| smoke-test curl 使用未查證的路徑 | 從 API.md `### BC: Auth Endpoints` 提取所有 P0 endpoint 路徑 |
+| ConfigMap 中 callback URL 使用假設路徑 | 從 API.md 的 `POST /auth/callback` 提取 path 原文 |
+
+**Ingress 路徑重寫**：若 Ingress 做路徑重寫（strip prefix），必須在 §2 架構圖明確標示重寫規則（`/api/v1/ → /`），不得靜默假設下游收到什麼 path。
+
+**違反此規則**：生成的 LOCAL_DEPLOY.md 含自行推斷路徑 → 必須回溯到 API.md 原文，逐一核查每條 URL。
+
 ---
 
 ## Upstream Sources（上游文件對照表）

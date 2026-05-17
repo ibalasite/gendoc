@@ -36,6 +36,32 @@ quality-bar:
 
 ---
 
+## ★ YAML 完整性強制規則（禁止文字替代）
+
+**每個 workflow job 必須包含完整可執行的 YAML 程式碼區塊，不得以文字描述替代。**
+
+| 禁止行為 | 正確做法 |
+|---------|---------|
+| 「此步驟執行 unit test」（純文字，無 YAML） | 輸出完整 YAML steps 區塊，至少含 `name` + `run` |
+| `actions/checkout@latest` 或 `@main` | 必須指定具體版本號：`actions/checkout@v4` |
+| Job 結構不完整（缺 steps 或只有一行）| Job 必須含 `name`、`runs-on`、`steps` 三個欄位 |
+| 跳過步驟不寫 YAML | 使用 `run: echo "TODO: <具體說明>"` 佔位，但結構必須完整 |
+
+**強制格式（每個 job 最低要求）：**
+```yaml
+jobs:
+  <job-name>:
+    name: <人類可讀名稱>
+    runs-on: <runner>
+    steps:
+      - name: <步驟名稱>
+        run: <指令>   # 或使用 uses: action@version
+```
+
+**違反此規則**：生成含純文字描述的 job → 必須補齊所有 YAML 結構後才算完成。
+
+---
+
 ## 專家角色
 
 | 角色 | 職責範圍 |

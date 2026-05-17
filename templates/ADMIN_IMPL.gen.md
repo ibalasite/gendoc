@@ -139,10 +139,18 @@ TECH_DEFAULTS = {
 ```
 
 **場景 2：RBAC 角色衝突**  
-若 EDD §5.5 定義的 Role 清單與 SCHEMA.md Role 表的 `code` 欄位值不完全一致（有遺漏或命名差異），輸出警告：
+若 EDD §5.5 定義的 Role 清單與 SCHEMA.md Role 表的 `code` 欄位值不完全一致（有遺漏或命名差異），**停止生成**，輸出衝突報告：
 ```
-[Conflict] RBAC Role 不一致：EDD 定義了 {N} 個 Role，SCHEMA Role 表有 {M} 個 code。
-差異：{列出差異項}。建議先修正 SCHEMA 或 EDD 後再生成。
+[STOP] RBAC Role 衝突，無法繼續生成：
+  SCHEMA.md 定義 Role codes：{列出 SCHEMA 的 code 值}
+  EDD §5.5 定義 Role 清單：{列出 EDD 的角色名稱}
+  差異：{列出差異項}
+
+解決方案：
+  1. 修正 SCHEMA.md Role 表的 code 欄位值與 EDD §5.5 角色名稱一致，再重新生成；或
+  2. 修正 EDD §5.5 角色清單與 SCHEMA.md code 欄位一致，再重新生成。
+
+⚠ 禁止在 ADMIN_IMPL.md 中自行定義不存在於 SCHEMA.md Role 表的角色值。
 ```
 
 **場景 3：API Endpoint 缺失**  
