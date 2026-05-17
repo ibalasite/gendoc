@@ -820,14 +820,55 @@ HTML 結構規範：
   }
 
   // ─── Try It ───────────────────────────────────────
-  async function tryIt(endpointId) {
-    showSpinner();
-    const params = collectParams(endpointId);
-    const body   = collectBody(endpointId);
-    const result = await mockRequest(endpointId, params, body);
-    hideSpinner();
-    renderResponse(result);
-    renderCurlCommand(endpointId, params, body);  // "Copy as cURL" 區塊
+  // ★ 必須逐字複製此實作，禁止簡化為 hardcoded response
+  function runTry(epId, btn) {
+    const ep = SPEC.endpoints.find(e => e.id === epId);
+    if (!ep) return;
+    btn.disabled = true;
+    btn.innerHTML = '⏳ 執行中…';
+
+    // 讀取使用者填入的當前值（input id 格式：param-{epId}-{paramName}）
+    const inputVals = {};
+    (ep.params || []).forEach(p => {
+      const el = document.getElementById(`param-${epId}-${p.name}`);
+      inputVals[p.name] = el ? el.value : (p.default ?? '');
+    });
+
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML = '▶ Try It';
+      const respEl = document.getElementById(`try-resp-${epId}`);
+
+      // auth gate：token 為空 → 回傳 401
+      const token = document.getElementById('auth-token')?.value || '';
+      if (ep.auth_required && !token) {
+        respEl.innerHTML = '<span class="status-401">401 Unauthorized</span><pre>{"error":"unauthorized","message":"Bearer token required"}</pre>';
+        return;
+      }
+
+      const ok = ep.responses.find(r => r.code >= 200 && r.code < 300);
+      if (!ok) return;
+
+      // 將 param 的 default 值替換為使用者輸入值（讓回應反映輸入）
+      let raw = JSON.stringify(ok.example ?? {});
+      (ep.params || []).forEach(p => {
+        const userVal = inputVals[p.name];
+        const defVal  = String(p.default ?? '');
+        if (userVal && defVal && userVal !== defVal && userVal.trim() !== '') {
+          raw = raw.split(defVal).join(userVal);
+        }
+      });
+
+      const plain = raw.replace(/<[^>]+>/g, '');
+      respEl.innerHTML = `
+        <div class="try-resp-header">
+          <span class="status-${ok.code}">${ok.code}</span>
+          <span class="resp-time">${150 + Math.floor(Math.random()*80)}ms</span>
+        </div>
+        <pre>${jsonHighlight(plain)}</pre>
+        <button data-copy="${plain.replace(/"/g,'&quot;')}"
+                onclick="copyCode(this,this.dataset.copy)">複製</button>`;
+    }, 200);
   }
 
   // ─── Deep Link（hash routing）────────────────────
