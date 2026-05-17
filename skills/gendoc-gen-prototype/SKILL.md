@@ -733,6 +733,7 @@ HTML 結構規範：
   //         name: "id", in: "path|query|header",
   //         type: "string|number|boolean", required: true,
   //         description: "說明",
+  //         default: "預設值",  // ← 必填；runTry() 用此值替換 mock response 中的佔位符
   //         enum: ["a","b"]  // ← 有值限制時必填，否則省略
   //       }],
   //       request_body: { /* 典型請求 JSON 物件，非字串 */ },
@@ -820,14 +821,42 @@ HTML 結構規範：
   }
 
   // ─── Try It ───────────────────────────────────────
-  async function tryIt(endpointId) {
-    showSpinner();
-    const params = collectParams(endpointId);
-    const body   = collectBody(endpointId);
-    const result = await mockRequest(endpointId, params, body);
-    hideSpinner();
-    renderResponse(result);
-    renderCurlCommand(endpointId, params, body);  // "Copy as cURL" 區塊
+  // ★ 核心規則：讀取輸入欄位當前值 → 替換 mock response 中的 default 佔位符 → 渲染
+  // ★ 禁止直接回傳 hardcoded example；使用者改了 input，回應必須反映變更
+  function runTry(epId, btn) {
+    const ep = findEndpoint(epId);
+    if (!ep) return;
+    btn.disabled = true;
+    btn.textContent = '⏳ 執行中…';
+
+    // 讀取所有 param 目前的輸入值（用 param-{epId}-{paramName} ID）
+    const inputVals = {};
+    ep.params.forEach(p => {
+      const el = document.getElementById(`param-${epId}-${p.name}`);
+      inputVals[p.name] = el ? el.value : (p.default ?? '');
+    });
+
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = '▶ Try It';
+
+      const ok = ep.responses.find(r => r.code >= 200 && r.code < 300);
+      if (!ok) return;
+
+      // 把 example 序列化，再把 default 值替換為使用者輸入值
+      let raw = JSON.stringify(ok.example);
+      ep.params.forEach(p => {
+        const userVal = inputVals[p.name];
+        const defVal  = String(p.default ?? '');
+        if (userVal && defVal && userVal !== defVal && userVal.trim() !== '') {
+          raw = raw.split(defVal).join(userVal);
+        }
+      });
+
+      const parsed = JSON.parse(raw);
+      renderResponse({ code: ok.code, description: ok.description, body: parsed });
+      renderCurlCommand(epId, inputVals);
+    }, 200);
   }
 
   // ─── Deep Link（hash routing）────────────────────
@@ -870,7 +899,7 @@ HTML 結構規範：
 
 **品質要求（生成後自我驗證）：**
 - [ ] docs/pages/prototype/api-explorer/index.html 存在且可在 file:// 開啟
-- [ ] **[Iron Law A] 資料模型**：`SPEC.groups[].endpoints[].responses[]` 存 JSON 物件（禁 HTML 字串）；params 有限制時含 `enum[]`；每個 endpoint 標 `auth_required` + `mock_entity`
+- [ ] **[Iron Law A] 資料模型**：`SPEC.groups[].endpoints[].responses[]` 存 JSON 物件（禁 HTML 字串）；params 有限制時含 `enum[]`；**每個 param 必須有 `default` 欄位**（`runTry()` 替換邏輯依賴此值）；每個 endpoint 標 `auth_required` + `mock_entity`
 - [ ] **[Iron Law B] Possible Responses 靜態可見**：每個 response code 用 `<details>/<summary>` 渲染 — 不展開可見 code+description，展開可見完整 example JSON + 複製按鈕 — **禁止只顯示 code+description**
 - [ ] **[Iron Law C] Request Body 可編輯**：可編輯 `<textarea>`（非唯讀 code block）；JSON keyup 驗證：invalid → red border + 錯誤訊息
 - [ ] **[Iron Law D] URL 預覽**：填入 path/query param 後 URL preview 即時更新（顯示 `METHOD base_url/path?query=val`）
@@ -1312,7 +1341,7 @@ API Explorer（_PROTO_MODE = api-explorer / full）：
 - [ ] A-8: **Hash Deep Link** — `#endpoint-{id}` 是否可直接開啟對應 endpoint？分享連結是否有效？
 - [ ] A-9: **Auth 持久化** — Auth token 是否透過 localStorage 持久化（重新整理後保留）？
 - [ ] A-10: **無 JS 語法錯誤** — index.html inline script 是否無明顯語法錯誤？
-- [ ] A-11: **[Iron Law A] 資料模型** — `SPEC.responses[]` 是否存 JSON 物件（禁 HTML 字串）？每個 endpoint 是否標 `auth_required` + `mock_entity`？params 有限制時是否含 `enum[]`？
+- [ ] A-11: **[Iron Law A] 資料模型** — `SPEC.responses[]` 是否存 JSON 物件（禁 HTML 字串）？每個 endpoint 是否標 `auth_required` + `mock_entity`？params 有限制時是否含 `enum[]`？**每個 param 是否有 `default` 欄位**（缺少 `default` → `runTry()` 替換失效）？
 - [ ] A-12: **[Iron Law B] Possible Responses 靜態可見** — 每個 response code 是否用 `<details>/<summary>` 渲染？不展開可見 code+desc，展開可見完整 example JSON + 複製按鈕？**禁止只顯示 code+description 無 example**
 - [ ] A-13: **[Iron Law D] URL 預覽** — 填入 path/query param 後 URL preview 是否即時更新？顯示完整 `METHOD base_url/path?qs=val`？
 
