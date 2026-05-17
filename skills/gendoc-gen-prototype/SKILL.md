@@ -1031,6 +1031,39 @@ const ADMIN_MOCK = {
 };
 ```
 
+★ **Sidebar 共用模板（所有頁面必須逐字複用，禁止自行設計）**
+
+每個 admin 頁面（含任何額外生成的模組頁面）的 sidebar 必須使用以下固定結構，
+**class 名稱不得更改**（admin-style.css 只認識這套選擇器）：
+
+```html
+<!-- ★ 所有 admin 頁共用 sidebar —— 複製此結構，僅改 active 位置 -->
+<nav class="admin-sidebar">
+  <div class="sidebar-brand">🛡️ Admin Portal</div>
+  <ul class="sidebar-nav">
+    <li class="nav-item"><a href="admin-dashboard.html">📊 Dashboard</a></li>
+    <li class="nav-item"><a href="admin-users.html">👥 Users</a></li>
+    <li class="nav-item"><a href="admin-roles.html">🗝️ Roles</a></li>
+    <li class="nav-item"><a href="admin-audit-log.html">📜 Audit Log</a></li>
+    <!-- 動態依 ADMIN_IMPL.md 業務模組插入已完成模組；未完成標 disabled -->
+    <li class="nav-item disabled" title="Coming Soon"><span>📈 Analytics</span></li>
+  </ul>
+  <div class="sidebar-footer">
+    <div class="sidebar-user">👤 系統管理員</div>
+    <button class="logout-btn" onclick="location.href='admin-login.html'">登出</button>
+  </div>
+</nav>
+```
+
+當前頁對應的 `<li>` 加 `active` class：`<li class="nav-item active">`
+
+**絕對禁止的替代寫法（生成即 FAIL）：**
+- ❌ `<a class="sidebar-link">` — 扁平連結，admin-style.css 無此選擇器
+- ❌ `<div class="admin-logo">` — 錯誤 class，必須是 `sidebar-brand`
+- ❌ `<link href="admin.css">` — 檔案不存在；CSS 一律 `href="assets/admin-style.css"`
+- ❌ `<link href="../admin-style.css">` — 相對路徑錯誤；必須 `assets/admin-style.css`
+- ❌ Dashboard 連結指向 `../../index.html`（docs hub）；必須 `admin-dashboard.html`（同層）
+
 Step A-4：生成 5 個 Admin HTML 頁面（使用 Write 工具分別寫入）
 
 **頁面 1：docs/pages/prototype/admin/admin-login.html**
@@ -1178,6 +1211,9 @@ function renderSidebar(active) {
 - [ ] 無 JS 語法錯誤（未閉合括號、未定義變數）
 - [ ] **所有 `const`/`let` 宣告必須置於立即執行的初始化呼叫（`initTabs()`、`renderPage()` 等）之前** — `const` 不像 `function` 宣告，不會完整 hoist，在呼叫 chain 提前存取 `const` 變數會觸發 Temporal Dead Zone ReferenceError，造成頁面白屏
 - [ ] **docs/pages/prototype/admin/index.html 存在**，打開後會 redirect 至 admin-login.html（gen_html.py sidebar 掃描依賴此檔案）
+- [ ] **所有 admin HTML 的 `<link>` 必須指向 `assets/admin-style.css`** — 禁止 `admin.css`、`../admin-style.css` 或其他路徑；CSS 不存在 = 整頁無樣式
+- [ ] **所有 admin 頁面 sidebar 使用 `.sidebar-brand` + `<ul class="sidebar-nav">` + `<li class="nav-item">` 結構** — 禁止扁平 `<a class="sidebar-link">` 或 `<div class="admin-logo">`；若存在 `class="sidebar-link"` → 立即重生成該頁
+- [ ] **Dashboard nav-item 連結指向 `admin-dashboard.html`（同層）**，非 `../../index.html`（docs hub）
 
 Step A-6：生成 docs/pages/prototype/admin/index.html（sidebar 入口）
 
