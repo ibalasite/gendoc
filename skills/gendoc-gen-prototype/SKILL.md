@@ -818,6 +818,8 @@ HTML 結構規範：
 - [ ] Request Body 有 Presets 下拉 + 可編輯 textarea
 - [ ] "Try It" 按鈕可執行，顯示 ≥200ms 模擬延遲 + mock 回應
 - [ ] 回應面板顯示 status code badge + formatted JSON
+- [ ] **所有 Copy 按鈕使用 `data-copy` attribute 傳遞複製內容，`onclick="copyCode(this, this.dataset.copy)"` 觸發** — **禁止**將 JSON 直接嵌入 `onclick="copyCode(this, \`...\`)"` 屬性，因為 JSON 的 `"` 字元會提早終止 HTML attribute，導致 JSON 內容外漏成可見文字；`data-copy` 值需做 `replace(/"/g, '&quot;')` HTML 轉義
+- [ ] **`runTry()` / `tryIt()` 執行時必須讀取所有輸入欄位當前值，並替換 mock 回應中的 default 值** — 禁止只回傳硬編碼 example，使用者改了 input 看到的回應必須反映變更
 - [ ] "Copy as cURL" 按鈕可用，複製後命令包含 auth header
 - [ ] Hash routing 可用：`#endpoint-{id}` 直接開啟對應 endpoint
 - [ ] Auth token 持久化（localStorage）：重新整理後保留
@@ -871,7 +873,7 @@ Step A-2：寫入 docs/pages/prototype/admin/assets/admin-style.css
 - CSS 變數（深色 sidebar：--admin-sidebar-bg: #111827；淺色 content；--admin-accent: #2d9ef5）
 - Top nav：固定高度 56px，深色背景，含 Logo + 使用者下拉
 - Sidebar：固定寬 240px，深色背景，nav items（含 icon slot、active 狀態、hover 效果）
-- Content area：白色背景，左側 margin = sidebar width
+- Content area：使用 `.admin-layout { display: grid; grid-template-columns: var(--sidebar-w) 1fr; }` + `.admin-main { grid-column: 2; }` — **⚠️ 禁止用 `margin-left: var(--sidebar-w)` 替代**。原因：sidebar 使用 `position: fixed` 脫離 grid flow，main 自動占第 1 欄（240px），再加 `margin-left: 240px` 使 computed width = 0，版形完全崩壞。必須用 `grid-column: 2` 明確佔第 2 欄
 - Stats card：白色卡片，含標題/數值/趨勢 badge
 - Card header heading：`.card-header h2, .card-header h3 { font-size: 14px; font-weight: 600; color: var(--text); }` — **必須同時覆蓋 h2 和 h3**，因為頁面 card header 使用 `<h2>` 語意標籤
 - Data table：含 thead（灰底）、tbody zebra stripe、action 列（Edit/Delete 按鈕）
@@ -1113,6 +1115,7 @@ function renderSidebar(active) {
 - [ ] admin-audit-log.html 有 15 筆日誌 + CSV 匯出可用
 - [ ] 無 Lorem ipsum、無空的 placeholder 欄位
 - [ ] 無 JS 語法錯誤（未閉合括號、未定義變數）
+- [ ] **所有 `const`/`let` 宣告必須置於立即執行的初始化呼叫（`initTabs()`、`renderPage()` 等）之前** — `const` 不像 `function` 宣告，不會完整 hoist，在呼叫 chain 提前存取 `const` 變數會觸發 Temporal Dead Zone ReferenceError，造成頁面白屏
 
 完成後輸出：
 ADMIN_PROTO_GEN_RESULT:
