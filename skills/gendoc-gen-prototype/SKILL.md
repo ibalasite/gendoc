@@ -1177,11 +1177,32 @@ function renderSidebar(active) {
 - [ ] 無 Lorem ipsum、無空的 placeholder 欄位
 - [ ] 無 JS 語法錯誤（未閉合括號、未定義變數）
 - [ ] **所有 `const`/`let` 宣告必須置於立即執行的初始化呼叫（`initTabs()`、`renderPage()` 等）之前** — `const` 不像 `function` 宣告，不會完整 hoist，在呼叫 chain 提前存取 `const` 變數會觸發 Temporal Dead Zone ReferenceError，造成頁面白屏
+- [ ] **docs/pages/prototype/admin/index.html 存在**，打開後會 redirect 至 admin-login.html（gen_html.py sidebar 掃描依賴此檔案）
+
+Step A-6：生成 docs/pages/prototype/admin/index.html（sidebar 入口）
+
+用 Write 工具寫入以下內容（meta-redirect，不依賴 JS）：
+```html
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="0;url=admin-login.html">
+  <title>Admin Portal</title>
+</head>
+<body>
+  <p>Redirecting… <a href="admin-login.html">Admin Portal 登入頁</a></p>
+</body>
+</html>
+```
+目的：gen_html.py 掃描 `prototype/<sub>/index.html` 以生成 sidebar Admin 連結；
+      內部所有頁面連結（登出 → admin-login.html 等）無需修改。
 
 完成後輸出：
 ADMIN_PROTO_GEN_RESULT:
   pages_generated: 5
   files:
+    - docs/pages/prototype/admin/index.html
     - docs/pages/prototype/admin/admin-login.html
     - docs/pages/prototype/admin/admin-dashboard.html
     - docs/pages/prototype/admin/admin-users.html
@@ -1244,6 +1265,7 @@ API Explorer（_PROTO_MODE = api-explorer / full）：
 
 ### A. API Explorer 品質審查（_PROTO_MODE = api-explorer / full）
 
+- [ ] A-0.5: **[Admin] index.html 入口** — docs/pages/prototype/admin/index.html 是否存在且 meta-refresh redirect 至 admin-login.html？（gen_html.py sidebar 掃描依賴此檔案）
 - [ ] A-1: **Endpoint 覆蓋** — API_EXPLORER_SPEC 所有 endpoint 是否都在 sidebar 列出且可點擊？
 - [ ] A-2: **[Iron Law F] Mock 擬真** — MOCK_DB 每個 entity 是否有 ≥ 3 筆擬真資料（非 lorem ipsum / placeholder）？path param 找不到 → 是否回傳 404？列表 endpoint 是否支援 query param 過濾？
 - [ ] A-3: **[Iron Law E] Enum Chips** — `params[].enum` 存在時是否渲染可點擊 chips？點擊後是否自動填入 input 並更新 URL 預覽？
@@ -1492,7 +1514,7 @@ PLAYWRIGHT_VERIFY_RESULT:
 
 **Admin Portal 卡片（_HAS_ADMIN == "1" 時插入）：**
 ```html
-<a class="index-card" href="prototype/admin/admin-login.html" style="border-color: #7c3aed; background: linear-gradient(135deg, #f5f3ff 0%, #fff 100%);">
+<a class="index-card" href="prototype/admin/index.html" style="border-color: #7c3aed; background: linear-gradient(135deg, #f5f3ff 0%, #fff 100%);">
   <div class="index-card__icon">🛡️</div>
   <div class="index-card__title">Admin Portal Prototype</div>
   <div class="index-card__desc">5 頁面 · RBAC 角色管理 · 審計日誌 · Vue3+ElementPlus 規格</div>

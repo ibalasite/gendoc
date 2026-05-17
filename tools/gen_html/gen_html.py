@@ -3173,18 +3173,22 @@ def scan_prototype_entries(pages_dir):
     if (proto_dir / 'index.html').is_file():
         entries.append({'label': 'UI Prototype',
                         'href': 'prototype/index.html'})
-    # 每個子目錄 prototype/<sub>/index.html
+    # 每個子目錄：優先找 index.html；admin/ 額外 fallback 到 admin-login.html
     for sub in sorted(proto_dir.iterdir()):
         if not sub.is_dir():
             continue
-        if (sub / 'index.html').is_file():
+        candidates = ['index.html']
+        if sub.name == 'admin':
+            candidates.append('admin-login.html')  # 安全補網；index.html 存在時不會被選
+        entry_file = next((f for f in candidates if (sub / f).is_file()), None)
+        if entry_file:
             label_map = {
                 'api-explorer': 'API Explorer',
                 'admin': 'Admin Prototype',
             }
             label = label_map.get(sub.name, sub.name.replace('-', ' ').title())
             entries.append({'label': label,
-                            'href': f'prototype/{sub.name}/index.html'})
+                            'href': f'prototype/{sub.name}/{entry_file}'})
     return entries
 
 
