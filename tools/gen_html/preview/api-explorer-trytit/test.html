@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>Try It — Sandbox Test</title>
+<style>
+body { font-family: sans-serif; padding: 20px; }
+.param-row { margin: 8px 0; }
+label { display: block; font-size: 13px; color: #666; }
+input { border: 1px solid #ccc; border-radius: 4px; padding: 6px 10px; width: 300px; }
+button { margin-top: 12px; padding: 8px 20px; background: #4f46e5; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+#result { margin-top: 16px; padding: 12px; background: #f3f4f6; border-radius: 6px; white-space: pre; font-family: monospace; display: none; }
+.status { font-size: 12px; color: #888; margin-top: 8px; }
+</style>
+</head>
+<body>
+<h2>GET /users/{user_id}</h2>
+
+<div class="param-row">
+  <label>user_id (path) *</label>
+  <input id="try-get-user-user_id" value="u-001" placeholder="e.g. u-001">
+</div>
+<div class="param-row">
+  <label>status (query)</label>
+  <input id="try-get-user-status" value="active" placeholder="active / inactive">
+</div>
+
+<button onclick="runTry('get-user', this)">▶ 執行（模擬）</button>
+<div id="result"></div>
+<div class="status" id="test-status"></div>
+
+<script>
+const ENDPOINTS = [
+  {
+    id: 'get-user',
+    method: 'GET',
+    path: '/users/{user_id}',
+    tryFields: [
+      { name: 'user_id', default: 'u-001' },
+      { name: 'status',  default: 'active' }
+    ],
+    responses: [
+      {
+        code: 200,
+        example: '{"id":"u-001","name":"Alice","status":"active","created_at":"2026-01-01"}'
+      }
+    ]
+  }
+];
+
+// ── 從 apigatway 25404dc 取出的可運作實作 ─────────────────────────
+function runTry(epId, btn) {
+  const ep = ENDPOINTS.find(e => e.id === epId);
+  if (!ep) return;
+  btn.disabled = true;
+  btn.textContent = '⏳ 執行中…';
+
+  // 讀取使用者填入的當前值
+  const inputVals = {};
+  ep.tryFields.forEach(f => {
+    const el = document.getElementById(`try-${epId}-${f.name}`);
+    inputVals[f.name] = el ? el.value : f.default;
+  });
+
+  setTimeout(() => {
+    btn.disabled = false;
+    btn.textContent = '▶ 執行（模擬）';
+
+    const firstSuccessResp = ep.responses.find(r => r.code >= 200 && r.code < 300);
+    if (!firstSuccessResp) return;
+
+    // 將 default 值替換為使用者輸入值
+    let output = firstSuccessResp.example;
+    ep.tryFields.forEach(f => {
+      const userVal = inputVals[f.name];
+      if (userVal && f.default && userVal !== f.default && userVal.trim() !== '') {
+        output = output.split(f.default).join(userVal);
+      }
+    });
+
+    const el = document.getElementById('result');
+    el.style.display = 'block';
+    el.textContent = JSON.stringify(JSON.parse(output), null, 2);
+
+    // ── 自動驗證 ─────────────────────────────────────────────────
+    const uid = document.getElementById('try-get-user-user_id').value;
+    const st  = document.getElementById('try-get-user-status').value;
+    const passed = output.includes(uid) && output.includes(st);
+    const statusEl = document.getElementById('test-status');
+    statusEl.textContent = passed
+      ? `✅ PASS: 回應包含輸入值 (user_id="${uid}", status="${st}")`
+      : `❌ FAIL: 回應未反映輸入值（仍為 hardcoded）`;
+    statusEl.style.color = passed ? 'green' : 'red';
+
+    // Playwright 可讀取此 data attribute 進行自動驗證
+    document.body.setAttribute('data-test-result', passed ? 'pass' : 'fail');
+    document.body.setAttribute('data-test-user_id', uid);
+    document.body.setAttribute('data-test-output', output);
+  }, 300);
+}
+</script>
+</body>
+</html>

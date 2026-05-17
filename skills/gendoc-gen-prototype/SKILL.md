@@ -661,7 +661,7 @@ Step G-1：建立目錄
 
 Step G-2：生成 docs/pages/prototype/api-explorer/index.html
 
-HTML 結構規範：
+HTML 結構規範（★ Iron Law G：Postman 風格）：
 
 ```
 <!DOCTYPE html>
@@ -671,27 +671,30 @@ HTML 結構規範：
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{project_name} — API Explorer</title>
   <style>
-    /* 完整 CSS inline，必須包含：
+    /* 必須包含：
        - CSS 變數（--primary, --success, --error, --warning, --bg, --surface, --border）
        - .sidebar（固定寬度，endpoint 列表）
-       - .main-panel（endpoint 詳情 + Try It 面板）
        - .method-badge（GET/POST/PUT/PATCH/DELETE 各自顏色）
-       - .response-panel（程式碼顯示區，深色背景）
-       - .param-row（參數列）
-       - .status-badge（200=綠/400=橙/401=紅/500=深紅）
-       - .spinner（試打時的載入動畫）
+       - .postman-bar（method badge + URL preview + Send 按鈕；水平 flex 排列）
+       - .req-tabs（tab bar；.tab-btn.active 有底線或背景高亮）
+       - .req-tab-content（預設 display:block；.hidden 時 display:none）
+       - .param-grid（四欄表格：KEY / VALUE / TYPE / DESC；VALUE 欄有 input）
+       - .headers-grid（三欄表格：checkbox / KEY / VALUE）
+       - .auth-section（Bearer token input + 顯示/隱藏按鈕）
+       - .body-editor（可編輯 textarea；monospace；.invalid 時紅色 border）
+       - .resp-panel（response 面板；Send 前 display:none）
+       - .resp-topbar（status badge + elapsed ms + Pretty/Raw 切換 + Copy 按鈕）
+       - .resp-body（pre 格式化 JSON；深色背景）
+       - .resp-status-badge（200-299=綠/400-499=橙/401=紅/500-599=深紅）
+       - .possible-responses（<details> 折疊；.resp-item 展開顯示完整 JSON）
+       - .enum-chips（可點擊 chips；點擊填入 input + 觸發 URL 預覽）
     */
   </style>
 </head>
 <body>
-  <!-- Top Nav -->
+  <!-- Top Nav（僅品牌名 + 文件站連結；auth 移至各 endpoint 的 Authorization tab）-->
   <header class="top-nav">
     <span class="brand">{project_name} API Explorer</span>
-    <div class="auth-section">
-      <input id="auth-token" type="text" placeholder="{auth.placeholder}" 
-             oninput="saveAuth(this.value)">
-      <label><input type="checkbox" id="auth-enabled" checked> 自動帶入 Auth Header</label>
-    </div>
     <a class="nav-link" href="../../index.html">← 文件站</a>
   </header>
 
@@ -699,7 +702,6 @@ HTML 結構規範：
     <!-- Sidebar：endpoint 列表 -->
     <nav class="sidebar">
       <input class="search-input" placeholder="搜尋 endpoint..." oninput="filterEndpoints(this.value)">
-      <!-- 依 API_EXPLORER_SPEC.groups 動態生成 -->
       <div id="endpoint-list"></div>
     </nav>
 
@@ -754,166 +756,338 @@ HTML 結構規範：
   };
 
   // ─── Mock Engine ─────────────────────────────────────
-  // 依 endpoint id + 使用者填入的參數模擬 API 回應
-  function mockRequest(endpointId, params, body) {
+  function mockRequest(endpointId, params, body, token) {
     const ep = findEndpoint(endpointId);
-    // 模擬 200ms 延遲
-    // 若有 auth-enabled 且 auth-token 為空 → 回傳 401
+    // 模擬 250ms 延遲；記錄起始時間以計算 elapsed ms
+    // 若 ep.auth_required && !token → 回傳 { code:401, description:'Unauthorized', body:{error:'missing token'} }
     // 根據 params/body 內容決定回傳哪個 response code
     // 使用 MOCK_DB 填充真實資料（列表加分頁、單筆 by id 等）
     return new Promise(resolve => {
-      setTimeout(() => resolve(buildMockResponse(ep, params, body)), 200);
+      const start = Date.now();
+      setTimeout(() => resolve({ response: buildMockResponse(ep, params, body, token), elapsed: Date.now()-start }), 250);
     });
   }
 
-  // ─── 參數表單渲染 ──────────────────────────────────
-  // 每個參數渲染成一個 .param-row，含：[必填標記] [參數名] [說明] [輸入控制項]
-  //
-  // ★ Iron Law D：URL 預覽（必須實作）
-  //   endpoint 標題下方顯示 <div id="url-preview-{epId}" class="url-preview">
-  //   每個 param input 的 keyup 均觸發 updateUrlPreview(ep)：
-  //     let url = (SPEC.base_url||'') + ep.path;
-  //     ep.params.filter(p=>p.in==='path').forEach(p=>{
-  //       const v=document.getElementById(`param-${ep.id}-${p.name}`)?.value;
-  //       if(v) url=url.replace(`{${p.name}}`,v);
-  //     });
-  //     const qs=ep.params.filter(p=>p.in==='query')
-  //       .map(p=>{const v=document.getElementById(`param-${ep.id}-${p.name}`)?.value;
-  //                return v?`${p.name}=${encodeURIComponent(v)}`:null})
-  //       .filter(Boolean).join('&');
-  //     if(qs) url+='?'+qs;
-  //     document.getElementById(`url-preview-${ep.id}`).textContent=`${ep.method} ${url}`;
-  //
-  // ★ Iron Law E：Enum 參數 Chips（param.enum 存在時必渲染）
-  //   <datalist> + <input list> + 快選 Chips（點擊填入 input + 觸發 URL 預覽）
-  //   否則：單純 <input type="text|number"> + default value 預填
-  //
-  // ★ Iron Law C：Request Body 可編輯 Textarea（禁止唯讀 code block）
-  //   若 endpoint 有 request_body：
-  //     Presets 下拉 + <textarea>（JSON 格式）；keyup 時 JSON.parse 驗證：
-  //     無效 → red border + 錯誤訊息（不阻擋 Try It，但警告使用者）
-  //
-  // ★ Iron Law B：Possible Responses 靜態必可見（<details>/<summary>，零 JS）
-  //   ep.responses.forEach(r => {
-  //     const plain = JSON.stringify(r.example||{}, null, 2);
-  //     html += `<details class="resp-item">
-  //       <summary>
-  //         <span class="status-badge">${r.code}</span>
-  //         <span>${escapeHtml(r.description)}</span>
-  //       </summary>
-  //       <div class="resp-example-block">
-  //         <div class="resp-example-header">
-  //           <span>JSON</span>
-  //           <button data-copy="${plain.replace(/"/g,'&quot;')}"
-  //                   onclick="copyCode(this,this.dataset.copy)">複製</button>
-  //         </div>
-  //         <pre>${jsonHighlight(plain)}</pre>
-  //       </div>
-  //     </details>`;
-  //   });
-  //   ← 禁止只顯示 code+description；r.example 必須從 JSON 物件 render（非 HTML 字串）
-
-  function renderEndpoint(epId) {
-    // 更新 URL hash：#endpoint-{epId}（deep link）
-    location.hash = 'endpoint-' + epId;
-    // 渲染順序：method badge + path + URL preview → description → params（含 enum chips）
-    //           → request body textarea → Try It 按鈕 → Possible Responses（<details>）
+  // ─── Tab 切換 ─────────────────────────────────────────
+  function switchTab(epId, tab, btn) {
+    // 1. 隱藏所有 id 符合 "tab-*-{epId}" 的 .req-tab-content（加 hidden class）
+    // 2. 移除所有同 endpoint 的 .tab-btn 的 active class
+    // 3. 顯示 id="tab-{tab}-{epId}" 的 content（移除 hidden）
+    // 4. 為 btn 加上 active class
   }
 
-  // ─── Try It ───────────────────────────────────────
-  // ★ 核心規則：讀取輸入欄位當前值 → 替換 mock response 中的 default 佔位符 → 渲染
-  // ★ 禁止直接回傳 hardcoded example；使用者改了 input，回應必須反映變更
+  // ─── URL Preview 即時更新（★ Iron Law D）─────────────
+  // 每個 param input 的 keyup / onchange 均觸發 updateUrlPreview(epId)
+  //   let url = (SPEC.base_url||'') + ep.path;
+  //   ep.params.filter(p=>p.in==='path').forEach(p=>{
+  //     const v=document.getElementById(`param-${ep.id}-${p.name}`)?.value;
+  //     if(v) url=url.replace(`{${p.name}}`,v);
+  //   });
+  //   const qs=ep.params.filter(p=>p.in==='query')
+  //     .map(p=>{const v=document.getElementById(`param-${ep.id}-${p.name}`)?.value;
+  //              return v?`${p.name}=${encodeURIComponent(v)}`:null})
+  //     .filter(Boolean).join('&');
+  //   if(qs) url+='?'+qs;
+  //   document.getElementById(`url-preview-${ep.id}`).textContent=url;
+  function updateUrlPreview(epId) { /* 依上述邏輯實作 */ }
+
+  // ─── Enum Chips（★ Iron Law E）──────────────────────
+  // params[].enum 存在 → 渲染可點擊 chips：
+  //   <div class="enum-chips">
+  //     {enum.map(v=>`<span class="chip" onclick="fillParam('${epId}','${p.name}','${v}')">${v}</span>`)}
+  //   </div>
+  // fillParam(epId, name, val) → 填入 input + updateUrlPreview(epId)
+
+  // ─── renderEndpoint（★ Iron Law G：Postman 風格）─────
+  function renderEndpoint(epId) {
+    location.hash = 'endpoint-' + epId;
+
+    // 渲染每個 endpoint panel，結構依序如下：
+    //
+    // ① ep-header：method badge + path + summary + auth badge
+    // ② ep-desc：description 描述文字
+    //
+    // ③ ── Postman Request Bar ─────────────────────────────
+    //    <div class="postman-bar">
+    //      <span class="method-badge method-{METHOD}">{METHOD}</span>
+    //      <div class="url-preview" id="url-preview-{epId}">{SPEC.base_url}{path}</div>
+    //      <button class="send-btn" onclick="runTry('{epId}', this)">▶ Send</button>
+    //    </div>
+    //
+    // ④ ── Request Tab Bar ─────────────────────────────────
+    //    <div class="req-tabs">
+    //      <button class="tab-btn active" onclick="switchTab('{epId}','params',this)">
+    //        Params {params.length ? `(${params.length})` : ''}
+    //      </button>
+    //      <button class="tab-btn" onclick="switchTab('{epId}','auth',this)">Authorization</button>
+    //      <button class="tab-btn" onclick="switchTab('{epId}','headers',this)">Headers</button>
+    //      {method in ['POST','PUT','PATCH','DELETE'] ?
+    //        <button class="tab-btn" onclick="switchTab('{epId}','body',this)">Body</button> : ''}
+    //    </div>
+    //
+    // ⑤ ── Params Tab（預設 active）───────────────────────
+    //    <div class="req-tab-content" id="tab-params-{epId}">
+    //      <table class="param-grid">
+    //        <thead><tr><th>KEY</th><th>VALUE</th><th>TYPE</th><th>DESC</th></tr></thead>
+    //        <tbody>
+    //          {params.map(p => `
+    //            <tr class="${p.required?'required':'optional'}">
+    //              <td><span class="pname">${p.name}</span>${p.required?'<span class="req-star">*</span>':''}</td>
+    //              <td>
+    //                <input id="param-${epId}-${p.name}"
+    //                       value="${p.default||''}"
+    //                       placeholder="${p.default||p.description||''}"
+    //                       onkeyup="updateUrlPreview('${epId}')">
+    //                ${p.enum ? enumChipsHtml(epId, p) : ''}   ← ★ Iron Law E
+    //              </td>
+    //              <td><code class="ptype">${p.in}</code></td>
+    //              <td class="pdesc">${p.description||''}</td>
+    //            </tr>`
+    //          )}
+    //        </tbody>
+    //      </table>
+    //    </div>
+    //
+    // ⑥ ── Authorization Tab ──────────────────────────────
+    //    <div class="req-tab-content hidden" id="tab-auth-{epId}">
+    //      <div class="auth-section">
+    //        <label>Type: Bearer Token</label>
+    //        <div class="auth-row">
+    //          <input id="auth-token-{epId}" type="password"
+    //                 placeholder="${SPEC.auth.placeholder||'Bearer <token>'}"
+    //                 value="${loadAuth()}"
+    //                 oninput="saveAuth(this.value)">
+    //          <button onclick="toggleAuthVis('${epId}')">👁</button>
+    //        </div>
+    //        ${!ep.auth_required ? '<p class="auth-note">此端點為公開端點，無需 Token</p>' : ''}
+    //      </div>
+    //    </div>
+    //
+    // ⑦ ── Headers Tab ─────────────────────────────────────
+    //    <div class="req-tab-content hidden" id="tab-headers-{epId}">
+    //      <table class="headers-grid">
+    //        <thead><tr><th></th><th>KEY</th><th>VALUE</th></tr></thead>
+    //        <tbody id="headers-body-{epId}">
+    //          <tr>
+    //            <td><input type="checkbox" checked></td>
+    //            <td><input value="Content-Type"></td>
+    //            <td><input value="application/json"></td>
+    //          </tr>
+    //          ${ep.auth_required ? `
+    //          <tr>
+    //            <td><input type="checkbox" checked></td>
+    //            <td><input value="Authorization" readonly></td>
+    //            <td><input id="auth-header-${epId}"
+    //                       placeholder="Bearer <token>"
+    //                       value="${loadAuth() ? 'Bearer '+loadAuth() : ''}"></td>
+    //          </tr>` : ''}
+    //        </tbody>
+    //      </table>
+    //      <button onclick="addHeaderRow('${epId}')">+ Add</button>
+    //    </div>
+    //
+    // ⑧ ── Body Tab（POST/PUT/PATCH/DELETE 才渲染）────── ★ Iron Law C
+    //    <div class="req-tab-content hidden" id="tab-body-{epId}">
+    //      <div class="body-toolbar">
+    //        <span class="body-type-badge">raw JSON</span>
+    //        <button onclick="formatBody('${epId}')">Format</button>
+    //        <button onclick="resetBody('${epId}')">Reset</button>
+    //      </div>
+    //      <textarea class="body-editor" id="body-textarea-{epId}"
+    //                spellcheck="false"
+    //                oninput="validateJson(this)"
+    //                >${JSON.stringify(ep.request_body||{}, null, 2)}</textarea>
+    //      <div class="json-error hidden" id="body-error-{epId}"></div>
+    //    </div>
+    //
+    // ⑨ ── Response Panel（▶ Send 前 display:none）─────── ★ Iron Law G
+    //    <div class="resp-panel" id="resp-panel-{epId}" style="display:none">
+    //      <div class="resp-topbar">
+    //        <span class="resp-status-badge" id="resp-status-{epId}"></span>
+    //        <span class="resp-time" id="resp-time-{epId}"></span>
+    //        <div class="resp-view-toggle">
+    //          <button class="active" onclick="setRespView('${epId}','pretty',this)">Pretty</button>
+    //          <button onclick="setRespView('${epId}','raw',this)">Raw</button>
+    //        </div>
+    //        <button class="copy-resp-btn" onclick="copyResp('${epId}')">Copy</button>
+    //      </div>
+    //      <pre class="resp-body" id="resp-body-{epId}"></pre>
+    //    </div>
+    //
+    // ⑩ ── Possible Responses（靜態，<details> 折疊）──── ★ Iron Law B
+    //    <details class="possible-responses">
+    //      <summary>Possible Responses</summary>
+    //      ${ep.responses.map(r => {
+    //        const plain = JSON.stringify(r.example||{}, null, 2);
+    //        return `<details class="resp-item">
+    //          <summary>
+    //            <span class="status-badge">${r.code}</span> ${escapeHtml(r.description||'')}
+    //          </summary>
+    //          <div class="resp-example-block">
+    //            <div class="resp-example-header">
+    //              <span>JSON</span>
+    //              <button data-copy="${plain.replace(/"/g,'&quot;')}"
+    //                      onclick="copyCode(this,this.dataset.copy)">複製</button>
+    //            </div>
+    //            <pre>${jsonHighlight(plain)}</pre>
+    //          </div>
+    //        </details>`;
+    //      }).join('')}
+    //    </details>
+  }
+
+  // ─── ▶ Send（★ Iron Law G：從三個 tab 讀取輸入）──────
+  // 讀取 Params tab 輸入值、Authorization tab token、Body tab textarea → mockRequest()
   function runTry(epId, btn) {
     const ep = findEndpoint(epId);
     if (!ep) return;
     btn.disabled = true;
     btn.textContent = '⏳ 執行中…';
 
-    // 讀取所有 param 目前的輸入值（用 param-{epId}-{paramName} ID）
+    // Step 1：從 Params tab 讀取輸入值（id="param-{epId}-{paramName}"）
     const inputVals = {};
     ep.params.forEach(p => {
       const el = document.getElementById(`param-${epId}-${p.name}`);
       inputVals[p.name] = el ? el.value : (p.default ?? '');
     });
 
-    setTimeout(() => {
+    // Step 2：從 Authorization tab 讀取 Bearer token
+    const tokenEl = document.getElementById(`auth-token-${epId}`);
+    const token = (tokenEl ? tokenEl.value.trim() : '') || loadAuth();
+
+    // Step 3：從 Body tab 讀取 textarea（POST/PUT/PATCH/DELETE）
+    let body = null;
+    const bodyEl = document.getElementById(`body-textarea-${epId}`);
+    if (bodyEl) { try { body = JSON.parse(bodyEl.value); } catch(e) {} }
+
+    // Step 4：呼叫 mockRequest（auth gate：auth_required && !token → 401）
+    mockRequest(epId, inputVals, body, token).then(({ response, elapsed }) => {
       btn.disabled = false;
-      btn.textContent = '▶ Try It';
+      btn.textContent = '▶ Send';
 
-      const ok = ep.responses.find(r => r.code >= 200 && r.code < 300);
-      if (!ok) return;
+      // Step 5：更新 Response Panel（顯示 status badge + elapsed ms + formatted JSON）
+      const panel = document.getElementById(`resp-panel-${epId}`);
+      if (panel) panel.style.display = 'block';
+      const statusEl = document.getElementById(`resp-status-${epId}`);
+      if (statusEl) {
+        statusEl.textContent = `${response.code} ${response.description || ''}`;
+        statusEl.className = `resp-status-badge status-${Math.floor(response.code/100)}xx`;
+      }
+      const timeEl = document.getElementById(`resp-time-${epId}`);
+      if (timeEl) timeEl.textContent = `${elapsed}ms`;
+      const bodyOutEl = document.getElementById(`resp-body-${epId}`);
+      if (bodyOutEl) bodyOutEl.textContent = JSON.stringify(response.body, null, 2);
 
-      // 把 example 序列化，再把 default 值替換為使用者輸入值
-      let raw = JSON.stringify(ok.example);
-      ep.params.forEach(p => {
-        const userVal = inputVals[p.name];
-        const defVal  = String(p.default ?? '');
-        if (userVal && defVal && userVal !== defVal && userVal.trim() !== '') {
-          raw = raw.split(defVal).join(userVal);
-        }
-      });
-
-      const parsed = JSON.parse(raw);
-      renderResponse({ code: ok.code, description: ok.description, body: parsed });
-      renderCurlCommand(epId, inputVals);
-    }, 200);
+      renderCurlCommand(epId, inputVals, token);
+    });
   }
 
-  // ─── Deep Link（hash routing）────────────────────
-  // 頁面載入時解析 #endpoint-{id} → 自動開啟對應 endpoint
+  // ─── 輔助函式 ─────────────────────────────────────────
+  function toggleAuthVis(epId) {
+    const el = document.getElementById(`auth-token-${epId}`);
+    if (el) el.type = el.type === 'password' ? 'text' : 'password';
+  }
+  function setRespView(epId, view, btn) {
+    // pretty: JSON.stringify(data, null, 2)；raw: JSON.stringify(data)
+  }
+  function copyResp(epId) {
+    const pre = document.getElementById(`resp-body-${epId}`);
+    if (pre) navigator.clipboard.writeText(pre.textContent);
+  }
+  function addHeaderRow(epId) {
+    const tbody = document.getElementById(`headers-body-${epId}`);
+    if (!tbody) return;
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td><input type="checkbox" checked></td><td><input placeholder="Key"></td><td><input placeholder="Value"></td>';
+    tbody.appendChild(tr);
+  }
+  function formatBody(epId) {
+    const el = document.getElementById(`body-textarea-${epId}`);
+    if (!el) return;
+    try { el.value = JSON.stringify(JSON.parse(el.value), null, 2); el.classList.remove('invalid'); }
+    catch(e) { el.classList.add('invalid'); }
+  }
+  function resetBody(epId) {
+    const ep = findEndpoint(epId);
+    const el = document.getElementById(`body-textarea-${epId}`);
+    if (ep && el) el.value = JSON.stringify(ep.request_body || {}, null, 2);
+  }
+  function validateJson(textarea) {
+    const errEl = textarea.nextElementSibling;
+    try {
+      JSON.parse(textarea.value);
+      textarea.classList.remove('invalid');
+      if (errEl) { errEl.textContent = ''; errEl.classList.add('hidden'); }
+    } catch(e) {
+      textarea.classList.add('invalid');
+      if (errEl) { errEl.textContent = `JSON Error: ${e.message}`; errEl.classList.remove('hidden'); }
+    }
+  }
+  function renderCurlCommand(epId, inputVals, token) {
+    // 組建 curl 命令：curl -X {METHOD} '{url}' [-H 'Authorization: Bearer {token}'] [-d '{body}']
+    // ★ Copy 按鈕使用 data-copy attribute，禁止 JSON 直接嵌入 onclick attribute
+  }
+
+  // ─── Deep Link（hash routing）────────────────────────
   function initHash() {
     const hash = location.hash.slice(1);
     if (hash.startsWith('endpoint-')) renderEndpoint(hash.replace('endpoint-', ''));
   }
 
-  // ─── Auth 持久化 ─────────────────────────────────
+  // ─── Auth 持久化 ──────────────────────────────────────
+  // 所有 endpoint 的 Authorization tab 共用同一 token（localStorage key: api-explorer-token）
   function saveAuth(token) { localStorage.setItem('api-explorer-token', token); }
-  function loadAuth() {
-    const t = localStorage.getItem('api-explorer-token');
-    if (t) document.getElementById('auth-token').value = t;
-  }
+  function loadAuth() { return localStorage.getItem('api-explorer-token') || ''; }
 
-  // ─── Endpoint 篩選 ────────────────────────────────
+  // ─── Endpoint 篩選 ─────────────────────────────────────
   function filterEndpoints(q) {
-    // 過濾 sidebar 中的 endpoint 列表（method + path + summary）
+    // 過濾 sidebar 中的 endpoint 列表（method + path + summary 模糊比對）
   }
 
-  // ─── Init ────────────────────────────────────────
+  // ─── Init ────────────────────────────────────────────
   renderSidebar();
-  loadAuth();
   initHash();
   </script>
 </body>
 </html>
 ```
 
-**參數雙模式 UX 規格（必須實作）：**
+**Params Tab 控制項規格：**
 
 | 情境 | 控制項 | 說明 |
 |------|--------|------|
-| 有枚舉值（status: active/inactive/pending）| 快選 Chips + 可輸入 input | chips 點擊 → 填入 input；input 仍可自由打值 |
+| 有枚舉值（status: active/inactive/pending）| 快選 Chips + 可輸入 input | chips 點擊 → 填入 input + 觸發 URL 預覽 |
 | 有明確格式（email, url, uuid）| input + placeholder 格式提示 | |
 | 數值範圍（page ≥ 1）| number input + min 屬性 | |
 | 一般字串 | text input + default 預填 | |
-| Request Body | Presets 下拉 + 可編輯 textarea | 選 preset 填入 textarea，可繼續修改後送出 |
+| Request Body | Body tab 的可編輯 textarea | 可修改 JSON 後點 ▶ Send 送出 |
 
 **品質要求（生成後自我驗證）：**
 - [ ] docs/pages/prototype/api-explorer/index.html 存在且可在 file:// 開啟
 - [ ] **[Iron Law A] 資料模型**：`SPEC.groups[].endpoints[].responses[]` 存 JSON 物件（禁 HTML 字串）；params 有限制時含 `enum[]`；**每個 param 必須有 `default` 欄位**（`runTry()` 替換邏輯依賴此值）；每個 endpoint 標 `auth_required` + `mock_entity`
 - [ ] **[Iron Law B] Possible Responses 靜態可見**：每個 response code 用 `<details>/<summary>` 渲染 — 不展開可見 code+description，展開可見完整 example JSON + 複製按鈕 — **禁止只顯示 code+description**
-- [ ] **[Iron Law C] Request Body 可編輯**：可編輯 `<textarea>`（非唯讀 code block）；JSON keyup 驗證：invalid → red border + 錯誤訊息
-- [ ] **[Iron Law D] URL 預覽**：填入 path/query param 後 URL preview 即時更新（顯示 `METHOD base_url/path?query=val`）
-- [ ] **[Iron Law E] Enum Chips**：`params[].enum` 存在 → 渲染可點擊 chips，點擊填入 input + 觸發 URL 預覽
+- [ ] **[Iron Law C] Request Body 可編輯**：Body tab 有可編輯 `<textarea>`（非唯讀 code block）；JSON keyup 驗證：invalid → red border + 錯誤訊息；Format 按鈕可格式化 JSON
+- [ ] **[Iron Law D] URL 預覽**：填入 path/query param 後，Postman Request Bar 中的 URL preview 即時更新
+- [ ] **[Iron Law E] Enum Chips**：`params[].enum` 存在 → 在 Params tab 渲染可點擊 chips，點擊填入 input + 觸發 URL 預覽
 - [ ] **[Iron Law F] MOCK_DB 覆蓋度**：每個 entity ≥ 3 筆，涵蓋不同狀態；path param 找不到 → 404；列表 endpoint 支援 query param 過濾
-- [ ] 所有 endpoint 的 params 均有對應輸入欄位
-- [ ] "Try It" 按鈕可執行，顯示 ≥200ms 模擬延遲 + mock 回應
-- [ ] 回應面板顯示 status code badge + formatted JSON
-- [ ] **所有 Copy 按鈕使用 `data-copy` attribute 傳遞複製內容，`onclick="copyCode(this, this.dataset.copy)"` 觸發** — **禁止**將 JSON 直接嵌入 `onclick="copyCode(this, \`...\`)"` 屬性，因為 JSON 的 `"` 字元會提早終止 HTML attribute，導致 JSON 內容外漏成可見文字；`data-copy` 值需做 `replace(/"/g, '&quot;')` HTML 轉義
-- [ ] **`runTry()` / `tryIt()` 執行時必須讀取所有輸入欄位當前值，並替換 mock 回應中的 default 值** — 禁止只回傳硬編碼 example，使用者改了 input 看到的回應必須反映變更
-- [ ] "Copy as cURL" 按鈕可用，複製後命令包含 auth header
+- [ ] **[Iron Law G] Postman Layout**：
+      - 每個 endpoint panel 有 Postman-style request bar（method badge + URL preview div + ▶ Send 按鈕）
+      - Request tab bar：Params | Authorization | Headers | Body（有 request_body 才顯示 Body tab）
+      - Params tab：KEY/VALUE/TYPE/DESC 四欄可編輯表格（VALUE 欄有 input，非靜態文字）
+      - Authorization tab：id="auth-token-{epId}" password input + 顯示/隱藏切換按鈕 + localStorage 持久化
+      - Headers tab：checkbox/KEY/VALUE 三欄表格（Content-Type 預填）+ Add Row 按鈕
+      - Body tab（POST/PUT/PATCH/DELETE）：可編輯 textarea + JSON 即時驗證 + Format 按鈕
+      - Response panel（id="resp-panel-{epId}"）：Send 前 display:none；Send 後顯示 status badge + elapsed ms + Pretty/Raw 切換 + Copy 按鈕 + formatted JSON
+- [ ] 頂部 top-nav **不包含** auth input（auth 在各 endpoint 的 Authorization tab）
+- [ ] 所有 endpoint 的 params 均有對應輸入欄位（Params tab 四欄表格中）
+- [ ] ▶ Send 按鈕可執行，顯示 ≥200ms 模擬延遲 + mock 回應
+- [ ] **`runTry()` 從 Params tab 讀取輸入值（id="param-{epId}-{name}"）、從 Authorization tab 讀取 Bearer token（id="auth-token-{epId}"）、從 Body tab 讀取 textarea** — 禁止只回傳硬編碼 example，使用者改了 input 看到的回應必須反映變更
+- [ ] `auth_required: true` endpoint 無 token → mockRequest 回傳 401（auth gate 透過 Authorization tab token 判斷）
+- [ ] Response panel 顯示 status code badge（依色：2xx=綠/4xx=橙/5xx=深紅）+ elapsed ms + Pretty/Raw 切換 + formatted JSON
+- [ ] **所有 Copy 按鈕使用 `data-copy` attribute 傳遞複製內容，`onclick="copyCode(this, this.dataset.copy)"` 觸發** — **禁止**將 JSON 直接嵌入 `onclick` 屬性；`data-copy` 值需做 `replace(/"/g, '&quot;')` HTML 轉義
+- [ ] "Copy" 按鈕複製 response JSON；cURL 指令含 auth header（`-H 'Authorization: Bearer {token}'`）
 - [ ] Hash routing 可用：`#endpoint-{id}` 直接開啟對應 endpoint
-- [ ] Auth token 持久化（localStorage）：重新整理後保留
-- [ ] `auth_required: true` endpoint 無 token → Try It 回傳 401（auth gate 不得移除）
+- [ ] Auth token 持久化（localStorage key: `api-explorer-token`）：重新整理後保留；各 Authorization tab 共用同一 token
 - [ ] sidebar 搜尋可過濾 endpoint 列表
 
 完成後輸出：
