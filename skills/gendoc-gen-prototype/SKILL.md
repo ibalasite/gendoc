@@ -873,6 +873,7 @@ Step A-2：寫入 docs/pages/prototype/admin/assets/admin-style.css
 - Sidebar：固定寬 240px，深色背景，nav items（含 icon slot、active 狀態、hover 效果）
 - Content area：白色背景，左側 margin = sidebar width
 - Stats card：白色卡片，含標題/數值/趨勢 badge
+- Card header heading：`.card-header h2, .card-header h3 { font-size: 14px; font-weight: 600; color: var(--text); }` — **必須同時覆蓋 h2 和 h3**，因為頁面 card header 使用 `<h2>` 語意標籤
 - Data table：含 thead（灰底）、tbody zebra stripe、action 列（Edit/Delete 按鈕）
 - Permission matrix：grid 佈局，Permission chip（enabled=藍底/disabled=灰底）
 - Status badge：active=綠/inactive=灰/locked=紅
@@ -1045,26 +1046,45 @@ Step A-4：生成 5 個 Admin HTML 頁面（使用 Write 工具分別寫入）
 - 分頁（顯示 1-10 筆，第 2 頁含剩餘 5 筆）
 - 注意：審計日誌不可刪除、不可修改（無操作欄）
 
-**Sidebar 共用元件規格（所有頁面都要用）：**
-```html
-<!-- 每個頁面的 sidebar 必須一致，且正確 active 當前頁面 -->
-<nav class="admin-sidebar">
-  <div class="sidebar-brand">Admin Portal</div>
-  <ul class="sidebar-nav">
-    <li class="nav-item {active_if_dashboard}">
-      <a href="admin-dashboard.html">控制台</a>
-    </li>
-    <li class="nav-item {active_if_users}">
-      <a href="admin-users.html">用戶管理</a>
-    </li>
-    <li class="nav-item {active_if_roles}">
-      <a href="admin-roles.html">角色管理</a>
-    </li>
-    <li class="nav-item {active_if_audit}">
-      <a href="admin-audit-log.html">審計日誌</a>
-    </li>
-  </ul>
-</nav>
+**Sidebar 共用元件規格（所有頁面必須一致 — 3 個 section）：**
+
+所有 5 個 Admin Portal 頁面必須使用**完全相同的** `renderSidebar(active)` 函式，產生固定的 **3 section 結構：主要功能 | 待辦事項 | 工具**。
+
+⚠️ **嚴禁**把「申請審核」放入「主要功能」section（這會造成各頁面 sidebar 結構不一致）：
+```
+❌ 錯誤：  主要功能（儀表板 / 使用者管理 / 角色權限 / 稽核日誌 / 申請審核）| 工具
+✅ 正確：  主要功能（儀表板 / 使用者管理 / 角色權限 / 稽核日誌）| 待辦事項（申請審核 + pending badge）| 工具
+```
+
+正確的 `renderSidebar` 骨架（每頁 script 頂層宣告 `const m = ADMIN_MOCK`，函式從 outer scope 取用 `m`）：
+```javascript
+function renderSidebar(active) {
+  const pendingCount = m.applications.filter(a => a.status === 'pending_review').length;
+  const items = [
+    { id:'dashboard', icon:'📊', label:'儀表板',    href:'admin-dashboard.html' },
+    { id:'users',     icon:'👥', label:'使用者管理', href:'admin-users.html' },
+    { id:'roles',     icon:'🛡', label:'角色權限',   href:'admin-roles.html' },
+    { id:'audit',     icon:'📋', label:'稽核日誌',   href:'admin-audit-log.html' },
+  ];
+  return `
+    ...
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">主要功能</div>
+      ${items.map(i => `<a class="sidebar-item${i.id===active?' active':''}" ...>`).join('')}
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">待辦事項</div>
+      <a class="sidebar-item" href="admin-users.html#applications">
+        申請審核 ${pendingCount > 0 ? `+ badge(${pendingCount})` : ''}
+      </a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">工具</div>
+      <a href="../index.html" target="_blank">開發者門戶</a>
+      <a href="../api-explorer/index.html" target="_blank">API Explorer</a>
+    </div>
+    ...`;
+}
 ```
 
 **Top Nav 共用元件規格（所有頁面都要用）：**
@@ -1083,6 +1103,9 @@ Step A-4：生成 5 個 Admin HTML 頁面（使用 Write 工具分別寫入）
 - [ ] 5 個 HTML 檔案均存在於 docs/pages/prototype/admin/
 - [ ] 所有頁面 sidebar 中當前頁面有 active 樣式
 - [ ] 所有 sidebar 連結指向正確相對路徑
+- [ ] **所有 4 個非登入頁面的 sidebar 結構完全一致（3 section：主要功能 | 待辦事項 | 工具）**
+- [ ] **「申請審核」出現在「待辦事項」section，而非「主要功能」section**
+- [ ] **admin-style.css 使用 `.card-header h2, .card-header h3`（不得只有 h3）**
 - [ ] admin-login.html 點擊登入 → 跳轉至 admin-dashboard.html
 - [ ] admin-dashboard.html 「登出」→ 返回 admin-login.html
 - [ ] admin-users.html 表格有 8 筆擬真資料（非空表格）
