@@ -222,6 +222,40 @@ CREATE TYPE {concept}_enum AS ENUM ('{value_a}', '{value_b}', '{value_c}');
 - 共用 ENUM（多 table 引用）：`{concept}_enum`（如 `rarity_enum`、`status_enum`）
 - 專屬 ENUM（單 table 使用）：`{table}_{col}_enum`（如 `arena_session_phase_enum`）
 
+#### MySQL ENUM 去重規則（`db_type = mysql`）
+
+MySQL 不支援 `CREATE TYPE AS ENUM`，inline `ENUM(...)` 是正確語法。但相同語意的值集**必須保持一致**，處理方式如下：
+
+**Step 1：建立 §0 ENUM Reference Table（Markdown 說明表，非 SQL，置於所有 CREATE TABLE 之前）**
+
+```markdown
+## §0 Shared ENUM Reference（MySQL）
+
+以下值集被多張 table 共用，修改時必須同步所有出現位置。
+
+| ENUM 概念名稱 | 適用欄位（table.column）| 合法值集（含引號） |
+|-------------|----------------------|------------------|
+| `{concept}_status` | {table_a}.status, {table_b}.status | 'active','revoked','expired','pending_approval' |
+| `{concept}_type`   | {table_c}.type, {table_d}.type     | 'value_x','value_y','value_z' |
+```
+
+**Step 2：每張 CREATE TABLE 仍用 inline ENUM，但值集必須與 §0 完全一致**
+
+```sql
+-- {table_a}
+CREATE TABLE {table_a} (
+  status ENUM('active','revoked','expired','pending_approval') NOT NULL,  -- 見 §0 {concept}_status
+  ...
+);
+```
+
+**Step 3：AI codegen 規則**：
+- AI 讀取 §0 Reference Table 生成 Go struct / TypeScript enum constants，確保各層使用同一套值
+- 若某欄位的 ENUM 只出現在一張 table → 不需加入 §0，inline 定義即可
+
+❌ 禁止：同語意的 ENUM 值集在各 table 出現不同版本（如一處多一個值、一處順序不同）
+❌ 禁止：使用 PostgreSQL 語法（`CREATE TYPE ... AS ENUM`）於 MySQL 專案
+
 ---
 
 每張表提供完整標準 SQL，格式包含：

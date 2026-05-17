@@ -241,18 +241,36 @@ docs/req/* 中的所有素材（由 IDEA.md 定義）也必須全部關聯讀取
 ### §6.0 Monorepo Package 命名一致性（前置強制規則）
 
 生成本章節（含 §6、§15 Inner Loop、§18 AI Quick Start）所有 pnpm / make 開發指令前，
-**必須先讀取 EDD §3.3.x Package 命名權威表**，確認三個 app 的 package name，
-並在本文件所有 `--filter` 參數及目錄路徑中使用完全一致的名稱。
+**必須先確認 package name**，按以下優先順序執行：
 
-| 正確（EDD §3.3.x 授權）| 錯誤（舉例，非窮舉）|
-|----------------------|-------------------|
-| `pnpm --filter {PROJECT_SLUG}-web dev` | `pnpm --filter player-app dev` |
+**Step A：讀取 EDD §3.3.x Package 命名權威表**（若存在）
+- 從表中取得三個 app 的 package name，直接使用，不得更改
+- 若找到，跳過 Step B/C，直接進入文件生成
+
+**Step B：若 EDD §3.3.x 不存在，從 EDD §3.3 + 專案結構推導**
+1. 讀取 EDD §3.3 tech stack 欄位，找到 `{PROJECT_SLUG}`（通常為專案名稱或 repo 名稱）
+2. 依以下固定格式推導 package name（**不得使用功能性名稱**）：
+
+   | App 角色 | package name | apps/ 目錄 |
+   |---------|-------------|-----------|
+   | API Server | `{PROJECT_SLUG}-api` | `apps/api/` 或 `cmd/` |
+   | Web Frontend | `{PROJECT_SLUG}-web` | `apps/web/` 或 `frontend/apps/web/` |
+   | Admin Frontend（若有）| `{PROJECT_SLUG}-admin` | `apps/admin/` 或 `frontend/apps/admin/` |
+
+3. ❌ **禁止使用功能性名稱**（developer-portal、admin-backend、player-app、gateway-ui 等）；固定用 `{PROJECT_SLUG}-{role}` 格式
+
+**Step C：若 PROJECT_SLUG 也無法確認**
+- 在文件頭部加入警告區塊：
+  `> ⚠️ Package 命名未確認：以下 pnpm 指令使用佔位符，執行前請先核對各 app 的 package.json name 欄位`
+- 使用 `{PROJECT_SLUG}-api`、`{PROJECT_SLUG}-web`、`{PROJECT_SLUG}-admin` 作為佔位符，不填具體值
+
+| 正確示範 | 錯誤示範（禁止）|
+|---------|--------------|
+| `pnpm --filter {PROJECT_SLUG}-web dev` | `pnpm --filter developer-portal dev` |
 | `pnpm --filter {PROJECT_SLUG}-api start` | `pnpm --filter apps/api start` |
 | `cd apps/web && pnpm dev` | `cd apps/player && pnpm dev` |
 
-❌ 禁止：在任何指令中出現 EDD §3.3.x 未授權的 app 名稱（如 `player-app`、`admin-app`、`apps/player/` 等）
-
-Quality Gate：本文件所有 `--filter` 目標名稱與 EDD §3.3.x 授權名稱完全一致；無自行發明的 app name
+Quality Gate：本文件所有 `--filter` 目標名稱均可在對應 package.json 的 `name` 欄位找到；無自行發明的功能性名稱
 
 ---
 
