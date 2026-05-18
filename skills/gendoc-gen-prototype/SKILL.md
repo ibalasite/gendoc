@@ -757,7 +757,8 @@ HTML 結構規範（★ Iron Law G：Postman 風格）：
 > - 全域唯一一個 `#workbench`；切換 endpoint 時呼叫 `selectEndpoint(id)` 重新渲染 `#req-content`
 > - **嚴禁** 為每個 endpoint 生成個別回應 DOM（如 `resp-panel-login`、`resp-body-get-user`）
 > - `#resp-panel` 是全域共用的 — Send 前顯示空狀態，Send 後顯示 `#resp-loaded` 內容
-> - 此架構已在 `tools/gen_html/preview/api-explorer-trytit/test.html` 驗證
+> - 此架構已在 `tools/api-explorer/postman-skeleton.html`（骨架）中驗證
+> - **生成時必須以 `tools/api-explorer/postman-skeleton.html` 為基底**，替換 `/* INJECT_SPEC_HERE */` 和 `/* INJECT_MOCK_HERE */` 標記區塊
 
 ```html
 <!DOCTYPE html>
@@ -765,6 +766,9 @@ HTML 結構規範（★ Iron Law G：Postman 風格）：
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- ★ Iron Law G：CSP 必須包含，mock-only 頁面無外部依賴 -->
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src *; img-src 'self' data:; object-src 'none'; base-uri 'self';">
   <title>{project_name} — API Explorer</title>
   <style>
     /* ── 必須定義的 CSS 變數（Postman 深色主題）─────────────────────
@@ -884,35 +888,46 @@ HTML 結構規範（★ Iron Law G：Postman 風格）：
 <div id="toast" style="display:none;position:fixed;bottom:24px;right:24px"></div>
 
 <script>
-// ─── SPEC（★ Iron Law A：統一資料模型）────────────────────────────
+// ─── SPEC（★ Iron Law A + G：統一資料模型）──────────────────────────
+// ★ Iron Law G：以下結構由 gendoc-gen-prototype 從 API.md 注入
+// 骨架標記：/* INJECT_SPEC_HERE */ … /* END_INJECT_SPEC */
+//
+// SPEC endpoint auth 欄位規格（★ 必須使用物件格式）：
+//   auth: false                              → 公開（不需驗證）
+//   auth: true | {type:'bearer'}             → 需要 Bearer Token
+//   auth: {type:'cookie', cookieName:'...'}  → 需要特定 Cookie 在 jar 中
+//   auth: {type:'any'}                       → Bearer OR 任何 cookie 皆可
+//   （禁止使用 auth_required: true/false 舊格式）
+//
 // const SPEC = {
 //   base_url: "{{base_url}}",           // 環境變數佔位符，可在 Env Panel 編輯
+//   env: { base_url: "https://api.example.com/v1", auth_token: "" },
 //   groups: [{
 //     id: "group-id", name: "分組名", color: "#HEX",
-//     endpoints: [{
-//       id: "ep-id",
-//       method: "GET|POST|PUT|PATCH|DELETE",
-//       path: "/resource/{id}",
-//       summary: "簡述",
-//       auth_required: true,            // ← 必填
-//       mock_entity: "entityName",      // ← 對應 MOCK_DB key（無實體填 null）
+//     eps: [{
+//       id: "ep-id",                    // 短唯一 id，mockExec 依此識別
+//       m: "GET|POST|PUT|PATCH|DELETE", // method
+//       p: "/resource/{id}",            // path
+//       s: "簡述",                      // summary
+//       auth: false,                    // ← auth 欄位格式見上方規格
+//       body: '{\n  "key": "val"\n}',   // 選填：預設 request body 字串
 //       params: [{
-//         name: "id", in: "path|query|header",
-//         type: "string|number|boolean",
-//         required: true,
-//         description: "說明",
-//         default: "預設值",            // ← 必填，Params tab VALUE 欄預填此值
+//         key: "id", type: "path|query",
+//         val: "預設值",                 // ← 預填值
+//         desc: "說明",
+//         on: true,
 //         enum: ["a","b"]               // ← 有值限制時填，否則省略
-//       }],
-//       request_body: { /* 典型請求 JSON 物件，非字串 */ },
-//       responses: [{
-//         code: 200, description: "成功",
-//         example: { /* 完整 JSON 物件，禁止 HTML 字串 */ }
 //       }]
 //     }]
 //   }]
 // };
-const SPEC = { /* 依上述結構填入完整資料 */ };
+/* INJECT_SPEC_HERE */
+const SPEC = {
+  base_url: '{{base_url}}',
+  env: { base_url: '', auth_token: '' },
+  groups: []
+};
+/* END_INJECT_SPEC */
 
 // ─── MOCK_DB（★ Iron Law F）────────────────────────────────────────
 // 每個 entity ≥ 3 筆，涵蓋不同狀態（active/inactive/banned…）
@@ -927,13 +942,20 @@ const S = {
   bodyMode:  'pretty',     // 'pretty'|'raw'|'preview'（response body 顯示模式）
   bodyType:  'none',       // 'none'|'raw'|'form-data'|'urlencoded'
   bodyRaw:   '',           // request body textarea 內容
+  bodyRawFmt:'JSON',       // 'Text'|'JSON'|'XML'|'HTML'|'JavaScript'
+  bodyFormData:[],         // [{on,key,type:'Text'|'File',val,file,desc}]
+  bodyUrlencoded:[],       // [{on,key,val,desc}]
+  bodyBinary: null,        // File object
+  respFmt:   'JSON',       // 'JSON'|'XML'|'HTML'|'Text'
   auth: { type:'bearer', token:'', user:'', pass:'', keyName:'X-API-Key', keyVal:'', keyIn:'header' },
   params:    [],           // [{key, val, desc, on:bool, type:'path'|'query'}]
   headers:   [],           // [{key, val, on:bool}]  user-defined headers
   resp:      null,         // mockExec() 回傳結果
   env:       { base_url: '', auth_token: '' },  // 環境變數，可在 Env Panel 編輯
   envOpen:   false,
-  preScript: '', postScript: ''
+  docOpen:   false,
+  preScript: '', postScript: '',
+  cookieJar: {}            // ★ Iron Law G：JS 模擬 cookie jar {name:value}；Set-Cookie Max-Age>0 存入，Max-Age=0 刪除
 };
 
 // ─── UTILS ─────────────────────────────────────────────────────────
@@ -951,7 +973,31 @@ function highlightJSON(s){/* regex-based JSON 語法高亮：.jk=keys .js=string
 function parseCookie(str){/* 解析並回傳 cookie 物件 */}
 
 // ─── MOCK ENGINE（★ Iron Law G：回傳值必須包含 headers + cookies）──
-// async function mockExec(ep, urlParams, bodyObj, token)
+// ★ Iron Law G：mockExec 必須接受第 5 個參數 cookieJar
+// async function mockExec(ep, urlParams, bodyObj, token, cookieJar = {})
+//
+// checkAuth(ep, token, cookieJar) — auth 驗證（必須實作）：
+//   const a = ep.auth;
+//   if (!a) return true;
+//   if (a === true || a.type === 'bearer') return !!token;
+//   if (a.type === 'cookie') return !!(cookieJar && cookieJar[a.cookieName]);
+//   if (a.type === 'any') return !!(token || (cookieJar && Object.keys(cookieJar).length));
+//   return true;
+//
+// Cookie 生命週期（★ 必須遵守）：
+//   Login 成功 → Set-Cookie Max-Age > 0 → renderResponse() 自動存入 S.cookieJar
+//     const c1 = `refresh_token=rt_${uuid()}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=604800`;
+//     const c2 = `session_id=${uuid()}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600`;
+//     return bResp(200, makeH({'Set-Cookie':c1}), {...}, lat, [parseCookie(c1), parseCookie(c2)]);
+//   Logout 成功 → Set-Cookie Max-Age=0 → renderResponse() 從 S.cookieJar 刪除
+//     const c1 = 'refresh_token=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0';
+//     const c2 = 'session_id=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0';
+//     S.env.auth_token = ''; renderEnvPanel();
+//     return bResp(200, makeH({'Set-Cookie':c1}), {...}, lat, [parseCookie(c1), parseCookie(c2)]);
+//
+// ★ Iron Law G：骨架標記：/* INJECT_MOCK_HERE */ … /* END_INJECT_MOCK */
+//   骨架預設為 501 fallback only；注入時依每個 ep.id 加分支
+//
 // 回傳值必須符合此結構：
 // {
 //   status:     200,                        // HTTP status code（number）
@@ -970,7 +1016,7 @@ function parseCookie(str){/* 解析並回傳 cookie 物件 */}
 //   size:       247                         // body bytes
 // }
 // 規則：
-//   - ep.auth_required && !token → 401 {error:{code:'UNAUTHORIZED',...}}
+//   - ep.auth && !checkAuth(ep,token,cookieJar) → authFail(lat) → 401
 //   - login endpoint 成功 →
 //       自動寫入 S.env.auth_token = token
 //       呼叫 renderEnvPanel()
@@ -1159,22 +1205,31 @@ if (_firstEp) selectEndpoint(_firstEp.id);
       - **⚠️ 禁止 per-endpoint panels**：不得存在 `resp-panel-{epId}`、`resp-body-{epId}` 等 per-endpoint DOM ID
       - 全域唯一 `#workbench` + `#req-pane` + `#resp-panel`；切換 endpoint 時 `selectEndpoint()` 重新渲染 `#req-content`
       - `#resp-empty` 在 Send 前顯示；`#resp-loaded` 在 Send 後顯示（display:none ↔ flex 切換）
+      - **CSP meta tag 必須存在**（見 HTML 結構規範 `<head>` 區段）
+      - **SPEC 初始值 `groups: []`**；整個 SPEC 宣告包在 `/* INJECT_SPEC_HERE */` … `/* END_INJECT_SPEC */` 標記中
+      - **SPEC endpoint auth 欄位**必須使用 `{type,cookieName}` 物件格式（禁止舊 `auth_required: true/false`）
+      - **State 必須包含 `cookieJar: {}`**；`Set-Cookie Max-Age>0` 存入，`Max-Age=0` 刪除
+      - **`mockExec` 簽名**：`async function mockExec(ep, up, bodyObj, token, cookieJar = {})`（必須接受第 5 個參數）
+      - **`checkAuth(ep, token, cookieJar)`** 依 `ep.auth` 型別驗證 bearer / cookie / any
+      - **Cookie auto-header**：Headers tab Auto-Generated section，jar 非空時自動出現 `Cookie: k=v; ...`
+      - **🍪 badge**：app header 顯示 jar 中 cookie 數量，空時隱藏
+      - **整個 mockExec 包在 `/* INJECT_MOCK_HERE */` … `/* END_INJECT_MOCK */` 標記中**
       - **Request tab bar**（#req-tabs）：Params | Authorization | Headers | Body | Scripts — 5 個固定 tab
       - **Params tab**：Path Variables 固定列（不可刪）+ Query Params 可新增刪除；每列 checkbox/key/value/desc 四欄可編輯
       - **Authorization tab**：type select（No Auth / Bearer Token / Basic Auth / API Key）+ 對應 input
-      - **Headers tab**：user-editable rows + 下方 Auto-Generated section（Content-Type/Authorization 等）
-      - **Body tab**（POST/PUT/PATCH/DELETE）：body type toggle（none/raw/form-data/urlencoded）+ raw → `<textarea class="body-editor">` + Beautify 按鈕
+      - **Headers tab**：user-editable rows + 下方 Auto-Generated section（Content-Type/Authorization/Cookie）
+      - **Body tab**（POST/PUT/PATCH/DELETE）：body type toggle（none/raw/form-data/urlencoded/binary）+ raw → `<textarea class="body-editor">` + Beautify 按鈕
       - **Response panel**（`#resp-loaded`）：resp-topbar（status badge + ⏱ elapsed + 📦 size + Copy/Download/Clear/Wrap）
       - **Response tab bar**（#resp-tabs）：Body | Headers (N) | Cookies (N) | Test Results — 4 個固定 tab
-      - **Body tab**（response）：Pretty/Raw/Preview 三向切換；Pretty → syntax-highlighted JSON；Preview → JSON-to-table
+      - **Body tab**（response）：Pretty/Raw/Preview/Visualize 四向切換；Pretty → syntax-highlighted JSON；Visualize → JSON-to-table
       - **Headers tab**（response）：Key/Value 兩欄表格，顯示所有 response headers
       - **Cookies tab**（response，★ 必須實作）：Name/Value/Domain/Path/Expires/HttpOnly/Secure/SameSite 八欄表格；HttpOnly/Secure 顯示 ✓（綠色）或 —
       - **Environment Panel**：可編輯 `{{base_url}}`、`{{auth_token}}` 等環境變數；login 成功後自動更新 `auth_token`
       - **Draggable divider**：`#divider` 可上下拖曳調整 req-pane/resp-panel 高度
 - [ ] ▶ Send 按鈕可執行，顯示 ≥60ms 模擬延遲 + mock 回應
 - [ ] `mockExec()` 回傳值必須包含 `headers`（物件）+ `cookies`（陣列）+ `elapsed`（ms）+ `size`（bytes）
-- [ ] `doSend()` 從 `S.params`（url params）+ `S.auth`（token）+ `S.bodyRaw`（body textarea）讀取輸入；**禁止只回傳硬編碼 example**
-- [ ] `auth_required: true` endpoint 無 token → mockExec 回傳 401
+- [ ] `doSend()` 從 `S.params`（url params）+ `S.auth`（token）+ `S.cookieJar`（cookies）+ `S.bodyRaw`（body textarea）讀取輸入；**禁止只回傳硬編碼 example**
+- [ ] `ep.auth` 不通過 `checkAuth()` → mockExec 回傳 401
 - [ ] sidebar 搜尋可過濾 endpoint 列表（method + path + summary 模糊比對）
 - [ ] **[Iron Law H] Endpoint 覆蓋率 = 100%**：`SPEC.groups[].endpoints` 總數必須等於 API.md 中 HTTP endpoint 數量（主 Claude 在派送前已用 Python 計算並嵌入提示，數量為 `{_TOTAL_EP}` 個）；**禁止省略任何 endpoint，包含管理後台 `/admin/*` 路由、GDPR endpoint、health check**；完成後輸出的 `endpoints_generated` 必須等於 `{_TOTAL_EP}`
 
