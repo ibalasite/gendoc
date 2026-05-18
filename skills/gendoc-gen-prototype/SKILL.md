@@ -644,17 +644,60 @@ PROTOTYPE_GEN_RESULT:
 
 **`_PROTO_MODE` 為 `api-explorer` 或 `full` 時執行。**
 
+**Step 2-B 前置：主 Claude 計算 API.md endpoint 總數（派送 subagent 前必須執行）**
+
+```bash
+_TOTAL_EP=$(python3 - <<'PYEOF'
+import re, sys
+try:
+    content = open('docs/API.md', encoding='utf-8').read()
+    # 掃描各種 API.md 常見格式：
+    #   `GET /path`  /  **GET** /path  /  行首 GET /path  /  table | GET |
+    endpoints = set()
+    for m in re.finditer(
+        r'`(GET|POST|PUT|PATCH|DELETE)\s+(/[^`\s\n]+)',
+        content
+    ):
+        endpoints.add((m.group(1), m.group(2).rstrip('`').rstrip(',')))
+    for m in re.finditer(
+        r'\*\*(GET|POST|PUT|PATCH|DELETE)\*\*\s+`?(/[^\s`\n,]+)',
+        content
+    ):
+        endpoints.add((m.group(1), m.group(2)))
+    for m in re.finditer(
+        r'(?m)^(GET|POST|PUT|PATCH|DELETE)\s+(/[^\s\n]+)',
+        content
+    ):
+        endpoints.add((m.group(1), m.group(2)))
+    print(len(endpoints) if endpoints else 'unknown')
+except Exception as e:
+    print('unknown')
+PYEOF
+)
+echo "[Step 2-B] API.md endpoint 計數：${_TOTAL_EP}"
+```
+
+**主 Claude 將 `${_TOTAL_EP}` 嵌入以下 subagent prompt 中的 `{_TOTAL_EP}` 佔位符，再派送。**
+
 用 **Agent tool** 派送「API Explorer Generation Subagent」：
 
 ```
-你是 API Explorer Engineer，任務是依照 API_EXPLORER_SPEC 生成一個完整可使用的
+你是 API Explorer Engineer，任務是從 docs/API.md 生成一個完整可使用的
 API Explorer HTML，儲存至 docs/pages/prototype/api-explorer/index.html。
 這是一個自給自足的單一 HTML 檔案（inline CSS + JS），不依賴任何本地框架，
 用 JavaScript 模擬 API 回應——使用者試打時不需要真實 server。
 
-**輸入**：已解析的 API_EXPLORER_SPEC（包含所有 endpoint、mock responses、SCHEMA entities）
+**⚠️ 覆蓋率強制要求：docs/API.md 共有 {_TOTAL_EP} 個 HTTP endpoint。
+SPEC.groups[].endpoints 必須包含全部 {_TOTAL_EP} 個，一個不得省略（含管理後台 /admin/* 路由）。
+生成前先完整讀取 API.md 確認 endpoint 清單，再開始寫 SPEC。**
 
 **生成步驟（不得跳過）：**
+
+Step G-0：讀取規格來源（必須全部讀完，不得略過任何章節）
+  - 讀取 docs/API.md（全文）→ 提取全部 HTTP endpoint：method、path、params、request_body、responses
+  - 若存在，讀取 docs/SCHEMA.md → 提取 Entity 定義（用於 MOCK_DB 擬真資料）
+  - 若存在，讀取 docs/EDD.md → 提取 base_url + 認證方式
+  - 讀完後統計找到的 endpoint 總數；若 < {_TOTAL_EP} 則繼續讀取直到找齊
 
 Step G-1：建立目錄
   mkdir -p docs/pages/prototype/api-explorer/
@@ -1089,6 +1132,7 @@ HTML 結構規範（★ Iron Law G：Postman 風格）：
 - [ ] Hash routing 可用：`#endpoint-{id}` 直接開啟對應 endpoint
 - [ ] Auth token 持久化（localStorage key: `api-explorer-token`）：重新整理後保留；各 Authorization tab 共用同一 token
 - [ ] sidebar 搜尋可過濾 endpoint 列表
+- [ ] **[Iron Law H] Endpoint 覆蓋率 = 100%**：`SPEC.groups[].endpoints` 總數必須等於 API.md 中 HTTP endpoint 數量（主 Claude 在派送前已用 Python 計算並嵌入提示，數量為 `{_TOTAL_EP}` 個）；**禁止省略任何 endpoint，包含管理後台 `/admin/*` 路由、GDPR endpoint、health check**；完成後輸出的 `endpoints_generated` 必須等於 `{_TOTAL_EP}`
 
 完成後輸出：
 API_EXPLORER_GEN_RESULT:
@@ -1230,7 +1274,19 @@ const ADMIN_MOCK = {
     total_roles: 3,
     audit_today: 5, audit_month: 47,
     last_refresh: "2026-05-01 09:30"
-  }
+  },
+
+  // 時序圖表資料（用於 admin-dashboard.html Analytics Charts）
+  // 最近 7 天日期標籤（由新到舊）
+  chartLabels: ["04-25","04-26","04-27","04-28","04-29","04-30","05-01"],
+  // 新增用戶趨勢（每日新增數）
+  chartNewUsers:   [1, 0, 2, 3, 1, 0, 1],
+  // 操作活躍度（每日 audit log 筆數）
+  chartAuditActivity: [2, 1, 4, 5, 3, 2, 5],
+  // 【⚠️ 業務指標：子代理讀取 PRD 後替換為實際業務 KPI 名稱與模擬數值】
+  // 例如：pet 專案 → 寵物領取數；e-commerce → 訂單量；SaaS → 活躍訂閱數
+  chartBizLabel:   "業務活動量",
+  chartBizData:    [5, 8, 12, 9, 15, 11, 7],
 };
 ```
 
@@ -1293,15 +1349,37 @@ Step A-4：生成 5 個 Admin HTML 頁面（使用 Write 工具分別寫入）
   - 角色管理 → admin-roles.html
   - 審計日誌 → admin-audit-log.html
   - （依 PRD §19.3 業務模組動態插入）
-- 主內容區：
+- 主內容區（依序排列）：
   - 標題「控制台」 + 副標「最後更新：{stats.last_refresh}」
-  - 4 個統計卡片（grid 2x2）：
+  - **Section 1：KPI 統計卡片（grid 2×2，4 張）**
     - 用戶總數 8，↑ 活躍 6 / 鎖定 1
     - 角色數 3
     - 今日操作 5 筆
     - 本月審計 47 筆
-  - 快速操作區：新增用戶、查看角色、匯出審計日誌（各自 button → 對應頁面）
-  - 最近操作記錄（取 auditLogs 前 5 筆）：操作員 / 動作 / 目標 / 時間 / 狀態
+  - **Section 2：Analytics Charts（必須生成，不可省略）**
+    - `<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>` 載入 Chart.js（CDN，file:// 可用）
+    - 圖表 row（CSS grid，2 欄，在小螢幕堆疊）：
+      - **左：折線圖「新增用戶趨勢（近 7 天）」**
+        - x 軸：ADMIN_MOCK.chartLabels（7 個日期）
+        - dataset：新增用戶數（ADMIN_MOCK.chartNewUsers）
+        - 顏色：#4f46e5（indigo）；fill=true，透明 fillColor
+        - Chart.js config：`{ type:'line', options: { responsive:true, plugins:{ legend:{display:false} } } }`
+        - `<canvas id="chartNewUsers">`
+      - **右：長條圖「操作活躍度（近 7 天）」**
+        - x 軸：ADMIN_MOCK.chartLabels
+        - dataset：每日審計筆數（ADMIN_MOCK.chartAuditActivity）
+        - 顏色：#2d9ef5（blue）
+        - Chart.js config：`{ type:'bar', options:{ responsive:true, plugins:{legend:{display:false}} } }`
+        - `<canvas id="chartAudit">`
+    - **第三張圖（全寬）：「{ADMIN_MOCK.chartBizLabel}（近 7 天）」**
+      - ⚠️ 子代理生成前先讀取 docs/PRD.md，找出本專案最重要的業務 KPI（例如：pet 領取數、訂單量、活躍訂閱數等）
+      - 將 ADMIN_MOCK.chartBizLabel 替換為實際 KPI 名稱；ADMIN_MOCK.chartBizData 替換為符合業務邏輯的模擬數值
+      - 圖表類型：折線圖（顏色 #10b981 綠色）
+      - `<canvas id="chartBiz">`
+    - ⚠️ Chart.js 必須在 DOMContentLoaded 或頁面 `<body>` 底部初始化（避免 canvas 尚未 render 就取 context）
+    - 每張 canvas 包裹在 `.chart-card`（white bg, border-radius, padding, box-shadow）
+  - **Section 3：快速操作區**：新增用戶、查看角色、匯出審計日誌（各自 button → 對應頁面）
+  - **Section 4：最近操作記錄**（取 auditLogs 前 5 筆）：操作員 / 動作 / 目標 / 時間 / 狀態
 
 **頁面 3：docs/pages/prototype/admin/admin-users.html**
 
@@ -1407,6 +1485,7 @@ function renderSidebar(active) {
 - [ ] **admin-style.css 使用 `.card-header h2, .card-header h3`（不得只有 h3）**
 - [ ] admin-login.html 點擊登入 → 跳轉至 admin-dashboard.html
 - [ ] admin-dashboard.html 「登出」→ 返回 admin-login.html
+- [ ] **admin-dashboard.html 包含 Analytics Charts 區塊**：`<script src="https://cdn.jsdelivr.net/npm/chart.js">` 已載入；3 張 Chart.js 圖表均存在（`id="chartNewUsers"`、`id="chartAudit"`、`id="chartBiz"`）；圖表在 DOMContentLoaded 後初始化；`chartBizLabel` 為業務相關 KPI 名稱（非 placeholder「業務活動量」）
 - [ ] admin-users.html 表格有 8 筆擬真資料（非空表格）
 - [ ] admin-roles.html 角色卡片有 3 個角色 + 權限 chips 可 toggle
 - [ ] admin-audit-log.html 有 15 筆日誌 + CSV 匯出可用
@@ -1505,7 +1584,8 @@ API Explorer（_PROTO_MODE = api-explorer / full）：
 ### A. API Explorer 品質審查（_PROTO_MODE = api-explorer / full）
 
 - [ ] A-0.5: **[Admin] index.html 入口** — docs/pages/prototype/admin/index.html 是否存在且 meta-refresh redirect 至 admin-login.html？（gen_html.py sidebar 掃描依賴此檔案）
-- [ ] A-1: **Endpoint 覆蓋** — API_EXPLORER_SPEC 所有 endpoint 是否都在 sidebar 列出且可點擊？
+- [ ] A-0.8: **[Admin Charts] Dashboard 圖表** — admin-dashboard.html 是否包含 Chart.js 折線圖（#chartNewUsers）、長條圖（#chartAudit）、業務 KPI 折線圖（#chartBiz）？chartBizLabel 是否為業務相關 KPI 名稱（非「業務活動量」placeholder）？
+- [ ] A-1: **[Iron Law H] Endpoint 覆蓋 = 100%** — SPEC endpoint 總數是否等於 API.md HTTP endpoint 數量？sidebar 是否列出全部 endpoint（含 /admin/* 路由）？可透過 `grep -oP '(GET|POST|PUT|PATCH|DELETE)\s+/[^\s`]+' docs/API.md | wc -l` 驗證；若數量不符，列出缺失的 endpoint path 清單
 - [ ] A-2: **[Iron Law F] Mock 擬真** — MOCK_DB 每個 entity 是否有 ≥ 3 筆擬真資料（非 lorem ipsum / placeholder）？path param 找不到 → 是否回傳 404？列表 endpoint 是否支援 query param 過濾？
 - [ ] A-3: **[Iron Law E] Enum Chips** — `params[].enum` 存在時是否渲染可點擊 chips？點擊後是否自動填入 input 並更新 URL 預覽？
 - [ ] A-4: **[Iron Law C] Request Body 可編輯** — POST/PUT endpoint 的 request body 是否為可編輯 `<textarea>`（非唯讀 code block）？輸入非法 JSON 時是否顯示 red border + 錯誤訊息？
