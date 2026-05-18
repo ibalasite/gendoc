@@ -854,6 +854,131 @@ PYEOF
 
 ---
 
+## Step 6.9：Dimension 7 — Doc → Generated Artifact 對齊
+
+> **設計說明**：D2（Doc→Code）的「Code」指 `src/` 應用程式原始碼。
+> gendoc-only 專案（無 `src/`）的生成 artifact 住在 `docs/blueprint/`（mock、contracts）和 `docs/pages/`（prototype、HTML）。
+> Dimension 7 填補 D2 在 gendoc-only 專案的盲區：驗證「文件 vs gendoc 生成 artifact」的一致性。
+
+**主 Claude 直接執行以下 Python（不派 subagent）：**
+
+```python
+import re, os
+
+_d7_findings = []
+
+# ── D7-A：API.md endpoint 數 vs API Explorer HTML ──────────────────────
+_api_md_path = 'docs/API.md'
+_explorer_path = 'docs/pages/prototype/api-explorer/index.html'
+
+if os.path.isfile(_api_md_path):
+    _api_md = open(_api_md_path, encoding='utf-8').read()
+    _api_seen = set()
+    for m in re.finditer(r'`(GET|POST|PUT|PATCH|DELETE)\s+(/[^`\s\n]+)', _api_md):
+        _api_seen.add((m.group(1), m.group(2).rstrip('`').rstrip(',')))
+    for m in re.finditer(r'\*\*(GET|POST|PUT|PATCH|DELETE)\*\*\s+`?(/[^\s`\n,]+)', _api_md):
+        _api_seen.add((m.group(1), m.group(2)))
+    _api_ep_count = len(_api_seen)
+
+    if os.path.isfile(_explorer_path):
+        _html = open(_explorer_path, encoding='utf-8').read()
+        # 計算 SPEC.groups[].endpoints[] 中的 id 欄位（每個 endpoint 有一個 id:）
+        _explorer_ids = re.findall(r'(?:^|\s)id:\s*["\'][\w-]+["\']', _html, re.MULTILINE)
+        # 但 SPEC.groups 本身也有 id:，需扣除 group id（比 endpoint id 少）
+        _group_ids = re.findall(r'(?:groups\s*[=:]\s*\[.*?)\bid:\s*["\'][\w-]+["\']', _html, re.DOTALL)
+        _explorer_ep_count = max(0, len(_explorer_ids) - len(_group_ids))
+        if _explorer_ep_count == 0:
+            # fallback：直接計算 HTML 中的 method badge 數量
+            _explorer_ep_count = len(re.findall(r'class=["\']method-badge["\']', _html))
+        print(f"[D7-A] API.md endpoint 數：{_api_ep_count}  |  API Explorer 估計 endpoint 數：{_explorer_ep_count}")
+        if _explorer_ep_count < _api_ep_count:
+            _d7_findings.append(
+                f"[D7-A][HIGH] API Explorer 覆蓋率不足："
+                f"HTML 約有 {_explorer_ep_count} 個 endpoint，API.md 定義 {_api_ep_count} 個\n"
+                f"  → 修復：/gendoc-flow --only PROTOTYPE"
+            )
+        else:
+            print(f"[D7-A] ✅ API Explorer endpoint 覆蓋率 OK（≥ {_api_ep_count}）")
+    else:
+        print(f"[D7-A] ⚠️  API Explorer 尚未生成（{_explorer_path} 不存在），跳過")
+
+# ── D7-B：API.md camelCase entity 欄位 vs admin-mock.js ────────────────
+_mock_js_path = 'docs/pages/prototype/admin/assets/admin-mock.js'
+
+if os.path.isfile(_api_md_path) and os.path.isfile(_mock_js_path):
+    _camel_keys = set(re.findall(r'"([a-z][a-zA-Z0-9]*[A-Z][a-zA-Z0-9]*)"', _api_md))  # camelCase keys in API.md
+    _mock_js = open(_mock_js_path, encoding='utf-8').read()
+    _mock_keys_raw = set(re.findall(r'\b(\w+)\s*:', _mock_js))
+
+    # 找出 API.md 有 camelCase 欄位但 mock 中完全找不到的
+    _missing_camel = [
+        k for k in _camel_keys
+        if k not in _mock_keys_raw
+           and k.lower() not in {m.lower() for m in _mock_keys_raw}
+    ]
+    if _missing_camel:
+        _preview = _missing_camel[:10]
+        print(f"[D7-B] ⚠️  admin-mock.js 可能缺少/不符欄位（{len(_missing_camel)} 個）：{_preview}")
+        _d7_findings.append(
+            f"[D7-B][MEDIUM] admin-mock.js 欄位名稱可能與 API.md Entity Schema 不符\n"
+            f"  缺少或不符的 camelCase 欄位（前 10 個）：{_preview}\n"
+            f"  → 修復：/gendoc-flow --only PROTOTYPE（重新生成，Iron Law I 已加入 Step A-2.5）"
+        )
+    else:
+        print(f"[D7-B] ✅ admin-mock.js camelCase 欄位覆蓋 OK")
+elif not os.path.isfile(_mock_js_path):
+    print(f"[D7-B] ⚠️  admin-mock.js 尚未生成，跳過")
+
+# ── D7-C：API.md path params vs gen-mock main.py ───────────────────────
+_main_py_path = 'docs/blueprint/mock/main.py'
+
+if os.path.isfile(_api_md_path) and os.path.isfile(_main_py_path):
+    _main_py = open(_main_py_path, encoding='utf-8', errors='ignore').read()
+    _d7c_mismatches = []
+
+    for m in re.finditer(r'`(GET|POST|PUT|PATCH|DELETE)\s+(/[^`\n]+)`', _api_md):
+        method = m.group(1)
+        path   = m.group(2).strip()
+        api_params = sorted(re.findall(r'\{([^}]+)\}', path))
+        if not api_params:
+            continue
+        # 在 main.py 找對應路由（以 path 前綴精確比對）
+        path_prefix = path.split('{')[0].rstrip('/')
+        pattern = rf'@app\.{method.lower()}\s*\(\s*"([^"]*{re.escape(path_prefix)}[^"]*)"'
+        route_m = re.search(pattern, _main_py)
+        if route_m:
+            main_params = sorted(re.findall(r'\{([^}]+)\}', route_m.group(1)))
+            if api_params != main_params:
+                _d7c_mismatches.append(
+                    f"{method} {path}: API.md={api_params}, main.py={main_params}"
+                )
+
+    if _d7c_mismatches:
+        print(f"[D7-C] ❌ 路徑參數名稱不符（{len(_d7c_mismatches)} 個）：")
+        for mm in _d7c_mismatches:
+            print(f"  ⚠️  {mm}")
+        _d7_findings.append(
+            f"[D7-C][HIGH] gen-mock main.py 路徑參數名稱與 API.md 不符\n"
+            + "\n".join(f"  ⚠️  {mm}" for mm in _d7c_mismatches)
+            + "\n  → 修復：/gendoc-flow --only MOCK（重新生成，Step 5.8 已加入參數驗證）"
+        )
+    else:
+        print(f"[D7-C] ✅ gen-mock main.py 路徑參數名稱全部一致")
+elif not os.path.isfile(_main_py_path):
+    print(f"[D7-C] ⚠️  gen-mock main.py 尚未生成，跳過")
+
+# ── 彙整 D7 結果 ──────────────────────────────────────────────────────
+print(f"\n=== Dimension 7 — Doc → Generated Artifact 對齊 ===")
+if _d7_findings:
+    print(f"發現 {len(_d7_findings)} 個問題：")
+    for f in _d7_findings:
+        print(f"  {f}")
+else:
+    print("✅ 所有 generated artifact 與 API.md 對齊")
+```
+
+---
+
 ## Step 7：彙整報告輸出
 
 主 Claude 收集所有 Agent 回傳結果，輸出以下格式：
@@ -870,8 +995,9 @@ PYEOF
 ║  Doc → Test       2       1      0     0     3   🔴           ║
 ║  UML/RTM 品質     0       1      2     0     3   ⚠️           ║
 ║  AI Gencode       1       2      1     0     4   ⚠️  68%      ║
+║  Generated Artifact 0    1      1     0     2   ⚠️           ║
 ╠══════════════════════════════════════════════════════════════╣
-║  總計             4      13      9     2    28                 ║
+║  總計             4      14     10     2    30                 ║
 ╠══════════════════════════════════════════════════════════════╣
 
 Dimension 1 — Doc → Doc 對齊問題
@@ -905,6 +1031,16 @@ Dimension 6 — AI Gencode Readiness
   [CRITICAL] Phaser/ANIM: AI gencode 就緒度 45% — 缺少 TypeScript class skeleton + state machine transition table
   [HIGH] BDD/Tests: AI gencode 就緒度 45% — features/steps/ 無 step definition stub
   [MEDIUM] LOCAL_DEPLOY: 建議補充 .env.example 實際內容
+
+Dimension 7 — Doc → Generated Artifact 對齊
+  [D7-A] API Explorer 覆蓋率：<N>/<M> endpoints  ✅ 或 ❌
+  [D7-B] admin-mock.js 欄位對齊：✅ 或 ❌（不符欄位列表）
+  [D7-C] gen-mock 路徑參數名稱：✅ 或 ❌（不符路由列表）
+
+  修復提示：
+    D7-A：/gendoc-flow --only PROTOTYPE
+    D7-B：/gendoc-flow --only PROTOTYPE
+    D7-C：/gendoc-flow --only MOCK
 
 ╠══════════════════════════════════════════════════════════════╣
 ║  建議執行：/gendoc-align-fix all  修復所有問題               ║

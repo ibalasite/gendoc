@@ -275,19 +275,65 @@ Agent 執行完成後，主 Claude 解析輸出的 `PROTOTYPE_SPEC`，並執行�
 
 **`_PROTO_MODE` 為 `api-explorer` 或 `full` 時執行。**
 
+**Step 1-B 前置：主 Claude 計算 PATH_LIST 和 _TOTAL_EP（派送 subagent 前必須執行）**
+
+```bash
+_PATH_LIST=$(python3 - <<'PYEOF'
+import re
+try:
+    content = open('docs/API.md', encoding='utf-8').read()
+    seen = set()
+    paths = []
+    # 格式1：`GET /path`（backtick heading 格式）
+    for m in re.finditer(r'`(GET|POST|PUT|PATCH|DELETE)\s+(/[^`\s\n]+)', content):
+        key = (m.group(1), m.group(2).rstrip('`').rstrip(','))
+        if key not in seen:
+            seen.add(key)
+            paths.append(f"{m.group(1)} {m.group(2).rstrip('`').rstrip(',')}")
+    # 格式2：**GET** /path（bold 格式）
+    for m in re.finditer(r'\*\*(GET|POST|PUT|PATCH|DELETE)\*\*\s+`?(/[^\s`\n,]+)', content):
+        key = (m.group(1), m.group(2))
+        if key not in seen:
+            seen.add(key)
+            paths.append(f"{m.group(1)} {m.group(2)}")
+    # 格式3：行首 GET /path
+    for m in re.finditer(r'(?m)^(GET|POST|PUT|PATCH|DELETE)\s+(/[^\s\n]+)', content):
+        key = (m.group(1), m.group(2))
+        if key not in seen:
+            seen.add(key)
+            paths.append(f"{m.group(1)} {m.group(2)}")
+    print('\n'.join(paths))
+except Exception as e:
+    print('')
+PYEOF
+)
+_TOTAL_EP=$(echo "$_PATH_LIST" | grep -c '^' 2>/dev/null || echo 'unknown')
+echo "[Step 1-B] Python 機械提取完整 endpoint 清單（共 ${_TOTAL_EP} 個）：
+${_PATH_LIST}"
+```
+
+**主 Claude 將 `${_PATH_LIST}` 和 `${_TOTAL_EP}` 嵌入以下 subagent prompt 中的佔位符，再派送。**
+
 用 **Agent tool** 派送「API Specification Subagent」：
 
 ```
 你是 API Specification Analyst（資深 API 設計分析師）。
-任務：從 docs/API.md 和 docs/SCHEMA.md 提取所有 API endpoint 規格，輸出結構化清單
+任務：為以下 {_TOTAL_EP} 個 endpoint 補充語義細節，輸出結構化規格
 供後續 API Explorer Prototype 生成使用。
 
+**⚠️ endpoint 清單已由主 Claude 預先從 API.md 機械提取，不得新增或刪除任何 endpoint：**
+{PATH_LIST}
+
 **讀取步驟（不得跳過）：**
-1. 讀取 docs/API.md → 提取所有 endpoint：method, path, description, parameters（path/query/header）,
-   request_body schema, response codes（200/400/401/404/500）及 response schema
-2. 若存在，讀取 docs/SCHEMA.md → 提取所有 Entity 定義和 example data，用於組裝 mock 回應
+1. 逐一對應上方每個 endpoint，在 docs/API.md 中找到對應段落，提取：
+   - params（path/query/header 參數名稱、型別、required、default、enum 值）
+   - request_body schema
+   - response codes + example JSON（至少 200/成功碼 + 4xx 錯誤碼）
+2. 若存在，讀取 docs/SCHEMA.md → 提取 Entity 定義（用於 mock_entity + response examples）
 3. 若存在，讀取 docs/EDD.md → 提取：base_url、認證方式（Bearer Token / API Key / OAuth2 / none）
 4. 若存在，讀取 docs/PRD.md → 提取：功能分組標籤（用於 endpoint 側欄分組）
+
+**⚠️ 輸出驗證：輸出前計算 endpoint 數量，必須 = {_TOTAL_EP}；不足時補齊上方清單中的遺漏項**
 
 **輸出格式（必須輸出此結構）：**
 
@@ -364,7 +410,7 @@ API_EXPLORER_SPEC:
           mock_entity: "User"
 ```
 
-Agent 執行完成後，主 Claude 解析輸出的 `API_EXPLORER_SPEC` 供後續 Step 2-B 使用。
+Agent 執行完成後，主 Claude 將 Step 1-B 輸出的 `API_EXPLORER_SPEC` 連同 `${_PATH_LIST}` 和 `${_TOTAL_EP}` 一起嵌入 Step 2-B subagent prompt。
 
 ---
 
@@ -682,22 +728,23 @@ echo "[Step 2-B] API.md endpoint 計數：${_TOTAL_EP}"
 用 **Agent tool** 派送「API Explorer Generation Subagent」：
 
 ```
-你是 API Explorer Engineer，任務是從 docs/API.md 生成一個完整可使用的
+你是 API Explorer Engineer，任務是從 Step 1-B 提供的規格生成一個完整可使用的
 API Explorer HTML，儲存至 docs/pages/prototype/api-explorer/index.html。
 這是一個自給自足的單一 HTML 檔案（inline CSS + JS），不依賴任何本地框架，
 用 JavaScript 模擬 API 回應——使用者試打時不需要真實 server。
 
-**⚠️ 覆蓋率強制要求：docs/API.md 共有 {_TOTAL_EP} 個 HTTP endpoint。
-SPEC.groups[].endpoints 必須包含全部 {_TOTAL_EP} 個，一個不得省略（含管理後台 /admin/* 路由）。
-生成前先完整讀取 API.md 確認 endpoint 清單，再開始寫 SPEC。**
+**⚠️ 覆蓋率強制要求（PATH_LIST 硬約束）：**
+以下 {_TOTAL_EP} 個 endpoint 必須全部出現在 SPEC.groups[].endpoints 中，一個不得省略：
+{PATH_LIST}
 
 **生成步驟（不得跳過）：**
 
-Step G-0：讀取規格來源（必須全部讀完，不得略過任何章節）
-  - 讀取 docs/API.md（全文）→ 提取全部 HTTP endpoint：method、path、params、request_body、responses
-  - 若存在，讀取 docs/SCHEMA.md → 提取 Entity 定義（用於 MOCK_DB 擬真資料）
-  - 若存在，讀取 docs/EDD.md → 提取 base_url + 認證方式
-  - 讀完後統計找到的 endpoint 總數；若 < {_TOTAL_EP} 則繼續讀取直到找齊
+Step G-0：驗證規格完整性並補充細節
+  - Step 1-B 已提供完整 API_EXPLORER_SPEC（{_TOTAL_EP} 個 endpoint）
+  - 對照上方 PATH_LIST，逐一確認 SPEC 中每個 endpoint 均存在；若有遺漏則讀取 docs/API.md 補齊
+  - 若存在，讀取 docs/SCHEMA.md → 補充 MOCK_DB entity 擬真資料
+  - 若存在，讀取 docs/EDD.md → 確認 base_url + 認證方式
+  - 驗證完成後統計 endpoint 總數；必須等於 {_TOTAL_EP}，不足則補齊後繼續
 
 Step G-1：建立目錄
   mkdir -p docs/pages/prototype/api-explorer/
@@ -1193,6 +1240,19 @@ Step A-2：寫入 docs/pages/prototype/admin/assets/admin-style.css
 - Pagination：prev/page numbers/next
 - Tag chip：小型 badge，含 role 顏色（super_admin=紫/operator=藍/auditor=灰）
 
+Step A-2.5（Step C-0）：讀取 API.md Entity Schema（寫入 admin-mock.js 前必須執行）
+
+在生成 admin-mock.js 之前，主 Claude 必須先完整讀取 docs/API.md 中所有 Entity 的 response schema：
+- 提取每個 Entity 的精確欄位名稱（camelCase）、型別、enum 值（exact casing）
+- 記錄下列 Iron Law I 關鍵欄位名稱作為 admin-mock.js 生成的強制約束
+
+**⚠️ Iron Law I — admin-mock.js 欄位必須嚴格對齊 API.md 的 Entity Schema：**
+1. **欄位名稱使用 API.md 的 camelCase**：例如 API.md 定義 `petName` → mock 用 `petName`（NOT `name`）；`matchId`（NOT `id`）；`isBanned`（NOT `status`）；`isFlagged`（NOT `flagged`）；`petAId`/`petBId`/`winnerId`（NOT `pet_a`/`pet_b`/`winner`）
+2. **Enum 大小寫與 API.md 完全一致**：若 API.md 定義 `LEGENDARY`/`EPIC`/`RARE`/`COMMON` → mock 用 UPPERCASE（NOT `Legendary`/`Epic`）
+3. **數值型別 decimal vs 整數**：`winRate`、`deliverySuccessRate` 等 API.md 定義為 decimal (0.0–1.0) 的欄位，mock 必須用 decimal（NOT 整數百分比：0.91 NOT 91）
+4. **UUID 格式 ID**：API.md 若使用 UUID 格式 → mock id 欄位用 UUID 格式字串（`"a1b2c3d4-e5f6-7890-abcd-ef1234567890"` NOT `"pet-0001"`）
+5. **admin HTML 頁面讀取 ADMIN_MOCK 的欄位名稱，必須與 admin-mock.js 定義一致**（不得在 HTML 裡用 `pet.name` 若 mock 定義為 `pet.petName`）
+
 Step A-3：寫入 docs/pages/prototype/admin/assets/admin-mock.js
 使用 Write 工具寫入 mock data（不得用 Lorem ipsum）：
 
@@ -1496,6 +1556,12 @@ function renderSidebar(active) {
 - [ ] **所有 admin HTML 的 `<link>` 必須指向 `assets/admin-style.css`** — 禁止 `admin.css`、`../admin-style.css` 或其他路徑；CSS 不存在 = 整頁無樣式
 - [ ] **所有 admin 頁面 sidebar 使用 `.sidebar-brand` + `<ul class="sidebar-nav">` + `<li class="nav-item">` 結構** — 禁止扁平 `<a class="sidebar-link">` 或 `<div class="admin-logo">`；若存在 `class="sidebar-link"` → 立即重生成該頁
 - [ ] **Dashboard nav-item 連結指向 `admin-dashboard.html`（同層）**，非 `../../index.html`（docs hub）
+- [ ] **[Iron Law I] admin-mock.js 欄位對齊 API.md Entity Schema（Step C-0 執行後方可生成）：**
+  - 欄位名稱使用 API.md camelCase（例：`petName` NOT `name`；`matchId` NOT `id`；`isBanned` NOT `status`；`isFlagged` NOT `flagged`）
+  - Enum 大小寫與 API.md 完全一致（例：`LEGENDARY` NOT `Legendary`）
+  - decimal 型別欄位（winRate、deliverySuccessRate 等）使用 0.0–1.0（NOT 整數百分比）
+  - API.md 使用 UUID 的 entity，mock id 欄位必須使用 UUID 格式字串
+  - admin HTML 頁面存取 ADMIN_MOCK 的欄位名稱與 admin-mock.js 定義一致
 
 Step A-6：生成 docs/pages/prototype/admin/index.html（sidebar 入口）
 

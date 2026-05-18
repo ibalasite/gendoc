@@ -556,10 +556,56 @@ if os.path.isfile(_main_py):
 _ACTUAL_DATA = len(_glob.glob('docs/blueprint/mock/data/*.json'))
 _guide_ok    = os.path.isfile('docs/blueprint/mock/MOCK_SERVER_GUIDE.md')
 
+# 路徑參數名稱對照驗證（API.md {param} vs main.py 實際路由參數）
+_param_mismatches = []
+if os.path.isfile('docs/API.md') and os.path.isfile(_main_py):
+    _api_content  = open('docs/API.md',  encoding='utf-8').read()
+    _main_content = open(_main_py, encoding='utf-8', errors='ignore').read()
+
+    # 從 API.md 提取 path params（格式：`METHOD /path/{param}`）
+    _api_params = {}
+    for m in re.finditer(r'`(GET|POST|PUT|PATCH|DELETE)\s+(/[^`\n]+)`', _api_content):
+        method = m.group(1)
+        path   = m.group(2).strip()
+        params = re.findall(r'\{([^}]+)\}', path)
+        if params:
+            _api_params[f"{method} {path}"] = sorted(params)
+
+    # 從 main.py 提取 path params（格式：@app.get("/path/{param}")）
+    _main_params = {}
+    for m in re.finditer(r'@app\.(get|post|put|patch|delete)\s*\(\s*"([^"]+)"', _main_content):
+        method = m.group(1).upper()
+        path   = m.group(2)
+        params = re.findall(r'\{([^}]+)\}', path)
+        _main_params[f"{method} {path}"] = sorted(params)
+
+    # 對比：找出 path 完全一致但 param 名稱不同的 endpoint
+    for ep_key, api_p in _api_params.items():
+        # 嘗試精確 key 匹配，再嘗試 path prefix 匹配
+        main_p = _main_params.get(ep_key)
+        if main_p is None:
+            # 以 method + path 前綴模糊匹配（忽略尾部斜線差異）
+            method_part = ep_key.split(' ')[0]
+            path_part   = ep_key.split(' ')[1].rstrip('/')
+            for k, v in _main_params.items():
+                if k.startswith(method_part) and k.split(' ')[1].rstrip('/') == path_part:
+                    main_p = v
+                    break
+        if main_p is not None and main_p != api_p:
+            _param_mismatches.append(
+                f"路徑參數名稱不符 — {ep_key}: API.md={api_p}, main.py={main_p}"
+            )
+
 print(f"[Step 5.8] 驗證：")
 print(f"  API endpoints：{_EXPECTED_ROUTES}  → @app. handlers：{_ACTUAL_ROUTES}")
 print(f"  Schema entities：{_EXPECTED_RESOURCES}  → data/*.json：{_ACTUAL_DATA}")
 print(f"  MOCK_SERVER_GUIDE.md：{'✅' if _guide_ok else '❌'}")
+if _param_mismatches:
+    print(f"  路徑參數名稱：❌ {len(_param_mismatches)} 個不符")
+    for mm in _param_mismatches:
+        print(f"    ⚠️  {mm}")
+else:
+    print(f"  路徑參數名稱：✅ 全部一致")
 
 _fail_items = []
 if _ACTUAL_ROUTES < _EXPECTED_ROUTES:
@@ -568,6 +614,8 @@ if _ACTUAL_DATA < _EXPECTED_RESOURCES:
     _fail_items.append(f"data/*.json 不足（{_ACTUAL_DATA}/{_EXPECTED_RESOURCES}）")
 if not _guide_ok:
     _fail_items.append("MOCK_SERVER_GUIDE.md 缺失")
+for mm in _param_mismatches:
+    _fail_items.append(mm)
 
 if _fail_items:
     print(f"\n[Step 5.8] 首次驗證失敗（{len(_fail_items)} 項），執行自身補救：")
