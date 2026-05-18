@@ -695,6 +695,32 @@ VITE_API_BASE_URL=http://localhost:3000
 
 ---
 
+### Layer: artifact — Generated Artifact 對齊修復（Dimension 7）
+
+從 `docs/ALIGN_REPORT.md` 的 `Dimension 7` 區塊讀取所有 D7-A / D7-B / D7-C findings，依類型觸發對應重新生成：
+
+**D7-A：API Explorer endpoint 覆蓋率不足**
+- 觸發條件：`[D7-A]` finding 存在
+- 修復動作：用 Skill tool 呼叫 `gendoc-flow`，args=`--only PROTOTYPE`
+- 等待回傳後確認 `docs/pages/prototype/api-explorer/index.html` 的 endpoint 覆蓋率提升
+
+**D7-B：admin-mock.js 欄位名稱/型別與 API.md 不符**
+- 觸發條件：`[D7-B]` finding 存在
+- 修復動作：用 Skill tool 呼叫 `gendoc-flow`，args=`--only PROTOTYPE`
+  （已在 SKILL.md 加入 Iron Law I + Step C-0，重跑後 admin-mock.js 欄位將對齊 API.md）
+- 等待回傳後確認 admin-mock.js 使用 camelCase 欄位名稱
+
+**D7-C：gen-mock main.py 路徑參數名稱與 API.md 不符**
+- 觸發條件：`[D7-C]` finding 存在
+- 修復動作：用 Skill tool 呼叫 `gendoc-flow`，args=`--only MOCK`
+  （已在 Step 5.8 加入路徑參數驗證，重跑後不符合者會被自動補救）
+- 等待回傳後確認 main.py 路徑參數名稱與 API.md 一致
+
+> **執行順序**：D7-A 和 D7-B 可合併為一次 `--only PROTOTYPE`；D7-C 獨立執行 `--only MOCK`。
+> 修復後：verify（重新跑 align-check D7 確認全部 ✅）→ 在 ALIGN_REPORT.md 標記 `[FIXED]`
+
+---
+
 ## Step 3b：更新 ALIGN_REPORT.md 修復狀態
 
 在所有 finding 修復確認後，在 `docs/ALIGN_REPORT.md` 對應 finding 行的末尾加入修復狀態標記：
