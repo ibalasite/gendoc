@@ -415,13 +415,26 @@ class DRYRUNEngine:
 
         elif sid == 'MOCK':
             api_path = self.docs_dir / 'API.md'
-            endpoint_count = params.get('rest_endpoint_count', 5)
             entity_count = params.get('entity_count', 3)
+            # Prefer API.md for accurate endpoint count (EDD.md may be incomplete)
+            if api_path.exists():
+                api_content = api_path.read_text(encoding='utf-8')
+                seen: set[tuple[str, str]] = set()
+                for m in re.finditer(r'`(GET|POST|PUT|PATCH|DELETE)\s+(/[^`\s\n]+)', api_content):
+                    seen.add((m.group(1), m.group(2).rstrip('`').rstrip(',')))
+                for m in re.finditer(r'\*\*(GET|POST|PUT|PATCH|DELETE)\*\*\s+`?(/[^\s`\n,]+)', api_content):
+                    seen.add((m.group(1), m.group(2)))
+                for m in re.finditer(r'(?m)^(GET|POST|PUT|PATCH|DELETE)\s+(/[^\s\n]+)', api_content):
+                    seen.add((m.group(1), m.group(2)))
+                endpoint_count = len(seen) if seen else params.get('rest_endpoint_count', 5)
+            else:
+                endpoint_count = params.get('rest_endpoint_count', 5)
             result['expected_mock_route_count'] = max(1, endpoint_count)
             result['expected_mock_data_count'] = max(1, entity_count)
 
         elif sid == 'PROTOTYPE':
             prd_path = self.docs_dir / 'PRD.md'
+            api_path = self.docs_dir / 'API.md'
             screen_count = 0
             if prd_path.exists():
                 prd_content = prd_path.read_text(encoding='utf-8')
@@ -431,6 +444,18 @@ class DRYRUNEngine:
                     prd_content, re.IGNORECASE
                 ))
             result['expected_screen_count'] = max(3, screen_count)
+            # API Explorer endpoint coverage — use same counting as MOCK
+            if api_path.exists():
+                api_content = api_path.read_text(encoding='utf-8')
+                seen_proto: set[tuple[str, str]] = set()
+                for m in re.finditer(r'`(GET|POST|PUT|PATCH|DELETE)\s+(/[^`\s\n]+)', api_content):
+                    seen_proto.add((m.group(1), m.group(2).rstrip('`').rstrip(',')))
+                for m in re.finditer(r'\*\*(GET|POST|PUT|PATCH|DELETE)\*\*\s+`?(/[^\s`\n,]+)', api_content):
+                    seen_proto.add((m.group(1), m.group(2)))
+                for m in re.finditer(r'(?m)^(GET|POST|PUT|PATCH|DELETE)\s+(/[^\s\n]+)', api_content):
+                    seen_proto.add((m.group(1), m.group(2)))
+                if seen_proto:
+                    result['expected_api_explorer_endpoint_count'] = len(seen_proto)
 
         elif sid == 'UML':
             # Type coverage: 9 types must each have >= 1 file
