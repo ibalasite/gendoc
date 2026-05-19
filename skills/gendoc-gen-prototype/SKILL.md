@@ -666,6 +666,14 @@ router.init();
 - [ ] 若有 ANIM 規格，fx-engine.js 已建立且 P0 動畫已實作
 - [ ] 流程地圖 Modal 可開啟，顯示所有 Screen 名稱並可點擊
 
+**Iron Law Q — Portal 禁止偷賴（6 條硬約束，全部違反 = 必須修復後重新輸出）：**
+- [ ] **[Q-1] 禁止硬編碼動態內容**：告警文字、Token 名稱、剩餘天數必須從 mockData 計算動態生成。錯誤示範：`'「物流追蹤監控」Token 將於 <strong>4 天後</strong>到期'`；正確示範：`` `${t.name}` 將於 `${t.expiresInDays}` 天後到期 ``（t 從 tokens.filter(t=>t.expiresInDays<=7) 取）。凡是出現姓名/數字/狀態被硬編碼進模板字串的，一律視為違反。
+- [ ] **[Q-2] 禁止 Toast-Only 互動**：filter/sort 選單必須實際過濾資料並重新渲染 DOM（`renderXxx(data.filter(...))` 而非 `showToast('篩選條件已套用')`）；匯出按鈕必須用 `new Blob([csv], {type:'text/csv'})` + `URL.createObjectURL` 觸發真實下載；凡是功能按鈕只 `showToast(...)` 而不操作資料的，一律視為違反。
+- [ ] **[Q-3] Method Badge 必須動態計算**：`badge-method-{method}` class 必須由 endpoint 的 method 欄位動態決定（如 `` `badge-method-${ep.method.toLowerCase()}` ``）；禁止硬編碼 `badge-method-get`。
+- [ ] **[Q-4] 設定頁面必須有實際功能**：設定畫面（P7 或等效）必須包含 ≥2 個可修改並以 `localStorage` 持久化的設定項目（語言偏好/通知設定/API 預設值等）；禁止設定頁只顯示頭像+Email+登出而無可操作設定。
+- [ ] **[Q-5] 輸入欄位必須有驗證**：IP 白名單格式必須驗證 CIDR（`/^\d{1,3}(\.\d{1,3}){3}\/\d{1,2}$/`）；IP 筆數上限必須 enforce（超出上限 → 顯示錯誤，禁止繼續新增）；表單送出前必須驗 required 欄位，禁止無驗證直接 `showToast('已送出')` 假成功。
+- [ ] **[Q-6] 多步驟表單必須動態讀 mockData**：Substation 選項必須從 `mockData.substationDefs`（或等效資料源）動態生成 `<option>`，禁止硬編碼選項文字；有效期下拉必須對應 spec 允許的選項（如 30天/60天/90天），禁止無依據硬編碼。
+
 完成後輸出：
 PROTOTYPE_GEN_RESULT:
   screens_generated: N
@@ -862,6 +870,19 @@ AI 執行時必須 Read 骨架檔案，不得使用任何內嵌模板。-->
 - [ ] `ep.auth` 不通過 `checkAuth()` → mockExec 回傳 401
 - [ ] sidebar 搜尋可過濾 endpoint 列表（method + path + summary 模糊比對）
 - [ ] **[Iron Law H] Endpoint 覆蓋率 = 100%**：`SPEC.groups[].endpoints` 總數必須等於 API.md 中 HTTP endpoint 數量（主 Claude 在派送前已用 Python 計算並嵌入提示，數量為 `{_TOTAL_EP}` 個）；**禁止省略任何 endpoint，包含管理後台 `/admin/*` 路由、GDPR endpoint、health check**；完成後輸出的 `endpoints_generated` 必須等於 `{_TOTAL_EP}`
+- [ ] **[Iron Law J] Scripts Tab 必須真正執行**：
+      - Pre-request script（`S.preScript`）在 `doSend()` 呼叫 `mockExec` 之前，使用 sandboxed `new Function('pm', S.preScript)(pmPreContext)` 執行；執行出錯 → Test Results tab 顯示 `PRE-SCRIPT ERROR: {msg}`
+      - Post-response script（`S.postScript`）在 `mockExec` 回傳後立即執行，傳入 `pmPostContext`（含 `response.status`、`response.json()`、`response.headers`、`pm.test(name, fn)`、`pm.expect(val)` 等 Chai-style API）；執行結果累積至 `S._testResults[]`（每筆：`{name, passed, error}`）
+      - **禁止** Scripts tab 只是純文字 textarea、`S.preScript`/`S.postScript` 從未真正執行
+      - 即使當前 endpoint 的 script 為空，`doSend()` 也必須依序執行「pre-script → mockExec → post-script」三段邏輯，空 script 直接跳過即可
+- [ ] **[Iron Law K] Test Results Tab 必須顯示實際執行結果**：
+      - 有 post-response script 執行後，Test Results tab 必須顯示每條 `pm.test` 的 Pass（✓ 綠色）/ Fail（✗ 紅色 + 錯誤訊息）結果
+      - tab label 顯示計數：`Test Results (2/3)`（passed/total）
+      - 無 script 或 script 未執行時才顯示「No test scripts defined.」；**禁止 Test Results 不論 script 是否有內容都顯示此訊息**
+- [ ] **[Iron Law L] addEnvVar 必須使用 inline 行編輯，禁止 prompt()**：
+      - 新增環境變數使用 inline `<tr>` 插入（`<input>` 或 contenteditable），禁止呼叫 `window.prompt()` 或 `window.confirm()`
+      - 每行末尾有刪除按鈕（`<button class="env-del-btn">`），點擊後從 `S.envVars[]` 移除並 re-render
+      - 修改環境變數值必須即時觸發 URL 預覽更新（`{{base_url}}` 等變數替換）
 
 完成後輸出：
 API_EXPLORER_GEN_RESULT:
@@ -1329,6 +1350,14 @@ API Explorer（_PROTO_MODE = api-explorer / full）：
 - [ ] P-10: **無 JS 語法錯誤** — prototype.js 和 audio-engine.js 是否無明顯語法錯誤（未閉合的 {}/[]/"，缺少分號，未定義變數）？（Technical）
 - [ ] P-11: **回 docs link** — 每個 prototype HTML（含 `prototype/index.html`、`prototype/admin/*.html`、`prototype/api-explorer/index.html`）必須含可解析到 docs index 的 back-link `<a>...← 文件站</a>`，href 由 depth 決定（depth=1 用 `../index.html`，depth=2 用 `../../index.html`）。確認 label 跟 href 對應正確（不可 label 寫文件站但 href 只到 prototype shell）。（UX Flow）
 
+**Iron Law Q — Portal 偷賴審查（與生成側 Q-1~Q-6 一一對應）：**
+- [ ] Q-1: **無硬編碼動態內容** — 告警訊息（Token 到期通知等）是否從 mockData 動態計算？是否存在把 Token 名稱或天數直接硬編碼在模板字串裡的程式碼？（搜尋 `<strong>N 天</strong>` 或類似 hardcoded 數字+文字）
+- [ ] Q-2: **無 Toast-Only 互動** — filter/sort 選單是否真的過濾資料並重新渲染 DOM？匯出按鈕是否產生真實 Blob 下載？（搜尋 `onchange="showToast` 或 `onclick="showToast`，凡是業務功能只做 showToast 的均為違反）
+- [ ] Q-3: **Method Badge 動態** — 是否存在硬編碼 `class="badge-method-get"` 而非動態計算？（搜尋 `badge-method-get`，若出現在靜態模板字串而非動態運算，即違反）
+- [ ] Q-4: **設定頁面有實際功能** — 設定畫面是否包含 ≥2 個可修改且用 localStorage 持久化的設定項目？還是只有頭像+Email+登出？
+- [ ] Q-5: **輸入有驗證** — IP 白名單是否驗證 CIDR 格式？IP 筆數上限是否實際 enforce？表單是否驗 required 欄位後才 submit？
+- [ ] Q-6: **多步驟表單動態讀 mockData** — Substation 選項是否從 `mockData.substationDefs` 動態生成？是否存在硬編碼 `TW_NORTH（台灣北區）` 選項文字？
+
 ### A. API Explorer 品質審查（_PROTO_MODE = api-explorer / full）
 
 - [ ] A-0.5: **[Admin] index.html 入口** — docs/pages/prototype/admin/index.html 是否存在且 meta-refresh redirect 至 admin-login.html？（gen_html.py sidebar 掃描依賴此檔案）
@@ -1346,6 +1375,9 @@ API Explorer（_PROTO_MODE = api-explorer / full）：
 - [ ] A-11: **[Iron Law A] 資料模型** — `SPEC.groups[].eps[].responses[]` 是否存 JSON 物件（禁 HTML 字串）？每個 ep 的 `auth` 欄位是否使用物件格式（`false / true / {type:'bearer'} / {type:'cookie',cookieName} / {type:'any'}`），禁止舊格式 `auth_required: true/false`？params 有限制時是否含 `enum[]`？**每個 param 是否有 `default` 欄位**（缺少 `default` → `runTry()` 替換失效）？
 - [ ] A-12: **[Iron Law B] Possible Responses 靜態可見** — 每個 response code 是否用 `<details>/<summary>` 渲染？不展開可見 code+desc，展開可見完整 example JSON + 複製按鈕？**禁止只顯示 code+description 無 example**
 - [ ] A-13: **[Iron Law D] URL 預覽** — 填入 path/query param 後 URL preview 是否即時更新？顯示完整 `METHOD base_url/path?qs=val`？
+- [ ] A-14: **[Iron Law J] Scripts 真正執行** — `doSend()` 是否在呼叫 `mockExec` 前執行 `S.preScript`（用 `new Function` sandbox）？是否在 `mockExec` 回傳後執行 `S.postScript`？（搜尋 `preScript`/`postScript` — 若只 assign 不執行即違反）`pm.test()` 結果是否累積至 `S._testResults[]`？
+- [ ] A-15: **[Iron Law K] Test Results 顯示執行結果** — 有 script 執行後，Test Results tab 是否顯示每條 `pm.test` 的 Pass/Fail？tab label 是否含計數（如 `Test Results (2/3)`）？是否禁止了「永遠顯示 No test scripts defined.」的狀況？
+- [ ] A-16: **[Iron Law L] addEnvVar 無 prompt()** — 環境變數新增/編輯是否使用 inline `<input>` 行（而非 `window.prompt()`）？每行是否有刪除按鈕？修改值是否即時更新 URL 預覽？（搜尋 `window.prompt`，出現即違反）
 
 **完成後輸出（格式嚴格）：**
 PROTOTYPE_REVIEW_RESULT:
