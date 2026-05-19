@@ -436,7 +436,7 @@ function getUrlParams() {
 // ─── SEND ─────────────────────────────────────────────────────────────────────
 async function doSend() {
   if (!S.ep) return;
-  const btn = document.getElementById('send-btn'); btn.disabled = true; btn.textContent = '\u23F3 Sending\u2026';
+  const btn = document.getElementById('send-btn'); btn.disabled = true; btn.textContent = 'Sending…';
   S._testResults = [];
   try {
     // Pre-request script — runs before mockExec, can mutate S.env
@@ -452,7 +452,7 @@ async function doSend() {
     if (S.bodyType === 'raw' && S.bodyRaw) {
       const resolved = resolveVars(S.bodyRaw);
       try { bodyObj = JSON.parse(resolved) }
-      catch (e) { showToast('\u26A0 Body is not valid JSON \u2014 check formatting'); btn.disabled = false; btn.textContent = '\u25B6 Send'; return; }
+      catch (e) { showToast('\u26A0 Body is not valid JSON \u2014 check formatting'); btn.disabled = false; btn.textContent = 'Send'; return; }
     } else if (S.bodyType === 'form-data') {
       bodyObj = Object.fromEntries(S.bodyFormData.filter(r => r.on && r.key).map(r => [r.key, resolveVars(r.val)]));
     } else if (S.bodyType === 'urlencoded') {
@@ -476,7 +476,7 @@ async function doSend() {
     }
     S.resp = resp; renderResponse(resp);
   } catch (e) { showToast('\u26A0 ' + e.message) }
-  finally { btn.disabled = false; btn.textContent = '\u25B6 Send' }
+  finally { btn.disabled = false; btn.textContent = 'Send' }
 }
 
 // ─── RESPONSE ─────────────────────────────────────────────────────────────────
