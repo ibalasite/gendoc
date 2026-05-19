@@ -367,7 +367,7 @@ function renderHeadersTab() {
   return h + '</tbody></table>';
 }
 function setBodyType(t) { S.bodyType = t; const btn = document.getElementById('body-tab-btn'); if (btn) btn.textContent = t !== 'none' ? 'Body (' + { raw: 'raw', 'form-data': 'form-data', urlencoded: 'urlencoded', binary: 'binary' }[t] + ')' : 'Body'; renderReqContent() }
-function beautifyBody() { try { const e = document.getElementById('body-editor'); e.value = JSON.stringify(JSON.parse(e.value), null, 2); S.bodyRaw = e.value } catch (e) { showToast('⚠ Invalid JSON') } }
+function beautifyBody() { try { const e = document.getElementById('body-editor'); e.value = JSON.stringify(JSON.parse(e.value), null, 2); S.bodyRaw = e.value } catch (e) { showToast('\u26A0 Invalid JSON') } }
 function renderBodyTab() {
   const LABELS = { none: 'none', raw: 'raw', 'form-data': 'form-data', urlencoded: 'x-www-form-urlencoded', binary: 'binary' };
   let h = `<div class="body-mode-toggle">${Object.keys(LABELS).map(t => `<button class="body-mode-btn${S.bodyType === t ? ' active' : ''}" onclick="setBodyType('${t}')">${LABELS[t]}</button>`).join('')}</div>`;
@@ -436,7 +436,7 @@ function getUrlParams() {
 // ─── SEND ─────────────────────────────────────────────────────────────────────
 async function doSend() {
   if (!S.ep) return;
-  const btn = document.getElementById('send-btn'); btn.disabled = true; btn.textContent = '⏳ Sending…';
+  const btn = document.getElementById('send-btn'); btn.disabled = true; btn.textContent = '\u23F3 Sending\u2026';
   S._testResults = [];
   try {
     // Pre-request script — runs before mockExec, can mutate S.env
@@ -452,7 +452,7 @@ async function doSend() {
     if (S.bodyType === 'raw' && S.bodyRaw) {
       const resolved = resolveVars(S.bodyRaw);
       try { bodyObj = JSON.parse(resolved) }
-      catch (e) { showToast('⚠ Body is not valid JSON — check formatting'); btn.disabled = false; btn.textContent = '▶ Send'; return; }
+      catch (e) { showToast('\u26A0 Body is not valid JSON \u2014 check formatting'); btn.disabled = false; btn.textContent = '\u25B6 Send'; return; }
     } else if (S.bodyType === 'form-data') {
       bodyObj = Object.fromEntries(S.bodyFormData.filter(r => r.on && r.key).map(r => [r.key, resolveVars(r.val)]));
     } else if (S.bodyType === 'urlencoded') {
@@ -475,8 +475,8 @@ async function doSend() {
       } catch (e) { S._testResults.push({ name: 'POST-SCRIPT ERROR', passed: false, error: e.message }) }
     }
     S.resp = resp; renderResponse(resp);
-  } catch (e) { showToast('⚠ ' + e.message) }
-  finally { btn.disabled = false; btn.textContent = '▶ Send' }
+  } catch (e) { showToast('\u26A0 ' + e.message) }
+  finally { btn.disabled = false; btn.textContent = '\u25B6 Send' }
 }
 
 // ─── RESPONSE ─────────────────────────────────────────────────────────────────
@@ -532,7 +532,7 @@ function renderTestResults() {
   h += S._testResults.map(t => `<div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)"><span style="font-size:14px;flex-shrink:0">${t.passed ? '✅' : '❌'}</span><div style="flex:1"><div style="font-size:12px;color:${t.passed?'var(--t1)':'var(--md)'}">${esc(t.name)}</div>${t.error ? `<div style="font-size:11px;color:var(--t2);font-family:monospace;margin-top:2px">${esc(t.error)}</div>` : ''}</div></div>`).join('');
   return h;
 }
-function copyResp() { if (!S.resp?.body) return; navigator.clipboard.writeText(S.resp.body).then(() => { const b = document.getElementById('copy-resp-btn'); if (b) { b.textContent = '✓ Copied!'; setTimeout(() => b.textContent = '📋 Copy', 1500) } }).catch(() => showToast('⚠ Clipboard not available')) }
+function copyResp() { if (!S.resp?.body) return; navigator.clipboard.writeText(S.resp.body).then(() => { const b = document.getElementById('copy-resp-btn'); if (b) { b.textContent = '\u2713 Copied!'; setTimeout(() => b.textContent = '\uD83D\uDCCB Copy', 1500) } }).catch(() => showToast('\u26A0 Clipboard not available')) }
 function downloadResp() { if (!S.resp?.body) return; const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([S.resp.body], { type: 'application/json' })); a.download = 'response.json'; a.click() }
 function clearResp() { S.resp = null; document.getElementById('resp-empty').style.display = 'flex'; document.getElementById('resp-loaded').style.display = 'none' }
 let _wrap = false; function toggleWrap() { _wrap = !_wrap; const p = document.getElementById('resp-body-pre'); if (p) p.style.whiteSpace = _wrap ? 'pre-wrap' : 'pre'; const b = document.getElementById('wrap-btn'); if (b) b.style.color = _wrap ? 'var(--accent)' : '' }
