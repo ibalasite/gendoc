@@ -15,6 +15,7 @@ No hardcoded metrics or step specifications — fully dynamic and extensible.
 """
 
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -91,8 +92,10 @@ class DRYRUNEngine:
         upstream_data = {}
 
         try:
-            # Call get-upstream tool
-            get_upstream_path = self.cwd / 'tools' / 'bin' / 'get-upstream.sh'
+            # Call get-upstream tool — use runtime path, never target project
+            _gendoc_runtime = Path(os.environ.get('GENDOC_DIR',
+                str(Path.home() / '.claude' / 'skills' / 'gendoc')))
+            get_upstream_path = _gendoc_runtime / 'tools' / 'bin' / 'get-upstream.sh'
             result = subprocess.run(
                 [str(get_upstream_path), '--step', 'DRYRUN', '--output', 'json'],
                 cwd=str(self.cwd),
