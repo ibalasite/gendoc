@@ -808,14 +808,49 @@ Step G-2c：從 API.md 建構 mockExec + checkAuth（用於注入 INJECT_MOCK_HE
   - refresh endpoint：auth {type:'cookie',cookieName:'refresh_token'}，驗 jar 中的 refresh_token
   - checkAuth(ep, token, cookieJar) 依 ep.auth 型別驗證 bearer / cookie / any
 
-Step G-2d：替換骨架中的 INJECT 標記
-  /* INJECT_SPEC_HERE */ … /* END_INJECT_SPEC */  → 換成 Step G-2b 的 SPEC 宣告
-  /* INJECT_MOCK_HERE */ … /* END_INJECT_MOCK */  → 換成 Step G-2c 的 mockExec 函式
+Step G-2d：字串替換（⚠️ 這是「替換」不是「重寫」）
+  取骨架的完整文字內容，執行 **兩次字串替換**：
+    替換 1：找到 `/* INJECT_SPEC_HERE */` 到 `/* END_INJECT_SPEC */` 之間的所有內容（含預設空 SPEC）
+            → 換成 Step G-2b 建構的 SPEC 宣告（保留首尾 INJECT 標記行）
+    替換 2：找到 `/* INJECT_MOCK_HERE */` 到 `/* END_INJECT_MOCK */` 之間的所有內容（含預設 mockExec stub）
+            → 換成 Step G-2c 建構的 mockExec 函式（保留首尾 INJECT 標記行）
+  ★ 這兩個區塊以外的所有內容（HTML、CSS、JS 函式）必須與骨架完全一致，一個字元都不能改
 
 Step G-2e：Write 輸出
   路徑：docs/pages/prototype/api-explorer/index.html
-  規範：只有 INJECT 區塊與骨架不同；其餘（State 物件、UI 渲染、tab 邏輯、CSP）完全保留骨架原版
+  ⚠️ 禁止重新生成骨架：輸出內容 = 骨架原文 + 兩處 INJECT 替換，僅此而已
+  ⚠️ 禁止將骨架中的 Unicode 字元（▶ ⏳ ⚙ 🍪 等）轉換為 HTML entity（&#9654; 等）
+  ⚠️ 禁止重寫 doSend()、renderBodyTab()、initFromHash() 等骨架函式
+  驗證：寫入前確認 `btn.textContent = '▶ Send'` 存在（原 Unicode，非 &#9654;）
 ```
+
+<!--
+★ [Iron Law P] 骨架禁止重寫（最高優先級）
+
+╔══════════════════════════════════════════════════════════════════════╗
+║ Iron Law P：生成 api-explorer/index.html 必須是字串替換，           ║
+║             禁止重新生成整個骨架                                     ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+違反表現（以下任一出現即 CRITICAL violation）：
+  ✗ doSend()、renderBodyTab()、renderHeadersTab() 等骨架函式被重寫
+  ✗ `btn.textContent = '&#9654; Send'`（HTML entity 進入 textContent）
+  ✗ `btn.textContent = 'Sending...'`（emoji 被刪除，文字被簡化）
+  ✗ renderTestResults() 函式缺失
+  ✗ _initFromHash() 函式缺失
+  ✗ S._testResults 欄位缺失
+  ✗ 6th param reqHeaders = {} 在 mockExec 簽名中缺失
+  ✗ endpoint 總數少於 API.md 定義的數量
+
+正確做法（僞代碼）：
+  skeleton_content = Read("~/.claude/skills/gendoc/tools/api-explorer/postman-skeleton.html")
+  spec_block = build_spec_from_api_md()
+  mock_block = build_mockexec_from_api_md()
+  output = skeleton_content
+    .replace(between("/* INJECT_SPEC_HERE */", "/* END_INJECT_SPEC */"), spec_block)
+    .replace(between("/* INJECT_MOCK_HERE */", "/* END_INJECT_MOCK */"), mock_block)
+  Write("docs/pages/prototype/api-explorer/index.html", output)
+-->
 
 <!--REMOVED: 舊 HTML 模板 code block（原 762-1184 行）已刪除。
 AI 執行時必須 Read 骨架檔案，不得使用任何內嵌模板。-->
@@ -1390,6 +1425,7 @@ API Explorer（_PROTO_MODE = api-explorer / full）：
 - [ ] A-17: **[Iron Law M] Body tab 所有 method 均有 mode toggles** — GET/HEAD/OPTIONS endpoint 切換到 Body tab 是否能看到 none/raw/form-data/urlencoded/binary 的切換按鈕？還是直接顯示「No body for GET requests」而無任何切換？（搜尋 `renderBodyTab` 內是否存在 `ms.includes` 或 `['POST','PUT','PATCH','DELETE']` 白名單早返，出現即違反）
 - [ ] A-18: **[Iron Law N] mockExec 過濾參數生效** — 列表型 endpoint 的 mockExec 分支是否真正讀取 `up.status`/`up.user_id`/`up.page` 等過濾參數？（搜尋對應 switch/if 分支 — 若分支只讀 `up.status` 而忽略其他 8 個過濾 param 即違反）路徑參數空值是否回傳 404 而非 fallback 到 `up.id || 'default-id'`？批次操作重複執行是否回傳 409？
 - [ ] A-19: **[Iron Law O] mockExec 純函式** — `mockExec` 函式體內是否存在直接呼叫 `showToast()`/`renderEnvPanel()`/直接寫 DOM？（出現即違反）auth token 儲存是否透過 post-response script 的 `pm.environment.set()` 或僅修改 `S.env`（無 DOM 操作）？Cookie 生命週期是否只透過 `bResp` 第 5 參數傳回？
+- [ ] A-20: **[Iron Law P] 骨架未被重寫** — `btn.textContent = '&#9654;` 是否出現在 JS 中？（出現即 CRITICAL：textContent 不解析 HTML entity，導致顯示亂碼）搜尋 `renderTestResults`、`_initFromHash`、`S._testResults`、`reqHeaders = {}` — 四者缺失任一即表示骨架被重新生成而非字串替換；endpoint 總數是否等於 API.md 定義的數量？
 
 **完成後輸出（格式嚴格）：**
 PROTOTYPE_REVIEW_RESULT:
