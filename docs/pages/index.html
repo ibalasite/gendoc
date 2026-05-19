@@ -641,20 +641,19 @@ IDEA → BRD → PRD → EDD → ARCH    →    DRYRUN    →    API → SCHEMA 
 │   ├── gendoc-settings-hook       # settings.json editor (bash wrapper)
 │   └── gendoc-settings-hook.py    # settings.json editor (Python)
 ├── tools/                          # Source-of-truth packages — each tools/&lt;pkg&gt;/
-│   │                                #   may carry build.sh / build.ps1 picked up
-│   │                                #   by setup `_deploy_tools` (per-package build)
 │   ├── gen_html/                   # HTML site generator package + visual TDD tests
-│   ├── dryrun_core/                # DRYRUN parameter extraction package + tests
+│   ├── dryrun_core/                # DRYRUN parameter extraction SSOT + tests
+│   │   └── dryrun_core.py          # ← SSOT; `setup deploy` copies to tools/bin/ (not git-tracked)
 │   ├── guard/                      # gendoc-guard simulators &amp; rule tests
-│   └── bin/                        # Deployed runtime executables
-│       ├── gen_html.py             # HTML documentation site generator (~4k LOC)
-│       ├── dryrun_core.py          # DRYRUN parameter extraction engine
-│       ├── review.sh / review_integration.sh  # DRYRUN output validation
-│       ├── get-upstream.sh         # Upstream file/section reader (pipeline.json driven)
-│       ├── gendoc-guard-blocker.py      # PreToolUse SECS whitelist hook (exit 2 = block)
-│       ├── gendoc-guard-history.py      # PostToolUse execution history hook
-│       ├── gendoc-guard-session-start.py # SessionStart resume injection hook
-│       └── gendoc-guard-stop.py         # Stop hook — queue + macOS notification + dodge detection
+│   └── bin/                        # Runtime executables (shell scripts = SSOT; .py = deploy artifacts)
+│       ├── gen_html.py             # deploy artifact — copied from tools/gen_html/ by setup deploy
+│       ├── dryrun_core.py          # deploy artifact — copied from tools/dryrun_core/ by setup deploy
+│       ├── review.sh / review_integration.sh  # SSOT — DRYRUN output validation
+│       ├── get-upstream.sh         # SSOT — upstream file/section reader (always called via runtime GENDOC_DIR)
+│       ├── gendoc-guard-blocker.py      # SSOT — PreToolUse SECS whitelist hook (exit 2 = block)
+│       ├── gendoc-guard-history.py      # SSOT — PostToolUse execution history hook
+│       ├── gendoc-guard-session-start.py # SSOT — SessionStart resume injection hook
+│       └── gendoc-guard-stop.py         # SSOT — Stop hook — queue + macOS notification + dodge detection
 ├── skills/                        # Source of truth for all SKILL.md files
 │   ├── gendoc-auto/
 │   ├── gendoc-flow/
