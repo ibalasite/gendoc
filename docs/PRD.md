@@ -540,7 +540,7 @@ Feature: 使用者登入
 
 ```mermaid
 flowchart TD
-    INPUT([任意輸入\n文字 · URL · 圖片 · Repo]) --> AUTO
+    INPUT((任意輸入\n文字 · URL · 圖片 · Repo)) --> AUTO
     subgraph AUTO["/gendoc-auto — 入口"]
         G1["⚙ Gen IDEA\n資深 PM Expert"] --> R1["↻ Review + Fix Loop\nfinding = 0 → pass\nfinding > 0 → Fix → re-Review"]
         R1 --> G2["⚙ Gen BRD\n資深商業分析師"]
@@ -575,9 +575,9 @@ flowchart TD
         end
         REQ --> DES --> UML_L --> QA --> OPS --> AUDIT --> IMPL --> PUB
     end
-    FLOW --> DONE([GitHub Pages 文件站\n+ docs/blueprint/ 可攜帶])
-    RESUME(["/gendoc-flow\n斷點續行"]) -.->|"review_progress\ncompleted_steps"| FLOW
-    CONFIG(["/gendoc-config\n設定強度 / 重跑點"]) -.-> FLOW
+    FLOW --> DONE((GitHub Pages 文件站\n+ docs/blueprint/ 可攜帶))
+    RESUME(("/gendoc-flow\n斷點續行")) -.->|"review_progress\ncompleted_steps"| FLOW
+    CONFIG(("/gendoc-config\n設定強度 / 重跑點")) -.-> FLOW
     classDef condNode fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
     classDef gameNode fill:#fce7f3,stroke:#db2777,color:#831843
     classDef specNode fill:#fef3c7,stroke:#f59e0b,color:#78350f
@@ -624,7 +624,7 @@ docs/req/（原始輸入層，所有文件的最終上游）
 
 ```mermaid
 graph TD
-    REQ([docs/req/ 原始素材])
+    REQ((docs/req/ 原始素材))
     L0["L0 IDEA.md<br/><small>概念入口（可選）</small>"]
     L1["L1 BRD.md<br/><small>商業需求</small>"]
     L2["L2 PRD.md<br/><small>產品需求</small>"]
@@ -700,7 +700,7 @@ graph TD
 
 ```mermaid
 graph TD
-    REQ(["docs/req/ ●"]):::l0
+    REQ(("docs/req/ ●")):::l0
     ID["IDEA ●●"]:::l1
     BR["BRD ●●●"]:::l2
     PR["PRD ●●●●"]:::l3

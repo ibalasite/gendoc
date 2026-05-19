@@ -737,7 +737,7 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
 <p>每個標準步驟執行<strong>三專家子代理模式</strong>：Gen ⚙ → Review ↻ → Fix ✎ → Commit ↑，直至 finding = 0 或達 max_rounds。</p>
 <p><code>✦</code> = client_type ≠ none 時執行（有 UI 的產品）　<code>★</code> = special_skill（不走三專家，直接呼叫 Skill；DRYRUN 不在此列，走標準三件套，見 §7.10）</p>
 <div class="diagram-container"><pre class="mermaid">flowchart TD
-    INPUT([任意輸入\n文字 · URL · 圖片 · Repo]) --&gt; AUTO
+    INPUT((任意輸入\n文字 · URL · 圖片 · Repo)) --&gt; AUTO
     subgraph AUTO[&quot;/gendoc-auto — 入口&quot;]
         G1[&quot;⚙ Gen IDEA\n資深 PM Expert&quot;] --&gt; R1[&quot;↻ Review + Fix Loop\nfinding = 0 → pass\nfinding &gt; 0 → Fix → re-Review&quot;]
         R1 --&gt; G2[&quot;⚙ Gen BRD\n資深商業分析師&quot;]
@@ -772,9 +772,9 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
         end
         REQ --&gt; DES --&gt; UML_L --&gt; QA --&gt; OPS --&gt; AUDIT --&gt; IMPL --&gt; PUB
     end
-    FLOW --&gt; DONE([GitHub Pages 文件站\n+ docs/blueprint/ 可攜帶])
-    RESUME([&quot;/gendoc-flow\n斷點續行&quot;]) -.-&gt;|&quot;review_progress\ncompleted_steps&quot;| FLOW
-    CONFIG([&quot;/gendoc-config\n設定強度 / 重跑點&quot;]) -.-&gt; FLOW
+    FLOW --&gt; DONE((GitHub Pages 文件站\n+ docs/blueprint/ 可攜帶))
+    RESUME((&quot;/gendoc-flow\n斷點續行&quot;)) -.-&gt;|&quot;review_progress\ncompleted_steps&quot;| FLOW
+    CONFIG((&quot;/gendoc-config\n設定強度 / 重跑點&quot;)) -.-&gt; FLOW
     classDef condNode fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
     classDef gameNode fill:#fce7f3,stroke:#db2777,color:#831843
     classDef specNode fill:#fef3c7,stroke:#f59e0b,color:#78350f
@@ -811,7 +811,7 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
                │              └─[稽核層] ALIGN_REPORT.md + README.md → docs/pages/</code></pre>
 <h4 id="文件上下層關係圖document-hierarchy-diagram">文件上下層關係圖（Document Hierarchy Diagram）</h4>
 <div class="diagram-container"><pre class="mermaid">graph TD
-    REQ([docs/req/ 原始素材])
+    REQ((docs/req/ 原始素材))
     L0[&quot;L0 IDEA.md&lt;br/&gt;&lt;small&gt;概念入口（可選）&lt;/small&gt;&quot;]
     L1[&quot;L1 BRD.md&lt;br/&gt;&lt;small&gt;商業需求&lt;/small&gt;&quot;]
     L2[&quot;L2 PRD.md&lt;br/&gt;&lt;small&gt;產品需求&lt;/small&gt;&quot;]
@@ -879,7 +879,7 @@ ALTER TABLE users ADD CONSTRAINT chk_email_format CHECK (email ~* &#x27;^[^@]+@[
 <h4 id="累積上游關聯圖cumulative-reference-visualization">累積上游關聯圖（Cumulative Reference Visualization）</h4>
 <p>每個節點顏色深度代表累積讀取的文件層數；箭頭方向為「讀取方向」（下游文件讀上游文件）。</p>
 <div class="diagram-container"><pre class="mermaid">graph TD
-    REQ([&quot;docs/req/ ●&quot;]):::l0
+    REQ((&quot;docs/req/ ●&quot;)):::l0
     ID[&quot;IDEA ●●&quot;]:::l1
     BR[&quot;BRD ●●●&quot;]:::l2
     PR[&quot;PRD ●●●●&quot;]:::l3
