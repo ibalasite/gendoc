@@ -847,7 +847,7 @@ AI 執行時必須 Read 骨架檔案，不得使用任何內嵌模板。-->
       - **SPEC 初始值 `groups: []`**；整個 SPEC 宣告包在 `/* INJECT_SPEC_HERE */` … `/* END_INJECT_SPEC */` 標記中
       - **SPEC endpoint auth 欄位**必須使用 `{type,cookieName}` 物件格式（禁止舊 `auth_required: true/false`）
       - **State 必須包含 `cookieJar: {}`**；`Set-Cookie Max-Age>0` 存入，`Max-Age=0` 刪除
-      - **`mockExec` 簽名**：`async function mockExec(ep, up, bodyObj, token, cookieJar = {})`（必須接受第 5 個參數）
+      - **`mockExec` 簽名**：`async function mockExec(ep, up, bodyObj, token, cookieJar = {}, reqHeaders = {})`（必須接受第 6 個參數；`reqHeaders` 為使用者在 Headers tab 手動新增的 key-value 對）
       - **`checkAuth(ep, token, cookieJar)`** 依 `ep.auth` 型別驗證 bearer / cookie / any
       - **Cookie auto-header**：Headers tab Auto-Generated section，jar 非空時自動出現 `Cookie: k=v; ...`
       - **🍪 badge**：app header 顯示 jar 中 cookie 數量，空時隱藏
@@ -884,6 +884,14 @@ AI 執行時必須 Read 骨架檔案，不得使用任何內嵌模板。-->
       - 新增環境變數使用 inline `<tr>` 插入（`<input>` 或 contenteditable），禁止呼叫 `window.prompt()` 或 `window.confirm()`
       - 每行末尾有刪除按鈕（`<button class="env-del-btn">`），點擊後從 `S.envVars[]` 移除並 re-render
       - 修改環境變數值必須即時觸發 URL 預覽更新（`{{base_url}}` 等變數替換）
+- [ ] **[Iron Law N] mockExec 過濾參數必須生效**：
+      - 列表型 endpoint（`/admin/tokens`、`/admin/audit-log` 等）的 `mockExec` 分支必須讀取 `up`（URL params）中的過濾參數（如 `status`、`user_id`、`scope`、`page`、`start_date`、`end_date`）並實際過濾 mock 資料，**禁止永遠回傳固定 3 筆資料無視任何參數**
+      - 路徑參數（如 `/tokens/{id}/revoke`）在 `up.id`（或對應 key）為空時必須回傳 `404 Not Found`，**禁止用 `up.id || 'default-id'` fallback 靜默接受空 id**
+      - 批次操作（approve/reject）對不存在的 entity 必須回傳 `404`；重複操作（對已 active token 再 approve）必須回傳 `409 Conflict`
+- [ ] **[Iron Law O] mockExec 必須純函式，副作用走正規管道**：
+      - `mockExec` 本身是 `async function`，禁止在其內直接呼叫 `showToast()`、`renderEnvPanel()`、直接修改全域 DOM
+      - 需要儲存 auth token：回傳 bResp 的 body 包含 token，**由 post-response script（`S.postScript`）** 使用 `pm.environment.set('auth_token', ...)` 完成；或 mockExec 僅修改 `S.env`（純 state 變更），由 `renderResponse()` 統一觸發 UI 更新
+      - Cookie 生命週期（login Set-Cookie / logout Max-Age=0）仍透過 `bResp` 的第 5 個 `cookies` 參數傳回，由 `renderResponse()` 統一寫入/清除 `S.cookieJar`，mockExec 不直接操作 `S.cookieJar`
 
 完成後輸出：
 API_EXPLORER_GEN_RESULT:
@@ -1380,6 +1388,8 @@ API Explorer（_PROTO_MODE = api-explorer / full）：
 - [ ] A-15: **[Iron Law K] Test Results 顯示執行結果** — 有 script 執行後，Test Results tab 是否顯示每條 `pm.test` 的 Pass/Fail？tab label 是否含計數（如 `Test Results (2/3)`）？是否禁止了「永遠顯示 No test scripts defined.」的狀況？
 - [ ] A-16: **[Iron Law L] addEnvVar 無 prompt()** — 環境變數新增/編輯是否使用 inline `<input>` 行（而非 `window.prompt()`）？每行是否有刪除按鈕？修改值是否即時更新 URL 預覽？（搜尋 `window.prompt`，出現即違反）
 - [ ] A-17: **[Iron Law M] Body tab 所有 method 均有 mode toggles** — GET/HEAD/OPTIONS endpoint 切換到 Body tab 是否能看到 none/raw/form-data/urlencoded/binary 的切換按鈕？還是直接顯示「No body for GET requests」而無任何切換？（搜尋 `renderBodyTab` 內是否存在 `ms.includes` 或 `['POST','PUT','PATCH','DELETE']` 白名單早返，出現即違反）
+- [ ] A-18: **[Iron Law N] mockExec 過濾參數生效** — 列表型 endpoint 的 mockExec 分支是否真正讀取 `up.status`/`up.user_id`/`up.page` 等過濾參數？（搜尋對應 switch/if 分支 — 若分支只讀 `up.status` 而忽略其他 8 個過濾 param 即違反）路徑參數空值是否回傳 404 而非 fallback 到 `up.id || 'default-id'`？批次操作重複執行是否回傳 409？
+- [ ] A-19: **[Iron Law O] mockExec 純函式** — `mockExec` 函式體內是否存在直接呼叫 `showToast()`/`renderEnvPanel()`/直接寫 DOM？（出現即違反）auth token 儲存是否透過 post-response script 的 `pm.environment.set()` 或僅修改 `S.env`（無 DOM 操作）？Cookie 生命週期是否只透過 `bResp` 第 5 參數傳回？
 
 **完成後輸出（格式嚴格）：**
 PROTOTYPE_REVIEW_RESULT:

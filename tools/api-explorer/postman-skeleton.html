@@ -217,7 +217,8 @@ const S = {
   docOpen: false,
   preScript: '',
   postScript: '',
-  cookieJar: {}           // JS-simulated browser cookie jar: {name: value}
+  cookieJar: {},          // JS-simulated browser cookie jar: {name: value}
+  _testResults: []        // populated by pm.test() calls in post-response script
 };
 
 // ─── UTILS ────────────────────────────────────────────────────────────────────
@@ -235,7 +236,13 @@ function parseCookie(str) { const p = { name: '', value: '', domain: '', path: '
 
 // ─── MOCK ENGINE ──────────────────────────────────────────────────────────────
 function makeH(extra = {}) { return { 'Content-Type': 'application/json; charset=utf-8', 'X-Request-Id': uuid(), 'Date': new Date().toUTCString(), 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Access-Control-Allow-Origin': '*', 'Server': 'nginx/1.25.3', 'Vary': 'Accept-Encoding', ...extra } }
-function bResp(status, hdr, body, elapsed, cookies = []) { const json = body === '' ? '' : fmtJSON(body); return { status, statusText: statusText(status), headers: { ...hdr, 'X-Response-Time': String(Math.round(elapsed)) }, body: json, cookies, elapsed: Math.round(elapsed), size: new Blob([json]).size } }
+function bResp(status, hdr, body, elapsed, cookies = []) {
+  const json = body === '' ? '' : fmtJSON(body);
+  const allCookies = [...cookies];
+  const sc = hdr['Set-Cookie'];
+  if (sc) { const scArr = Array.isArray(sc) ? sc : [sc]; scArr.forEach(cs => { const p = parseCookie(cs); if (p.name) allCookies.push(p) }); }
+  return { status, statusText: statusText(status), headers: { ...hdr, 'X-Response-Time': String(Math.round(elapsed)) }, body: json, cookies: allCookies, elapsed: Math.round(elapsed), size: new Blob([json]).size };
+}
 function authFail(elapsed) { return bResp(401, makeH({ 'WWW-Authenticate': 'Bearer realm="api"' }), { error: { code: 'UNAUTHORIZED', message: 'Authentication required.' } }, elapsed) }
 function valFail(details, elapsed) { return bResp(422, makeH(), { error: { code: 'VALIDATION_ERROR', message: 'Validation failed', details: details.filter(Boolean) } }, elapsed) }
 
@@ -263,7 +270,7 @@ function checkAuth(ep, token, cookieJar) {
 //
 // auth_token save → S.env.auth_token = tok; renderEnvPanel(); showToast('✓ auth_token saved');
 /* INJECT_MOCK_HERE */
-async function mockExec(ep, up, bodyObj, token, cookieJar = {}) {
+async function mockExec(ep, up, bodyObj, token, cookieJar = {}, reqHeaders = {}) {
   const lat = 60 + Math.random() * 240;
   await new Promise(r => setTimeout(r, lat));
   if (ep.auth && !checkAuth(ep, token, cookieJar)) return authFail(lat);
@@ -351,7 +358,8 @@ function renderHeadersTab() {
   });
   h += `</tbody></table><button class="add-row-btn" onclick="S.headers.push({key:'',val:'',desc:'',on:true});renderReqContent()">+ Add Header</button>`;
   const auto = { 'Content-Type': 'application/json', 'Accept': '*/*', 'User-Agent': 'ApiExplorer/1.0' };
-  const tok = getToken(); if (tok) auto['Authorization'] = 'Bearer ' + tok.substring(0, 20) + '…';
+  const tok = getToken();
+  if (tok) { if (S.auth.type === 'basic') auto['Authorization'] = 'Basic ' + tok.substring(0, 20) + '…'; else if (S.auth.type === 'apikey') { if (S.auth.keyIn !== 'query') auto[S.auth.keyName || 'X-API-Key'] = tok.substring(0, 20) + '…'; } else auto['Authorization'] = 'Bearer ' + tok.substring(0, 20) + '…'; }
   const jarEntries = Object.entries(S.cookieJar).filter(([, v]) => v);
   if (jarEntries.length) auto['Cookie'] = jarEntries.map(([k, v]) => `${k}=${v.length > 14 ? v.substring(0, 14) + '…' : v}`).join('; ');
   h += `<div class="section-label" style="margin-top:16px;color:var(--border)">Auto-Generated</div><table class="param-table"><tbody>`;
@@ -404,7 +412,7 @@ function renderBodyTab() {
   return h;
 }
 function renderScriptsTab() { return `<div class="section-label">Pre-request Script</div><textarea class="script-textarea" placeholder="// pm.environment.set('key', 'value')" oninput="S.preScript=this.value">${esc(S.preScript)}</textarea><div class="section-label" style="margin-top:16px">Post-response Script (Tests)</div><textarea class="script-textarea" placeholder="pm.test('Status is 200', () => pm.response.to.have.status(200))" oninput="S.postScript=this.value">${esc(S.postScript)}</textarea>` }
-function getToken() { const a = S.auth; if (a.type === 'bearer') return resolveVars(a.token) || resolveVars('{{auth_token}}') || ''; if (a.type === 'basic' && a.user) return btoa(a.user + ':' + a.pass); return '' }
+function getToken() { const a = S.auth; if (a.type === 'bearer') return resolveVars(a.token) || resolveVars('{{auth_token}}') || ''; if (a.type === 'basic' && a.user) return btoa(a.user + ':' + a.pass); if (a.type === 'apikey' && a.keyVal) return resolveVars(a.keyVal); return '' }
 
 // ─── URL ──────────────────────────────────────────────────────────────────────
 function onUrlChange() { updateUrlPreview() }
@@ -429,13 +437,43 @@ function getUrlParams() {
 async function doSend() {
   if (!S.ep) return;
   const btn = document.getElementById('send-btn'); btn.disabled = true; btn.textContent = '⏳ Sending…';
+  S._testResults = [];
   try {
+    // Pre-request script — runs before mockExec, can mutate S.env
+    if (S.preScript.trim()) {
+      try {
+        const pmPre = { environment: { get: k => S.env[k] || '', set: (k, v) => { S.env[k] = String(v); updateUrlPreview(); if (S.envOpen) renderEnvPanel() } }, request: { url: document.getElementById('url-input').value } };
+        new Function('pm', S.preScript)(pmPre);
+      } catch (e) { S._testResults.push({ name: 'PRE-SCRIPT ERROR', passed: false, error: e.message }) }
+    }
+    // Build body with {{var}} resolution
     const token = getToken();
     let bodyObj = null;
-    if (S.bodyType === 'raw' && S.bodyRaw) { try { bodyObj = JSON.parse(S.bodyRaw) } catch (e) { } }
-    else if (S.bodyType === 'form-data') bodyObj = Object.fromEntries(S.bodyFormData.filter(r => r.on && r.key).map(r => [r.key, r.val]));
-    else if (S.bodyType === 'urlencoded') bodyObj = Object.fromEntries(S.bodyUrlencoded.filter(r => r.on && r.key).map(r => [r.key, r.val]));
-    const resp = await mockExec(S.ep, getUrlParams(), bodyObj, token, S.cookieJar);
+    if (S.bodyType === 'raw' && S.bodyRaw) {
+      const resolved = resolveVars(S.bodyRaw);
+      try { bodyObj = JSON.parse(resolved) }
+      catch (e) { showToast('⚠ Body is not valid JSON — check formatting'); btn.disabled = false; btn.textContent = '▶ Send'; return; }
+    } else if (S.bodyType === 'form-data') {
+      bodyObj = Object.fromEntries(S.bodyFormData.filter(r => r.on && r.key).map(r => [r.key, resolveVars(r.val)]));
+    } else if (S.bodyType === 'urlencoded') {
+      bodyObj = Object.fromEntries(S.bodyUrlencoded.filter(r => r.on && r.key).map(r => [r.key, resolveVars(r.val)]));
+    }
+    // Build custom request headers with {{var}} resolution
+    const reqHeaders = Object.fromEntries(S.headers.filter(h => h.on && h.key).map(h => [h.key, resolveVars(h.val)]));
+    // Execute mock (6-arg: ep, urlParams, bodyObj, token, cookieJar, reqHeaders)
+    const resp = await mockExec(S.ep, getUrlParams(), bodyObj, token, S.cookieJar, reqHeaders);
+    // Post-response script — pm.test() / pm.expect() results populate S._testResults
+    if (S.postScript.trim()) {
+      try {
+        let _rb = null;
+        const pmPost = {
+          response: { status: resp.status, json: () => { if (!_rb) { try { _rb = JSON.parse(resp.body) } catch (e) {} } return _rb }, headers: { get: k => resp.headers[k] || '' }, to: { have: { status: s => { if (resp.status !== s) throw new Error('Expected ' + s + ' got ' + resp.status) } } } },
+          test: (name, fn) => { try { fn(); S._testResults.push({ name, passed: true, error: '' }) } catch (e) { S._testResults.push({ name, passed: false, error: e.message }) } },
+          expect: v => ({ to: { equal: e2 => { if (v !== e2) throw new Error('Expected ' + JSON.stringify(e2) + ' got ' + JSON.stringify(v)) }, be: { ok: () => { if (!v) throw new Error('Expected truthy') } }, include: e2 => { if (!String(v).includes(String(e2))) throw new Error('Expected to include ' + JSON.stringify(e2)) } } })
+        };
+        new Function('pm', S.postScript)(pmPost);
+      } catch (e) { S._testResults.push({ name: 'POST-SCRIPT ERROR', passed: false, error: e.message }) }
+    }
     S.resp = resp; renderResponse(resp);
   } catch (e) { showToast('⚠ ' + e.message) }
   finally { btn.disabled = false; btn.textContent = '▶ Send' }
@@ -467,7 +505,7 @@ function renderRespContent() {
   if (S.respTab === 'body') el.innerHTML = renderRespBody(S.resp);
   else if (S.respTab === 'headers') el.innerHTML = renderRespHeaders(S.resp);
   else if (S.respTab === 'cookies') el.innerHTML = renderRespCookies(S.resp);
-  else el.innerHTML = `<div class="empty-state">No test scripts defined.<br><br>Add scripts in the <strong>Scripts</strong> tab.</div>`;
+  else el.innerHTML = renderTestResults();
 }
 function renderRespBody(r) {
   const modes = ['pretty', 'raw', 'preview', 'visualize'];
@@ -487,7 +525,14 @@ function renderRespBody(r) {
 function j2t(o, d = 0) { if (d > 2) return esc(JSON.stringify(o)); if (Array.isArray(o)) { if (!o.length) return '<em style="color:var(--t2)">[]</em>'; const ks = Object.keys(o[0] || {}); return `<table class="resp-table"><thead><tr>${ks.map(k => `<th>${esc(k)}</th>`).join('')}</tr></thead><tbody>${o.slice(0, 20).map(row => `<tr>${ks.map(k => `<td>${esc(String(row[k] ?? ''))}</td>`).join('')}</tr>`).join('')}</tbody></table>` } if (o && typeof o === 'object') return `<table class="resp-table"><tbody>${Object.entries(o).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${typeof v === 'object' ? j2t(v, d + 1) : esc(String(v ?? ''))}</td></tr>`).join('')}</tbody></table>`; return esc(String(o ?? '')) }
 function renderRespHeaders(r) { const e = Object.entries(r.headers); if (!e.length) return '<div class="empty-state">No headers</div>'; return `<table class="resp-table"><thead><tr><th>Key</th><th>Value</th></tr></thead><tbody>${e.map(([k, v]) => `<tr><td>${esc(k)}</td><td style="color:var(--t1)">${esc(v)}</td></tr>`).join('')}</tbody></table>` }
 function renderRespCookies(r) { if (!r.cookies?.length) return '<div class="empty-state">No cookies were received</div>'; return `<table class="resp-table"><thead><tr><th>Name</th><th>Value</th><th>Domain</th><th>Path</th><th>Expires</th><th>HttpOnly</th><th>Secure</th><th>SameSite</th></tr></thead><tbody>${r.cookies.map(c => `<tr><td style="color:var(--jk)">${esc(c.name)}</td><td style="color:var(--js)">${esc((c.value || '').substring(0, 30))}${(c.value || '').length > 30 ? '…' : ''}</td><td style="color:var(--t2);font-size:10px">${esc(c.domain)}</td><td style="color:var(--t2)">${esc(c.path)}</td><td style="color:var(--t2);font-size:10px">${esc(c.expires || 'Session')}</td><td>${c.httpOnly ? '<span class="cookie-check">✓</span>' : '—'}</td><td>${c.secure ? '<span class="cookie-check">✓</span>' : '—'}</td><td style="color:var(--t2)">${esc(c.sameSite || '—')}</td></tr>`).join('')}</tbody></table>` }
-function copyResp() { if (!S.resp?.body) return; navigator.clipboard.writeText(S.resp.body).then(() => { const b = document.getElementById('copy-resp-btn'); if (b) { b.textContent = '✓ Copied!'; setTimeout(() => b.textContent = '📋 Copy', 1500) } }) }
+function renderTestResults() {
+  if (!S._testResults || !S._testResults.length) return `<div class="empty-state">No test scripts defined.<br><br>Add scripts in the <strong>Scripts</strong> tab.</div>`;
+  const pass = S._testResults.filter(t => t.passed).length, total = S._testResults.length;
+  let h = `<div style="margin-bottom:12px;font-size:12px;color:${pass===total?'var(--s2)':'var(--md)'};font-weight:600">${pass} / ${total} tests passed</div>`;
+  h += S._testResults.map(t => `<div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)"><span style="font-size:14px;flex-shrink:0">${t.passed ? '✅' : '❌'}</span><div style="flex:1"><div style="font-size:12px;color:${t.passed?'var(--t1)':'var(--md)'}">${esc(t.name)}</div>${t.error ? `<div style="font-size:11px;color:var(--t2);font-family:monospace;margin-top:2px">${esc(t.error)}</div>` : ''}</div></div>`).join('');
+  return h;
+}
+function copyResp() { if (!S.resp?.body) return; navigator.clipboard.writeText(S.resp.body).then(() => { const b = document.getElementById('copy-resp-btn'); if (b) { b.textContent = '✓ Copied!'; setTimeout(() => b.textContent = '📋 Copy', 1500) } }).catch(() => showToast('⚠ Clipboard not available')) }
 function downloadResp() { if (!S.resp?.body) return; const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([S.resp.body], { type: 'application/json' })); a.download = 'response.json'; a.click() }
 function clearResp() { S.resp = null; document.getElementById('resp-empty').style.display = 'flex'; document.getElementById('resp-loaded').style.display = 'none' }
 let _wrap = false; function toggleWrap() { _wrap = !_wrap; const p = document.getElementById('resp-body-pre'); if (p) p.style.whiteSpace = _wrap ? 'pre-wrap' : 'pre'; const b = document.getElementById('wrap-btn'); if (b) b.style.color = _wrap ? 'var(--accent)' : '' }
@@ -496,9 +541,26 @@ let _wrap = false; function toggleWrap() { _wrap = !_wrap; const p = document.ge
 function toggleEnvPanel() { S.envOpen = !S.envOpen; const p = document.getElementById('env-panel'); p.style.display = S.envOpen ? 'flex' : 'none'; if (S.envOpen) renderEnvPanel() }
 function renderEnvPanel() {
   const el = document.getElementById('env-scroll');
-  el.innerHTML = `<table class="param-table" style="margin:8px 14px;width:calc(100% - 28px)"><thead><tr><th>Variable</th><th>Value</th></tr></thead><tbody>${Object.entries(S.env).map(([k, v]) => `<tr><td><input class="cell-input" value="${esc(k)}" readonly style="color:var(--jk)"></td><td><input class="cell-input" value="${esc(v)}" placeholder="(empty)" oninput="S.env['${k}']=this.value;updateUrlPreview()"></td></tr>`).join('')}</tbody></table>`;
+  const rows = Object.keys(S.env).map((k, i) => {
+    const ek = esc(k), ev = esc(S.env[k]);
+    return `<tr><td><input class="cell-input" value="${ek}" style="color:var(--jk)" onblur="renameEnvVar(${i},this.value)"></td><td><input class="cell-input" value="${ev}" placeholder="(empty)" oninput="S.env[Object.keys(S.env)[${i}]]=this.value;updateUrlPreview()"></td><td style="width:28px"><button class="del-btn" onclick="deleteEnvVar(${i})">×</button></td></tr>`;
+  }).join('');
+  el.innerHTML = `<table class="param-table" style="margin:8px 14px;width:calc(100% - 28px)"><thead><tr><th>Variable</th><th>Value</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
 }
-function addEnvVar() { const k = prompt('Variable name:'); if (k?.trim()) { S.env[k.trim()] = ''; renderEnvPanel() } }
+function renameEnvVar(idx, newKey) {
+  newKey = (newKey || '').trim(); const keys = Object.keys(S.env); const oldKey = keys[idx];
+  if (!newKey || newKey === oldKey) return;
+  const entries = Object.entries(S.env).map(([k, v], i) => [i === idx ? newKey : k, v]);
+  Object.keys(S.env).forEach(k => delete S.env[k]); entries.forEach(([k, v]) => { S.env[k] = v });
+  updateUrlPreview(); renderEnvPanel();
+}
+function deleteEnvVar(idx) { const k = Object.keys(S.env)[idx]; if (k !== undefined) { delete S.env[k]; renderEnvPanel(); updateUrlPreview() } }
+function addEnvVar() {
+  let base = 'new_variable', n = 0; while (Object.prototype.hasOwnProperty.call(S.env, base + (n || ''))) n++;
+  S.env[base + (n || '')] = ''; renderEnvPanel();
+  const rows = document.querySelectorAll('#env-scroll tbody tr'); const last = rows[rows.length - 1];
+  if (last) { const inp = last.querySelector('.cell-input'); if (inp) { inp.focus(); inp.select() } }
+}
 
 // ─── DOC PANEL ────────────────────────────────────────────────────────────────
 function toggleDocPanel() {
@@ -550,12 +612,20 @@ document.addEventListener('keydown', e => {
 });
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
-// Populate S.env from SPEC.env (allow SPEC to define env vars)
+function _initFromHash() {
+  const h = location.hash.replace('#', '');
+  if (!h) return false;
+  const allEps = (SPEC.groups || []).flatMap(g => g.eps || []);
+  const ep = allEps.find(e => e.id === h) || allEps.find(e => 'endpoint-' + e.id === h);
+  if (ep) { selectEndpoint(ep.id); return true }
+  return false;
+}
+// Populate S.env from SPEC.env
 if (SPEC.env) Object.assign(S.env, SPEC.env);
 renderSidebar();
-// Select first endpoint automatically
-const _firstEp = SPEC.groups?.[0]?.eps?.[0];
-if (_firstEp) selectEndpoint(_firstEp.id);
+// Select endpoint from URL hash, or fall back to first endpoint
+if (!_initFromHash()) { const _firstEp = SPEC.groups?.[0]?.eps?.[0]; if (_firstEp) selectEndpoint(_firstEp.id) }
+window.addEventListener('hashchange', _initFromHash);
 </script>
 </body>
 </html>
