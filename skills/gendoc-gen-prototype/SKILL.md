@@ -856,7 +856,7 @@ AI 執行時必須 Read 骨架檔案，不得使用任何內嵌模板。-->
       - **Params tab**：Path Variables 固定列（不可刪）+ Query Params 可新增刪除；每列 checkbox/key/value/desc 四欄可編輯
       - **Authorization tab**：type select（No Auth / Bearer Token / Basic Auth / API Key）+ 對應 input
       - **Headers tab**：user-editable rows + 下方 Auto-Generated section（Content-Type/Authorization/Cookie）
-      - **Body tab**（POST/PUT/PATCH/DELETE）：body type toggle（none/raw/form-data/urlencoded/binary）+ raw → `<textarea class="body-editor">` + Beautify 按鈕
+      - **Body tab**（**所有 method 均顯示**，包含 GET/HEAD/OPTIONS）：body type toggle（none/raw/form-data/urlencoded/binary）+ raw → `<textarea class="body-editor">` + Beautify 按鈕；**禁止用 method 白名單（如 `['POST','PUT','PATCH','DELETE']`）在 renderBodyTab() 頭部 early-return 截斷 GET 的渲染** — bodyType='none' 預設值 + "This request does not have a body." 空狀態已足夠；使用者可手動切換到 raw 為任何 method 加 body
       - **Response panel**（`#resp-loaded`）：resp-topbar（status badge + ⏱ elapsed + 📦 size + Copy/Download/Clear/Wrap）
       - **Response tab bar**（#resp-tabs）：Body | Headers (N) | Cookies (N) | Test Results — 4 個固定 tab
       - **Body tab**（response）：Pretty/Raw/Preview/Visualize 四向切換；Pretty → syntax-highlighted JSON；Visualize → JSON-to-table
@@ -869,6 +869,7 @@ AI 執行時必須 Read 骨架檔案，不得使用任何內嵌模板。-->
 - [ ] `doSend()` 從 `S.params`（url params）+ `S.auth`（token）+ `S.cookieJar`（cookies）+ `S.bodyRaw`（body textarea）讀取輸入；**禁止只回傳硬編碼 example**
 - [ ] `ep.auth` 不通過 `checkAuth()` → mockExec 回傳 401
 - [ ] sidebar 搜尋可過濾 endpoint 列表（method + path + summary 模糊比對）
+- [ ] **[Iron Law M] Body tab 所有 method 均渲染 mode toggles**：`renderBodyTab()` 不得以 method 白名單（如 `!['POST','PUT','PATCH','DELETE'].includes(ep.m)`）在頭部 early-return；模式切換按鈕（none/raw/form-data/urlencoded/binary）必須對所有 method 均渲染；GET/HEAD/OPTIONS 預設 `bodyType='none'` 即可，使用者須能切換到 raw 自行加 body
 - [ ] **[Iron Law H] Endpoint 覆蓋率 = 100%**：`SPEC.groups[].endpoints` 總數必須等於 API.md 中 HTTP endpoint 數量（主 Claude 在派送前已用 Python 計算並嵌入提示，數量為 `{_TOTAL_EP}` 個）；**禁止省略任何 endpoint，包含管理後台 `/admin/*` 路由、GDPR endpoint、health check**；完成後輸出的 `endpoints_generated` 必須等於 `{_TOTAL_EP}`
 - [ ] **[Iron Law J] Scripts Tab 必須真正執行**：
       - Pre-request script（`S.preScript`）在 `doSend()` 呼叫 `mockExec` 之前，使用 sandboxed `new Function('pm', S.preScript)(pmPreContext)` 執行；執行出錯 → Test Results tab 顯示 `PRE-SCRIPT ERROR: {msg}`
@@ -1378,6 +1379,7 @@ API Explorer（_PROTO_MODE = api-explorer / full）：
 - [ ] A-14: **[Iron Law J] Scripts 真正執行** — `doSend()` 是否在呼叫 `mockExec` 前執行 `S.preScript`（用 `new Function` sandbox）？是否在 `mockExec` 回傳後執行 `S.postScript`？（搜尋 `preScript`/`postScript` — 若只 assign 不執行即違反）`pm.test()` 結果是否累積至 `S._testResults[]`？
 - [ ] A-15: **[Iron Law K] Test Results 顯示執行結果** — 有 script 執行後，Test Results tab 是否顯示每條 `pm.test` 的 Pass/Fail？tab label 是否含計數（如 `Test Results (2/3)`）？是否禁止了「永遠顯示 No test scripts defined.」的狀況？
 - [ ] A-16: **[Iron Law L] addEnvVar 無 prompt()** — 環境變數新增/編輯是否使用 inline `<input>` 行（而非 `window.prompt()`）？每行是否有刪除按鈕？修改值是否即時更新 URL 預覽？（搜尋 `window.prompt`，出現即違反）
+- [ ] A-17: **[Iron Law M] Body tab 所有 method 均有 mode toggles** — GET/HEAD/OPTIONS endpoint 切換到 Body tab 是否能看到 none/raw/form-data/urlencoded/binary 的切換按鈕？還是直接顯示「No body for GET requests」而無任何切換？（搜尋 `renderBodyTab` 內是否存在 `ms.includes` 或 `['POST','PUT','PATCH','DELETE']` 白名單早返，出現即違反）
 
 **完成後輸出（格式嚴格）：**
 PROTOTYPE_REVIEW_RESULT:

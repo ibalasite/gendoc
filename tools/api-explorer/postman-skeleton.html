@@ -361,8 +361,6 @@ function renderHeadersTab() {
 function setBodyType(t) { S.bodyType = t; const btn = document.getElementById('body-tab-btn'); if (btn) btn.textContent = t !== 'none' ? 'Body (' + { raw: 'raw', 'form-data': 'form-data', urlencoded: 'urlencoded', binary: 'binary' }[t] + ')' : 'Body'; renderReqContent() }
 function beautifyBody() { try { const e = document.getElementById('body-editor'); e.value = JSON.stringify(JSON.parse(e.value), null, 2); S.bodyRaw = e.value } catch (e) { showToast('⚠ Invalid JSON') } }
 function renderBodyTab() {
-  const ms = ['POST', 'PUT', 'PATCH', 'DELETE'];
-  if (!ms.includes(S.ep?.m)) return `<div class="empty-state">No body for ${esc(S.ep?.m || '')} requests</div>`;
   const LABELS = { none: 'none', raw: 'raw', 'form-data': 'form-data', urlencoded: 'x-www-form-urlencoded', binary: 'binary' };
   let h = `<div class="body-mode-toggle">${Object.keys(LABELS).map(t => `<button class="body-mode-btn${S.bodyType === t ? ' active' : ''}" onclick="setBodyType('${t}')">${LABELS[t]}</button>`).join('')}</div>`;
   if (S.bodyType === 'none') return h + `<div class="empty-state">This request does not have a body.</div>`;
