@@ -189,7 +189,7 @@ CODEBASE_SNAPSHOT:
 
 **讀取步驟（不得跳過）：**
 1. 若存在，讀取 docs/PRD.md → 提取：User Stories、功能模組、使用者角色
-2. 若存在，讀取 docs/PDD.md → 提取：畫面清單（Screen List）、設計決策、UX 流程
+2. 若存在，讀取 docs/PDD.md → 提取：畫面清單（Screen List）、設計決策、UX 流程；★ **特別重要**：從每個 Screen §5 的 `Key Components:` 區塊逐行複製 component 名稱 + States + Props（含 `maxCidrs`/`maxChars`/`count` 等數量限制），原文原樣填入 components 欄位，不得省略、不得歸納
 3. 若存在，讀取 docs/VDD.md → 提取：色彩系統（主色/輔色/背景/文字）、字型規範、間距規範、品牌風格
 4. 若存在，讀取 docs/FRONTEND.md → 提取：組件清單、頁面結構、導覽架構、互動規格
 5. 若存在，讀取 docs/AUDIO.md → 提取：BGM 清單、P0 SFX 觸發點（事件名稱）、VO 關鍵點
@@ -212,7 +212,21 @@ PROTOTYPE_SPEC:
       source: "PRD User Story N / PDD Screen List / FRONTEND §N"
       nav_from: []  # 哪些 screen 可以導覽到此處
       nav_to: []    # 此處可以導覽到哪些 screen
-      components: ["Header", "DataTable", "Button"]
+      components:
+        # ★ 直接從 PDD §5（或 FRONTEND §N）的 Key Components 複製，含 States 與重要 Props
+        # 格式：每個 component 必須記錄 name + layout_type + states（若有）+ props_constraints（若有）
+        # 例：
+        # - { name: "TokenTable", layout_type: "table", states: ["loading","empty","populated"],
+        #     columns: ["Token 說明","前綴","Scope","子站","狀態","到期日","Quota","操作"] }
+        # - { name: "ExpiryWarningBanner", states: ["hidden","visible"], trigger: "tokens.filter(expiring)" }
+        # - { name: "IPWhitelistManager", states: ["view","editing"], props: {maxCidrs: 5} }
+        # - { name: "ApplyTokenModal", states: ["step1_purpose","step2_scope","step3_confirm","submitting","success"] }
+        # - { name: "RejectModal", props: {maxChars: 200, reason_required: true} }
+        # - { name: "MetricCard", props: {count: 4, fields: ["label","value","unit","status"]} }
+        - name: "ComponentName"
+          layout_type: "table|card|list|modal|form|chart|badge"
+          states: []  # 從 PDD Key Components States 欄位複製
+          props: {}   # maxCidrs, maxChars, columns 等重要約束
       mock_data_needed: true|false
 
   design_tokens:
@@ -556,6 +570,10 @@ export const fxEngine = new FXEngine();
 
 **Step G-6: 寫入 prototype.js（路由 + 互動核心）**
 
+> **★ 重要前置動作（禁止跳過）**：在開始寫程式碼前，必須逐一確認 PROTOTYPE_SPEC.screens 中每個 screen 的 `components` 欄位，重新閱讀每個 component 的 `layout_type`、`states`、`props`。寫每個 `renderXxx()` 函式時，先列出該 screen 的 Key Components 清單，確認每一個都被實作後再繼續。「沒時間全部做」不是理由 — Iron Law R 全部違反。
+
+> **★ 若 prototype.js 已存在**：先讀取現有實作，評估每個 screen 的實作品質。若已正確實作所有 Key Components，只補充缺漏部分（最小修改），不得整個覆寫後反而變得更簡化。
+
 使用 Write 工具寫入 `docs/pages/prototype/assets/prototype.js`：
 
 ```javascript
@@ -673,6 +691,32 @@ router.init();
 - [ ] **[Q-4] 設定頁面必須有實際功能**：設定畫面（P7 或等效）必須包含 ≥2 個可修改並以 `localStorage` 持久化的設定項目（語言偏好/通知設定/API 預設值等）；禁止設定頁只顯示頭像+Email+登出而無可操作設定。
 - [ ] **[Q-5] 輸入欄位必須有驗證**：IP 白名單格式必須驗證 CIDR（`/^\d{1,3}(\.\d{1,3}){3}\/\d{1,2}$/`）；IP 筆數上限必須 enforce（超出上限 → 顯示錯誤，禁止繼續新增）；表單送出前必須驗 required 欄位，禁止無驗證直接 `showToast('已送出')` 假成功。
 - [ ] **[Q-6] 多步驟表單必須動態讀 mockData**：Substation 選項必須從 `mockData.substationDefs`（或等效資料源）動態生成 `<option>`，禁止硬編碼選項文字；有效期下拉必須對應 spec 允許的選項（如 30天/60天/90天），禁止無依據硬編碼。
+
+**Iron Law R — 畫面 Key Components 1:1 實作（禁止省略/壓縮）：**
+
+> **★ 重要執行步驟**：在生成每個 `renderXxx()` 函式前，必須重新閱讀 PROTOTYPE_SPEC.screens[N].components，確認所有 Key Components 均被實作。不得依賴記憶跳過此步驟。
+
+- [ ] **[R-1] table 佈局禁止 card 替代**：component 的 `layout_type=table` 或名稱含 "Table"/"Queue"/"ApplicationQueue" 者，render 函式必須使用 `<table><thead><tbody>` 結構；禁止用 card-grid（`<div class="token-card">` 等）替代；PDD §5 明確顯示 table layout 的畫面，不得改成 card 以「更美觀」為由。
+
+- [ ] **[R-2] States 必須實作**：component 有 `states: ["loading","empty","populated"]` 時，render 函式中至少實作 `empty`（空狀態提示）和 `populated`（有資料的完整 HTML）兩個分支；有 `loading` 時需有 spinner 或 skeleton；`states: ["view","editing"]` 的 component（如 IPWhitelistManager）必須有 edit mode 的 HTML + 觸發邏輯。
+
+- [ ] **[R-3] Modal 多步驟分函式**：component `states` 含 `step1_xxx|step2_xxx|...` 格式者，必須為每個 step 建立獨立 render 函式（如 `renderApplyStep1()`、`renderApplyStep2()` 等），由 `wizardState.step` 驅動；禁止把所有 step HTML 塞進一個 renderXxx() 函式用 if-else 切換。
+
+- [ ] **[R-4] IPWhitelistManager 必須可操作**：若任何 screen 包含 `IPWhitelistManager` component，render 函式必須包含：(a) 現有 CIDR 的 `<code>` 顯示列表；(b) `+ 新增 IP` 按鈕；(c) 新增 CIDR 的 `<input>` + CIDR 格式驗證（`/^\d{1,3}(\.\d{1,3}){3}\/\d{1,2}$/`）；(d) 超過 maxCidrs 限制時禁止新增並顯示錯誤。禁止只讀展示。
+
+- [ ] **[R-5] RejectModal 必須有字元計數器**：若任何 screen 包含帶 `maxChars` 的 RejectModal（或等效審批拒絕 Modal），render 函式必須包含：`<textarea maxlength="N" required>`；`<span id="char-count">0/N</span>`；`oninput` 更新計數；提交前 `required` 驗證（reason 為空 → 禁止送出）。
+
+- [ ] **[R-6] MetricCard 必須 ≥4 個且帶狀態色彩**：若 PROTOTYPE_SPEC 含 admin dashboard screen（包含 MetricCard component），必須生成 ≥4 個獨立 MetricCard（label/value/unit/status），每個 status 對應不同顏色（normal/warning/critical = 綠/橙/紅）；數值必須從 mockData 計算，禁止硬編碼。
+
+- [ ] **[R-7] 匯出 CSV + JSON 各獨立函式**：若 screen spec 要求 `ExportButton format:'csv'|'json'`，兩種格式必須各有獨立的 Blob 下載函式（`exportAuditCsv()` + `exportAuditJson()`），分別綁定對應按鈕；禁止只實作 CSV 省略 JSON。
+
+- [ ] **[R-8] prototype.js 行數下限**：整個 prototype.js 行數 ≥ 80 × screen_count（最低下限）；每個非空 renderXxx() 函式 ≥ 30 行；含 multi-step modal 時各 step 函式合計 ≥ 100 行；含 filter+pagination table 時相關函式合計 ≥ 80 行。
+
+- [ ] **[R-9] 申請資訊區段（SaaS 申請型 portal）**：若 PDD §5 的 Token Detail screen 包含「申請資訊」definition-list（含 使用目的/申請時間/審批方式/n8n 治理確認 等欄位），render 函式必須實作此 `<dl>` 區段；禁止只顯示 Token ID / Created / Expires / Last Used 四欄而省略申請資訊。
+
+- [ ] **[R-10] QuotaBar 必須帶多個 metric 數字**：Token Detail 的 Quota section 必須同時顯示「已使用/今日剩餘/每日上限」三個數字（`metric-row`），以及進度條和 Rate Limit 說明（60次/分鐘、1,000次/小時、5,000次/天）；禁止只顯示「N / M (P%)」一行。
+
+Iron Law R 任何一項違反 = CRITICAL，必須修復後重新輸出。
 
 完成後輸出：
 PROTOTYPE_GEN_RESULT:
@@ -1426,6 +1470,18 @@ API Explorer（_PROTO_MODE = api-explorer / full）：
 - [ ] A-18: **[Iron Law N] mockExec 過濾參數生效** — 列表型 endpoint 的 mockExec 分支是否真正讀取 `up.status`/`up.user_id`/`up.page` 等過濾參數？（搜尋對應 switch/if 分支 — 若分支只讀 `up.status` 而忽略其他 8 個過濾 param 即違反）路徑參數空值是否回傳 404 而非 fallback 到 `up.id || 'default-id'`？批次操作重複執行是否回傳 409？
 - [ ] A-19: **[Iron Law O] mockExec 純函式** — `mockExec` 函式體內是否存在直接呼叫 `showToast()`/`renderEnvPanel()`/直接寫 DOM？（出現即違反）auth token 儲存是否透過 post-response script 的 `pm.environment.set()` 或僅修改 `S.env`（無 DOM 操作）？Cookie 生命週期是否只透過 `bResp` 第 5 參數傳回？
 - [ ] A-20: **[Iron Law P] 骨架未被重寫** — `btn.textContent = '&#9654;` 是否出現在 JS 中？（出現即 CRITICAL：textContent 不解析 HTML entity，導致顯示亂碼）搜尋 `renderTestResults`、`_initFromHash`、`S._testResults`、`reqHeaders = {}` — 四者缺失任一即表示骨架被重新生成而非字串替換；endpoint 總數是否等於 API.md 定義的數量？
+
+**Iron Law R — Key Components 完整性審查（_PROTO_MODE = ui / full）：**
+- [ ] R-1: **[Iron Law R-1] table layout** — PROTOTYPE_SPEC 中 `layout_type=table` 或名稱含 "Table"/"Queue" 的 component，prototype.js 中是否用 `<table><thead><tbody>` 渲染？（搜尋對應 render 函式 — 若只見 `class="token-card"` 或 `<div class="card">`  而非 `<table>` → CRITICAL）
+- [ ] R-2: **[Iron Law R-2] States 完整** — 每個有 `states: ["empty","populated"]` 的 component，render 函式中是否有空狀態 HTML（空表格提示或 empty-state div）和有資料狀態 HTML 兩個分支？（搜尋對應 render 函式中是否有 `length === 0` 分支）
+- [ ] R-3: **[Iron Law R-3] 多步驟 Modal 分函式** — 若 PROTOTYPE_SPEC 包含含 `step1_xxx|step2_xxx` States 的 modal component，prototype.js 是否有對應的獨立 step 函式（renderApplyStep1/2/3...）？（搜尋 `renderApplyStep` 或等效命名 — 若只有一個大 renderApplyModal 塞所有 step HTML → HIGH）
+- [ ] R-4: **[Iron Law R-4] IPWhitelistManager 可操作** — 若 screen 包含 IPWhitelistManager，prototype.js 是否有：「+ 新增 IP」按鈕、新增 input 欄位、CIDR 正規表達式驗證（`/\d+\.\d+\.\d+\.\d+\/\d+/`）、超過 maxCidrs 的錯誤提示？（若只有靜態 IP 列表無任何新增邏輯 → HIGH）
+- [ ] R-5: **[Iron Law R-5] RejectModal 字元計數** — 若 screen 包含帶 maxChars 的 RejectModal，prototype.js 中是否有 `<textarea maxlength="N" required>`、字元計數 span、及 `oninput` 更新計數的邏輯？（搜尋 `maxlength` + `char-count` — 缺一 → HIGH）
+- [ ] R-6: **[Iron Law R-6] MetricCard ≥4** — 若 PROTOTYPE_SPEC 包含 admin dashboard，prototype.js 是否生成 ≥4 個 MetricCard？每個是否含 label/value/unit/status（normal/warning/critical）四個欄位，且數值從 mockData 計算？（搜尋 metric-card class 出現次數 — <4 次 → HIGH）
+- [ ] R-7: **[Iron Law R-7] 匯出 CSV + JSON 各獨立** — 若 screen spec 要求兩種格式匯出，prototype.js 是否各有獨立 exportXxx() 函式 + Blob download？（搜尋 export 函式 — 只有一個 → MEDIUM）
+- [ ] R-8: **[Iron Law R-8] 行數下限** — prototype.js 行數是否 ≥ 80 × screen_count？（用 wc -l 計算 — 若低於 80 × N → CRITICAL）
+- [ ] R-9: **[Iron Law R-9] 申請資訊區段** — 若 PDD §5 Token Detail screen 包含「申請資訊」definition-list，prototype.js 的 renderP4 或等效函式是否包含含 使用目的/申請時間/審批方式 欄位的 `<dl>` 或 equivalent section？（搜尋 `申請資訊` 或 `definition-list` — 缺失 → HIGH）
+- [ ] R-10: **[Iron Law R-10] QuotaBar 三指標** — Token Detail 的 Quota section 是否同時顯示「已使用/今日剩餘/每日上限」三個數字 + Rate Limit 說明？（搜尋 render 函式中是否有三個 metric 值 + 說明文字 — 若只有 `N/M (P%)` 一行 → MEDIUM）
 
 **完成後輸出（格式嚴格）：**
 PROTOTYPE_REVIEW_RESULT:
