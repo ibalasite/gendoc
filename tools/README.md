@@ -237,3 +237,4 @@ exit code 非 0 視為失敗，整個 setup 中止。
 4. **目標專案只呼叫 `~/.claude/skills/gendoc/tools/bin/`** — 不讀 `~/projects/gendoc/tools/<package>/`，目標專案不依賴作者本機
 
 詳見 [CLAUDE.md](../CLAUDE.md) §架構原則。
+
