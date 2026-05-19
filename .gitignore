@@ -1,6 +1,11 @@
 .gendoc-state*.json
 .skill-guard.json
 
+# tools/bin/*.py are deploy artifacts (copied from tools/<package>/ by setup deploy)
+# Python needs no compilation; SSOT lives in tools/<package>/<package>.py
+# Shell scripts in tools/bin/ remain tracked as they ARE the SSOT
+tools/bin/*.py
+
 # Preview sandbox: source PDD.md committed; generated pages regenerated locally
 tools/gen_html/preview/docs/pages/
 # Sidebar preview sandboxes: docs/ rsync'd from pet/erp on demand, pages/ regenerated
