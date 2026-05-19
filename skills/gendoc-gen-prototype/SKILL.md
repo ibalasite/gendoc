@@ -696,7 +696,11 @@ router.init();
 
 > **★ 重要執行步驟**：在生成每個 `renderXxx()` 函式前，必須重新閱讀 PROTOTYPE_SPEC.screens[N].components，確認所有 Key Components 均被實作。不得依賴記憶跳過此步驟。
 
-- [ ] **[R-1] table 佈局禁止 card 替代**：component 的 `layout_type=table` 或名稱含 "Table"/"Queue"/"ApplicationQueue" 者，render 函式必須使用 `<table><thead><tbody>` 結構；禁止用 card-grid（`<div class="token-card">` 等）替代；PDD §5 明確顯示 table layout 的畫面，不得改成 card 以「更美觀」為由。
+- [ ] **[R-1] 佈局型態以 FRONTEND.md 為準**：PROTOTYPE_SPEC.screens[N].components[M].layout_type 由 Step 1 讀取 FRONTEND.md 後設定；生成 renderXxx() 時**嚴格照 layout_type 欄位**，不得依 component 名稱猜測。具體規則（源自 FRONTEND.md §4.1）：
+  - **P2 Token Dashboard** → `layout_type='card'`，使用 `TokenCard` card-grid（`<div class="token-card">`）；禁止改成 `<table>` — FRONTEND.md P2 Components Used 明確列出 `TokenCard`，而非 `TokenTable`
+  - **P6 Personal Audit Log** → `layout_type='table'`，使用 `<table><thead><tbody>` 結構，欄位必須包含：timestamp / token prefix / endpoint / method / status code / latency / source IP（共 7 欄，源自 FRONTEND.md §4.1 P6）
+  - **Admin A3 Approval Queue** → `layout_type='table'`，欄位：applicant / purpose / scope badges / substation / elapsed time
+  - 若 PROTOTYPE_SPEC 未設定 layout_type，預設 Developer Portal screens 用 card；Admin Backend screens 用 table（依 FRONTEND.md §2.3 架構原則）
 
 - [ ] **[R-2] States 必須實作**：component 有 `states: ["loading","empty","populated"]` 時，render 函式中至少實作 `empty`（空狀態提示）和 `populated`（有資料的完整 HTML）兩個分支；有 `loading` 時需有 spinner 或 skeleton；`states: ["view","editing"]` 的 component（如 IPWhitelistManager）必須有 edit mode 的 HTML + 觸發邏輯。
 
@@ -706,15 +710,21 @@ router.init();
 
 - [ ] **[R-5] RejectModal 必須有字元計數器**：若任何 screen 包含帶 `maxChars` 的 RejectModal（或等效審批拒絕 Modal），render 函式必須包含：`<textarea maxlength="N" required>`；`<span id="char-count">0/N</span>`；`oninput` 更新計數；提交前 `required` 驗證（reason 為空 → 禁止送出）。
 
-- [ ] **[R-6] MetricCard 必須 ≥4 個且帶狀態色彩**：若 PROTOTYPE_SPEC 含 admin dashboard screen（包含 MetricCard component），必須生成 ≥4 個獨立 MetricCard（label/value/unit/status），每個 status 對應不同顏色（normal/warning/critical = 綠/橙/紅）；數值必須從 mockData 計算，禁止硬編碼。
+- [ ] **[R-6] Admin A1 MetricCard 必須 ≥4 個且帶狀態色彩**：若 PROTOTYPE_SPEC 含 Admin Backend 的 admin dashboard screen（FRONTEND.md §4.2 A1 Screen，包含 MetricCard component），必須生成 ≥4 個獨立 MetricCard（label/value/unit/status）：Gateway P95 Latency / 5xx Error Rate / Active Token Count / Daily API Call Volume；每個 status 對應不同顏色（normal/warning/critical = 綠/橙/紅）；數值必須從 mockData 計算，禁止硬編碼。**此規則不適用 Developer Portal P1-P8 畫面。**
 
 - [ ] **[R-7] 匯出 CSV + JSON 各獨立函式**：若 screen spec 要求 `ExportButton format:'csv'|'json'`，兩種格式必須各有獨立的 Blob 下載函式（`exportAuditCsv()` + `exportAuditJson()`），分別綁定對應按鈕；禁止只實作 CSV 省略 JSON。
 
 - [ ] **[R-8] prototype.js 行數下限**：整個 prototype.js 行數 ≥ 80 × screen_count（最低下限）；每個非空 renderXxx() 函式 ≥ 30 行；含 multi-step modal 時各 step 函式合計 ≥ 100 行；含 filter+pagination table 時相關函式合計 ≥ 80 行。
 
-- [ ] **[R-9] 申請資訊區段（SaaS 申請型 portal）**：若 PDD §5 的 Token Detail screen 包含「申請資訊」definition-list（含 使用目的/申請時間/審批方式/n8n 治理確認 等欄位），render 函式必須實作此 `<dl>` 區段；禁止只顯示 Token ID / Created / Expires / Last Used 四欄而省略申請資訊。
+- [ ] **[R-9] P4 完整 metadata 區段**：P4 Token Detail（FRONTEND.md §4.1 P4）render 函式必須實作以下所有 metadata 欄位：status badge / token prefix / creation date / expiry countdown / **approval method**（即時核准或待審批）/ scope badges / substation tags；禁止只顯示 Token ID / Created / Expires / Last Used 四欄而省略 approval method + scope badges + substation tags。
 
-- [ ] **[R-10] QuotaBar 必須帶多個 metric 數字**：Token Detail 的 Quota section 必須同時顯示「已使用/今日剩餘/每日上限」三個數字（`metric-row`），以及進度條和 Rate Limit 說明（60次/分鐘、1,000次/小時、5,000次/天）；禁止只顯示「N / M (P%)」一行。
+- [ ] **[R-10] P4 QuotaBar 三層速率進度條**：Token Detail 的 Quota section 必須依 FRONTEND.md §4.1 P4（"per-minute / per-hour / per-day progress bars (60/1000/5000 per CONSTANTS §6)"）實作**三條獨立進度條**：每分鐘（上限 60）/ 每小時（上限 1,000）/ 每天（上限 5,000）；每條進度條各自計算百分比，並顯示「已用 N / 上限 M」；禁止只顯示一行「N / M (P%)」壓縮三個指標。
+
+- [ ] **[R-11] P4 TokenUsageChart 7 天趨勢圖必須實作**：FRONTEND.md §4.1 P4 Components Used 明確包含 `TokenUsageChart`，render 函式必須以 SVG 或 HTML5 Canvas 實作 7 天柱狀或折線圖（≥7 個資料點從 mockData.tokens[N] 取得或計算）；禁止以「使用趨勢：近 7 天 XXX 次」純文字替代。
+
+- [ ] **[R-12] P7 ERP substations + session countdown**：P7 User Profile（FRONTEND.md §4.1 P7 Key Interactions）render 函式必須包含：(a) `mockData.currentUser.substations` 顯示為 read-only tag 列表；(b) session expiry countdown（倒數顯示）；(c) Logout 按鈕；缺少任何一項 → HIGH。
+
+- [ ] **[R-13] P6 audit log 7 天預設 + 7 欄**：P6 Personal Audit Log（FRONTEND.md §4.1 P6）render 函式必須實作：(a) 預設時間範圍為最近 7 天（default 7-day filter）；(b) `<table>` 欄位包含所有 7 欄：timestamp / token prefix / endpoint / method / status code / latency / source IP；(c) CSV 和 JSON 兩種匯出按鈕；缺少任何 column 或缺 JSON 匯出 → HIGH。
 
 Iron Law R 任何一項違反 = CRITICAL，必須修復後重新輸出。
 
@@ -1472,16 +1482,19 @@ API Explorer（_PROTO_MODE = api-explorer / full）：
 - [ ] A-20: **[Iron Law P] 骨架未被重寫** — `btn.textContent = '&#9654;` 是否出現在 JS 中？（出現即 CRITICAL：textContent 不解析 HTML entity，導致顯示亂碼）搜尋 `renderTestResults`、`_initFromHash`、`S._testResults`、`reqHeaders = {}` — 四者缺失任一即表示骨架被重新生成而非字串替換；endpoint 總數是否等於 API.md 定義的數量？
 
 **Iron Law R — Key Components 完整性審查（_PROTO_MODE = ui / full）：**
-- [ ] R-1: **[Iron Law R-1] table layout** — PROTOTYPE_SPEC 中 `layout_type=table` 或名稱含 "Table"/"Queue" 的 component，prototype.js 中是否用 `<table><thead><tbody>` 渲染？（搜尋對應 render 函式 — 若只見 `class="token-card"` 或 `<div class="card">`  而非 `<table>` → CRITICAL）
+- [ ] R-1: **[Iron Law R-1] 佈局型態以 FRONTEND.md 為準** — P2 Token Dashboard 是否用 card-grid（`class="token-card"` 等），而非 `<table>`？P6 Personal Audit Log 是否用 `<table><thead><tbody>` 且包含全部 7 欄（timestamp/token prefix/endpoint/method/status code/latency/source IP）？Admin A3 Approval Queue 是否用 table？（若 P2 改成 `<table>` → CRITICAL；若 P6 缺欄位 → HIGH）
 - [ ] R-2: **[Iron Law R-2] States 完整** — 每個有 `states: ["empty","populated"]` 的 component，render 函式中是否有空狀態 HTML（空表格提示或 empty-state div）和有資料狀態 HTML 兩個分支？（搜尋對應 render 函式中是否有 `length === 0` 分支）
 - [ ] R-3: **[Iron Law R-3] 多步驟 Modal 分函式** — 若 PROTOTYPE_SPEC 包含含 `step1_xxx|step2_xxx` States 的 modal component，prototype.js 是否有對應的獨立 step 函式（renderApplyStep1/2/3...）？（搜尋 `renderApplyStep` 或等效命名 — 若只有一個大 renderApplyModal 塞所有 step HTML → HIGH）
 - [ ] R-4: **[Iron Law R-4] IPWhitelistManager 可操作** — 若 screen 包含 IPWhitelistManager，prototype.js 是否有：「+ 新增 IP」按鈕、新增 input 欄位、CIDR 正規表達式驗證（`/\d+\.\d+\.\d+\.\d+\/\d+/`）、超過 maxCidrs 的錯誤提示？（若只有靜態 IP 列表無任何新增邏輯 → HIGH）
 - [ ] R-5: **[Iron Law R-5] RejectModal 字元計數** — 若 screen 包含帶 maxChars 的 RejectModal，prototype.js 中是否有 `<textarea maxlength="N" required>`、字元計數 span、及 `oninput` 更新計數的邏輯？（搜尋 `maxlength` + `char-count` — 缺一 → HIGH）
-- [ ] R-6: **[Iron Law R-6] MetricCard ≥4** — 若 PROTOTYPE_SPEC 包含 admin dashboard，prototype.js 是否生成 ≥4 個 MetricCard？每個是否含 label/value/unit/status（normal/warning/critical）四個欄位，且數值從 mockData 計算？（搜尋 metric-card class 出現次數 — <4 次 → HIGH）
+- [ ] R-6: **[Iron Law R-6] Admin A1 MetricCard ≥4** — 若 PROTOTYPE_SPEC 包含 Admin Backend A1 admin dashboard screen，prototype.js 是否生成 ≥4 個 MetricCard（Gateway P95 Latency / 5xx Error Rate / Active Token Count / Daily API Call Volume）？每個是否含 label/value/unit/status（normal/warning/critical）？數值是否從 mockData 計算？（搜尋 metric-card class 在 admin render 函式中出現次數 — <4 次 → HIGH）
 - [ ] R-7: **[Iron Law R-7] 匯出 CSV + JSON 各獨立** — 若 screen spec 要求兩種格式匯出，prototype.js 是否各有獨立 exportXxx() 函式 + Blob download？（搜尋 export 函式 — 只有一個 → MEDIUM）
 - [ ] R-8: **[Iron Law R-8] 行數下限** — prototype.js 行數是否 ≥ 80 × screen_count？（用 wc -l 計算 — 若低於 80 × N → CRITICAL）
-- [ ] R-9: **[Iron Law R-9] 申請資訊區段** — 若 PDD §5 Token Detail screen 包含「申請資訊」definition-list，prototype.js 的 renderP4 或等效函式是否包含含 使用目的/申請時間/審批方式 欄位的 `<dl>` 或 equivalent section？（搜尋 `申請資訊` 或 `definition-list` — 缺失 → HIGH）
-- [ ] R-10: **[Iron Law R-10] QuotaBar 三指標** — Token Detail 的 Quota section 是否同時顯示「已使用/今日剩餘/每日上限」三個數字 + Rate Limit 說明？（搜尋 render 函式中是否有三個 metric 值 + 說明文字 — 若只有 `N/M (P%)` 一行 → MEDIUM）
+- [ ] R-9: **[Iron Law R-9] P4 完整 metadata 區段** — renderP4 是否包含 FRONTEND.md §4.1 P4 的所有 metadata：status badge / token prefix / creation date / expiry countdown / approval method / scope badges / substation tags？（搜尋 `approval` + `scope` + `substation` — 任何一項缺失 → HIGH）
+- [ ] R-10: **[Iron Law R-10] P4 QuotaBar 三層進度條** — Token Detail Quota section 是否有**三條獨立進度條**：每分鐘 (上限60) / 每小時 (上限1000) / 每天 (上限5000)？（搜尋是否有三個 progress bar + 三組「N/M」數字 — 若只有一條 → CRITICAL；若三條但缺某一條的 N/M 顯示 → HIGH）
+- [ ] R-11: **[Iron Law R-11] P4 TokenUsageChart 7天圖** — renderP4 是否包含 SVG 或 Canvas 的 7 天 API 使用趨勢圖（≥7個資料點）？（搜尋 `<svg` 或 `<canvas` 在 renderP4 函式中 — 若只有文字描述無圖形元素 → CRITICAL）
+- [ ] R-12: **[Iron Law R-12] P7 ERP substations + session countdown** — renderP7 是否包含：(a) substations read-only tag 列表（從 mockData.currentUser.substations）；(b) session expiry countdown；(c) Logout 按鈕？（搜尋 `substations` + `countdown` 或 `expiry` — 缺一 → HIGH）
+- [ ] R-13: **[Iron Law R-13] P6 7天預設 + 7欄** — renderP6 是否有 default 7-day filter 邏輯？表格是否含全部 7 欄（timestamp/token prefix/endpoint/method/status code/latency/source IP）？是否有 CSV + JSON 各一個匯出按鈕？（搜尋欄位名稱 + `exportJson` — 缺 JSON 匯出 → HIGH；缺欄位 → HIGH）
 
 **完成後輸出（格式嚴格）：**
 PROTOTYPE_REVIEW_RESULT:
